@@ -77,14 +77,12 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
 
   @Override
   public void afterProjectsRead(MavenSession session) throws MavenExecutionException {
-    List<MavenProject> applying = new ArrayList<>();
     List<MavenProject> wantSkills = new ArrayList<>();
     for (MavenProject project : session.getProjects()) {
       Optional<Plugin> hkjPlugin = findPlugin(project, PLUGIN_KEY);
       if (hkjPlugin.isEmpty()) {
         continue;
       }
-      applying.add(project);
 
       HKJConfiguration config;
       try {
@@ -102,12 +100,8 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     skillsHome(wantSkills, session.getRequest().getMultiModuleProjectDirectory())
         .flatMap(home -> findPlugin(home, PLUGIN_KEY))
         .ifPresent(this::bindInstallSkills);
-    if (!applying.isEmpty()) {
-      Logger log = LoggerFactory.getLogger(HKJLifecycleParticipant.class);
-      Path skills = InstalledSkills.directory(session, applying.getFirst().getBasedir());
-      HKJConfiguration.bundledRelease()
-          .ifPresent(release -> reportStrayCopies(applying, skills, release, log::info));
-    }
+    Logger log = LoggerFactory.getLogger(HKJLifecycleParticipant.class);
+    reportStrayCopies(session, log::info);
   }
 
   /**
@@ -126,13 +120,34 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
    */
   static void reportAfterSession(
       MavenSession session, Consumer<String> warn, Consumer<String> info) {
-    session.getProjects().stream()
-        .filter(project -> findPlugin(project, PLUGIN_KEY).isPresent())
-        .findFirst()
+    firstApplying(session)
         .ifPresent(
             project ->
                 reportInstalledSkills(
                     InstalledSkills.directory(session, project.getBasedir()), warn, info));
+  }
+
+  /**
+   * Reports each copy of the HKJ skills that a project of {@code session}'s reactor holds and the
+   * build no longer updates, if any of its projects applies the plugin. It checks every project of
+   * the reactor, since an older {@code mvn hkj:install-skills}, run over a reactor, ran in each.
+   */
+  static void reportStrayCopies(MavenSession session, Consumer<String> info) {
+    firstApplying(session)
+        .map(project -> InstalledSkills.directory(session, project.getBasedir()))
+        .ifPresent(
+            skills ->
+                HKJConfiguration.bundledRelease()
+                    .ifPresent(
+                        release ->
+                            reportStrayCopies(session.getProjects(), skills, release, info)));
+  }
+
+  /** The first project of {@code session}'s reactor that applies the plugin. */
+  private static Optional<MavenProject> firstApplying(MavenSession session) {
+    return session.getProjects().stream()
+        .filter(project -> findPlugin(project, PLUGIN_KEY).isPresent())
+        .findFirst();
   }
 
   /**
@@ -148,14 +163,14 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
   }
 
   /**
-   * Tells each project whose own {@code .claude/skills} is not {@code skills} that the HKJ skills
-   * there, stamped with another release than {@code release} or none, are a copy the build no
-   * longer updates. The plugin deletes nothing, so a copy an older plugin installed into a module
-   * stays until its owner removes it.
+   * Tells each of {@code projects} whose own {@code .claude/skills} is not {@code skills} that the
+   * HKJ skills there, stamped with another release than {@code release} or none, are a copy the
+   * build no longer updates. The plugin deletes nothing, so a copy an older plugin installed into a
+   * module stays until its owner removes it.
    */
   static void reportStrayCopies(
-      List<MavenProject> applying, Path skills, String release, Consumer<String> info) {
-    applying.stream()
+      List<MavenProject> projects, Path skills, String release, Consumer<String> info) {
+    projects.stream()
         .map(project -> InstalledSkills.skillsIn(project.getBasedir()))
         .distinct()
         .filter(dir -> !InstalledSkills.sameDirectory(dir, skills))

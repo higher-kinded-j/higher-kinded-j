@@ -120,6 +120,8 @@ rm -rf /tmp/hkj-skills
 
 ### Verifying Installation
 
+From the root of your build:
+
 ```bash
 ls .claude/skills/hkj-*/SKILL.md
 ```
@@ -185,7 +187,7 @@ Skills are versioned with the build plugin. Each install writes a stamp, `.claud
 version=0.6.0
 ```
 
-With `skills = true` in the Gradle extension, or `<skills>true</skills>` in the Maven plugin's configuration, each build that compiles also installs whatever differs from the plugin's skills. At the end of each build, the plugin reads the stamp and tells you when the skills are out of step: Gradle before its `BUILD SUCCESSFUL` line, Maven after its build summary. A build whose own install brought them up to date has nothing to say.
+With `skills = true` in the Gradle extension, each build that runs a project's `classes` task, as `build` and `test` do, also installs whatever differs from the plugin's skills. With `<skills>true</skills>` in the Maven plugin's configuration, each build that compiles does. At the end of each build, the plugin reads the stamp and tells you when the skills are out of step: Gradle before its `BUILD SUCCESSFUL` line, Maven after its build summary. A build whose own install brought them up to date has nothing to say.
 
 | The plugin finds | It says |
 |------------------|---------|
@@ -207,7 +209,7 @@ The skills describe the plugin's own release, which is the library's too unless 
 
 ### Removing Copies in Modules {#copies-in-modules}
 
-The plugins install only at the root of the build, and never delete a copy anywhere else. An older plugin installed a copy into each module, and nothing updates those copies, so they drift from the release you build with. Claude Code reads a module's own skills while it works in that module, so a stale copy can mislead it. Each module that applies the plugin, and holds a copy stamped with another release or none, says so at the end of each build. Install the skills at the root first, if it holds none, then list the copies from the root of your project:
+The plugins install only at the root of the build, and never delete a copy anywhere else. An older plugin installed a copy into each module, and nothing updates those copies, so they drift from the release you build with. Claude Code reads a module's own skills while it works in that module, so a stale copy can mislead it. Each build names every copy stamped with another release or none, in any module an older plugin could have installed into. Gradle checks each module that applies the plugin. Maven checks every module of the reactor, since an older `mvn hkj:install-skills`, run over a reactor, ran in each. Install the skills at the root first, if it holds none, then list the copies from the root of your project:
 
 ```bash
 find . -path ./.claude -prune -o -path '*/.claude/skills/hkj-*' -prune -print

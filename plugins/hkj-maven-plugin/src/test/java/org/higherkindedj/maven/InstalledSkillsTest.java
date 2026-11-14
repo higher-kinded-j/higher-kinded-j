@@ -26,13 +26,20 @@ class InstalledSkillsTest {
 
     private final File fallback = new File("/repo/module");
 
+    /**
+     * {@code first} and {@code more} as the plugin names them: on Windows, on the current drive.
+     */
+    private static Path absolute(String first, String... more) {
+      return Path.of(first, more).toAbsolutePath();
+    }
+
     @Test
     @DisplayName("is .claude/skills in the directory Maven names the root of the build")
     void inTheMultiModuleProjectDirectory() {
       MavenSession session = Sessions.session(new File("/repo"));
 
       assertThat(InstalledSkills.directory(session, fallback))
-          .isEqualTo(Path.of("/repo", ".claude", "skills"));
+          .isEqualTo(absolute("/repo", ".claude", "skills"));
     }
 
     @Test
@@ -43,7 +50,7 @@ class InstalledSkillsTest {
       MavenSession session = Sessions.session(null, Sessions.project(fallback), top);
 
       assertThat(InstalledSkills.directory(session, fallback))
-          .isEqualTo(Path.of("/repo", "top", ".claude", "skills"));
+          .isEqualTo(absolute("/repo", "top", ".claude", "skills"));
     }
 
     @Test
@@ -52,7 +59,7 @@ class InstalledSkillsTest {
       MavenSession session = Sessions.session(null);
 
       assertThat(InstalledSkills.directory(session, fallback))
-          .isEqualTo(Path.of("/repo", "module", ".claude", "skills"));
+          .isEqualTo(absolute("/repo", "module", ".claude", "skills"));
     }
   }
 

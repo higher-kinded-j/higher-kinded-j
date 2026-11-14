@@ -724,6 +724,31 @@ class HKJLifecycleParticipantTest {
       }
 
       @Test
+      @DisplayName("in any project of the reactor are reported, if a project applies the plugin")
+      void inAnyProject_areReported_ifAProjectAppliesThePlugin(@TempDir Path repo)
+          throws IOException {
+        MavenProject root = Sessions.project(repo.toFile());
+        MavenProject app = Sessions.project(repo.resolve("app").toFile());
+        // mvn hkj:install-skills, run over the reactor, installed into a project that does not
+        // apply the plugin too
+        MavenProject lib = Sessions.project(repo.resolve("lib").toFile());
+        Files.createDirectories(repo.resolve("lib/.claude/skills/hkj-guide"));
+
+        HKJLifecycleParticipant.reportStrayCopies(
+            Sessions.session(repo.toFile(), root, app, lib), infos::add);
+        assertThat(infos).isEmpty();
+
+        app.getBuild().addPlugin(hkjPlugin());
+        HKJLifecycleParticipant.reportStrayCopies(
+            Sessions.session(repo.toFile(), root, app, lib), infos::add);
+        assertThat(infos)
+            .singleElement()
+            .asString()
+            .contains(
+                repo.resolve("lib/.claude/skills") + " are a copy this build no longer updates");
+      }
+
+      @Test
       @DisplayName("at the root, reached through a symbolic link, are not a copy in a module")
       void atTheRoot_throughALink_areNotAStrayCopy(@TempDir Path dir) throws IOException {
         Path repo = Files.createDirectory(dir.resolve("repo"));
