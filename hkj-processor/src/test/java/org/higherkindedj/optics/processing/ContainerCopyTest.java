@@ -62,6 +62,7 @@ class ContainerCopyTest {
                     import java.util.Map;
                     import java.util.Optional;
                     import java.util.Set;
+                    import java.util.TreeMap;
                     import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
                     import org.higherkindedj.hkt.validated.FieldError;
                     import org.higherkindedj.hkt.validated.Validated;
@@ -304,6 +305,37 @@ class ContainerCopyTest {
                         @Flatten
                         Inner inner();
                       }
+
+                      /** A key equal by name alone, so a map ordered by rank holds two equals merges. */
+                      public record Tag(String name, int rank) {
+                        @Override
+                        public boolean equals(Object other) {
+                          return other instanceof Tag tag && tag.name.equals(name);
+                        }
+
+                        @Override
+                        public int hashCode() {
+                          return name.hashCode();
+                        }
+
+                        @Override
+                        public String toString() {
+                          return name + "#" + rank;
+                        }
+                      }
+
+                      public record Tagged(
+                          Map<Tag, String> byTag,
+                          Map<Tag, List<String>> lists,
+                          TreeMap<Tag, String> sorted) {}
+
+                      public record TaggedDto(
+                          Map<Tag, String> byTag,
+                          Map<Tag, List<String>> lists,
+                          TreeMap<Tag, String> sorted) {}
+
+                      @GenerateMapping
+                      public interface TaggedMapping extends MappingSpec<Tagged, TaggedDto> {}
                     }
                     """
                         .formatted(wideComponents)),
@@ -318,6 +350,9 @@ class ContainerCopyTest {
                     import java.util.Arrays;
                     import java.util.Collection;
                     import java.util.Collections;
+                    import java.util.Comparator;
+                    import java.util.IdentityHashMap;
+                    import java.util.Iterator;
                     import java.util.LinkedHashMap;
                     import java.util.LinkedHashSet;
                     import java.util.List;
@@ -762,6 +797,134 @@ class ContainerCopyTest {
                             FixturesOuterMappingImpl.INSTANCE.asIso().reverseGet(outer).inner().tags(),
                             outer.tags());
                       }
+
+                      /** An identity map whose clone() throws, so a copy that cloned it would fail. */
+                      @SuppressWarnings("serial") // never serialised
+                      public static final class NoClone<K, V> extends IdentityHashMap<K, V> {
+                        @Override
+                        public Object clone() {
+                          throw new UnsupportedOperationException("cloned");
+                        }
+                      }
+
+                      /** Six keys that are equal but not the same object, each holding a value. */
+                      private static <V, M extends Map<Tag, V>> M sixEqualKeys(M map, V value) {
+                        for (int i = 0; i < 6; i++) {
+                          map.put(new Tag("k", 1), value);
+                        }
+                        return map;
+                      }
+
+                      private static <V> TreeMap<Tag, V> merging(V first, V second) {
+                        TreeMap<Tag, V> map = new TreeMap<>(Comparator.comparingInt(Tag::rank));
+                        map.put(new Tag("k", 1), first);
+                        map.put(new Tag("k", 2), second);
+                        return map;
+                      }
+
+                      /** A new identity map holding the source's own keys. */
+                      private static boolean holdsEveryKey(Map<Tag, ?> copy, Map<Tag, ?> source) {
+                        return copy != source
+                            && copy instanceof IdentityHashMap<?, ?>
+                            && copy.size() == source.size()
+                            && source.keySet().stream().allMatch(copy::containsKey)
+                            && !copy.containsKey(new Tag("k", 1));
+                      }
+
+                      /** As holdsEveryKey, and in the source's own order. */
+                      private static boolean keepsEveryKey(Map<Tag, ?> copy, Map<Tag, ?> source) {
+                        Iterator<Tag> copied = copy.keySet().iterator();
+                        return holdsEveryKey(copy, source)
+                            && source.keySet().stream().allMatch(key -> copied.next() == key);
+                      }
+
+                      /** Whether each value of a nested copy is a copy, not the source's own. */
+                      private static boolean copiesValues(
+                          Map<Tag, List<String>> copy, Map<Tag, List<String>> source) {
+                        return source.keySet().stream()
+                            .allMatch(key -> copy.get(key) != source.get(key)
+                                && copy.get(key).equals(source.get(key)));
+                      }
+
+                      /** The names of the checks that failed, each given as a name and a result. */
+                      private static List<String> failing(Object... checks) {
+                        List<String> failing = new ArrayList<>();
+                        for (int i = 0; i < checks.length; i += 2) {
+                          if (!(Boolean) checks[i + 1]) {
+                            failing.add((String) checks[i]);
+                          }
+                        }
+                        return failing;
+                      }
+
+                      /** The copies of an identity map, flat and nested, that lost a key. */
+                      public static List<String> identityMaps() {
+                        TaggedDto wire =
+                            new TaggedDto(
+                                sixEqualKeys(new IdentityHashMap<>(), "v"),
+                                sixEqualKeys(new IdentityHashMap<>(), list("v")),
+                                new TreeMap<>());
+                        Tagged domain = new Tagged(wire.byTag(), wire.lists(), new TreeMap<>());
+                        Tagged parsed = FixturesTaggedMappingImpl.INSTANCE.parse(wire).get();
+                        TaggedDto built = FixturesTaggedMappingImpl.INSTANCE.build(domain);
+                        Tagged iso = FixturesTaggedMappingImpl.INSTANCE.asIso().reverseGet(wire);
+                        // Back and forth: what one copy hands over, the next copy takes.
+                        TaggedDto rebuilt = FixturesTaggedMappingImpl.INSTANCE.build(parsed);
+                        Tagged reparsed = FixturesTaggedMappingImpl.INSTANCE.parse(built).get();
+                        Tagged subclass =
+                            new Tagged(
+                                sixEqualKeys(new NoClone<>(), "v"),
+                                sixEqualKeys(new NoClone<>(), list("v")),
+                                new TreeMap<>());
+                        TaggedDto fromSubclass = FixturesTaggedMappingImpl.INSTANCE.build(subclass);
+                        return failing(
+                            "parse.byTag", keepsEveryKey(parsed.byTag(), wire.byTag()),
+                            "parse.lists", keepsEveryKey(parsed.lists(), wire.lists()),
+                            "parse.lists values", copiesValues(parsed.lists(), wire.lists()),
+                            "build.byTag", keepsEveryKey(built.byTag(), domain.byTag()),
+                            "build.lists", keepsEveryKey(built.lists(), domain.lists()),
+                            "iso.byTag", keepsEveryKey(iso.byTag(), wire.byTag()),
+                            "iso.lists", keepsEveryKey(iso.lists(), wire.lists()),
+                            "parse then build.byTag", keepsEveryKey(rebuilt.byTag(), wire.byTag()),
+                            "parse then build.lists", keepsEveryKey(rebuilt.lists(), wire.lists()),
+                            "build then parse.byTag", keepsEveryKey(reparsed.byTag(), domain.byTag()),
+                            "build then parse.lists", keepsEveryKey(reparsed.lists(), domain.lists()),
+                            "subclass.byTag", holdsEveryKey(fromSubclass.byTag(), subclass.byTag()),
+                            "subclass.lists", holdsEveryKey(fromSubclass.lists(), subclass.lists()));
+                      }
+
+                      private static String refusal(Runnable copy) {
+                        try {
+                          copy.run();
+                          return "copied";
+                        } catch (IllegalArgumentException refused) {
+                          return refused.getMessage();
+                        }
+                      }
+
+                      /** What each copy says of a map holding two keys that equals merges. */
+                      public static List<String> mergingMaps() {
+                        Map<Tag, String> flat = merging("a", "b");
+                        Map<Tag, List<String>> nested = merging(list("a"), list("b"));
+                        return List.of(
+                            refusal(
+                                () -> FixturesTaggedMappingImpl.INSTANCE.parse(
+                                    new TaggedDto(flat, Map.of(), new TreeMap<>()))),
+                            refusal(
+                                () -> FixturesTaggedMappingImpl.INSTANCE.build(
+                                    new Tagged(Map.of(), nested, new TreeMap<>()))),
+                            refusal(
+                                () -> FixturesTaggedMappingImpl.INSTANCE.asIso().reverseGet(
+                                    new TaggedDto(flat, Map.of(), new TreeMap<>()))));
+                      }
+
+                      /** The way out the message offers: the map's own type, handed over as it is. */
+                      public static List<Object> mergingMapDeclaredAsItsOwnType() {
+                        TreeMap<Tag, String> sorted = merging("a", "b");
+                        TaggedDto wire = new TaggedDto(Map.of(), Map.of(), sorted);
+                        Tagged parsed = FixturesTaggedMappingImpl.INSTANCE.parse(wire).get();
+                        return List.of(parsed.sorted() == sorted, parsed.sorted().size());
+                      }
                     }
                     """));
     compiled = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -939,5 +1102,37 @@ class ContainerCopyTest {
   @DisplayName("a chunked ladder, a flattened group and its asIso copy like any other leg")
   void chunkedAndFlattenedLegsCopy() throws ReflectiveOperationException {
     assertThat(probe("wideAndFlattened")).isEqualTo(List.of());
+  }
+
+  @Test
+  @DisplayName(
+      "a map copy keeps every key of an IdentityHashMap, in its order, flat or nested, both ways;"
+          + " a subclass is copied without its clone()")
+  void anIdentityMapKeepsEveryKey() throws ReflectiveOperationException {
+    assertThat(probe("identityMaps")).isEqualTo(List.of());
+    // Only the clone's cast answers for a suppression, on its own local variable.
+    assertThat(generated("FixturesTaggedMappingImpl"))
+        .containsOnlyOnce("@SuppressWarnings(\"unchecked\")")
+        .containsPattern(
+            "@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+Map<K, V> clone = \\(Map<K, V>\\)"
+                + " identity\\.clone\\(\\);");
+  }
+
+  @Test
+  @DisplayName(
+      "a map copy refuses a map holding two keys that equals cannot tell apart, on parse, build"
+          + " and asIso, naming both keys and the way out")
+  void aMergingMapIsRefused() throws ReflectiveOperationException {
+    assertThat(probe("mergingMaps"))
+        .isEqualTo(
+            Collections.nCopies(
+                3,
+                "A generated Impl cannot copy this java.util.TreeMap without losing an entry: its"
+                    + " keys k#1 and k#2 are equal by equals(), and the copy looks keys up by"
+                    + " equals(). If this is a view of an IdentityHashMap, hold the IdentityHashMap"
+                    + " itself; otherwise declare the map's own type, which is handed over as it"
+                    + " is. A key changed after it went into the map also causes this."));
+    // Declared as its own type, the same map is handed over as it is, with both entries.
+    assertThat(probe("mergingMapDeclaredAsItsOwnType")).isEqualTo(List.of(true, 2));
   }
 }

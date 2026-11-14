@@ -3,6 +3,8 @@
 package org.higherkindedj.optics.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 
@@ -20,7 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MapEntries: the one rule by which a map optic builds a new map")
+@DisplayName("MapEntries: the one rule by which the library builds a new map from another")
 class MapEntriesTest {
 
   /** A key that equals by name alone, so a map ordered by rank holds two that equals merges. */
@@ -205,6 +207,95 @@ class MapEntriesTest {
       MapEntries<Tag, Integer> entries = MapEntries.of(mergingSource());
 
       assertThatThrownBy(() -> entries.rebuild(List.of(10, 20)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(REFUSAL);
+    }
+
+    @Test
+    @DisplayName("name the caller and its own way out in a refusal it gives")
+    void callerRefusal() {
+      MapEntries<Tag, Integer> entries =
+          MapEntries.of(
+              mergingSource(),
+              new MapEntries.Refusal("parseValues cannot parse", "pass something else"));
+
+      assertThatThrownBy(() -> entries.rebuild(List.of(10, 20)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(
+              "parseValues cannot parse this java.util.TreeMap without losing an entry: its"
+                  + " keys k#1 and k#2 are equal by equals(), and the rebuilt map looks keys up by"
+                  + " equals(). If this is a view of an IdentityHashMap, pass the map itself;"
+                  + " otherwise pass something else. A key changed after it went into the map"
+                  + " also causes this.");
+    }
+
+    @Test
+    @DisplayName("refuse a refusal with a null part")
+    void refusalRefusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new MapEntries.Refusal(null, "x"))
+          .withMessage("subject must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> new MapEntries.Refusal("x", null))
+          .withMessage("otherwise must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> MapEntries.of(Map.of(), null))
+          .withMessage("refusal must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("rebuildToHandBack()")
+  class RebuildToHandBackTests {
+
+    @Test
+    @DisplayName("hands back a map that compares by equals as an unmodifiable view, in order")
+    void equalsSourceIsReadOnly() {
+      Map<String, Integer> source = new LinkedHashMap<>();
+      source.put("c", 3);
+      source.put("a", 1);
+
+      Map<String, String> handed = MapEntries.of(source).rebuildToHandBack(List.of("three", "one"));
+
+      assertThat(handed).containsExactly(entry("c", "three"), entry("a", "one"));
+      assertThatThrownBy(() -> handed.put("b", "two"))
+          .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @DisplayName("hands back an identity map as itself, so it stays an IdentityHashMap")
+    void identitySourceStaysAnIdentityMap() {
+      IdentityHashMap<String, Integer> source = sixEqualKeys();
+      MapEntries<String, Integer> entries = MapEntries.of(source);
+
+      Map<String, Integer> handed = entries.rebuildToHandBack(entries.values());
+
+      assertSameKeysInOrder(handed, source);
+      assertThat(MapEntries.of(handed).rebuildToHandBack(entries.values())).hasSize(6);
+    }
+  }
+
+  @Nested
+  @DisplayName("requireDistinctKeys()")
+  class RequireDistinctKeysTests {
+
+    @Test
+    @DisplayName("passes a map that compares by equals, and an identity map")
+    void passes() {
+      Map<String, Integer> source = new LinkedHashMap<>();
+      source.put("c", 3);
+      source.put("a", 1);
+
+      assertThatNoException().isThrownBy(() -> MapEntries.of(source).requireDistinctKeys());
+      assertThatNoException().isThrownBy(() -> MapEntries.of(sixEqualKeys()).requireDistinctKeys());
+    }
+
+    @Test
+    @DisplayName("refuses what rebuild would, with the same message")
+    void refusesMerge() {
+      MapEntries<Tag, Integer> entries = MapEntries.of(mergingSource());
+
+      assertThatThrownBy(entries::requireDistinctKeys)
           .isInstanceOf(IllegalArgumentException.class)
           .hasMessage(REFUSAL);
     }

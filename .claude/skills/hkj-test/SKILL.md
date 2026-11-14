@@ -354,7 +354,7 @@ The individual laws are also exposed if you want them as separate test methods: 
 
 ### MappingLaws (`@GenerateMapping`)
 
-A generated mapper emits a different optic per tier, so pick the overload matching the tier you asked for. The laws compare by `equals`, and a same-typed array crosses as a clone, so a record with an array component needs an `equals` using `Arrays.equals` (or an elementwise assertion instead).
+A generated mapper emits a different optic per tier, so pick the overload matching the tier you asked for. The laws compare by `equals`, and a same-typed array crosses as a clone, so a record with an array component needs an `equals` using `Arrays.equals` (or an elementwise assertion instead). An `IdentityHashMap` component whose values are copied or converted is the same: it compares values by reference, so assert its entries one by one.
 
 ```java
 // lossless tier -> asIso()

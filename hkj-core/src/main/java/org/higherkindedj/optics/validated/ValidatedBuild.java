@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import org.higherkindedj.optics.internal.MapEntries;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -100,21 +101,40 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
    * Renders every value of a map; total like {@link #build}. Keys pass through untouched and entry
    * order is preserved.
    *
+   * <p>The rendered map holds one entry for each entry of the source, under the source's own key.
+   * An {@code IdentityHashMap} comes back an {@code IdentityHashMap} of its own, in the source's
+   * order (a subclass is copied into a plain one first, in that copy's order), so keys that are
+   * equal but not the same object stay apart. It is not wrapped unmodifiable, since a view of it
+   * would not be an {@code IdentityHashMap}, and it compares as one does, by the same key and value
+   * objects. Any other map comes back an unmodifiable map that looks keys up by {@code equals}. A
+   * source holding two keys that {@code equals} cannot tell apart, such as a {@code TreeMap} whose
+   * comparator is finer than {@code equals}, would lose an entry, so it is refused. That differs
+   * from {@link #buildKeys(Map)}, whose rendering may give two keys one wire key: here no key is
+   * rendered, so only the source can be at fault. A null key or value is refused first.
+   *
    * @param values the domain values by key; neither the map, its keys, nor its values may be null
    * @param <K> the key type, carried through unchanged
-   * @return the rendered wire values by key, immutable and in entry order (non-null)
+   * @return the rendered wire values by key, in entry order (non-null; unmodifiable unless it is an
+   *     {@code IdentityHashMap})
    * @throws NullPointerException if {@code values}, one of its keys, or one of its values is null
    *     (the message names the offending key where one exists)
+   * @throws IllegalArgumentException if {@code values} holds two keys that {@code equals} cannot
+   *     tell apart; the message names both
    */
   default <K> Map<K, S> buildValues(Map<K, ? extends A> values) {
     Objects.requireNonNull(values, "values must not be null");
-    Map<K, S> built = LinkedHashMap.newLinkedHashMap(values.size());
-    for (Map.Entry<K, ? extends A> entry : values.entrySet()) {
-      K key = Objects.requireNonNull(entry.getKey(), "values must not contain a null key");
-      built.put(key, build(requireValue(entry.getValue(), key)));
+    MapEntries<K, ? extends A> entries =
+        MapEntries.of(
+            values,
+            new MapEntries.Refusal(
+                "buildValues cannot build", "pass an IdentityHashMap copy of it"));
+    List<S> built = new ArrayList<>(entries.keys().size());
+    for (int index = 0; index < entries.keys().size(); index++) {
+      K key =
+          Objects.requireNonNull(entries.keys().get(index), "values must not contain a null key");
+      built.add(build(requireValue(entries.values().get(index), key)));
     }
-    // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
-    return Collections.unmodifiableMap(built);
+    return entries.rebuildToHandBack(built);
   }
 
   /**
