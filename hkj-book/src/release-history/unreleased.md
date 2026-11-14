@@ -19,6 +19,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A bean property's fix line compiles once followed** ([#1149](https://github.com/higher-kinded-j/higher-kinded-j/issues/1149)). The setter offered for `eMails` is `seteMails`, not `setEMails`. A rename to a keyword such as `default` is offered no marker, and a marker replaces the spec's own rename. A near miss such as `setx(int)` beside `Integer getX()` is named. See [When an unpaired accessor is refused](../mapping/rules.md#unpaired-accessors).
 - **A mapping over a deprecated type compiles under `-Werror`** ([#1381](https://github.com/higher-kinded-j/higher-kinded-j/issues/1381)). A deprecated v1 DTO, a bean's deprecated getter or a protobuf-java field declared `deprecated` drew warnings inside the generated Impl, where your own `@SuppressWarnings` cannot reach. A `@GenerateMapping` or `@GenerateMerge` Impl that names or calls a deprecated element now suppresses `deprecation`, or `removal`, on its own class. See [Build-time impact](../optics/production_readiness.md#build-time-impact).
 - **Two more PATCH-bean fix lines compile once followed** ([#1293](https://github.com/higher-kinded-j/higher-kinded-j/issues/1293)). A legacy setter such as `setTimeout(Integer)` beside a rename of `timeout` is offered no `@Unmapped` marker, since the rename takes that name. A primitive word such as `setx(int)` is offered its wrapper, `setX(Integer)`. See [A method that only starts like an accessor](../mapping/rules.md#word-accessors).
+- **A mapping keeps every entry of an `IdentityHashMap`** ([#1483](https://github.com/higher-kinded-j/higher-kinded-j/issues/1483)). A same-typed `Map` component's copy, and `ValidatedPrism`'s `parseValues` and `buildValues`, rebuilt it as a `LinkedHashMap`, merging keys that were equal but not the same object. An `IdentityHashMap` now comes back one, with every key, as a map optic's result does. See [Same-typed containers cross as copies](../mapping/rules.md#same-typed-containers-cross-as-copies).
 
 ---
 
@@ -132,6 +133,10 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **From 0.4.x, run `MigrateDeprecationsTo0_5_0` while still on 0.4.x** ([#546](https://github.com/higher-kinded-j/higher-kinded-j/issues/546)). `fold` returns on `Try` and `TryPath`, failure first. A success-first `fold` left from 0.4.x compiles again where both functions accept either argument, and runs them swapped: `t.fold(v -> true, e -> false)` now gives `true` for a failure. Rebuild what was compiled against 0.4.x too. See [To 0.6.0](upgrading.md#to-060).
 
 ### What a running program can notice {#runtime-changes}
+
+#### Mapping {#runtime-mapping}
+
+- **A mapping refuses a map holding two keys that `equals` cannot tell apart, unless it is an `IdentityHashMap`** ([#1483](https://github.com/higher-kinded-j/higher-kinded-j/issues/1483)). A same-typed `Map` copy, `parseValues` and `buildValues` lost an entry; they now throw. Hold such a map as an `IdentityHashMap`, which comes back a writable one, so look its keys up by the same object. See [Same-typed containers cross as copies](../mapping/rules.md#same-typed-containers-cross-as-copies).
 
 #### Core types {#runtime-core-types}
 

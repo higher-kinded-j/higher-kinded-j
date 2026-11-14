@@ -163,6 +163,18 @@ Mapping is not injective, so a container can **collapse**: a prism mapping both 
 
 (Bracketed index rendering, `emails[1]`, is not supported yet: paths are flat dotted segments, and the positional segment matches the map-key grammar.)
 
+### Keys that pass through {#keys-that-pass-through}
+
+`parseValues` and `buildValues` keep each entry under the source's own key:
+
+| Source map | Result |
+|---|---|
+| `IdentityHashMap` | an `IdentityHashMap` of its own, in the source's order, so keys that are equal but not the same object stay apart; it can be written to, since a read-only view of one would not be an `IdentityHashMap` |
+| any other map, its keys distinct by `equals` | an unmodifiable map that looks keys up by `equals` |
+| any other map holding two keys that `equals` cannot tell apart, such as a `TreeMap` whose comparator is finer than `equals` | `IllegalArgumentException` naming both keys; `parseValues` throws it whether or not the values parse |
+
+A [map optic](common_data_structure_traversals.md#the-solution-formapvalues-traversal) keeps keys by the same rule. Like a `null` key, a map whose keys `equals` would merge is the caller's error rather than a wrong value: pass an `IdentityHashMap` copy of it. An `IdentityHashMap` result compares by the same key and value objects, so two parses of one wire need not be equal.
+
 ---
 
 ~~~admonish info title="Key Takeaways"
