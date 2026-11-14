@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.jar.JarOutputStream;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.BuildTask;
@@ -900,6 +901,57 @@ class HKJPluginFunctionalTest {
     assertThat(install.getOutput())
         .containsOnlyOnce("Installed ")
         .doesNotContain("do not say which");
+  }
+
+  @Test
+  @DisplayName("projects that load the plugin through two classloaders give one report on the root")
+  void twoClassloaders_giveOneReport() throws IOException {
+    Files.writeString(
+        testProjectDir.resolve("settings.gradle"),
+        "rootProject.name = 'test-project'\ninclude 'app', 'lib'\n");
+    // Each project puts the plugin on a buildscript classpath of its own, and app's has one more
+    // entry, so Gradle loads the plugin's classes for each through another classloader
+    String plugin =
+        GradleRunner.create().withPluginClasspath().getPluginClasspath().stream()
+            .map(file -> "'" + file.getAbsolutePath().replace('\\', '/') + "'")
+            .collect(Collectors.joining(", "));
+    String extra =
+        Files.createDirectories(testProjectDir.resolve("extra"))
+            .toAbsolutePath()
+            .toString()
+            .replace('\\', '/');
+    for (String module : List.of("app", "lib")) {
+      String classpath = module.equals("app") ? plugin + ", '" + extra + "'" : plugin;
+      Files.writeString(
+          Files.createDirectories(testProjectDir.resolve(module)).resolve("build.gradle"),
+          """
+          buildscript { dependencies { classpath files(%s) } }
+          apply plugin: 'java'
+          apply plugin: 'io.github.higher-kinded-j.hkj'
+          println 'HKJ loaded by ' + System.identityHashCode(
+              plugins.getPlugin('io.github.higher-kinded-j.hkj').class.classLoader)
+          """
+              .formatted(classpath));
+    }
+    Files.createDirectories(testProjectDir.resolve(".claude/skills/hkj-guide"));
+    Files.createDirectories(testProjectDir.resolve("app/.claude/skills/hkj-guide"));
+
+    String output =
+        GradleRunner.create()
+            .withProjectDir(testProjectDir.toFile())
+            .withArguments("help", WARNINGS_FAIL)
+            .forwardOutput()
+            .build()
+            .getOutput();
+
+    assertThat(output.lines().filter(line -> line.startsWith("HKJ loaded by ")).distinct())
+        .hasSize(2);
+    assertThat(output)
+        .containsOnlyOnce("do not say which Higher-Kinded-J release they describe")
+        .containsOnlyOnce(
+            "skills in "
+                + testProjectDir.toRealPath().resolve("app/.claude/skills")
+                + " are a copy this build no longer updates");
   }
 
   @Test

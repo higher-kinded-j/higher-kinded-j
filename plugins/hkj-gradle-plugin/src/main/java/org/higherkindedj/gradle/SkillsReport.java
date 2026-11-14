@@ -7,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.UUID;
 import javax.inject.Inject;
 import org.gradle.api.Project;
 import org.gradle.api.file.Directory;
@@ -18,7 +17,6 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.services.BuildService;
 import org.gradle.api.services.BuildServiceParameters;
-import org.gradle.api.services.BuildServiceRegistry;
 import org.gradle.build.event.BuildEventsListenerRegistry;
 import org.gradle.tooling.events.FinishEvent;
 import org.gradle.tooling.events.OperationCompletionListener;
@@ -40,14 +38,12 @@ import org.gradle.tooling.events.OperationCompletionListener;
 abstract class SkillsReport
     implements BuildService<SkillsReport.Parameters>, OperationCompletionListener, AutoCloseable {
 
-  /** The start of the root report's name, which every classloader the plugin loads in shares. */
-  private static final String ROOT_REPORT = "hkjSkillsReport@";
-
   /**
-   * This classloader's names. A service of a name registered from another classloader has another
-   * type, so each classloader registers under names of its own.
+   * The root report's name, the same in every classloader the plugin loads in. Gradle registers a
+   * service by its name alone, so a project whose classloader did not register the report gets the
+   * one that did, and the build gives one report.
    */
-  private static final String NAMES = UUID.randomUUID().toString();
+  private static final String ROOT_REPORT = "hkjSkillsReport";
 
   private static final Logger LOGGER = Logging.getLogger(SkillsReport.class);
 
@@ -74,25 +70,17 @@ abstract class SkillsReport
   static void register(Project project) {
     Directory root = project.getLayout().getSettingsDirectory();
     Directory own = project.getLayout().getProjectDirectory();
-    BuildServiceRegistry services = project.getGradle().getSharedServices();
-    String rootReport = ROOT_REPORT + NAMES;
-    boolean rootReported =
-        services.getRegistrations().getNames().stream()
-            .anyMatch(name -> name.startsWith(ROOT_REPORT) && !name.equals(rootReport));
-    if (!rootReported) {
-      register(project, rootReport, root.dir(".claude/skills"), false);
-    }
+    register(project, ROOT_REPORT, root.dir(".claude/skills"), false);
     if (!own.getAsFile().equals(root.getAsFile())) {
       register(
-          project,
-          "hkjProjectSkillsReport@" + NAMES + project.getPath(),
-          own.dir(".claude/skills"),
-          true);
+          project, "hkjProjectSkillsReport" + project.getPath(), own.dir(".claude/skills"), true);
     }
   }
 
   private static void register(Project project, String name, Directory skills, boolean own) {
-    Provider<SkillsReport> report =
+    // A report another classloader registered is another class, so it is held only as a
+    // listener, whose interface every classloader shares
+    Provider<? extends OperationCompletionListener> report =
         project
             .getGradle()
             .getSharedServices()
