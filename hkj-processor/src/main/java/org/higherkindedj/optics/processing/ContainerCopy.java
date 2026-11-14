@@ -37,17 +37,29 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * each of its elements (or values) takes in turn, and {@code element} the type those elements have,
  * which the lambda carrying {@code inner} takes its parameter as.
  *
- * <p>Every copy has the shape {@code Traversals} rebuilds a traversed container into, and an
- * element-lifted leg's bulk forms hand back: a fresh, unmodifiable container in the source's order,
- * a set as a set and any other collection as a list. Unlike those bulk forms, it carries what the
- * source holds, a {@code null} element included, and a {@code null} container copies to {@code
- * null}, so a copy never decides anything the null scan or the read's guard answers for, and {@code
- * build} stays total. The helpers are generated into each Impl, as the null scan's are, rather than
- * called from the library: no library form copies without refusing a {@code null}. A copy compares
- * the way a list, set or map does: a sorted or comparator-keyed source ({@code TreeSet}, {@code
- * TreeMap}) keeps its order but not its comparator, and a source that compares by identity ({@code
- * IdentityHashMap}, an {@code ArrayDeque} in a {@code Collection}) compares by its elements. Map
- * keys are structural, and never copied inside.
+ * <p>Every copy has the shape an element-lifted leg's bulk forms hand back: a fresh container in
+ * the source's order, unmodifiable unless it is an {@code IdentityHashMap}, a set as a set and any
+ * other collection as a list, and a map with one entry for each entry of the source, under the
+ * source's own key. Unlike those bulk forms, it carries what the source holds, a {@code null}
+ * element included, and a {@code null} container copies to {@code null}, so a copy never decides
+ * anything the null scan or the read's guard answers for, and {@code build} stays total but for a
+ * map no copy can keep, below. The helpers are generated into each Impl, as the null scan's are,
+ * rather than called from the library: no library form copies without refusing a {@code null}, and
+ * the library's own map rule is not API.
+ *
+ * <p>A collection copy compares the way a list or set does: a sorted or comparator-keyed source
+ * ({@code TreeSet}) keeps its order but not its comparator, and a source that compares by identity
+ * (an {@code ArrayDeque} in a {@code Collection}) compares by its elements. A map copy keeps every
+ * key apart as the library's map optics do: an {@code IdentityHashMap} copies to an {@code
+ * IdentityHashMap}, by {@code clone()} so that its order holds (a subclass into a plain one, so
+ * none of its own code runs on the copy), and any other map to a {@code LinkedHashMap}, which keeps
+ * a {@code TreeMap}'s order but not its comparator. The {@code IdentityHashMap} is handed over as
+ * itself, not as an unmodifiable view, since a view of one is not an {@code IdentityHashMap}, and
+ * it compares as one does, by the same key and value objects. A map holding two keys that {@code
+ * equals} cannot tell apart would lose an entry there, so the copy throws an {@code
+ * IllegalArgumentException} naming both, on {@code parse} as on {@code build}: like a null key, it
+ * is a structurally broken map rather than a wrong value. Map keys are structural, and never copied
+ * inside.
  *
  * <p>An array copies by {@code clone()}, which keeps its runtime component type, and that can be
  * narrower than the declared one (an {@code ArrayList[]} behind a {@code List<String>[]}), so only
@@ -66,11 +78,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror element) {
 
   private static final String HELPER = "hkj$copyOf";
+  private static final String MAP_COPY = "hkj$mapCopy";
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName COLLECTIONS = ClassName.get("java.util", "Collections");
   private static final ClassName ARRAY_LIST = ClassName.get("java.util", "ArrayList");
   private static final ClassName LINKED_HASH_SET = ClassName.get("java.util", "LinkedHashSet");
   private static final ClassName LINKED_HASH_MAP = ClassName.get("java.util", "LinkedHashMap");
+  private static final ClassName IDENTITY_HASH_MAP = ClassName.get("java.util", "IdentityHashMap");
   private static final ClassName SET = ClassName.get("java.util", "Set");
   private static final TypeName ANY = WildcardTypeName.subtypeOf(Object.class);
 
@@ -82,7 +96,10 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     SET(ClassName.get("java.util", "Set"), 0),
     /** Exactly {@code Collection}: a set copies as a set, anything else as a list. */
     COLLECTION(ClassName.get("java.util", "Collection"), 0),
-    /** Exactly {@code Map}: an unmodifiable map in the source's order, keys as they are. */
+    /**
+     * Exactly {@code Map}: a map in the source's order, every key kept apart, unmodifiable unless
+     * it is an {@code IdentityHashMap}.
+     */
     MAP(ClassName.get("java.util", "Map"), 1),
     /** A reference array, by {@code clone()}. */
     ARRAY(null, 0),
@@ -253,14 +270,18 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
               Form::primitive, Comparator.nullsFirst(Comparator.comparing(TypeName::toString)));
 
   /**
-   * The helpers the given copies call, each once, in one fixed order.
+   * The helpers the given copies call, each once, in one fixed order, with the map copy both map
+   * helpers share last, where either is called.
    *
    * @param copies the copies an Impl's legs make
    * @return the helper methods to declare
    */
   static List<MethodSpec> helpers(Stream<ContainerCopy> copies) {
     Set<Form> used = copies.flatMap(ContainerCopy::forms).collect(Collectors.toSet());
-    return used.stream().sorted(ORDER).map(ContainerCopy::helper).toList();
+    Stream<MethodSpec> helpers = used.stream().sorted(ORDER).map(ContainerCopy::helper);
+    return used.stream().anyMatch(form -> form.shape() == Shape.MAP)
+        ? Stream.concat(helpers, Stream.of(mapCopyHelper())).toList()
+        : helpers.toList();
   }
 
   private static MethodSpec helper(Form form) {
@@ -282,7 +303,12 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
 
   private static MethodSpec.Builder helperBuilder(
       TypeName type, String javadoc, TypeVariableName... variables) {
-    return MethodSpec.methodBuilder(HELPER)
+    return helperBuilder(HELPER, type, javadoc, variables);
+  }
+
+  private static MethodSpec.Builder helperBuilder(
+      String name, TypeName type, String javadoc, TypeVariableName... variables) {
+    return MethodSpec.methodBuilder(name)
         .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
         .addTypeVariables(List.of(variables))
         .returns(type)
@@ -423,56 +449,122 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         .build();
   }
 
-  private static MethodSpec mapHelper() {
-    TypeVariableName k = TypeVariableName.get("K");
-    TypeVariableName v = TypeVariableName.get("V");
-    return helperBuilder(
-            ParameterizedTypeName.get(Shape.MAP.container, k, v),
-            "Copies a same-typed map so the two sides never share it: an unmodifiable map"
-                + " in the same entry order, null values included; a null map copies to null.\n",
-            k,
-            v)
+  private static final TypeVariableName K = TypeVariableName.get("K");
+  private static final TypeVariableName V = TypeVariableName.get("V");
+
+  /** A map form over {@code K} and {@code V}: its return type, and its {@code values} parameter. */
+  private static MethodSpec.Builder mapBuilder(String name, String javadoc) {
+    return helperBuilder(name, ParameterizedTypeName.get(Shape.MAP.container, K, V), javadoc, K, V)
         .addParameter(
             ParameterizedTypeName.get(
-                Shape.MAP.container, WildcardTypeName.subtypeOf(k), WildcardTypeName.subtypeOf(v)),
-            "values")
+                Shape.MAP.container, WildcardTypeName.subtypeOf(K), WildcardTypeName.subtypeOf(V)),
+            "values");
+  }
+
+  /**
+   * Hands {@code copy} back: an {@code IdentityHashMap} as itself, since a read-only view of one is
+   * not an {@code IdentityHashMap}, and the next copy made from the view would look its keys up by
+   * {@code equals}; any other map as an unmodifiable view.
+   */
+  private static CodeBlock handBack() {
+    return CodeBlock.builder()
         .addStatement(
-            "return values == null ? null : $T.unmodifiableMap(new $T<>(values))",
-            COLLECTIONS,
-            LINKED_HASH_MAP)
+            "return copy instanceof $T<?, ?> ? copy : $T.unmodifiableMap(copy)",
+            IDENTITY_HASH_MAP,
+            COLLECTIONS)
+        .build();
+  }
+
+  private static MethodSpec mapHelper() {
+    return mapBuilder(
+            HELPER,
+            "Copies a same-typed map so the two sides never share it: a new map in the same entry"
+                + " order, every key kept apart as the source keeps it and null values included,"
+                + " unmodifiable unless it is an IdentityHashMap of its own; a null map copies to"
+                + " null.\n")
+        .addCode(nullToNull("values"))
+        .addStatement(
+            "$T copy = $L(values)", ParameterizedTypeName.get(Shape.MAP.container, K, V), MAP_COPY)
+        .addCode(handBack())
         .build();
   }
 
   private static MethodSpec nestedMapHelper() {
-    TypeVariableName k = TypeVariableName.get("K");
-    TypeVariableName v = TypeVariableName.get("V");
-    return helperBuilder(
-            ParameterizedTypeName.get(Shape.MAP.container, k, v),
-            "Copies a same-typed map of containers so the two sides never share it: an"
-                + " unmodifiable map in the same entry order, each present value copied in turn and"
-                + " null values included; a null map copies to null.\n",
-            k,
-            v)
-        .addParameter(
-            ParameterizedTypeName.get(
-                Shape.MAP.container, WildcardTypeName.subtypeOf(k), WildcardTypeName.subtypeOf(v)),
-            "values")
-        .addParameter(elementCopy(v), "each")
+    return mapBuilder(
+            HELPER,
+            "Copies a same-typed map of containers so the two sides never share it: a new map in"
+                + " the same entry order, every key kept apart as the source keeps it, each present"
+                + " value copied in turn and null values included, unmodifiable unless it is an"
+                + " IdentityHashMap of its own; a null map copies to null.\n")
+        .addParameter(elementCopy(V), "each")
         .addCode(nullToNull("values"))
         .addStatement(
-            "$T copy = $T.newLinkedHashMap(values.size())",
-            ParameterizedTypeName.get(Shape.MAP.container, k, v),
-            LINKED_HASH_MAP)
+            "$T copy = $L(values)", ParameterizedTypeName.get(Shape.MAP.container, K, V), MAP_COPY)
+        // Replacing a value moves no entry, in a LinkedHashMap or an IdentityHashMap alike.
+        .addStatement("copy.replaceAll((key, value) -> value == null ? null : each.apply(value))")
+        .addCode(handBack())
+        .build();
+  }
+
+  /**
+   * The new, mutable map both map helpers fill: every key of the source kept apart as the source
+   * keeps it, or a refusal naming the two keys a {@code LinkedHashMap} would merge. The refusal
+   * names the remedies the copy offers: the {@code IdentityHashMap} itself, where the source is a
+   * view of one, or the map's own type declared, which is handed over as it is. The pattern binds
+   * an {@code IdentityHashMap}, so that copying a subclass passes one to its constructor, and only
+   * the clone's cast answers for a suppression.
+   */
+  private static MethodSpec mapCopyHelper() {
+    ParameterizedTypeName map = ParameterizedTypeName.get(Shape.MAP.container, K, V);
+    return mapBuilder(
+            MAP_COPY,
+            "A new, mutable map with every entry of a same-typed map, in its entry order: an"
+                + " IdentityHashMap for an IdentityHashMap, so keys that are equal but not the same"
+                + " object stay apart, and a LinkedHashMap for any other map, which refuses a map"
+                + " holding two keys that equals() cannot tell apart rather than lose an entry.\n")
+        .beginControlFlow(
+            "if (values instanceof $T<? extends $T, ? extends $T> identity)",
+            IDENTITY_HASH_MAP,
+            K,
+            V)
+        .beginControlFlow("if (identity.getClass() != $T.class)", IDENTITY_HASH_MAP)
+        .addCode(
+            "// A subclass is copied into a plain one, so none of its code runs on the copy.\n")
+        .addStatement("return new $T<>(identity)", IDENTITY_HASH_MAP)
+        .endControlFlow()
+        .addCode(
+            "@$T($S) // a fresh clone nothing else holds, so it is safe to view as Map<K, V>\n",
+            SuppressWarnings.class,
+            "unchecked")
+        .addStatement("$T clone = ($T) identity.clone()", map, map)
+        .addStatement("return clone")
+        .endControlFlow()
+        .addStatement("$T copy = $T.newLinkedHashMap(values.size())", map, LINKED_HASH_MAP)
         .beginControlFlow(
             "for ($T entry : values.entrySet())",
             ParameterizedTypeName.get(
                 Shape.MAP.container.nestedClass("Entry"),
-                WildcardTypeName.subtypeOf(k),
-                WildcardTypeName.subtypeOf(v)))
-        .addStatement("$T value = entry.getValue()", v)
-        .addStatement("copy.put(entry.getKey(), value == null ? null : each.apply(value))")
+                WildcardTypeName.subtypeOf(K),
+                WildcardTypeName.subtypeOf(V)))
+        .addStatement("int before = copy.size()")
+        .addStatement("copy.put(entry.getKey(), entry.getValue())")
+        .beginControlFlow("if (copy.size() == before)")
+        .addCode("// The copy kept the earlier of the two keys, the one equal to this key.\n")
+        .addStatement("$T<$T> kept = new $T<>(copy.keySet())", List.class, K, ARRAY_LIST)
+        .addStatement(
+            "throw new $T($S + values.getClass().getName() + $S"
+                + " + kept.get(kept.indexOf(entry.getKey())) + $S + entry.getKey() + $S)",
+            IllegalArgumentException.class,
+            "A generated Impl cannot copy this ",
+            " without losing an entry: its keys ",
+            " and ",
+            " are equal by equals(), and the copy looks keys up by equals(). If this is a view of"
+                + " an IdentityHashMap, hold the IdentityHashMap itself; otherwise declare the"
+                + " map's own type, which is handed over as it is. A key changed after it went into"
+                + " the map also causes this.")
         .endControlFlow()
-        .addStatement("return $T.unmodifiableMap(copy)", COLLECTIONS)
+        .endControlFlow()
+        .addStatement("return copy")
         .build();
   }
 

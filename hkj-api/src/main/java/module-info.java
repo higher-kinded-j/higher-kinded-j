@@ -13,7 +13,7 @@ module org.higherkindedj.api {
   exports org.higherkindedj.optics;
   exports org.higherkindedj.optics.indexed;
 
-  // Shared with hkj-core so both modules build a map an optic writes by one rule; not API.
+  // Shared with hkj-core, so its map optics and validated prisms rebuild maps alike; not API.
   exports org.higherkindedj.optics.internal to
       org.higherkindedj.core;
 }
