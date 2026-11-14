@@ -160,7 +160,8 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
    *     not be {@code null}. The supplier itself is {@code }, and it's expected to produce a {@code
    *     T}.
    * @return the value if present, otherwise the non-null result of {@code otherSupplier.get()}.
-   * @throws NullPointerException if no value is present and {@code otherSupplier} is {@code null}.
+   * @throws NullPointerException if no value is present and {@code otherSupplier} is {@code null},
+   *     or returns {@code null}.
    */
   T orElseGet(Supplier<? extends T> otherSupplier);
 
