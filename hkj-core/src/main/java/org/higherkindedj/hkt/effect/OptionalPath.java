@@ -104,11 +104,12 @@ public final class OptionalPath<A> implements Chainable<OptionalPath<?>, A> {
    *
    * @param supplier provides the default value; must not be null
    * @return the contained value or the supplier's result
-   * @throws NullPointerException if supplier is null
+   * @throws NullPointerException if supplier is null, or if it is called and returns null
    */
   public A getOrElseGet(Supplier<? extends A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return value.orElseGet(supplier);
+    return value.orElseGet(
+        () -> Objects.requireNonNull(supplier.get(), "supplier must not return null"));
   }
 
   /**
