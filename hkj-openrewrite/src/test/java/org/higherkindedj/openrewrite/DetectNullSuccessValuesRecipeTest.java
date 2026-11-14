@@ -82,10 +82,10 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
                 void more() {
                     EitherPath<String, String> path = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/Path.right(null);
                     Try<String> attempt = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/Try.success(null);
-                    Try<String> lookup = /*~~(Returns null, which now gives a Failure: return a value, or fail with an error that says why)~~>*/Try.of(() -> null);
-                    /*~~(Void has no value for a success to hold: use Unit)~~>*/Try<Void> work = /*~~(Returns null, which now gives a Failure: return Unit.INSTANCE for a step with nothing to return)~~>*/Try.of(() -> {
+                    Try<String> lookup = Try.of(() -> /*~~(Returns null, which now gives a Failure: return a value, or fail with an error that says why)~~>*/null);
+                    /*~~(Void has no value for a success to hold: use Unit)~~>*/Try<Void> work = Try.of(() -> {
                         System.out.println("working");
-                        return null;
+                        return /*~~(Returns null, which now gives a Failure: return Unit.INSTANCE for a step with nothing to return)~~>*/null;
                     });
                 }
             }
@@ -117,6 +117,100 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
                     Try<String> branch = Try.of(() -> {
                         Runnable r = () -> {};
                         return "value";
+                    });
+                }
+            }
+            """));
+  }
+
+  @Test
+  void putsALambdasMarkOnTheNullItReturnsNotOnTheStartOfItsChain() {
+    rewriteRun(
+        spec ->
+            spec.parser(
+                JavaParser.fromJavaVersion()
+                    .dependsOn(
+                        "package org.higherkindedj.hkt.vtask; public interface VTask<A> {"
+                            + " A execute() throws Throwable;"
+                            + " default <B> VTask<B> map(java.util.function.Function<? super A,"
+                            + " ? extends B> f) { return null; } }")),
+        java(
+            """
+            package test;
+
+            import org.higherkindedj.hkt.vtask.VTask;
+
+            public class Jobs {
+                VTask<Integer> count(VTask<String> task) {
+                    return task
+                        .map(String::trim)
+                        .map(name -> name.length())
+                        .map(length -> {
+                            System.out.println(length);
+                            return null;
+                        });
+                }
+            }
+            """,
+            """
+            package test;
+
+            import org.higherkindedj.hkt.vtask.VTask;
+
+            public class Jobs {
+                VTask<Integer> count(VTask<String> task) {
+                    return task
+                        .map(String::trim)
+                        .map(name -> name.length())
+                        .map(length -> {
+                            System.out.println(length);
+                            return /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null;
+                        });
+                }
+            }
+            """));
+  }
+
+  @Test
+  void marksANullReturnedFromABranchButNotFromANestedLambda() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            import java.util.function.Supplier;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Lookups {
+                Try<String> lookup(boolean found) {
+                    return Try.of(() -> {
+                        if (!found) {
+                            return null;
+                        }
+                        Supplier<String> later = () -> {
+                            return null;
+                        };
+                        return later.get();
+                    });
+                }
+            }
+            """,
+            """
+            package test;
+
+            import java.util.function.Supplier;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Lookups {
+                Try<String> lookup(boolean found) {
+                    return Try.of(() -> {
+                        if (!found) {
+                            return /*~~(Returns null, which now gives a Failure: return a value, or fail with an error that says why)~~>*/null;
+                        }
+                        Supplier<String> later = () -> {
+                            return null;
+                        };
+                        return later.get();
                     });
                 }
             }
@@ -244,16 +338,16 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
             public class Jobs {
                 void run(VTask<String> task, IOPath<String> path) {
                     VTask<String> missing = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/VTask.succeed(null);
-                    VTask<Unit> work = /*~~(Returns null, which now fails when it runs: return Unit.INSTANCE for a step with nothing to return)~~>*/VTask.of(() -> {
+                    VTask<Unit> work = VTask.of(() -> {
                         System.out.println("working");
-                        return null;
+                        return /*~~(Returns null, which now fails when it runs: return Unit.INSTANCE for a step with nothing to return)~~>*/null;
                     });
-                    VTask<Integer> length = /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/task.map(name -> null);
-                    IO<String> read = /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/IO.delay(() -> null);
+                    VTask<Integer> length = task.map(name -> /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null);
+                    IO<String> read = IO.delay(() -> /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null);
                     VStream<String> names = /*~~(A stream holds no null element: leave it out, or use a Maybe)~~>*/VStream.of("a", null);
                     IOPath<String> pure = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/Path.ioPure(null);
                     WriterPath<String, String> logged = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/Path.writerPure(null, "monoid");
-                    IOPath<Integer> mapped = /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/path.map(name -> null);
+                    IOPath<Integer> mapped = path.map(name -> /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null);
                     VTask<String> fine = VTask.succeed("job");
                     IOPath<Integer> sized = path.map(String::length);
                 }
@@ -339,7 +433,7 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
                     Object kind = /*~~(A success always holds a value: pass Unit.INSTANCE for a step with nothing to return)~~>*/VTaskKindHelper.VTASK.succeed(null);
                     StateTuple<Integer, String> tuple = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/new StateTuple<Integer, String>(null, 1);
                     Writer<String, String> logged = /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/new Writer<String, String>("log", null);
-                    Writer<String, String> renamed = /*~~(Returns null, which now throws: return a value, or use a Maybe for one that may be missing)~~>*/writer.map(n -> null);
+                    Writer<String, String> renamed = writer.map(n -> /*~~(Returns null, which now throws: return a value, or use a Maybe for one that may be missing)~~>*/null);
                     CompletableFuturePath<String> started =
                         Path.future(CompletableFuture.runAsync(() -> {}).thenApply(v -> "done"));
                     Object done = /*~~(A future with nothing to return completes with null, which now fails the path: map it to Unit with thenApply(_ -> Unit.INSTANCE) first)~~>*/Path.future(CompletableFuture.runAsync(() -> {}));

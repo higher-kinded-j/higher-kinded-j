@@ -79,7 +79,7 @@ Six recipe groups are shipped; each one has a composite that runs every recipe i
 |-------|-----------|------|
 | Arity migration (0.2.x to 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | rewrites source |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | detection only |
-| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, null errors and containers whose elements have a field named like a path method |
+| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | rewrites source, and marks null successes, values that may be null, null errors and containers whose elements have a field named like a path method |
 | 0.6.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_6_0` | rewrites source, and marks calls a typed form does not fit |
 | 0.6.0 Path family | `org.higherkindedj.openrewrite.AddPathFamily` | rewrites source |
 | 0.7.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_7_0` | rewrites source, and marks `parCollect` calls whose batch size is computed |
@@ -134,13 +134,13 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 ### 0.5.0 deprecation migration
 
-Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes, and names in `widenFields` each container a 0.4.x navigator stepped into. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe` and `DetectNullErrorValuesRecipe`, which only mark each null success or null error that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
+Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes, and names in `widenFields` each container a 0.4.x navigator stepped into. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe`, `DetectPossibleNullSuccessValuesRecipe` and `DetectNullErrorValuesRecipe`, which only mark each null success, value that may be null, or null error that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
 
 Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 or later on the rewrite classpath. The recipes match the 0.4.x signatures, and the `StateT` calls and `widenFields` entries they write compile only against 0.5.0, so bump the library straight after. A `StateT` held in `var` over a witness with a type argument may then need its types named, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
 
 | Recipe | Change |
 |--------|--------|
-| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all nine recipes below |
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all ten recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` becomes `StateTKind.narrow(..)`; the wildcard `Kind` parameter bypassed witness type safety, so an argument typed `Kind<?, A>` needs its witness declared by hand |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` becomes `KindValidator.narrowHolder(..)` |
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(...)` become `foldFailureFirst(failureMapper, successMapper)`, swapping the two arguments as well as renaming the method. It reads the declared signature and leaves the failure-first `fold` of 0.6.0 and later alone, so it finds a success-first call only while the project is on 0.4.x |
@@ -149,6 +149,7 @@ Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 or later
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` take the function alone, and `stateT.mapT(monad, f)` becomes `stateT.mapT(f)` |
 | `org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe` | On a `@GenerateFocus` record that writes `generateNavigators = true` and not `widenCollections = true`, adds to `widenFields` each field holding a `Map`, or third-party collection, of `@GenerateFocus` records, unless `includeFields` or `excludeFields` leaves it out. So `ImmutableList<Position> positions` gains `widenFields = "positions"`, and `positions().ticker()` compiles as it did on 0.4.x. A field whose elements have a field named like a path method, such as `last`, is marked instead, since 0.5.0 can give it no navigator |
 | `org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe` | Marks a `null` passed to a success or value factory, such as `Either.right`, `Try.success`, `VTask.succeed`, `State.pure`, `Context.succeed`, a `KindHelper` or context `pure`, or a `Path` factory such as `Path.ioPure`. It also marks a `null` `iterate` seed, `StateTuple` or `Writer` value, or stream element. A lambda that returns `null` is marked when given to `Try.of`, a deferred factory such as `VTask.of` or `IO.delay`, or the `map` of a lazy type, a `Path`, an `Either` or a `Writer`. The `map` of a `Maybe`, an `Optional` or a list, or of their Paths, is left alone, since there a null result means empty. A `CompletableFuture<Void>` given to `Path.future` is marked, as is `Void` as the value type of an `Either`, `Try`, lazy type or `Path`. Replace each with `Unit`, or with a `Maybe` where a value may be missing |
+| `org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe` | Marks a value that may reach a success as `null` where no `null` is written. It marks the `@Nullable` parameter of a wrapper whose body is only `return Either.right(value);`, or another success factory, and each `null` passed to a wrapper. It marks a method that may return `null` where `Try.of`, a deferred factory or a `map` reads it, through a lambda or a method reference such as `Try.of(this::exchange)`. It also marks a null check in a later success step, such as `flatMap(r -> r == null ? ...)`, and a method reference there to a method whose parameter is `@Nullable`. 0.5.0 never hands that step a `null`. Carry a missing value as a `Maybe` from the call that returns it |
 | `org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe` | Marks a `null`, cast or not, passed as the error to `Either.left`, `EitherT.left`, `Maybe.toEither`, `raiseError` on any `MonadError`, or a `LensExtensions` or `PrismExtensions` helper, and a `mapLeft` or `bimap` error lambda that returns `null`. Also marks `Void` as the error type of an `Either`, `EitherT`, `EitherMonad` or `EitherTMonad`. Replace each with an error that says what went wrong, or `Unit.INSTANCE` where the error type is `Unit` |
 
 ```kotlin
@@ -156,6 +157,18 @@ rewrite {
     activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0")
 }
 ```
+
+`DetectPossibleNullSuccessValuesRecipe` arrives with `hkj-openrewrite` 0.6.0, and it matches 0.5.0 code as well as 0.4.x code. So a project that ran this group with an earlier release can run it on its own:
+
+```kotlin
+rewrite {
+    activeRecipe("org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe")
+}
+```
+
+Most of its marks say "may", since a `@Nullable` method may never return `null` where it is called. It counts an annotation named `Nullable` or `CheckForNull`, whatever its package. It reads a declaration annotation on a method's result, such as Spring Framework 6's `org.springframework.lang.Nullable`, from any method. It reads a type-use annotation, such as JSpecify's, or one on a parameter, only from a method in the sources the run covers, since OpenRewrite's type model carries neither. So a call into a library annotated with JSpecify, such as the Spring Data of Spring Boot 4, is not marked. A null check after the call, in the same chain, is.
+
+Each null recipe puts a lambda's mark on the value it returns, not at the start of the call's chain.
 
 `AddWidenFieldsForNavigatedContainersRecipe` finds its records by `generateNavigators = true` and keeps that setting, so run it before you take the setting out. Read its dry run for what it leaves to you:
 

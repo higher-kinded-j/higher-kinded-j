@@ -3,6 +3,7 @@
 package org.higherkindedj.openrewrite;
 
 import static org.higherkindedj.openrewrite.NullLiterals.isNullLiteral;
+import static org.higherkindedj.openrewrite.NullLiterals.markNullReturns;
 import static org.higherkindedj.openrewrite.NullLiterals.returnsNull;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.Set;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
+import org.openrewrite.internal.ListUtils;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.MethodMatcher;
 import org.openrewrite.java.tree.Expression;
@@ -32,7 +34,8 @@ import org.openrewrite.marker.SearchResult;
  *       helpers of {@code LensExtensions} and {@code PrismExtensions}. These now throw {@code
  *       NullPointerException}.
  *   <li>A lambda given as the error function of {@code Either.mapLeft} or {@code Either.bimap} that
- *       returns a {@code null} literal. It now throws, where it built a {@code Left(null)}.
+ *       returns a {@code null} literal. It now throws, where it built a {@code Left(null)}. The
+ *       mark sits on the {@code null} it returns, not on the call.
  *   <li>An {@code Either}, {@code EitherT}, {@code EitherMonad} or {@code EitherTMonad} whose error
  *       type is {@code Void}, which has no value for a {@code Left} to hold.
  * </ul>
@@ -136,7 +139,8 @@ public class DetectNullErrorValuesRecipe extends Recipe {
         if (ERROR_MAPPERS.stream().anyMatch(m -> m.matches(mi))
             && args.getFirst() instanceof J.Lambda lambda
             && returnsNull(lambda)) {
-          return SearchResult.found(mi, NULL_ERROR_FUNCTION);
+          return mi.withArguments(
+              ListUtils.mapFirst(args, first -> markNullReturns(lambda, NULL_ERROR_FUNCTION)));
         }
         return mi;
       }
