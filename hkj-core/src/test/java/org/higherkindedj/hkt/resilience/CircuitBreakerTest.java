@@ -1868,8 +1868,11 @@ class CircuitBreakerTest {
                       .run())
           .isInstanceOf(CircuitOpenException.class);
 
+      // The call was admitted, and the inner guard, admitted on its own once the circuit opened,
+      // was
+      // turned away: two admissions, one rejection, and no outcome counted for the call
       assertThat(breaker.metrics().rejectedCalls()).isEqualTo(1);
-      assertThat(breaker.metrics().totalCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(2);
       assertThat(breaker.metrics().failedCalls()).isZero();
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
     }
@@ -2224,6 +2227,7 @@ class CircuitBreakerTest {
 
       // The call's own success settled its admission, so the dependency's guard is admitted on
       // its own, and its failure counts
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(2);
       assertThat(breaker.metrics().successfulCalls()).isEqualTo(1);
       assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);

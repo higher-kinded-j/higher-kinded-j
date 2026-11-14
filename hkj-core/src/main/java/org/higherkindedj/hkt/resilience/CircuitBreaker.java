@@ -181,9 +181,6 @@ public final class CircuitBreaker {
     /** Whether the call is running: a guard reached after it has finished is a call of its own. */
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    /** Whether a guard has been reached inside the call, the first of which it counted already. */
-    private final AtomicBoolean entered = new AtomicBoolean();
-
     /** Whether a nested guard runs on the call's admission: one at a time borrows it. */
     private final AtomicBoolean lent = new AtomicBoolean();
 
@@ -313,10 +310,6 @@ public final class CircuitBreaker {
     return () -> {
       @Nullable Enclosing chain = ENCLOSING.get();
       @Nullable Enclosing enclosing = enclosingCall(chain);
-      // The call a guard is nested in counted that guard already; a later one counts on its own
-      if (enclosing == null || !enclosing.entered.compareAndSet(false, true)) {
-        totalCalls.incrementAndGet();
-      }
       @Nullable Enclosing lender = borrowAdmission(enclosing);
       Ticket admission = lender != null ? lender.admission : new Ticket(admitWithin(enclosing));
       Enclosing call = new Enclosing(identity, admission, running(chain), lender);
@@ -384,10 +377,12 @@ public final class CircuitBreaker {
   }
 
   /**
-   * Admits a call on its own, and tells the call it is nested in, if any, when it is turned away,
-   * since the rejection is counted.
+   * Admits a call on its own, counting it, and tells the call it is nested in, if any, when it is
+   * turned away, since the rejection is counted. A guard that borrows an admission is not counted
+   * again: the call it borrowed from was counted when it was admitted.
    */
   private long admitWithin(@Nullable Enclosing enclosing) {
+    totalCalls.incrementAndGet();
     try {
       return admit();
     } catch (CircuitOpenException rejected) {
