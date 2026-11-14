@@ -5,12 +5,14 @@ package org.higherkindedj.maven;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import javax.inject.Named;
 import javax.inject.Singleton;
@@ -23,6 +25,8 @@ import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Maven lifecycle participant that configures HKJ dependencies, preview features, and compile-time
@@ -30,6 +34,10 @@ import org.codehaus.plexus.util.xml.Xpp3Dom;
  *
  * <p>This extension runs early in the Maven build lifecycle (before dependency resolution),
  * allowing it to add dependencies and configure compiler settings automatically.
+ *
+ * <p>It also reports on the build's Claude Code skills: once the projects are read, on each copy a
+ * module holds that the build no longer updates, and once the build has run, on the copy at the
+ * root of the build when it describes another release than the plugin's, or does not say.
  *
  * <p>Activated when the {@code hkj-maven-plugin} is declared with {@code
  * <extensions>true</extensions>}.
@@ -92,18 +100,101 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     skillsHome(wantSkills, session.getRequest().getMultiModuleProjectDirectory())
         .flatMap(home -> findPlugin(home, PLUGIN_KEY))
         .ifPresent(this::bindInstallSkills);
+    Logger log = LoggerFactory.getLogger(HKJLifecycleParticipant.class);
+    reportStrayCopies(session, log::info);
   }
 
   /**
-   * The one project that installs the skills: the reactor's root, where Claude Code reads them, or
-   * else the first project that asks for them. A module inheriting {@code <skills>} from its parent
-   * would otherwise install its own copy.
+   * Reports on the skills at the root of the build once it has run. Checked after the build, the
+   * report says nothing once an install has brought them up to date, however the build ran it.
+   */
+  @Override
+  public void afterSessionEnd(MavenSession session) {
+    Logger log = LoggerFactory.getLogger(HKJLifecycleParticipant.class);
+    reportAfterSession(session, log::warn, log::info);
+  }
+
+  /**
+   * Reports on the skills at the root of {@code session}'s build, if any of its projects applies
+   * the plugin.
+   */
+  static void reportAfterSession(
+      MavenSession session, Consumer<String> warn, Consumer<String> info) {
+    firstApplying(session)
+        .ifPresent(
+            project ->
+                reportInstalledSkills(
+                    InstalledSkills.directory(session, project.getBasedir()), warn, info));
+  }
+
+  /**
+   * Reports each copy of the HKJ skills that a project of {@code session}'s reactor holds and the
+   * build no longer updates, if any of its projects applies the plugin. It checks every project of
+   * the reactor, since an older {@code mvn hkj:install-skills}, run over a reactor, ran in each.
+   */
+  static void reportStrayCopies(MavenSession session, Consumer<String> info) {
+    firstApplying(session)
+        .map(project -> InstalledSkills.directory(session, project.getBasedir()))
+        .ifPresent(
+            skills ->
+                HKJConfiguration.bundledRelease()
+                    .ifPresent(
+                        release ->
+                            reportStrayCopies(session.getProjects(), skills, release, info)));
+  }
+
+  /** The first project of {@code session}'s reactor that applies the plugin. */
+  private static Optional<MavenProject> firstApplying(MavenSession session) {
+    return session.getProjects().stream()
+        .filter(project -> findPlugin(project, PLUGIN_KEY).isPresent())
+        .findFirst();
+  }
+
+  /**
+   * The one project whose build runs {@code install-skills}: the reactor's root, or else the first
+   * project that asks for the skills. A module inheriting {@code <skills>} from its parent would
+   * otherwise run it too. Whichever project runs it, the skills go to the root of the build.
    */
   static Optional<MavenProject> skillsHome(List<MavenProject> wantSkills, File root) {
     return wantSkills.stream()
         .filter(project -> root != null && root.equals(project.getBasedir()))
         .findFirst()
         .or(() -> wantSkills.stream().findFirst());
+  }
+
+  /**
+   * Tells each of {@code projects} whose own {@code .claude/skills} is not {@code skills} that the
+   * HKJ skills there, stamped with another release than {@code release} or none, are a copy the
+   * build no longer updates. The plugin deletes nothing, so a copy an older plugin installed into a
+   * module stays until its owner removes it.
+   */
+  static void reportStrayCopies(
+      List<MavenProject> projects, Path skills, String release, Consumer<String> info) {
+    projects.stream()
+        .map(project -> InstalledSkills.skillsIn(project.getBasedir()))
+        .distinct()
+        .filter(dir -> !InstalledSkills.sameDirectory(dir, skills))
+        .filter(dir -> InstalledSkills.inspect(dir, release).isPresent())
+        .forEach(dir -> info.accept(InstalledSkills.strayCopy(dir)));
+  }
+
+  /**
+   * Tells the build when the skills in {@code dir} describe another release than the plugin's, with
+   * a warning, or do not say, with an info line.
+   */
+  static void reportInstalledSkills(Path dir, Consumer<String> warn, Consumer<String> info) {
+    HKJConfiguration.bundledRelease()
+        .ifPresent(
+            release ->
+                InstalledSkills.inspect(dir, release)
+                    .ifPresent(
+                        notice -> {
+                          String message = InstalledSkills.message(notice, release, dir);
+                          switch (notice) {
+                            case InstalledSkills.Notice.OtherRelease _ -> warn.accept(message);
+                            case InstalledSkills.Notice.Unstamped _ -> info.accept(message);
+                          }
+                        }));
   }
 
   private static Optional<Plugin> findPlugin(MavenProject project, String pluginKey) {

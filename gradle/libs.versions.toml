@@ -49,6 +49,8 @@ jooq = "3.21.9"
 maven-plugin-api = "3.9.14"
 maven-core = "3.9.14"
 maven-plugin-annotations = "3.15.2"
+# The SLF4J API Maven 3.9 gives its extensions, for the lifecycle participant's log
+slf4j-api = "1.7.36"
 
 # OpenRewrite, as the rewrite plugin version the hkj-openrewrite docs name bundles it
 rewrite = "8.75.5"
@@ -150,6 +152,7 @@ maven-plugin-api = { module = "org.apache.maven:maven-plugin-api", version.ref =
 maven-core = { module = "org.apache.maven:maven-core", version.ref = "maven-core" }
 maven-plugin-annotations = { module = "org.apache.maven.plugin-tools:maven-plugin-annotations", version.ref = "maven-plugin-annotations" }
 javax-inject = { module = "javax.inject:javax.inject", version = "1" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j-api" }
 
 # OpenRewrite
 rewrite-core = { module = "org.openrewrite:rewrite-core", version.ref = "rewrite" }
