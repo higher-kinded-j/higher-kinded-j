@@ -413,7 +413,7 @@ interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
              heading="domain field 'X.y' is declared @Nullable, and build copies it to the record component 'XDto.y', which is declared non-null",
              fragment="and build copies it to",
              meaning="A same-typed component is copied as it is, so the `null` the domain may hold would be written into a site declared non-null, by an annotation or by a JSpecify `@NullMarked` scope.",
-             fix="Mark the wire component `@Nullable`, on a Lombok bean its field, or declare the domain component non-null.",
+             fix="Mark the wire component `@Nullable` (on a Lombok bean, its field), or declare the domain component non-null.",
              rule=("A `@Nullable` component is not copied into a non-null one", "rules.md#nullable-copy-into-non-null"),
              code="""record Reader(String name, @Nullable String nickname) {}
 
@@ -1678,7 +1678,7 @@ interface DashboardAssembly {
              heading="@GenerateMerge: source component 'X.y' is declared @Nullable, and the merge copies it to the record component 'Z.y', which is declared non-null",
              fragment="and the merge copies it to",
              meaning="A plain merge copies each source value as it is, so the `null` the source may hold would be written into a target component declared non-null.",
-             fix="Mark the target component `@Nullable`, declare the source component non-null, or add a leaf for it and return `Validated`, so a fallible merge reports the `null` as a failure.",
+             fix="Mark the target component `@Nullable`, declare the source component non-null, or add a leaf for it and return `Validated`, so the merge, now fallible, reports the `null` as `must not be null`.",
              rule=("A `@Nullable` component is not copied into a non-null one", "rules.md#nullable-copy-into-non-null"),
              code="""record Gift(String item, @Nullable String note) {}
 

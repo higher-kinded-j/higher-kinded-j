@@ -19,6 +19,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -1676,6 +1677,62 @@ final class BeanPropertyAnalyser {
    */
   private static String declaredOn(TypeElement bean, ExecutableElement getter) {
     return declaredOn(inheritedFrom(bean, getter));
+  }
+
+  /** The Lombok annotations on a field that have Lombok write its setter. */
+  private static final Set<String> LOMBOK_FIELD_WRITERS = Set.of("lombok.Setter");
+
+  /** The Lombok annotations on a class that have Lombok write its setters or builder setters. */
+  private static final Set<String> LOMBOK_TYPE_WRITERS =
+      Set.of("lombok.Data", "lombok.Setter", "lombok.Builder", "lombok.experimental.SuperBuilder");
+
+  /**
+   * The field Lombok writes {@code property}'s setter or builder setter from, where it does: the
+   * field, or the class declaring it, carries an annotation that has Lombok write one. The field is
+   * looked for in {@code owner} and then up its superclasses, where a {@code @SuperBuilder}'s
+   * parent declares it. Lombok copies the field's nullness annotations to what it writes, so a
+   * writer whose parameter says less than its field does, such as a non-null one beside a
+   * {@code @Nullable} field, is one written by hand, and no field is named for it. A diagnostic
+   * names the field as the place to change a Lombok writer's declaration, which the bean's source
+   * never shows.
+   *
+   * @param owner the class the writer belongs to: the bean, or the class a builder builds
+   * @param property the property the writer writes
+   * @return the field, if Lombok writes from it
+   */
+  static Optional<VariableElement> lombokSourceField(TypeElement owner, String property) {
+    for (TypeElement type = owner; type != null; type = superclassOf(type)) {
+      TypeElement declaring = type;
+      Optional<VariableElement> field =
+          ElementFilter.fieldsIn(declaring.getEnclosedElements()).stream()
+              .filter(candidate -> candidate.getSimpleName().contentEquals(property))
+              .findFirst();
+      if (field.isPresent()) {
+        return field.filter(
+            found ->
+                (annotatedWithAny(found, LOMBOK_FIELD_WRITERS)
+                        || annotatedWithAny(declaring, LOMBOK_TYPE_WRITERS))
+                    && !NullableAnnotations.declaresNullable(found));
+      }
+    }
+    return Optional.empty();
+  }
+
+  /** A class's superclass, or null for {@code Object} and a type with none. */
+  private static TypeElement superclassOf(TypeElement type) {
+    return type.getSuperclass() instanceof DeclaredType superclass
+        ? (TypeElement) superclass.asElement()
+        : null;
+  }
+
+  private static boolean annotatedWithAny(Element element, Set<String> names) {
+    return element.getAnnotationMirrors().stream()
+        .anyMatch(
+            mirror ->
+                names.contains(
+                    ((TypeElement) mirror.getAnnotationType().asElement())
+                        .getQualifiedName()
+                        .toString()));
   }
 
   /**

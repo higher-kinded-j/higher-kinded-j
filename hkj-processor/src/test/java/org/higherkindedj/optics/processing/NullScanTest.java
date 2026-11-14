@@ -563,9 +563,8 @@ class NullScanTest {
             "byKey.k.1: must not be null",
             "table.0.0.1: must not be null");
     Assertions.assertThat(generated("FixturesMergedAssemblyImpl"))
-        .contains(
-            "var hkj$grid = hkj$allPresent(hkj$copyOf(e.grid(), e__ -> hkj$copyOf(e__)), e__ ->"
-                + " hkj$allPresent(e__));");
+        .contains("var hkj$grid = hkj$copyOf(e.grid(), e__ -> hkj$copyOf(e__));")
+        .contains(".field(\"grid\", hkj$allPresent(hkj$grid, e__ -> hkj$allPresent(e__)))");
   }
 
   @Test

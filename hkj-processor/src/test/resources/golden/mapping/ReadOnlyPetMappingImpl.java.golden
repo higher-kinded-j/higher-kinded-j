@@ -49,12 +49,12 @@ public final class PetMappingImpl implements PetMapping {
 
   public Validated<NonEmptyList<FieldError>, Pet> parse(PetModel wire) {
     Objects.requireNonNull(wire, "wire must not be null");
-    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.getTags()));
+    var hkj$tags = hkj$copyOf(wire.getTags());
     return hkj$construct(
         Validated.fields()
             .field("id", hkj$ifPresent(wire.getId(), id()::parse))
             .field("name", hkj$ifPresent(wire.getName(), Validated::validNel))
-            .field("tags", hkj$tags)
+            .field("tags", hkj$allPresent(hkj$tags))
             .field("status", Validated.validNel(Optional.ofNullable(wire.getStatus())))
             .apply((id, name, tags, status) -> () -> new Pet(id, name, tags, status)),
         "not a valid Pet");

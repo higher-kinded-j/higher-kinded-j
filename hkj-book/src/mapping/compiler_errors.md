@@ -885,7 +885,7 @@ interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
 
 A same-typed component is copied as it is, so the `null` the domain may hold would be written into a site declared non-null, by an annotation or by a JSpecify `@NullMarked` scope.
 
-**Fix.** Mark the wire component `@Nullable`, on a Lombok bean its field, or declare the domain component non-null.
+**Fix.** Mark the wire component `@Nullable` (on a Lombok bean, its field), or declare the domain component non-null.
 
 ```
 @GenerateMapping: domain field 'Reader.nickname' is declared @Nullable, and build copies it to
@@ -893,7 +893,7 @@ the record component 'ReaderDto.nickname', which is declared non-null. A same-ty
 copied as it is, a null included, and 'ReaderDto.nickname' is annotated @NonNull, so build would
 write a null its declaration rules out, and either throw or leave a null its type says it cannot
 hold. As 'Reader.nickname' may be absent, replace @NonNull on 'ReaderDto.nickname' with
-@Nullable; or declare 'Reader.nickname' non-null, if every Reader build is given has one.
+@Nullable; or declare 'Reader.nickname' non-null, if build never meets it null.
 ```
 
 The rule: [A `@Nullable` component is not copied into a non-null one](rules.md#nullable-copy-into-non-null).
@@ -3107,7 +3107,7 @@ interface DashboardAssembly {
 
 A plain merge copies each source value as it is, so the `null` the source may hold would be written into a target component declared non-null.
 
-**Fix.** Mark the target component `@Nullable`, declare the source component non-null, or add a leaf for it and return `Validated`, so a fallible merge reports the `null` as a failure.
+**Fix.** Mark the target component `@Nullable`, declare the source component non-null, or add a leaf for it and return `Validated`, so the merge, now fallible, reports the `null` as `must not be null`.
 
 ```
 @GenerateMerge: source component 'Gift.note' is declared @Nullable, and the merge copies it to
@@ -3115,10 +3115,10 @@ the record component 'GiftTag.note', which is declared non-null. A plain merge c
 source value as it is, a null included, and 'GiftTag.note' is annotated @NonNull, so the merge
 would write a null its declaration rules out, and either throw or leave a null its type says it
 cannot hold. As 'Gift.note' may be absent, replace @NonNull on 'GiftTag.note' with @Nullable; or
-declare 'Gift.note' non-null, if every Gift the merge is given has one; or add 'default
+declare 'Gift.note' non-null, if the merge never meets it null; or add 'default
 ValidatedPrism<java.lang.String, java.lang.String> note()' to the merge and return
-Validated<NonEmptyList<FieldError>, GiftTag>, so that a fallible merge reports a null note as a
-failure.
+Validated<NonEmptyList<FieldError>, GiftTag>, so the merge, now fallible, reports a null as
+'note: must not be null'.
 ```
 
 The rule: [A `@Nullable` component is not copied into a non-null one](rules.md#nullable-copy-into-non-null).

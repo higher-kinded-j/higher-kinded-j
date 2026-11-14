@@ -8,31 +8,44 @@ import java.util.Set;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
- * The locals a {@code fields()} ladder's copying legs are bound to, ahead of the ladder: {@code var
- * hkj$tags = hkj$allPresent(hkj$copyOf(wire.tags()));}, then {@code .field("tags", hkj$tags)}.
+ * The locals the copies a {@code fields()} ladder's legs read are bound to, ahead of the ladder:
+ * {@code var hkj$tags = hkj$copyOf(wire.tags());}, then {@code .field("tags",
+ * hkj$allPresent(hkj$tags))}.
  *
- * <p>A leg that copies a container calls a copy helper typed by what it is handed, inside a null
- * guard. Nested in a long chain of {@code .field(...)} calls, a nullness checker infers that call
- * again for every call the chain holds, which grows past practical in a ladder of copied
- * containers; bound ahead, each is inferred once. The guard declares the {@code Validated} it
- * returns, so the local needs no type written. Any other leg stays in the ladder, where the
- * ladder's parameter types it, as a {@code Validated.validNel(...)} needs. The bound values are
- * read in leg order, ahead of the legs left in the ladder; every leg is evaluated whichever fails,
- * so only the order of the wire's reads moves, and a getter a mapping reads has no effect to
- * reorder. A local's name is the component's under the {@code hkj$} prefix, which no lambda
- * parameter of the ladder takes.
+ * <p>A copy helper is typed by what it is handed. Nested in a long chain of {@code .field(...)}
+ * calls, a nullness checker infers that call again for every call the chain holds, which grows past
+ * practical in a ladder of copied containers; bound ahead, each is inferred once. The local needs
+ * no type written, since the copy's type is the read's own, and the leg stays in the ladder, which
+ * types it as before.
+ *
+ * <p>The copies are made in leg order, ahead of the ladder's reads of the other legs, so the wire's
+ * getters are read in another order than the components'. Only a getter that does more than answer,
+ * or throws, can tell. A copy that throws, as one of a map whose keys {@code equals} merges does,
+ * throws before the legs ahead of it are read; a leg that fails is still a {@code FieldError} that
+ * accumulates. A local's name is the component's under the {@code hkj$} prefix, kept clear of every
+ * name the method already has in scope.
  */
 final class LegLocals {
 
-  private final Set<String> taken = new HashSet<>();
+  private final Set<String> taken;
   private final CodeBlock.Builder statements = CodeBlock.builder();
 
   /**
-   * Binds {@code value}, the leg of {@code component}, to a fresh local.
+   * Locals for a method in which {@code inScope} are already named: its parameters, and the
+   * components whose names its lambdas and locals take.
+   *
+   * @param inScope the names a local must not take
+   */
+  LegLocals(Set<String> inScope) {
+    this.taken = new HashSet<>(inScope);
+  }
+
+  /**
+   * Binds {@code value}, the copy the leg of {@code component} reads, to a fresh local.
    *
    * @param component the component the leg parses
-   * @param value the leg's {@code Validated} value
-   * @return the local's name, to hand the ladder
+   * @param value the copy of the component's read
+   * @return the local's name, for the leg to read
    */
   CodeBlock bind(String component, CodeBlock value) {
     String name = ProcessorUtils.freeName("hkj$" + component, taken);
@@ -40,7 +53,7 @@ final class LegLocals {
     return CodeBlock.of("$L", name);
   }
 
-  /** The names bound so far, which a chunked ladder's own locals keep clear of. */
+  /** The names in scope and bound so far, which a chunked ladder's own locals keep clear of. */
   Set<String> names() {
     return Set.copyOf(taken);
   }

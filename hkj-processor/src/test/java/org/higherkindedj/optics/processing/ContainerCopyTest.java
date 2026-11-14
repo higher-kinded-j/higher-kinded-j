@@ -268,6 +268,38 @@ class ContainerCopyTest {
                       @GenerateMapping
                       public interface ScoresPatchMapping extends UpdateSpec<Scores, ScoresPatch> {}
 
+                      // A bridged primitive array copies with no scan, on a record, a projection
+                      // and a bean.
+                      public record Badge(String id, Optional<int[]> codes) {}
+
+                      public record BadgeDto(String id, int[] codes) {}
+
+                      @GenerateMapping
+                      public interface BadgeMapping extends MappingSpec<Badge, BadgeDto> {
+                        @OptionalBridge
+                        Optional<int[]> codes();
+                      }
+
+                      public record BadgeView(int[] codes) {}
+
+                      @GenerateMapping
+                      public interface BadgeViewMapping extends MappingSpec<Badge, BadgeView> {
+                        @OptionalBridge
+                        Optional<int[]> codes();
+                      }
+
+                      public record Avatar(Optional<byte[]> image) {}
+
+                      public static class AvatarBean {
+                        private byte[] image;
+
+                        public byte[] getImage() { return image; }
+                        public void setImage(byte[] image) { this.image = image; }
+                      }
+
+                      @GenerateMapping
+                      public interface AvatarMapping extends MappingSpec<Avatar, AvatarBean> {}
+
                       public record Names(List<String> names) {}
 
                       public record Labels(Map<String, String> labels, String note) {}
@@ -920,6 +952,36 @@ class ContainerCopyTest {
                       }
 
                       /** The way out the message offers: the map's own type, handed over as it is. */
+                      public static List<String> bridgedArrays() {
+                        int[] codes = {1, 2};
+                        Badge domain = new Badge("b", Optional.of(codes));
+                        Badge parsed =
+                            FixturesBadgeMappingImpl.INSTANCE.parse(new BadgeDto("b", codes)).get();
+                        BadgeDto built = FixturesBadgeMappingImpl.INSTANCE.build(domain);
+                        Badge patched =
+                            FixturesBadgeViewMappingImpl.INSTANCE
+                                .patch(domain, new BadgeView(codes))
+                                .get();
+                        byte[] image = {3};
+                        AvatarBean bean = new AvatarBean();
+                        bean.setImage(image);
+                        Avatar avatar = FixturesAvatarMappingImpl.INSTANCE.parse(bean).get();
+                        List<String> shared =
+                            shared(
+                                "parse", parsed.codes().orElseThrow(), codes,
+                                "build", built.codes(), codes,
+                                "patch", patched.codes().orElseThrow(), codes,
+                                "bean", avatar.image().orElseThrow(), image);
+                        if (FixturesBadgeMappingImpl.INSTANCE
+                            .parse(new BadgeDto("b", null))
+                            .get()
+                            .codes()
+                            .isPresent()) {
+                          shared.add("absent read as present");
+                        }
+                        return shared;
+                      }
+
                       public static List<Object> mergingMapDeclaredAsItsOwnType() {
                         TreeMap<Tag, String> sorted = merging("a", "b");
                         TaggedDto wire = new TaggedDto(Map.of(), Map.of(), sorted);
@@ -1076,6 +1138,12 @@ class ContainerCopyTest {
       "a @MapKey map's values and a bridged Optional's value copy both ways; a map whose values"
           + " have no copy is not copied first")
   void keyedAndBridgedValuesCopy() throws ReflectiveOperationException {
+    // A bridged primitive array has no scan: its copy is bound ahead of the ladder, and its leg,
+    // which the ladder types, stays in it.
+    assertThat(probe("bridgedArrays")).isEqualTo(List.of());
+    assertThat(generated("FixturesBadgeMappingImpl"))
+        .contains("var hkj$codes = hkj$copyOrNull(wire.codes(), e -> e.clone());")
+        .contains(".field(\"codes\", Validated.validNel(Optional.ofNullable(hkj$codes)))");
     assertThat(probe("keyed")).isEqualTo(List.of());
     assertThat(generated("FixturesKeyedMappingImpl"))
         .contains("hkj$ifPresent(wire.names(), namesKey()::parseKeys)")

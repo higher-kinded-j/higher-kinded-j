@@ -154,7 +154,7 @@ Nothing refuses these at compile time, and only the first draws a warning. Each 
 
 ### A `@Nullable` component is not copied into a non-null one {#nullable-copy-into-non-null}
 
-**A same-typed component is copied as it is, a `null` included.** So a domain component declared `@Nullable` is refused where `build` copies it into a site declared non-null, by the rule a [bridged component](#bridged-component-nullable) follows. The site is a record component, setter or builder setter carrying a non-null annotation, or carrying no `@Nullable` inside a JSpecify `@NullMarked` scope. Here a reader's nickname may be absent, and the view says it never is:
+**A same-typed component is copied as it is, a `null` included.** So the processor refuses a domain component declared `@Nullable` where `build` copies it into a site declared non-null, as it refuses a [bridged component](#bridged-component-nullable) there. The site is a record component, setter or builder setter carrying a non-null annotation, or carrying no `@Nullable` inside a JSpecify `@NullMarked` scope. Here a reader's nickname may be absent, and the view says it never is:
 
 <!-- verify:rejects "is declared @Nullable, and build copies it to" -->
 ```java
@@ -171,15 +171,15 @@ record ReaderView(String name, @NonNull String nickname) {}
 interface ReaderViewMapping extends MappingSpec<Reader, ReaderView> {}
 ```
 
-The processor answers that `Reader.nickname` `is declared @Nullable, and build copies it to` a component declared non-null. Give the pair one nullness: mark `ReaderView.nickname` `@Nullable`, or declare `Reader.nickname` non-null if every `Reader` that `build` is given has one. On a Lombok bean, mark the field, which Lombok copies to the setter it writes. A leaf is no way out, since its `build` refuses a `null`.
+The processor answers that `Reader.nickname` `is declared @Nullable, and build copies it to` a component declared non-null. Give the pair one nullness: mark `ReaderView.nickname` `@Nullable`, or declare `Reader.nickname` non-null if every `Reader` that `build` is given has one. On a Lombok bean, mark the field: Lombok copies its `@Nullable` to the setter it writes. In a mapping, a leaf is no way out, since its `build` refuses a `null`.
 
 - The domain component counts as nullable by the same wide reading: any annotation named `Nullable` or `CheckForNull`, or JSR-305's `@Nonnull(when = MAYBE)`, on the component, its type, its accessor or its field.
 - The site is read where `build` hands it the value: a record's canonical constructor parameter, which an explicit constructor may declare `@Nullable`, takes the `null` whatever the component says.
 - A wire class you cannot change keeps one more way. Hold the component as an `Optional` in the domain, and give it a leaf over the whole `Optional` that says what an absent value becomes on the wire.
 - `parse` needs no such rule: it refuses a `null` read whatever the domain declares, as [the null contract](#the-null-contract-precisely) says.
 - A primitive, a bean property `build` never writes, and a component or a site that says nothing either way are copied as before.
-- A plain [`@GenerateMerge`](#how-a-merge-fills) refuses a `@Nullable` source component copied into a target component declared non-null, in the same shape. It offers one more fix: a leaf on any fill makes the merge fallible, and a fallible merge guards each read, reporting a `null` as `must not be null`.
-- Only a copy is checked. A `@Nullable` component that `build` hands to a leaf, a nested spec, a lifted container, a `@Singular` builder method or a getter-only list is not refused yet. Each of those refuses the `null` when `build` meets it.
+- A plain [`@GenerateMerge`](#how-a-merge-fills) refuses a `@Nullable` source component copied into a target component declared non-null, the same way. It offers one more fix: a leaf on that fill, or on any other, makes the merge fallible, and a fallible merge guards each read, reporting a `null` as `must not be null`.
+- Only a copy is checked. Refusing a `@Nullable` component that `build` hands to a leaf, a nested spec, a lifted container, a `@Singular` builder method or a getter-only list is not supported yet. Each of those throws when `build` meets the `null`, but a `@Singular(ignoreNullCollections = true)` method skips it.
 
 ### The null contract, precisely {#the-null-contract-precisely}
 
@@ -371,7 +371,7 @@ A component whose type is the same on both sides, with no leaf of its own, cross
 
 - The copy keeps the source's order, with a `Set` copied as a set and any other `Collection` as a list: the shape an element-lifted leg's result already has. It is unmodifiable, an `IdentityHashMap` aside. Code that adds to a built bean's list afterwards throws `UnsupportedOperationException`; set a new list instead, or copy it first (`new ArrayList<>(bean.getTags())`). A getter-only list filled through `getTags().addAll(...)` stays the bean's own.
 - It carries what it copies. A `null` element stays where it was (the [null scan](#the-null-contract-precisely) decides what `parse` makes of it, and `build` stays total), and a `null` container copies to `null`.
-- It says so to a nullness checker: where your module can read JSpecify, each copy, and each guard `parse` reads through, declares the `null` it takes or gives. A checker does not yet follow a nullable element type, such as `List<@Nullable String>`, through `parse`, so it checks one clean only where the mapping only builds.
+- It says so to a nullness checker: where your module can read JSpecify, each copy, and each guard `parse` reads through, declares the `null` it takes or gives. NullAway does not yet follow a nullable element type, such as `List<@Nullable String>`, through `parse`, so a mapping with one passes only when it is build-only.
 - Every level inside is copied too: each list inside a `List<List<String>>`, each value of a `Map<String, List<String>>`, each row of a `String[][]`, and the container an `Optional` holds. Each call allocates one copy per container it hands over, at every level.
 - A copy compares the way a list, set or map does. A sorted source (`TreeSet`, `TreeMap`) keeps its order but not its comparator; declare the sorted type, which is handed over as it is, or sort again in the record's compact constructor. A `Collection` holding an `ArrayDeque`, which compares by identity, comes back comparing by its elements.
 - A `Map` copy keeps every entry under the source's own key. An `IdentityHashMap` declared as `Map` comes back an `IdentityHashMap` of its own, in the same order, so equal keys that are not the same object stay apart. It alone can be written to: a read-only view of one is no `IdentityHashMap`, so the next copy would refuse it.

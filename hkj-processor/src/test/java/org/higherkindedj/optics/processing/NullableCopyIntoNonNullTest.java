@@ -4,14 +4,18 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
-import javax.annotation.processing.Processor;
+import java.io.IOException;
+import java.nio.file.Path;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * A same-typed component is copied as it is, a {@code null} included, so a domain component
@@ -26,6 +30,8 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("A nullable component copied into a site declared non-null")
 class NullableCopyIntoNonNullTest {
+
+  @TempDir Path tmp;
 
   private static final JavaFileObject MARKED_PACKAGE =
       JavaFileObjects.forSourceString(
@@ -111,6 +117,20 @@ class NullableCopyIntoNonNullTest {
                   @GenerateMapping
                   public interface AccountBeanMapping extends MappingSpec<Account, AccountBean> {}
 
+                  // A property no field of its own name backs.
+                  public static class AccountKept {
+                    private @Nullable String kept;
+                    private @Nullable String name;
+
+                    public @Nullable String getId() { return kept; }
+                    public void setId(String id) { this.kept = id; }
+                    public @Nullable String getName() { return name; }
+                    public void setName(@Nullable String name) { this.name = name; }
+                  }
+
+                  @GenerateMapping
+                  public interface AccountKeptMapping extends MappingSpec<Account, AccountKept> {}
+
                   public static final class AccountCard {
                     private final @Nullable String id;
                     private final @Nullable String name;
@@ -186,7 +206,7 @@ class NullableCopyIntoNonNullTest {
                 + " inside @NullMarked package 'com.marked', so build would write a null its"
                 + " declaration rules out, and either throw or leave a null its type says it cannot"
                 + " hold. As 'Account.id' may be absent, mark 'AccountView.id' @Nullable; or"
-                + " declare 'Account.id' non-null, if every Account build is given has one.");
+                + " declare 'Account.id' non-null, if build never meets it null.");
     assertThat(compilation)
         .hadErrorContaining(
             "'LooseView.id' is annotated @NonNull, so build would write a null its declaration"
@@ -223,23 +243,73 @@ class NullableCopyIntoNonNullTest {
                 + " no @Nullable inside @NullMarked package 'com.marked', so the merge would write"
                 + " a null its declaration rules out, and either throw or leave a null its type"
                 + " says it cannot hold. As 'Labels.note' may be absent, mark 'Merged.note'"
-                + " @Nullable; or declare 'Labels.note' non-null, if every Labels the merge is"
-                + " given has one; or add 'default ValidatedPrism<java.lang.String,"
+                + " @Nullable; or declare 'Labels.note' non-null, if the merge never meets it null;"
+                + " or add 'default ValidatedPrism<java.lang.String,"
                 + " java.lang.String> note()' to the merge and return"
-                + " Validated<NonEmptyList<FieldError>, Merged>, so that a fallible merge reports a"
-                + " null note as a failure.");
-    Assertions.assertThat(compilation.errors()).hasSize(8);
+                + " Validated<NonEmptyList<FieldError>, Merged>, so the merge, now fallible,"
+                + " reports a null as 'note: must not be null'.");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "As 'Account.id' may be absent, mark the parameter of setId(String) @Nullable; or"
+                + " declare 'Account.id' non-null");
+    Assertions.assertThat(compilation.errors()).hasSize(9);
   }
 
-  private static Processor lombok() {
-    try {
-      return (Processor)
-          Class.forName("lombok.launch.AnnotationProcessorHider$AnnotationProcessor")
-              .getDeclaredConstructor()
-              .newInstance();
-    } catch (ReflectiveOperationException e) {
-      throw new AssertionError("Lombok processor not loadable", e);
-    }
+  @Test
+  @DisplayName(
+      "a record read from a class file takes the null its canonical constructor's parameter"
+          + " accepts")
+  void aCompiledConstructorThatTakesANullIsAccepted() throws IOException {
+    Compilation upstream =
+        javac()
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.upstream.Defaulted",
+                    """
+                    package com.upstream;
+
+                    import org.jspecify.annotations.NullMarked;
+                    import org.jspecify.annotations.Nullable;
+
+                    @NullMarked
+                    public record Defaulted(String id, String name) {
+                      public Defaulted(@Nullable String id, String name) {
+                        this.id = id == null ? "" : id;
+                        this.name = name;
+                      }
+                    }
+                    """));
+    assertThat(upstream).succeeded();
+    Path classes = classDirectory(upstream, tmp.resolve("upstream"));
+
+    Compilation compilation =
+        javac()
+            .withProcessors(new MappingProcessor())
+            .withClasspath(classpathWith(classes))
+            .withOptions("-Xlint:all,-processing", "-Werror")
+            .compile(
+                MARKED_PACKAGE,
+                JavaFileObjects.forSourceString(
+                    "com.marked.Downstream",
+                    """
+                    package com.marked;
+
+                    import com.upstream.Defaulted;
+                    import org.higherkindedj.optics.annotations.GenerateMapping;
+                    import org.higherkindedj.optics.annotations.MappingSpec;
+                    import org.jspecify.annotations.Nullable;
+
+                    public final class Downstream {
+                      private Downstream() {}
+
+                      public record Account(@Nullable String id, String name) {}
+
+                      @GenerateMapping
+                      public interface DefaultedMapping extends MappingSpec<Account, Defaulted> {}
+                    }
+                    """));
+
+    assertThat(compilation).succeededWithoutWarnings();
   }
 
   @Test
@@ -247,7 +317,7 @@ class NullableCopyIntoNonNullTest {
   void aLombokWriterIsFixedOnItsField() {
     Compilation compilation =
         javac()
-            .withProcessors(lombok(), new MappingProcessor())
+            .withProcessors(LombokInteropTest.lombok(), new MappingProcessor())
             .compile(
                 MARKED_PACKAGE,
                 JavaFileObjects.forSourceString(
@@ -291,6 +361,36 @@ class NullableCopyIntoNonNullTest {
 
                       @GenerateMapping
                       public interface AccountCardMapping extends MappingSpec<Account, AccountCard> {}
+
+                      // A @SuperBuilder's builder writes the field its parent declares.
+                      @lombok.experimental.SuperBuilder
+                      @lombok.Getter
+                      public static class BaseCard {
+                        private final String id;
+                      }
+
+                      @lombok.experimental.SuperBuilder
+                      @lombok.Getter
+                      public static class FullCard extends BaseCard {
+                        private final @Nullable String name;
+                      }
+
+                      @GenerateMapping
+                      public interface FullCardMapping extends MappingSpec<Account, FullCard> {}
+
+                      // Lombok writes no setter beside one written by hand.
+                      @lombok.Data
+                      public static class AccountHand {
+                        private @Nullable String id;
+                        private @Nullable String name;
+
+                        public void setId(String id) {
+                          this.id = id;
+                        }
+                      }
+
+                      @GenerateMapping
+                      public interface AccountHandMapping extends MappingSpec<Account, AccountHand> {}
                     }
                     """));
 
@@ -308,7 +408,13 @@ class NullableCopyIntoNonNullTest {
         .hadErrorContaining(
             "whose builder setter id(String), which Lombok writes from the field"
                 + " 'AccountCard.id', is declared non-null.");
-    Assertions.assertThat(compilation.errors()).hasSize(3);
+    assertThat(compilation)
+        .hadErrorContaining(
+            "As 'Account.id' may be absent, mark the parameter of setId(String) @Nullable;");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "which Lombok writes from the field 'BaseCard.id', is declared non-null.");
+    Assertions.assertThat(compilation.errors()).hasSize(5);
   }
 
   @Test

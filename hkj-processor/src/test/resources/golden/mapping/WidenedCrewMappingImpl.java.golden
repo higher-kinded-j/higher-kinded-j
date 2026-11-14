@@ -51,16 +51,16 @@ public final class CrewMappingImpl implements CrewMapping {
 
   public Validated<NonEmptyList<FieldError>, Crew> parse(CrewDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
-    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.tags()));
-    var hkj$codes = hkj$allPresent(hkj$copyOrNull(wire.codes(), e -> e.clone()));
-    var hkj$ranks = hkj$ifPresent(hkj$copyOrNull(wire.ranks(), e -> e.clone()), Validated::validNel);
+    var hkj$tags = hkj$copyOf(wire.tags());
+    var hkj$codes = hkj$copyOrNull(wire.codes(), e -> e.clone());
+    var hkj$ranks = hkj$copyOrNull(wire.ranks(), e -> e.clone());
     return hkj$construct(
         Validated.fields()
             .field("members", hkj$ifPresent(wire.members(), members()::parseAll))
             .field("reserves", hkj$ifPresent(wire.reserves(), v -> reserves().parseAll(v, Email[]::new)))
-            .field("tags", hkj$tags)
-            .field("codes", hkj$codes)
-            .field("ranks", hkj$ranks)
+            .field("tags", hkj$allPresent(hkj$tags))
+            .field("codes", hkj$allPresent(hkj$codes))
+            .field("ranks", hkj$ifPresent(hkj$ranks, Validated::validNel))
             .field("notes", hkj$ifPresent(wire.notes(), noteKey()::parseKeys))
             .field("escalations", hkj$ifPresent(wire.escalations(), v -> escalationKey().parseEntries(v, escalations())))
             .apply((members, reserves, tags, codes, ranks, notes, escalations) -> () -> new Crew(members, reserves, tags, codes, ranks, notes, escalations)),

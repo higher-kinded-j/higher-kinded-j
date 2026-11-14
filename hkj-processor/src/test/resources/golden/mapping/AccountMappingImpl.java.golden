@@ -51,13 +51,13 @@ public final class AccountMappingImpl implements AccountMapping {
 
   public Validated<NonEmptyList<FieldError>, Account> parse(AccountDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
-    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.tags()));
+    var hkj$tags = hkj$copyOf(wire.tags());
     return hkj$construct(
         Validated.fields()
             .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
             .field("email", hkj$ifPresent(wire.email(), email()::parse))
             .field("cc", hkj$ifPresent(wire.cc(), cc()::parseAll))
-            .field("tags", hkj$tags)
+            .field("tags", hkj$allPresent(hkj$tags))
             .field("lead", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))))
             .field("contacts", hkj$ifPresent(wire.contacts(), contacts()::parseValues))
             .field("address", hkj$ifPresent(wire.address(), AddressMappingImpl.INSTANCE.asValidatedPrism()::parse))

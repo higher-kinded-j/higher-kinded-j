@@ -12,6 +12,7 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -310,7 +311,7 @@ public class MergeProcessor extends AbstractProcessor {
       }
       RecordComponentElement to = componentNamed(target, fill.component());
       MappingProcessor.NonNullSite site =
-          MappingProcessor.nonNullComponent(processingEnv.getElementUtils(), target, to);
+          MappingProcessor.nonNullComponent(processingEnv.getTypeUtils(), target, to);
       if (site == null) {
         continue;
       }
@@ -337,15 +338,13 @@ public class MergeProcessor extends AbstractProcessor {
               + nullable
               + "; or declare "
               + spelt
-              + " non-null, if every "
-              + source.getSimpleName()
-              + " the merge is given has one; or add "
+              + " non-null, if the merge never meets it null; or add "
               + leafDeclaration(fill.component(), from.asType(), to.asType())
               + " to the merge and return Validated<NonEmptyList<FieldError>, "
               + target.getSimpleName()
-              + ">, so that a fallible merge reports a null "
+              + ">, so the merge, now fallible, reports a null as '"
               + fill.component()
-              + " as a failure.");
+              + ": must not be null'.");
       clean = false;
     }
     return clean;
@@ -1039,11 +1038,17 @@ public class MergeProcessor extends AbstractProcessor {
             .map(source -> source.getSimpleName().toString())
             .collect(Collectors.toUnmodifiableSet());
     if (shape.fallibleDeclared()) {
-      // A fill that copies a container is bound to a local ahead of the ladder, as a mapping's
-      // parse binds such a leg (LegLocals says why).
-      LegLocals locals = new LegLocals();
+      // A fill's copy is bound to a local ahead of the ladder, as a mapping's parse binds a leg's
+      // copy (LegLocals says why), and the fill reads it.
+      Set<String> inScope = new HashSet<>(sourceNames);
+      fills.forEach(fill -> inScope.add(fill.component()));
+      LegLocals locals = new LegLocals(inScope);
       List<CodeBlock> legs = new ArrayList<>();
       for (Fill fill : fills) {
+        CodeBlock read =
+            fill.copy() == null
+                ? fill.read(sourceNames)
+                : locals.bind(fill.component(), fill.read(sourceNames));
         // Every reference read is null-guarded (the null doctrine): a null source
         // component is a located FieldError, never an exception. Primitive identity reads can
         // never be null and copy directly.
@@ -1056,18 +1061,13 @@ public class MergeProcessor extends AbstractProcessor {
                   fill.component(),
                   fill.prism());
         } else if (fill.scan() != null) {
-          value = fill.scan().on(fill.read(sourceNames), sourceNames);
+          value = fill.scan().on(read, sourceNames);
         } else if (fill.guardedRead()) {
-          value =
-              CodeBlock.of("hkj$$ifPresent($L, $T::validNel)", fill.read(sourceNames), VALIDATED);
+          value = CodeBlock.of("hkj$$ifPresent($L, $T::validNel)", read, VALIDATED);
         } else {
-          value = CodeBlock.of("$T.validNel($L)", VALIDATED, fill.read(sourceNames));
+          value = CodeBlock.of("$T.validNel($L)", VALIDATED, read);
         }
-        legs.add(
-            CodeBlock.of(
-                "\n.field($S, $L)",
-                fill.component(),
-                fill.copy() == null ? value : locals.bind(fill.component(), value)));
+        legs.add(CodeBlock.of("\n.field($S, $L)", fill.component(), value));
       }
       method.addCode(locals.statements());
       // The merge method's parameters carry the spec author's names, so they are reserved

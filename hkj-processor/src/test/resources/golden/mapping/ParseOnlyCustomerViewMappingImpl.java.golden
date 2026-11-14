@@ -38,12 +38,12 @@ public final class CustomerViewMappingImpl implements CustomerViewMapping {
 
   public Validated<NonEmptyList<FieldError>, Customer> parse(CustomerView wire) {
     Objects.requireNonNull(wire, "wire must not be null");
-    var hkj$tags = hkj$allPresent(hkj$copyOf(wire.getTags()));
+    var hkj$tags = hkj$copyOf(wire.getTags());
     return hkj$construct(
         Validated.fields()
             .field("name", hkj$ifPresent(wire.getName(), Validated::validNel))
             .field("email", hkj$ifPresent(wire.getEmail(), email()::parse))
-            .field("tags", hkj$tags)
+            .field("tags", hkj$allPresent(hkj$tags))
             .field("nickname", Validated.validNel(Optional.ofNullable(wire.getNickname())))
             .apply((name, email, tags, nickname) -> () -> new Customer(name, email, tags, nickname)),
         "not a valid Customer");

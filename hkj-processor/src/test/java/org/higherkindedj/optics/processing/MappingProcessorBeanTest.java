@@ -1009,7 +1009,8 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generated)
           .contains("wire.setTitle(domain.title());")
           .contains("wire.getTags().addAll(hkj$copyOf(domain.tags()));")
-          .contains("var hkj$tags = hkj$allPresent(hkj$copyOf(wire.getTags()));");
+          .contains("var hkj$tags = hkj$copyOf(wire.getTags());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
@@ -3631,7 +3632,8 @@ class MappingProcessorBeanTest {
           .contains(
               ".field(\"customer\", hkj$ifPresent(wire.getCustomer(),"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))")
-          .contains("var hkj$tags = hkj$allPresent(hkj$copyOf(wire.getTags()));");
+          .contains("var hkj$tags = hkj$copyOf(wire.getTags());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.OrderCardMappingImpl");
@@ -3825,8 +3827,10 @@ class MappingProcessorBeanTest {
           .contains("wire.getNotes().addAll(hkj$copyOf(domain.notes()));")
           .contains(".field(\"domain\", hkj$ifPresent(wire.getDomain(), Validated::validNel))")
           .contains(".field(\"active\", Validated.validNel(wire.isActive()))")
-          .contains("var hkj$notes = hkj$allPresent(hkj$copyOf(wire.getNotes()));")
-          .contains("var hkj$scores = hkj$valuesPresent(hkj$copyOf(wire.getScores()));")
+          .contains("var hkj$notes = hkj$copyOf(wire.getNotes());")
+          .contains(".field(\"notes\", hkj$allPresent(hkj$notes))")
+          .contains("var hkj$scores = hkj$copyOf(wire.getScores());")
+          .contains(".field(\"scores\", hkj$valuesPresent(hkj$scores))")
           .contains(".field(\"tags\", hkj$ifPresent(wire.getTags(), tags()::parseAll))")
           // A component named after the method parameter takes a suffixed lambda parameter.
           .contains("var version = domain.version();")
