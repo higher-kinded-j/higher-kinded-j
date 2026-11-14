@@ -56,7 +56,7 @@ In words: the leaf reports only its message, and on the way out each level puts 
 Indexes count from zero, so `lines.1` is the second line. An array lifts exactly as a `List` does, and a `null` element is reported at its index, under the [null rule](basics.md#null-doctrine). Lifting needs the same container on both sides: [What lifts, and what does not](rules.md#what-lifts) has the exact rule.
 
 ~~~admonish warning title="Not checked for you: a mapped `List`, `Set` or `Map` is unmodifiable"
-A component declared as a `List`, `Set` or `Map` comes out of `parse` and `build` unmodifiable, whether its elements went through a spec, like `lines`, or needed no conversion, like a `List<String> tags`. Adding to one throws `UnsupportedOperationException`, so copy it first. One that needs no conversion is copied both ways, so neither side holds the other's list. A component declared as `ArrayList`, or any other subtype, is shared as it is. [Same-typed containers cross as copies](rules.md#same-typed-containers-cross-as-copies) has the precise rule.
+A component declared as a `List`, `Set` or `Map` comes out of `parse` and `build` unmodifiable, an `IdentityHashMap` aside, whether its elements went through a spec, like `lines`, or needed no conversion, like a `List<String> tags`. Adding to one throws `UnsupportedOperationException`, so copy it first. One that needs no conversion is copied both ways, so neither side holds the other's list. A component declared as `ArrayList`, or any other subtype, is shared as it is. [Same-typed containers cross as copies](rules.md#same-typed-containers-cross-as-copies) has the precise rule.
 ~~~
 
 ---
@@ -311,7 +311,7 @@ The delegation is an ordinary static reference in generated code, resolved at co
 * **Nesting is delegation**: a spec for an inner pair is used wherever that pair appears, in this module or a dependency, and a `List` lifts it element by element
 * **Error paths grow outward**: each level puts its name in front, so the client reads `customer.email` or `lines.1.price`, and a sealed dispatch adds no segment
 * **Sealed dispatch is exhaustive both ways**: the processor refuses a missing subtype pair, so it never surprises you at runtime
-* **A mapped `List`, `Set` or `Map` is unmodifiable**: one that needs no conversion is also a copy, never the other side's own list
+* **A mapped `List`, `Set` or `Map` is unmodifiable**, an `IdentityHashMap` aside: one that needs no conversion is also a copy, never the other side's own list
 ~~~
 
 ~~~admonish tip title="See Also"
