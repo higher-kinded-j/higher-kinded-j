@@ -58,7 +58,7 @@ public final class AccountMappingImpl implements AccountMapping {
             .field("email", hkj$ifPresent(wire.email(), email()::parse))
             .field("cc", hkj$ifPresent(wire.cc(), cc()::parseAll))
             .field("tags", hkj$allPresent(hkj$tags))
-            .field("lead", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))))
+            .field("lead", hkj$ifPresent(wire.lead(), o -> hkj$parsePresent(o.orElse(null), v -> lead().parse(v).map(Optional::of))))
             .field("contacts", hkj$ifPresent(wire.contacts(), contacts()::parseValues))
             .field("address", hkj$ifPresent(wire.address(), AddressMappingImpl.INSTANCE.asValidatedPrism()::parse))
             .apply((name, email, cc, tags, lead, contacts, address) -> () -> new Account(name, email, cc, tags, lead, contacts, address)),
@@ -153,6 +153,15 @@ public final class AccountMappingImpl implements AccountMapping {
   private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
       Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
+  }
+
+  /**
+   * Parses a nullable read to an {@code Optional}: a null is valid emptiness, otherwise the value is parsed.
+   */
+  private static <S, A> Validated<NonEmptyList<FieldError>, Optional<A>> hkj$parsePresent(
+      @Nullable S value,
+      Function<? super S, Validated<NonEmptyList<FieldError>, Optional<A>>> parse) {
+    return value == null ? Validated.validNel(Optional.empty()) : parse.apply(value);
   }
 
   /**

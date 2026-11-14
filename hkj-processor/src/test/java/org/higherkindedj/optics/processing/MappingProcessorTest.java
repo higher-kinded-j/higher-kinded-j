@@ -694,7 +694,7 @@ class MappingProcessorTest {
           .contains("domain.lead().map(lead()::build)")
           .contains(".field(\"members\", hkj$ifPresent(wire.members(), members()::parseAll))")
           .contains(
-              ".field(\"lead\", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of))")
+              ".field(\"lead\", hkj$ifPresent(wire.lead(), o -> hkj$parsePresent(o.orElse(null), v -> lead().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
     }
 
@@ -2447,7 +2447,7 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("domain.owner().map(CustomerMappingImpl.INSTANCE.asValidatedPrism()::build)")
           .contains(
-              "hkj$ifPresent(wire.owner(), o -> o.map(v ->"
+              "hkj$ifPresent(wire.owner(), o -> hkj$parsePresent(o.orElse(null), v ->"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(v)");
     }
 
@@ -5290,7 +5290,7 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("domain.alias().map(alias()::build)")
           .contains(
-              ".field(\"alias\", hkj$ifPresent(wire.alias(), o -> o.map(v -> alias().parse(v).map(Optional::of))")
+              ".field(\"alias\", hkj$ifPresent(wire.alias(), o -> hkj$parsePresent(o.orElse(null), v -> alias().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -11744,7 +11744,8 @@ class MappingProcessorTest {
           .contains(
               ".field(\"byKey\", hkj$ifPresent(wire.byKey(),"
                   + " UserMappingImpl.INSTANCE.asValidatedPrism()::parseValues))")
-          .contains(".field(\"head\", hkj$ifPresent(wire.head(), o -> o.map(v ->")
+          .contains(
+              ".field(\"head\", hkj$ifPresent(wire.head(), o -> hkj$parsePresent(o.orElse(null), v ->")
           .contains(".field(\"n\", Validated.validNel(wire.n()))");
     }
 
@@ -13292,7 +13293,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.SubscriberMappingImpl"))
           .contains("domain.email().map(email()::build).orElse(null)")
-          .contains("Optional.ofNullable(wire.email())");
+          .contains("hkj$parsePresent(wire.email(), v ->");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.SubscriberMappingImpl");
@@ -13650,7 +13651,7 @@ class MappingProcessorTest {
               "domain.contact().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::build)"
                   + ".orElse(null)")
           .contains(
-              ".field(\"contact\", Optional.ofNullable(wire.contact()).map(v ->"
+              ".field(\"contact\", hkj$parsePresent(wire.contact(), v ->"
                   + " ContactMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of))");
 
       // Absent and present round trips are law-checked in GeneratedMappingLawsTest; what is pinned
@@ -14436,7 +14437,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.BoxMappingImpl"))
           .contains("domain.item().map(item()::build).orElse(null)")
-          .contains("Optional.ofNullable(wire.item())");
+          .contains("hkj$parsePresent(wire.item(), v ->");
     }
 
     @Test
@@ -14944,7 +14945,8 @@ class MappingProcessorTest {
       // patch tier it selects carries no guarded read to emit a helper for
       Assertions.assertThat(generatedSource(compilation, "com.example.CustomerAliasMappingImpl"))
           .contains("public Validated<NonEmptyList<FieldError>, Customer> patch(")
-          .doesNotContain("hkj$ifPresent");
+          .doesNotContain("hkj$ifPresent")
+          .doesNotContain("hkj$parsePresent");
     }
 
     @Test
@@ -15055,7 +15057,7 @@ class MappingProcessorTest {
               "domain.contacts().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildAll)"
                   + ".orElse(null)")
           .contains(
-              ".field(\"contacts\", Optional.ofNullable(wire.contacts()).map(v ->"
+              ".field(\"contacts\", hkj$parsePresent(wire.contacts(), v ->"
                   + " ContactMappingImpl.INSTANCE.asValidatedPrism().parseAll(v)"
                   + ".map(Optional::of))");
 
