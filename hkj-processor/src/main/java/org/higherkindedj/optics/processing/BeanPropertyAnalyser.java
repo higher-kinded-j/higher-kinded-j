@@ -532,20 +532,25 @@ final class BeanPropertyAnalyser {
     return adder.flatMap(
         write ->
             getter.flatMap(
-                read ->
-                    Optional.ofNullable(
-                            ProcessorUtils.supertypeOf(
-                                types,
-                                getterType(accessors.message(), read),
-                                env.getElementUtils().getTypeElement(kind.getterType())))
-                        .map(
-                            type ->
-                                new WireShape.BeanProperty(
-                                    fieldName(suffix),
-                                    type,
-                                    Optional.of(read.getSimpleName().toString()),
-                                    Optional.of(new WireShape.WriteSite.Setter(write)),
-                                    Optional.of(field)))));
+                read -> {
+                  TypeMirror answered = getterType(accessors.message(), read);
+                  return Optional.ofNullable(
+                          ProcessorUtils.supertypeOf(
+                              types,
+                              answered,
+                              env.getElementUtils().getTypeElement(kind.getterType())))
+                      .map(
+                          type ->
+                              new WireShape.BeanProperty(
+                                  fieldName(suffix),
+                                  type,
+                                  Optional.of(read.getSimpleName().toString()),
+                                  Optional.of(new WireShape.WriteSite.Setter(write)),
+                                  Optional.of(
+                                      types.isSameType(answered, type)
+                                          ? field
+                                          : field.asWidened())));
+                }));
   }
 
   /**

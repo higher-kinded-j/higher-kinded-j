@@ -1299,7 +1299,7 @@ class MappingProcessorUpdateTest {
           // components
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
-          .doesNotContain("E[] values")
+          .doesNotContain("E @Nullable [] values")
           .doesNotContain("Function<? super E");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -1428,7 +1428,7 @@ class MappingProcessorUpdateTest {
           .contains("v -> routeKey().parseEntries(v, routes())")
           // the identity String[] carries the array scan overload
           .contains("StockPatchMappingImpl::hkj$allPresent")
-          .contains("E[] values");
+          .contains("E @Nullable [] values");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {

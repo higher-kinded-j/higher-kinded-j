@@ -21,6 +21,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | **Optional fields** | | |
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
+| [Can a `@Nullable` component be copied into one declared non-null?](#nullable-copy-into-non-null) | No: `build` would write the `null`, so give both one nullness. | by design |
 | [Can a bean spec declare `@OptionalBridge`?](#optional-bridge-on-a-bean-wire) | Yes, but it changes nothing: the processor answers with a note. | by design |
 | [Can a bridged value go through a leaf or a spec?](#what-converts-a-bridged-value) | Yes: whatever converts it unbridged, over the inner types. | by design |
 | **Shared vocabulary** | | |
@@ -218,6 +219,32 @@ The same holds for every site `build` writes an empty `Optional` into: a record 
 
 Any annotation named `Nullable` or `CheckForNull` counts here, whichever library it comes from, and so does JSR-305's `@Nonnull(when = MAYBE)`: this rule refuses a build, so it reads more widely than the fixed list of names that decides which Focus paths are null-safe. A component typed by a type variable follows the variable's bounds: a plain `<T>` declared in a `@NullMarked` scope is non-null, as its bound `Object` is, and `<T extends @Nullable Object>` leaves the nullness to the type argument, so it bridges.
 
+### A `@Nullable` component is not copied into a non-null one {#nullable-copy-into-non-null}
+
+**A same-typed component is copied as it is, a `null` included.** So a domain component declared `@Nullable` is refused where `build` copies it into a site declared non-null, by the rule a [bridged component](#bridged-component-nullable) follows. The site is a record component, setter or builder setter carrying a non-null annotation, or carrying no `@Nullable` inside a JSpecify `@NullMarked` scope. Here a reader's nickname may be absent, and the view says it never is:
+
+<!-- verify:rejects "is declared @Nullable, and build copies it to" -->
+```java
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+record Reader(String name, @Nullable String nickname) {}
+
+record ReaderView(String name, @NonNull String nickname) {}
+
+@GenerateMapping
+interface ReaderViewMapping extends MappingSpec<Reader, ReaderView> {}
+```
+
+The processor answers that `Reader.nickname` `is declared @Nullable, and build copies it to` a component declared non-null. Give the pair one nullness: mark `ReaderView.nickname` `@Nullable`, or declare `Reader.nickname` non-null if every value `build` is given has one. A leaf is no way out under a nullness checker, since a `ValidatedPrism` cannot take a nullable domain type.
+
+- The domain component counts as nullable by the same wide reading: any annotation named `Nullable` or `CheckForNull`, on the component, its type, its accessor or its field.
+- `parse` needs no such rule: it refuses a `null` read whatever the domain declares, as [the null contract](#the-null-contract-precisely) says.
+- A primitive, a bean property `build` never writes, and a component or a site that says nothing either way are copied as before.
+- A plain [`@GenerateMerge`](#how-a-merge-fills) refuses a `@Nullable` source component copied into a target component declared non-null, in the same words. A fallible merge guards each read instead, and reports a `null` as `must not be null`.
+
 ### What converts a bridged value {#what-converts-a-bridged-value}
 
 **The value inside a bridged `Optional`, or each element of a bridged container, converts exactly as an unbridged one would.** It is copied when the types match, nested through a spec for the pair, or converted by a leaf over the inner types, and such an element leaf wins over the spec. A bridged `List`, `Set`, array or `Map` lifts element by element, a `null` element inside a present one reports as it would [unbridged](#the-null-contract-precisely), and a [`@MapKey`](structure.md#converting-map-keys) leaf converts a bridged `Map`'s keys. When nothing converts the inner pair, the processor refuses the component naming that pair, and offers a leaf over the inner types, or for a record pair a spec. It never offers a leaf over the whole `Optional` or container, though one declared anyway still works, as an override.
@@ -340,6 +367,7 @@ A component whose type is the same on both sides, with no leaf of its own, cross
 
 - The copy keeps the source's order, with a `Set` copied as a set and any other `Collection` as a list: the shape an element-lifted leg's result already has. It is unmodifiable, an `IdentityHashMap` aside. Code that adds to a built bean's list afterwards throws `UnsupportedOperationException`; set a new list instead, or copy it first (`new ArrayList<>(bean.getTags())`). A getter-only list filled through `getTags().addAll(...)` stays the bean's own.
 - It carries what it copies. A `null` element stays where it was (the [null scan](#the-null-contract-precisely) decides what `parse` makes of it, and `build` stays total), and a `null` container copies to `null`.
+- It says so to a nullness checker. Where your module can read JSpecify, each copy is declared `@Nullable` exactly when its read is, and an element type may be nullable. So a checker run over the generated Impl holds each copy to the read it was made from. The guards `parse` reads a value through take it as `@Nullable` too.
 - Every level inside is copied too: each list inside a `List<List<String>>`, each value of a `Map<String, List<String>>`, each row of a `String[][]`, and the container an `Optional` holds. Each call allocates one copy per container it hands over, at every level.
 - A copy compares the way a list, set or map does. A sorted source (`TreeSet`, `TreeMap`) keeps its order but not its comparator; declare the sorted type, which is handed over as it is, or sort again in the record's compact constructor. A `Collection` holding an `ArrayDeque`, which compares by identity, comes back comparing by its elements.
 - A `Map` copy keeps every entry under the source's own key. An `IdentityHashMap` declared as `Map` comes back an `IdentityHashMap` of its own, in the same order, so equal keys that are not the same object stay apart. It alone can be written to: a read-only view of one is no `IdentityHashMap`, so the next copy would refuse it.
@@ -912,7 +940,7 @@ interface SearchMapping<U extends Number> extends MappingSpec<Search<U>, SearchD
 **A merge is one abstract method on an `@GenerateMerge` interface: two or more record sources in, one record target out.** The processor refuses fewer than two sources, a second abstract method, and a generic merge.
 
 - **Each target component fills from the one source with a component of the same name.** A merge matches by name only and has no rename, so the processor refuses a target component no source names ([`is not filled by any source`](compiler_errors.md#merge-unfilled)), and one that two or more sources carry ([`both carry it`](compiler_errors.md#merge-component-ambiguous)). A source component the target lacks fills nothing.
-- **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies).
+- **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies). A plain merge refuses a `@Nullable` source component whose target component is [declared non-null](#nullable-copy-into-non-null).
 - **A leaf converts a fill.** It is a zero-parameter `default` method on the merge interface, named after the target component, returning `ValidatedPrism<SourceComponent, TargetComponent>`, source first. An explicit leaf wins even when the types match.
 - **A `@GenerateMapping` spec fills a component as `parse`.** The source component must be the spec's wire and the target component its domain, in this module or a dependency. A merge never runs a spec's `build`, so an outbound view cannot fill through one yet.
 - **A threaded spec fills by the rule a mapping nests it by.** It fills where its pair has the components' shape and its bounds admit each argument, through `PageMappingImpl.<Integer>instance()`, and [the most specific spec is used](#generic-spec-precedence), your own specs before a dependency's.

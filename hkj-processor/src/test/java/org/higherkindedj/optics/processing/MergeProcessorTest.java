@@ -1961,13 +1961,15 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CrewAssemblyImpl"))
           .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(source.tags())))")
-          .contains(".field(\"codes\", hkj$allPresent(hkj$copyOf(source.codes())))")
+          .contains(
+              ".field(\"codes\", hkj$allPresent(hkj$copyIfPresent(source.codes(), e -> e.clone())))")
           // a primitive array has no element that could be null, but is copied like any array
           .contains(
-              ".field(\"ranks\", hkj$ifPresent(hkj$copyOf(source.ranks()), Validated::validNel))")
+              ".field(\"ranks\", hkj$ifPresent(hkj$copyIfPresent(source.ranks(), e -> e.clone()),"
+                  + " Validated::validNel))")
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
-          .contains("E[] values");
+          .contains("E @Nullable [] values");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.CrewAssemblyImpl");

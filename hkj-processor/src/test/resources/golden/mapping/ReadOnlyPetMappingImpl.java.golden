@@ -4,6 +4,7 @@ package com.example.readonly;
 import java.lang.Object;
 import java.lang.Override;
 import java.lang.String;
+import java.lang.SuppressWarnings;
 import java.lang.UnsupportedOperationException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -21,6 +22,7 @@ import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.validated.ValidatedBuild;
 import org.higherkindedj.optics.validated.ValidatedParse;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated mapping for {@link PetMapping} over a wire with the read-only properties {@code id}, {@code tags}, {@code status}: total {@code build}, which leaves them unwritten, and accumulating, located {@code parse}, which reads them. {@code parse} cannot read a built wire back whole, so each is exposed as its own half (truthful types).
@@ -105,7 +107,7 @@ public final class PetMappingImpl implements PetMapping {
   /**
    * Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the value is parsed.
    */
-  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(S value,
+  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
       Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
   }
@@ -114,7 +116,7 @@ public final class PetMappingImpl implements PetMapping {
    * Guards an identity-copied collection: a null element is a located invalid at its position, accumulating, or, in a set, which has no positions, the unlocated {@code must not contain a null element}.
    */
   private static <C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(
-      C values) {
+      @Nullable C values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
@@ -152,7 +154,12 @@ public final class PetMappingImpl implements PetMapping {
   /**
    * Copies a same-typed list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
    */
-  private static <E> List<E> hkj$copyOf(List<? extends E> values) {
-    return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
+  private static <E extends @Nullable Object, C extends @Nullable List<E>> C hkj$copyOf(C values) {
+    if (values == null) {
+      return values;
+    }
+    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    C copy = (C) Collections.unmodifiableList(new ArrayList<>(values));
+    return copy;
   }
 }

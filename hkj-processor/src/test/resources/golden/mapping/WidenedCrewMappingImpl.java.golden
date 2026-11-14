@@ -4,6 +4,7 @@ package com.example.widened;
 import java.lang.Object;
 import java.lang.Override;
 import java.lang.String;
+import java.lang.SuppressWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +19,8 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated bidirectional mapping for {@link CrewMapping}: total {@code build} and accumulating, located {@code parse}.
@@ -43,7 +46,7 @@ public final class CrewMappingImpl implements CrewMapping {
 
   public CrewDto build(Crew domain) {
     Objects.requireNonNull(domain, "domain must not be null");
-    return new CrewDto(members().buildAll(domain.members()), reserves().buildAll(domain.reserves(), String[]::new), hkj$copyOf(domain.tags()), hkj$copyOf(domain.codes()), hkj$copyOf(domain.ranks()), noteKey().buildKeys(domain.notes()), escalationKey().buildEntries(domain.escalations(), escalations()));
+    return new CrewDto(members().buildAll(domain.members()), reserves().buildAll(domain.reserves(), String[]::new), hkj$copyOf(domain.tags()), hkj$copyIfPresent(domain.codes(), e -> e.clone()), hkj$copyIfPresent(domain.ranks(), e -> e.clone()), noteKey().buildKeys(domain.notes()), escalationKey().buildEntries(domain.escalations(), escalations()));
   }
 
   public Validated<NonEmptyList<FieldError>, Crew> parse(CrewDto wire) {
@@ -53,8 +56,8 @@ public final class CrewMappingImpl implements CrewMapping {
             .field("members", hkj$ifPresent(wire.members(), members()::parseAll))
             .field("reserves", hkj$ifPresent(wire.reserves(), v -> reserves().parseAll(v, Email[]::new)))
             .field("tags", hkj$allPresent(hkj$copyOf(wire.tags())))
-            .field("codes", hkj$allPresent(hkj$copyOf(wire.codes())))
-            .field("ranks", hkj$ifPresent(hkj$copyOf(wire.ranks()), Validated::validNel))
+            .field("codes", hkj$allPresent(hkj$copyIfPresent(wire.codes(), e -> e.clone())))
+            .field("ranks", hkj$ifPresent(hkj$copyIfPresent(wire.ranks(), e -> e.clone()), Validated::validNel))
             .field("notes", hkj$ifPresent(wire.notes(), noteKey()::parseKeys))
             .field("escalations", hkj$ifPresent(wire.escalations(), v -> escalationKey().parseEntries(v, escalations())))
             .apply((members, reserves, tags, codes, ranks, notes, escalations) -> () -> new Crew(members, reserves, tags, codes, ranks, notes, escalations)),
@@ -146,7 +149,7 @@ public final class CrewMappingImpl implements CrewMapping {
   /**
    * Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the value is parsed.
    */
-  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(S value,
+  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
       Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
   }
@@ -155,7 +158,7 @@ public final class CrewMappingImpl implements CrewMapping {
    * Guards an identity-copied collection: a null element is a located invalid at its position, accumulating, or, in a set, which has no positions, the unlocated {@code must not contain a null element}.
    */
   private static <C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(
-      C values) {
+      @Nullable C values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
@@ -175,7 +178,8 @@ public final class CrewMappingImpl implements CrewMapping {
   /**
    * Guards an identity-copied array: a null element is a located invalid at its index, accumulating.
    */
-  private static <E> Validated<NonEmptyList<FieldError>, E[]> hkj$allPresent(E[] values) {
+  private static <E extends @Nullable Object> Validated<NonEmptyList<FieldError>, E[]> hkj$allPresent(
+      E @Nullable [] values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
@@ -210,21 +214,20 @@ public final class CrewMappingImpl implements CrewMapping {
   /**
    * Copies a same-typed set so the two sides never share it: an unmodifiable set in the same iteration order, a null element included; a null set copies to null.
    */
-  private static <E> Set<E> hkj$copyOf(Set<? extends E> values) {
-    return values == null ? null : Collections.unmodifiableSet(new LinkedHashSet<>(values));
+  private static <E extends @Nullable Object, C extends @Nullable Set<E>> C hkj$copyOf(C values) {
+    if (values == null) {
+      return values;
+    }
+    @SuppressWarnings("unchecked") // C is the container the call declares, since a subtype is never copied
+    C copy = (C) Collections.unmodifiableSet(new LinkedHashSet<>(values));
+    return copy;
   }
 
   /**
-   * Copies a same-typed array so the two sides never share it: a clone, null elements included; a null array copies to null.
+   * Copies an array that may be null, which no helper can type by the array itself: a null is handed back, and a present array is copied.
    */
-  private static <E> E[] hkj$copyOf(E[] values) {
-    return values == null ? null : values.clone();
-  }
-
-  /**
-   * Copies a same-typed array so the two sides never share it: a clone; a null array copies to null.
-   */
-  private static int[] hkj$copyOf(int[] values) {
-    return values == null ? null : values.clone();
+  private static <A extends @Nullable Object> A hkj$copyIfPresent(A value,
+      Function<@NonNull A, @NonNull A> copy) {
+    return value == null ? value : copy.apply(value);
   }
 }

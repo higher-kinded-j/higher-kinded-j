@@ -6579,7 +6579,7 @@ public class MappingProcessor extends AbstractProcessor {
             .addType(componentsRecord(domainDeclared, written, implName.packageName()));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
-    addReadHelpers(implBuilder, comps, wire);
+    addReadHelpers(implBuilder, comps, wire, marks(spec));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -7085,13 +7085,16 @@ public class MappingProcessor extends AbstractProcessor {
                       .getElementUtils()
                       .getTypeElement(BeanPropertyAnalyser.JSON_NULLABLE))));
     }
+    NullnessMarks marks = marks(spec);
     if (edits.stream().anyMatch(edit -> edit.held() != null && usesIfPresent(edit.held(), wire))) {
-      implBuilder.addMethod(ifPresentHelper());
+      implBuilder.addMethod(ifPresentHelper(marks));
     }
     implBuilder.addMethods(
-        NullScan.helpers(edits.stream().map(UpdateEdit::valueScan).filter(Objects::nonNull)));
+        NullScan.helpers(
+            edits.stream().map(UpdateEdit::valueScan).filter(Objects::nonNull), marks));
     implBuilder.addMethods(
-        ContainerCopy.helpers(edits.stream().map(UpdateEdit::valueCopy).filter(Objects::nonNull)));
+        ContainerCopy.helpers(
+            edits.stream().map(UpdateEdit::valueCopy).filter(Objects::nonNull), marks));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -10461,7 +10464,63 @@ public class MappingProcessor extends AbstractProcessor {
                   : ""));
       return null;
     }
-    return resolved.correspondence();
+    Correspondence correspondence = resolved.correspondence();
+    if (correspondence.kind() == Kind.IDENTITY
+        && reportedNullableIntoNonNull(spec, domain, wire, name, wireName, domainType)) {
+      return null;
+    }
+    return correspondence;
+  }
+
+  /**
+   * Refuses a plain copy from a domain component declared {@code @Nullable} ({@link
+   * NullableAnnotations#declaresNullable}) into a site {@code build} writes that is declared
+   * non-null ({@link #nonNullWriteSite}), and answers whether it did. {@code build} copies the
+   * value as it is, so a null the domain may hold is one the site's declaration rules out: a
+   * checking constructor or setter throws, and any other keeps a null its type says it cannot hold.
+   * The fixes give the pair one nullness, the site's or the domain's. No leaf is offered, since a
+   * leaf's domain side cannot be a nullable type. A primitive never holds a null, a bean that never
+   * writes the property has no site, and a component or a site that says nothing either way copies
+   * as before.
+   */
+  private boolean reportedNullableIntoNonNull(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      String name,
+      String wireName,
+      TypeMirror domainType) {
+    if (domainType.getKind().isPrimitive()
+        || !NullableAnnotations.declaresNullable(componentNamed(domain, name))) {
+      return false;
+    }
+    NonNullSite site = nonNullWriteSite(wire, wireName);
+    if (site == null) {
+      return false;
+    }
+    String source = "'" + domain.getSimpleName() + "." + name + "'";
+    String nullable = nullableFix(site);
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field "
+            + source
+            + " is declared @Nullable, and build copies it to "
+            + site.member()
+            + ".",
+        "A same-typed component is copied as it is, a null included, and "
+            + site.declaration()
+            + " "
+            + nonNullBecause(processingEnv, site)
+            + ", so build would write a null its declaration rules out, and either throw or leave"
+            + " a null its type says it cannot hold.",
+        Character.toUpperCase(nullable.charAt(0))
+            + nullable.substring(1)
+            + ", since its source may be absent; or declare "
+            + source
+            + " non-null, if every value build is given has one.");
+    return true;
   }
 
   /**
@@ -11110,11 +11169,12 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A site {@code build} writes a bridged component into that is declared non-null: how a
-   * diagnostic names the member (with what it declares) and the declaration that says so, the
-   * site's declared type, the type declaring it, and why it takes no {@code null}.
+   * A site {@code build} writes a value into that is declared non-null: how a diagnostic names the
+   * member (with what it declares) and the declaration that says so, the site's declared type, the
+   * type declaring it, and why it takes no {@code null}. Shared with the merge, whose target
+   * component is such a site.
    */
-  private record NonNullSite(
+  record NonNullSite(
       String member,
       String declaration,
       TypeMirror type,
@@ -11129,20 +11189,8 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static NonNullSite nonNullWriteSite(WireShape wire, String wireName) {
     return switch (wire) {
-      case WireShape.RecordShape record -> {
-        RecordComponentElement component = componentNamed(record.element(), wireName);
-        String spelt = "'" + record.element().getSimpleName() + "." + wireName + "'";
-        yield NullableAnnotations.nonNullReason(component)
-            .map(
-                reason ->
-                    new NonNullSite(
-                        "the record component " + spelt + ", which is declared non-null",
-                        spelt,
-                        component.asType(),
-                        record.element(),
-                        reason))
-            .orElse(null);
-      }
+      case WireShape.RecordShape record ->
+          nonNullComponent(record.element(), componentNamed(record.element(), wireName));
       case WireShape.BeanShape bean -> {
         // A bean that is never written (parse-only) has no setter to hand the null to.
         if (!(writeSite(bean, wireName) instanceof WireShape.WriteSite.Setter setter)) {
@@ -11188,13 +11236,36 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The clause that lets a non-null write site take the bridge's {@code null}: mark it {@code
-   * Nullable}, or replace the annotation that rules {@code null} out. An array site is told where
-   * the annotation goes, since one before the type marks the elements, and a site read from a class
-   * file is told the change is made where it is declared, which may not be this build's to make. So
-   * is a site the compiler cannot place, since that clause holds of a source site too.
+   * The record component a canonical constructor writes, when it is declared non-null ({@link
+   * NullableAnnotations#nonNullReason}), or null. Shared with the merge, whose target is a record.
+   */
+  static NonNullSite nonNullComponent(TypeElement record, RecordComponentElement component) {
+    String spelt = "'" + record.getSimpleName() + "." + component.getSimpleName() + "'";
+    return NullableAnnotations.nonNullReason(component)
+        .map(
+            reason ->
+                new NonNullSite(
+                    "the record component " + spelt + ", which is declared non-null",
+                    spelt,
+                    component.asType(),
+                    record,
+                    reason))
+        .orElse(null);
+  }
+
+  /**
+   * The clause that lets a non-null write site take a {@code null}: mark it {@code Nullable}, or
+   * replace the annotation that rules {@code null} out. An array site is told where the annotation
+   * goes, since one before the type marks the elements, and a site read from a class file is told
+   * the change is made where it is declared, which may not be this build's to make. So is a site
+   * the compiler cannot place, since that clause holds of a source site too.
    */
   private String nullableFix(NonNullSite site) {
+    return nullableFix(processingEnv, site);
+  }
+
+  /** {@link #nullableFix(NonNullSite)}, shared with the merge. */
+  static String nullableFix(ProcessingEnvironment env, NonNullSite site) {
     String fix =
         switch (site.reason()) {
           case NullableAnnotations.NonNullReason.Annotated annotated ->
@@ -11213,9 +11284,31 @@ public class MappingProcessor extends AbstractProcessor {
                           + "', since a @Nullable before the type marks the elements"
                       : "");
         };
-    return ProcessorUtils.compiledFromSource(processingEnv.getElementUtils(), site.declaredBy())
+    return ProcessorUtils.compiledFromSource(env.getElementUtils(), site.declaredBy())
         ? fix
-        : fix + " where '" + nestedName(site.declaredBy()) + "' is declared, if you build it";
+        : fix + " where '" + nestedName(env, site.declaredBy()) + "' is declared, if you build it";
+  }
+
+  /**
+   * Why a non-null site takes no {@code null}, as the clause after its declaration: the annotation
+   * it carries, or the {@code NullMarked} scope it sits in, named by its kind. Shared with the
+   * merge.
+   */
+  static String nonNullBecause(ProcessingEnvironment env, NonNullSite site) {
+    return switch (site.reason()) {
+      case NullableAnnotations.NonNullReason.Annotated annotated ->
+          "is annotated @" + annotated.annotation();
+      case NullableAnnotations.NonNullReason.Marked marked ->
+          "carries no @Nullable inside @NullMarked "
+              + marked.scope().getKind().toString().toLowerCase(Locale.ROOT).replace('_', ' ')
+              + " '"
+              + switch (marked.scope()) {
+                case TypeElement type -> nestedName(env, type);
+                case QualifiedNameable qualified -> qualified.getQualifiedName();
+                default -> marked.scope().getSimpleName();
+              }
+              + "'";
+    };
   }
 
   /** An array type with {@code @Nullable} on the array itself: {@code String @Nullable [][]}. */
@@ -11226,8 +11319,8 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /** A type's name with its enclosing types and no type arguments: {@code Profile.Builder}. */
-  private String nestedName(TypeElement type) {
-    return ProcessorUtils.simpleTypeName(processingEnv.getTypeUtils().erasure(type.asType()));
+  private static String nestedName(ProcessingEnvironment env, TypeElement type) {
+    return ProcessorUtils.simpleTypeName(env.getTypeUtils().erasure(type.asType()));
   }
 
   /**
@@ -11252,21 +11345,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType,
       TypeMirror element,
       NonNullSite site) {
-    String because =
-        switch (site.reason()) {
-          case NullableAnnotations.NonNullReason.Annotated annotated ->
-              "is annotated @" + annotated.annotation();
-          case NullableAnnotations.NonNullReason.Marked marked ->
-              "carries no @Nullable inside @NullMarked "
-                  + marked.scope().getKind().toString().toLowerCase(Locale.ROOT).replace('_', ' ')
-                  + " '"
-                  + switch (marked.scope()) {
-                    case TypeElement type -> nestedName(type);
-                    case QualifiedNameable qualified -> qualified.getQualifiedName();
-                    default -> marked.scope().getSimpleName();
-                  }
-                  + "'";
-        };
+    String because = nonNullBecause(processingEnv, site);
     Optional<ExecutableElement> bridge = bridgeDeclaration(spec, name);
     // A marker that also renames stays, as the rename's marker, once the bridge leaves it.
     String dropped =
@@ -12836,9 +12915,10 @@ public class MappingProcessor extends AbstractProcessor {
    * ordinary spec method can collide with the declaration or capture its call sites through
    * overload resolution — which is why the collision sweep needs no reservation for it. Shared with
    * {@link MergeProcessor}, whose fallible merge legs carry the same guard, like {@link
-   * #scanRegistry}.
+   * #scanRegistry}. It takes the read declared {@code @Nullable}, where the marks are written,
+   * since a null is what it guards against.
    */
-  static MethodSpec ifPresentHelper() {
+  static MethodSpec ifPresentHelper(NullnessMarks marks) {
     TypeVariableName s = TypeVariableName.get("S");
     TypeVariableName a = TypeVariableName.get("A");
     TypeName validatedOfA =
@@ -12853,7 +12933,7 @@ public class MappingProcessor extends AbstractProcessor {
         .addTypeVariable(s)
         .addTypeVariable(a)
         .returns(validatedOfA)
-        .addParameter(s, "value")
+        .addParameter(marks.nullable(s), "value")
         .addParameter(parseFn, "parse")
         .addJavadoc(
             "Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the"
@@ -12915,7 +12995,7 @@ public class MappingProcessor extends AbstractProcessor {
 
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
-    addReadHelpers(implBuilder, comps, wire);
+    addReadHelpers(implBuilder, comps, wire, marks(spec));
 
     if (lossless) {
       ClassName iso = ClassName.get("org.higherkindedj.optics", "Iso");
@@ -13012,7 +13092,7 @@ public class MappingProcessor extends AbstractProcessor {
                     "another mapping's {@code build}"));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
-    addReadHelpers(implBuilder, comps, wire);
+    addReadHelpers(implBuilder, comps, wire, marks(spec));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -13110,7 +13190,7 @@ public class MappingProcessor extends AbstractProcessor {
                     "a mapping that only parses"));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
-    addReadHelpers(implBuilder, comps, wire);
+    addReadHelpers(implBuilder, comps, wire, marks(spec));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -13161,7 +13241,7 @@ public class MappingProcessor extends AbstractProcessor {
                     "a mapping that only builds"));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
-    implBuilder.addMethods(copyHelpers(comps));
+    implBuilder.addMethods(copyHelpers(comps, marks(spec)));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -13227,15 +13307,19 @@ public class MappingProcessor extends AbstractProcessor {
    * tier's constructor call goes through, then the copy helpers, which every tier ends on.
    */
   private void addReadHelpers(
-      TypeSpec.Builder implBuilder, List<Correspondence> comps, WireShape wire) {
+      TypeSpec.Builder implBuilder,
+      List<Correspondence> comps,
+      WireShape wire,
+      NullnessMarks marks) {
     if (comps.stream().anyMatch(c -> usesIfPresent(c, wire))) {
-      implBuilder.addMethod(ifPresentHelper());
+      implBuilder.addMethod(ifPresentHelper(marks));
     }
     implBuilder.addMethods(
-        NullScan.helpers(comps.stream().map(Correspondence::valueScan).filter(Objects::nonNull)));
+        NullScan.helpers(
+            comps.stream().map(Correspondence::valueScan).filter(Objects::nonNull), marks));
     implBuilder.addMethod(GuardedConstruction.helper());
     implBuilder.addMethods(oneofParsers(comps, wire));
-    implBuilder.addMethods(copyHelpers(comps));
+    implBuilder.addMethods(copyHelpers(comps, marks));
   }
 
   /** The parser of each component mapping a protobuf-java oneof, once each. */
@@ -13301,9 +13385,17 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /** The copy helpers the legs read or write their values through, each once, in one order. */
-  private static List<MethodSpec> copyHelpers(List<Correspondence> comps) {
+  private static List<MethodSpec> copyHelpers(List<Correspondence> comps, NullnessMarks marks) {
     return ContainerCopy.helpers(
-        comps.stream().map(Correspondence::valueCopy).filter(Objects::nonNull));
+        comps.stream().map(Correspondence::valueCopy).filter(Objects::nonNull), marks);
+  }
+
+  /**
+   * The nullness annotations the helpers generated for {@code spec} are written with: JSpecify's,
+   * where the spec's module can read them.
+   */
+  private NullnessMarks marks(TypeElement spec) {
+    return NullnessMarks.of(processingEnv.getElementUtils(), spec);
   }
 
   /**
@@ -13609,7 +13701,7 @@ public class MappingProcessor extends AbstractProcessor {
     // A patch tier need not carry a guarded read: a bridged component makes the write-back
     // partial yet reads its own null as empty, so a projection whose only partial reads are
     // bridges needs no guard emitted.
-    addReadHelpers(implBuilder, comps, wire);
+    addReadHelpers(implBuilder, comps, wire, marks(spec));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -13702,7 +13794,7 @@ public class MappingProcessor extends AbstractProcessor {
                         setArgs.build())
                     .build());
     addMarkerStubs(implBuilder, spec);
-    implBuilder.addMethods(copyHelpers(comps));
+    implBuilder.addMethods(copyHelpers(comps, marks(spec)));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 

@@ -266,28 +266,34 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   /**
    * The helpers the given scans call, each once, in one fixed order so that every Impl declares
    * them alike.
+   *
+   * @param scans the scans an Impl's legs make
+   * @param marks the nullness annotations the helpers are written with
+   * @return the helper methods to declare
    */
-  static List<MethodSpec> helpers(Stream<NullScan> scans) {
+  static List<MethodSpec> helpers(Stream<NullScan> scans, NullnessMarks marks) {
     Set<Form> used = scans.flatMap(NullScan::forms).collect(Collectors.toSet());
     return Stream.of(Shape.values())
         .flatMap(shape -> Stream.of(new Form(shape, false), new Form(shape, true)))
         .filter(used::contains)
-        .map(NullScan::helper)
+        .map(form -> helper(form, marks))
         .toList();
   }
 
-  private static MethodSpec helper(Form form) {
+  private static MethodSpec helper(Form form, NullnessMarks marks) {
     return switch (form.shape()) {
-      case COLLECTION -> form.nested() ? nestedCollectionHelper() : collectionHelper();
-      case ARRAY -> form.nested() ? nestedArrayHelper() : arrayHelper();
-      case MAP -> form.nested() ? nestedMapHelper() : mapHelper();
+      case COLLECTION -> form.nested() ? nestedCollectionHelper(marks) : collectionHelper(marks);
+      case ARRAY -> form.nested() ? nestedArrayHelper(marks) : arrayHelper(marks);
+      case MAP -> form.nested() ? nestedMapHelper(marks) : mapHelper(marks);
       // An Optional is a level only when its value is one, so it only ever takes the lambda.
-      case OPTIONAL -> optionalHelper();
+      case OPTIONAL -> optionalHelper(marks);
     };
   }
 
   // The helper bodies. Each is total over a null argument ("must not be null", labelled by the
-  // caller) and accumulates its failures in encounter order, as ValidatedParse's bulk forms do.
+  // caller), so it takes one declared @Nullable, and accumulates its failures in encounter order,
+  // as ValidatedParse's bulk forms do. An element type may be nullable, since a null element is
+  // what the scan reports.
 
   private static MethodSpec.Builder helperBuilder(
       String name, TypeName returned, String javadoc, TypeVariableName... variables) {
@@ -369,7 +375,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         NEL);
   }
 
-  private static MethodSpec collectionHelper() {
+  private static MethodSpec collectionHelper(NullnessMarks marks) {
     TypeVariableName c = TypeVariableName.get("C", ParameterizedTypeName.get(COLLECTION, ANY));
     return helperBuilder(
             Shape.COLLECTION.helper,
@@ -378,7 +384,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " position, accumulating, or, in a set, which has no positions, the unlocated"
                 + " {@code must not contain a null element}.\n",
             c)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addCode(nullGuard("values"))
         .addStatement("boolean set = values instanceof $T", SET)
         .addStatement("$L", declareFailures())
@@ -396,8 +402,8 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec nestedCollectionHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
+  private static MethodSpec nestedCollectionHelper(NullnessMarks marks) {
+    TypeVariableName e = marks.nullableBounded("E");
     TypeVariableName c =
         TypeVariableName.get(
             "C", ParameterizedTypeName.get(COLLECTION, WildcardTypeName.subtypeOf(e)));
@@ -410,7 +416,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " under its position, or, in a set, under its rendering.\n",
             c,
             e)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("values"))
         .addStatement("boolean set = values instanceof $T", SET)
@@ -430,15 +436,15 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec arrayHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
+  private static MethodSpec arrayHelper(NullnessMarks marks) {
+    TypeVariableName e = marks.nullableBounded("E");
     return helperBuilder(
             Shape.ARRAY.helper,
             ArrayTypeName.of(e),
             "Guards an identity-copied array: a null element is a located invalid at its index,"
                 + " accumulating.\n",
             e)
-        .addParameter(ArrayTypeName.of(e), "values")
+        .addParameter(marks.nullable(ArrayTypeName.of(e)), "values")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
         .beginControlFlow("for (int i = 0; i < values.length; i++)")
@@ -451,8 +457,8 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec nestedArrayHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
+  private static MethodSpec nestedArrayHelper(NullnessMarks marks) {
+    TypeVariableName e = marks.nullableBounded("E");
     return helperBuilder(
             Shape.ARRAY.helper,
             ArrayTypeName.of(e),
@@ -460,16 +466,18 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " its index, and a present element passes its own scan, located under its"
                 + " index.\n",
             e)
-        .addParameter(ArrayTypeName.of(e), "values")
+        .addParameter(marks.nullable(ArrayTypeName.of(e)), "values")
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
         .beginControlFlow("for (int i = 0; i < values.length; i++)")
+        // Read once, so the null check covers the read the scan is handed.
+        .addStatement("$T element = values[i]", e)
         .addStatement("$T located", FAILURES)
-        .beginControlFlow("if (values[i] == null)")
+        .beginControlFlow("if (element == null)")
         .addStatement("located = $L", nullAt("String.valueOf(i)"))
         .nextControlFlow("else")
-        .addCode(scannedElement("values[i]", "String.valueOf(i)"))
+        .addCode(scannedElement("element", "String.valueOf(i)"))
         .endControlFlow()
         .addStatement("$L", accumulate())
         .endControlFlow()
@@ -477,7 +485,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec mapHelper() {
+  private static MethodSpec mapHelper(NullnessMarks marks) {
     TypeVariableName c = TypeVariableName.get("C", ParameterizedTypeName.get(MAP, ANY, ANY));
     return helperBuilder(
             Shape.MAP.helper,
@@ -485,7 +493,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
             "Guards an identity-copied map: a null value is a located invalid under its key,"
                 + " accumulating; a null key is the caller's NullPointerException.\n",
             c)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
         .beginControlFlow(
@@ -501,8 +509,8 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec nestedMapHelper() {
-    TypeVariableName v = TypeVariableName.get("V");
+  private static MethodSpec nestedMapHelper(NullnessMarks marks) {
+    TypeVariableName v = marks.nullableBounded("V");
     TypeVariableName c =
         TypeVariableName.get(
             "C", ParameterizedTypeName.get(MAP, ANY, WildcardTypeName.subtypeOf(v)));
@@ -514,7 +522,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " null key is the caller's NullPointerException.\n",
             c,
             v)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addParameter(elementScan(v), "each")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
@@ -538,7 +546,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec optionalHelper() {
+  private static MethodSpec optionalHelper(NullnessMarks marks) {
     TypeVariableName e = TypeVariableName.get("E");
     TypeVariableName o =
         TypeVariableName.get(
@@ -551,7 +559,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " holds only the one value.\n",
             o,
             e)
-        .addParameter(o, "value")
+        .addParameter(marks.nullable(o), "value")
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("value"))
         .beginControlFlow("if (value.isEmpty())")

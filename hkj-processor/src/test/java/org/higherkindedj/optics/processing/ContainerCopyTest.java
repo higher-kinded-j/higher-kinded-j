@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
@@ -1089,7 +1090,7 @@ class ContainerCopyTest {
     assertThat(probe("sparse")).isEqualTo(List.of());
     assertThat(generated("FixturesScoresPatchMappingImpl"))
         .contains("Edit.setIfPresent(")
-        .contains("hkj$copyOf(wire.getScores())");
+        .contains("hkj$copyIfPresent(wire.getScores(), e -> e.clone())");
   }
 
   @Test
@@ -1110,12 +1111,14 @@ class ContainerCopyTest {
           + " a subclass is copied without its clone()")
   void anIdentityMapKeepsEveryKey() throws ReflectiveOperationException {
     assertThat(probe("identityMaps")).isEqualTo(List.of());
-    // Only the clone's cast answers for a suppression, on its own local variable.
+    // Each cast answers for its own suppression, on its own local variable: the clone's, and the
+    // copy's, handed back as the map its call declares. No method carries one.
     assertThat(generated("FixturesTaggedMappingImpl"))
-        .containsOnlyOnce("@SuppressWarnings(\"unchecked\")")
         .containsPattern(
-            "@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+Map<K, V> clone = \\(Map<K, V>\\)"
-                + " identity\\.clone\\(\\);");
+            "@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+Map<@Nullable K, @Nullable V> clone"
+                + " = \\(Map<@Nullable K, @Nullable V>\\) identity\\.clone\\(\\);")
+        .containsPattern("@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+C copy = \\(C\\)")
+        .doesNotContainPattern("@SuppressWarnings\\([^\\n]*\\n\\s*(private|public|static) ");
   }
 
   @Test
@@ -1134,5 +1137,61 @@ class ContainerCopyTest {
                     + " is. A key changed after it went into the map also causes this."));
     // Declared as its own type, the same map is handed over as it is, with both entries.
     assertThat(probe("mergingMapDeclaredAsItsOwnType")).isEqualTo(List.of(true, 2));
+  }
+
+  @Test
+  @DisplayName(
+      "where the code cannot read JSpecify, every helper is written without its nullness"
+          + " annotations, and compiles clean")
+  void withoutJSpecifyTheHelpersCarryNoAnnotation() throws IOException {
+    List<File> classpath =
+        Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
+            .filter(entry -> !entry.contains("jspecify"))
+            .map(File::new)
+            .toList();
+    Compilation compilation =
+        javac()
+            .withClasspath(classpath)
+            .withProcessors(new MappingProcessor(), new CompanionAnnotationProcessor())
+            .withOptions("-Xlint:all", "-Werror")
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.example.bare.Bare",
+                    """
+                    package com.example.bare;
+
+                    import java.util.List;
+                    import java.util.Map;
+                    import org.higherkindedj.optics.annotations.GenerateMapping;
+                    import org.higherkindedj.optics.annotations.MappingSpec;
+
+                    public final class Bare {
+                      private Bare() {}
+
+                      public record Shapes(
+                          String name, List<List<String>> lists, Map<String, String> map,
+                          String[][] grid) {}
+
+                      public record ShapesDto(
+                          String name, List<List<String>> lists, Map<String, String> map,
+                          String[][] grid) {}
+
+                      @GenerateMapping
+                      public interface ShapesMapping extends MappingSpec<Shapes, ShapesDto> {}
+                    }
+                    """));
+
+    assertThat(compilation).succeededWithoutWarnings();
+    String generated =
+        compilation
+            .generatedSourceFile("com.example.bare.BareShapesMappingImpl")
+            .orElseThrow()
+            .getCharContent(true)
+            .toString();
+    assertThat(generated)
+        .doesNotContain("org.jspecify")
+        .contains("private static <E, C extends List<E>> C hkj$copyOf(C values)")
+        .contains("private static <A> A hkj$copyIfPresent(A value, Function<A, A> copy)")
+        .contains("hkj$ifPresent(S value,");
   }
 }

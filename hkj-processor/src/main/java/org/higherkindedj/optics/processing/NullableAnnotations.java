@@ -105,21 +105,42 @@ public final class NullableAnnotations {
    * @return the reason the component is declared non-null, if it is
    */
   static Optional<NonNullReason> nonNullReason(RecordComponentElement component) {
+    return declaredNonNull(declaredOn(component), component.asType(), component);
+  }
+
+  /**
+   * Whether a record component is declared as one that may hold {@code null}: an annotation on it
+   * reads as nullable, by the rule {@link #declaredNonNull} applies first, at the sites {@link
+   * #nonNullReason} reads. A component typed by a type variable bounded {@code extends @Nullable
+   * Object} carries no annotation of its own, so it says nothing either way: its nullness is the
+   * type argument's.
+   *
+   * @param component the record component a mapping or a merge reads
+   * @return whether its declaration says it may hold {@code null}
+   */
+  static boolean declaresNullable(RecordComponentElement component) {
+    return declaredOn(component).stream().anyMatch(NullableAnnotations::readsNullable);
+  }
+
+  /**
+   * The annotations a record component's declaration carries, wherever javac puts them: on the
+   * component, its type, its accessor and its backing field. An annotation targeting fields and
+   * methods but not record components reaches the accessor only when the accessor is implicit, and
+   * always reaches the field.
+   */
+  private static List<AnnotationMirror> declaredOn(RecordComponentElement component) {
     Stream<AnnotationMirror> field =
         ElementFilter.fieldsIn(component.getEnclosingElement().getEnclosedElements()).stream()
             .filter(candidate -> candidate.getSimpleName().equals(component.getSimpleName()))
             .flatMap(candidate -> candidate.getAnnotationMirrors().stream());
-    return declaredNonNull(
-        Stream.concat(
-                Stream.of(
-                        component.getAnnotationMirrors(),
-                        component.asType().getAnnotationMirrors(),
-                        component.getAccessor().getAnnotationMirrors())
-                    .<AnnotationMirror>flatMap(List::stream),
-                field)
-            .toList(),
-        component.asType(),
-        component);
+    return Stream.concat(
+            Stream.of(
+                    component.getAnnotationMirrors(),
+                    component.asType().getAnnotationMirrors(),
+                    component.getAccessor().getAnnotationMirrors())
+                .<AnnotationMirror>flatMap(List::stream),
+            field)
+        .toList();
   }
 
   /**

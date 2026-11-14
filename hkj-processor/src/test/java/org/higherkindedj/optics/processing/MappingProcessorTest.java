@@ -907,7 +907,8 @@ class MappingProcessorTest {
           // A primitive array has no element that could be null, so it carries no element
           // scan - but the component is still a reference, so the read stays null-guarded.
           .contains(
-              ".field(\"scores\", hkj$ifPresent(hkj$copyOf(wire.scores()), Validated::validNel))")
+              ".field(\"scores\", hkj$ifPresent(hkj$copyIfPresent(wire.scores(), e -> e.clone()),"
+                  + " Validated::validNel))")
           .doesNotContain("hkj$allPresent");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -962,11 +963,15 @@ class MappingProcessorTest {
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CodesMappingImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.tags())))")
-          .contains("Validated<NonEmptyList<FieldError>, E[]> hkj$allPresent(E[] values)")
+          .contains(
+              ".field(\"tags\", hkj$allPresent(hkj$copyIfPresent(wire.tags(), e -> e.clone())))")
+          .containsPattern(
+              "Validated<NonEmptyList<FieldError>, E\\[\\]> hkj\\$allPresent\\(\\s+E @Nullable \\[\\]"
+                  + " values\\)")
           // a primitive array cannot hold a null element, so it takes the plain identity leg
           .contains(
-              ".field(\"counts\", hkj$ifPresent(hkj$copyOf(wire.counts()), Validated::validNel))");
+              ".field(\"counts\", hkj$ifPresent(hkj$copyIfPresent(wire.counts(), e -> e.clone()),"
+                  + " Validated::validNel))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.CodesMappingImpl");
@@ -1227,7 +1232,8 @@ class MappingProcessorTest {
       // runtime type may not hold a copy of one.
       Assertions.assertThat(generatedSource(leafless, "com.example.PlainMappingImpl"))
           .contains(
-              ".field(\"sections\", hkj$allPresent(hkj$copyOf(wire.sections()), e -> hkj$allPresent(e)))");
+              ".field(\"sections\", hkj$allPresent(hkj$copyIfPresent(wire.sections(), e -> e.clone()),"
+                  + " e -> hkj$allPresent(e)))");
     }
 
     @Test
@@ -4544,7 +4550,7 @@ class MappingProcessorTest {
       Assertions.assertThat(generatedSource(compilation, "com.example.CrewPatchMappingImpl"))
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
-          .contains("E[] values");
+          .contains("E @Nullable [] values");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.CrewPatchMappingImpl");

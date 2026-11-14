@@ -61,6 +61,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`Add '@OptionalBridge`](#add-optional-bridge) | A domain `Optional` faces a plain wire component |
 | [`bridges to the primitive`](#bridges-to-a-primitive) | The bridged wire component is a primitive |
 | [`which is declared non-null`](#declared-non-null) | The bridged wire component is declared non-null |
+| [`and build copies it to`](#nullable-copied-into-non-null) | A `@Nullable` component is copied into one declared non-null |
 | [`is declared over the whole Optional`](#bridged-leaf-over-whole-optional) | A bridged leaf is declared over the `Optional` |
 | [`is redundant on a bean wire`](#redundant-on-a-bean-wire) | **Note.** A bean wire bridges without the marker |
 
@@ -876,6 +877,35 @@ interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
   @OptionalBridge
   Optional<String> nickname();
 }
+```
+~~~
+
+### `domain field 'X.y' is declared @Nullable, and build copies it to the record component 'XDto.y', which is declared non-null` {#nullable-copied-into-non-null}
+
+A same-typed component is copied as it is, so the `null` the domain may hold would be written into a site declared non-null, by an annotation or by a JSpecify `@NullMarked` scope.
+
+**Fix.** Mark the wire component `@Nullable`, or declare the domain component non-null if every value `build` is given has one.
+
+```
+@GenerateMapping: domain field 'Reader.nickname' is declared @Nullable, and build copies it to
+the record component 'ReaderDto.nickname', which is declared non-null. A same-typed component is
+copied as it is, a null included, and 'ReaderDto.nickname' is annotated @NonNull, so build would
+write a null its declaration rules out, and either throw or leave a null its type says it cannot
+hold. Replace @NonNull on 'ReaderDto.nickname' with @Nullable, since its source may be absent;
+or declare 'Reader.nickname' non-null, if every value build is given has one.
+```
+
+The rule: [A `@Nullable` component is not copied into a non-null one](rules.md#nullable-copy-into-non-null).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "and build copies it to" -->
+```java
+record Reader(String name, @Nullable String nickname) {}
+
+record ReaderDto(String name, @NonNull String nickname) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
 ```
 ~~~
 

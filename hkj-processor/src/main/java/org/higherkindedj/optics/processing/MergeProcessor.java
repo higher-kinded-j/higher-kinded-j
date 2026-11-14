@@ -279,7 +279,71 @@ public class MergeProcessor extends AbstractProcessor {
           "Declare the plain '" + shape.target().getSimpleName() + "' return type.");
       return;
     }
+    if (!fallible && !checkNoNullableIntoNonNull(mergeMethod, shape.target(), fills)) {
+      return;
+    }
     writeImpl(spec, mergeMethod, shape, fills);
+  }
+
+  /**
+   * Refuses each fill of a plain merge from a source component declared {@code @Nullable} into a
+   * target component declared non-null, and answers whether none was. A plain merge copies every
+   * source value as it is, a null included, where a fallible one guards each read and reports a
+   * null as a failure. It is the rule a mapping's {@code build} keeps for the same copy, in the
+   * same words; a primitive never holds a null, and a component that says nothing either way copies
+   * as before.
+   */
+  private boolean checkNoNullableIntoNonNull(
+      ExecutableElement mergeMethod, TypeElement target, List<Fill> fills) {
+    boolean clean = true;
+    for (Fill fill : fills) {
+      TypeElement source =
+          mergeMethod.getParameters().stream()
+              .filter(parameter -> parameter.getSimpleName().contentEquals(fill.sourceParam()))
+              .map(parameter -> asRecord(parameter.asType()))
+              .findFirst()
+              .orElseThrow();
+      RecordComponentElement from = componentNamed(source, fill.component());
+      if (from.asType().getKind().isPrimitive() || !NullableAnnotations.declaresNullable(from)) {
+        continue;
+      }
+      MappingProcessor.NonNullSite site =
+          MappingProcessor.nonNullComponent(target, componentNamed(target, fill.component()));
+      if (site == null) {
+        continue;
+      }
+      String spelt = "'" + source.getSimpleName() + "." + fill.component() + "'";
+      String nullable = MappingProcessor.nullableFix(processingEnv, site);
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          mergeMethod,
+          TAG,
+          "source component "
+              + spelt
+              + " is declared @Nullable, and the merge copies it to "
+              + site.member()
+              + ".",
+          "A plain merge copies each source value as it is, a null included, and "
+              + site.declaration()
+              + " "
+              + MappingProcessor.nonNullBecause(processingEnv, site)
+              + ", so the merge would write a null its declaration rules out, and either throw or"
+              + " leave a null its type says it cannot hold.",
+          Character.toUpperCase(nullable.charAt(0))
+              + nullable.substring(1)
+              + ", since its source may be absent; or declare "
+              + spelt
+              + " non-null, if every source the merge is given has one.");
+      clean = false;
+    }
+    return clean;
+  }
+
+  private static RecordComponentElement componentNamed(TypeElement record, String name) {
+    return record.getRecordComponents().stream()
+        .filter(component -> component.getSimpleName().contentEquals(name))
+        .findFirst()
+        .orElseThrow();
   }
 
   /**
@@ -1071,15 +1135,16 @@ public class MergeProcessor extends AbstractProcessor {
     // never references them. A fallible merge always references hkj$ifPresent (the return-type
     // discipline rejects a Validated return over pure identities, and a fallible fill is always a
     // guarded reference read) and always ends in the guarded constructor call.
+    NullnessMarks marks = NullnessMarks.of(processingEnv.getElementUtils(), spec);
     if (shape.fallibleDeclared()) {
-      implBuilder.addMethod(MappingProcessor.ifPresentHelper());
+      implBuilder.addMethod(MappingProcessor.ifPresentHelper(marks));
       implBuilder.addMethods(
-          NullScan.helpers(fills.stream().map(Fill::scan).filter(Objects::nonNull)));
+          NullScan.helpers(fills.stream().map(Fill::scan).filter(Objects::nonNull), marks));
       implBuilder.addMethod(GuardedConstruction.helper());
     }
     // Either path copies, so the target shares no container with a source.
     implBuilder.addMethods(
-        ContainerCopy.helpers(fills.stream().map(Fill::copy).filter(Objects::nonNull)));
+        ContainerCopy.helpers(fills.stream().map(Fill::copy).filter(Objects::nonNull), marks));
     // A merge's leaves are its own zero-parameter default methods, as findLeaf reads them.
     leafCache.addOverrides(
         processingEnv,

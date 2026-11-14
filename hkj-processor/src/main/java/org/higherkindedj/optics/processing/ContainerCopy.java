@@ -10,6 +10,7 @@ import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -65,6 +66,15 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * narrower than the declared one (an {@code ArrayList[]} behind a {@code List<String>[]}), so only
  * a row that is itself an array, whose clone keeps its own class, is copied inside it.
  *
+ * <p>Each helper says what it does with a {@code null} in the annotations {@link NullnessMarks}
+ * writes, so that a nullness checker run over the Impl holds a copy to the read it was made from. A
+ * helper is typed by the container it copies ({@code <C extends @Nullable List<E>> C}): a read
+ * declared {@code @Nullable} copies to a value declared so too, and any other read to one declared
+ * non-null, and an element type may be nullable ({@code E extends @Nullable Object}). Java bounds
+ * no type variable by an array type, so no helper can type an array that way: an array copies
+ * through the one guard {@code hkj$copyIfPresent}, which hands a {@code null} back and a present
+ * array to its clone.
+ *
  * <p>Any other type has no copy: a subtype such as {@code ArrayList}, {@code TreeSet} or {@code
  * LinkedHashMap}, any other interface ({@code Deque}, {@code SortedSet}), a type variable, or an
  * element declared through a wildcard. The copy stops there, and that level and everything inside
@@ -79,6 +89,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
 
   private static final String HELPER = "hkj$copyOf";
   private static final String MAP_COPY = "hkj$mapCopy";
+  private static final String IF_PRESENT = "hkj$copyIfPresent";
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName COLLECTIONS = ClassName.get("java.util", "Collections");
   private static final ClassName ARRAY_LIST = ClassName.get("java.util", "ArrayList");
@@ -101,10 +112,8 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
      * it is an {@code IdentityHashMap}.
      */
     MAP(ClassName.get("java.util", "Map"), 1),
-    /** A reference array, by {@code clone()}. */
+    /** An array of references or of a primitive, by {@code clone()}. */
     ARRAY(null, 0),
-    /** A primitive array, by {@code clone()}; it holds nothing to copy inside. */
-    PRIMITIVE_ARRAY(null, 0),
     /** Exactly {@code Optional} of a copied level: the present value's copy. */
     OPTIONAL(ClassName.get("java.util", "Optional"), 0);
 
@@ -135,12 +144,8 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         // An array's copy is a clone, which keeps the source's runtime component type, and that can
         // be narrower than the declared one (an ArrayList[] behind a List<String>[]). Only a row
         // that is an array itself is sure to fit back in, since its own clone keeps its class.
-        yield component.getKind().isPrimitive()
-            ? new ContainerCopy(Shape.PRIMITIVE_ARRAY, null, component)
-            : new ContainerCopy(
-                Shape.ARRAY,
-                component.getKind() == TypeKind.ARRAY ? of(component) : null,
-                component);
+        yield new ContainerCopy(
+            Shape.ARRAY, component.getKind() == TypeKind.ARRAY ? of(component) : null, component);
       }
       case DECLARED -> declared((DeclaredType) type);
       default -> null;
@@ -224,6 +229,10 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   }
 
   private CodeBlock on(CodeBlock value, Set<String> taken, int depth) {
+    // No helper can type an array by the array itself, so the guard hands a null one back.
+    if (shape == Shape.ARRAY) {
+      return CodeBlock.of("$L($L, $L)", IF_PRESENT, value, arrayCopy(taken, depth + 1));
+    }
     if (inner != null) {
       return CodeBlock.of("$L($L, $L)", HELPER, value, inner.asLambda(taken, depth + 1));
     }
@@ -241,6 +250,18 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     return CodeBlock.of("$L -> $L", element, on(CodeBlock.of("$L", element), scope, depth));
   }
 
+  /**
+   * The copy the guard hands a present array to: its clone, or, where its rows are arrays too, the
+   * nested helper, which copies each row through the guard in turn.
+   */
+  private CodeBlock arrayCopy(Set<String> taken, int depth) {
+    Set<String> scope = new HashSet<>(taken);
+    String array = ProcessorUtils.freeName(depth == 1 ? "e" : "e" + depth, scope);
+    return inner == null
+        ? CodeBlock.of("$L -> $L.clone()", array, array)
+        : CodeBlock.of("$L -> $L($L, $L)", array, HELPER, array, inner.asLambda(scope, depth + 1));
+  }
+
   private static TypeName wildcardView(Shape shape) {
     return shape == Shape.MAP
         ? ParameterizedTypeName.get(shape.container, ANY, ANY)
@@ -248,58 +269,61 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   }
 
   /**
-   * Each level's helper, as the copy calls it: the one-level form or the one taking a lambda, and,
-   * for a primitive array, its component type, since each primitive array needs its own helper.
+   * Each level's helper, as the copy calls it: the one-level form or the one taking a lambda. A
+   * one-level array has no helper of its own: its copy is a clone, which the guard makes.
    */
-  private record Form(Shape shape, boolean nested, TypeName primitive) {}
+  private record Form(Shape shape, boolean nested) {}
 
   private Stream<Form> forms() {
-    Form form =
-        new Form(
-            shape,
-            inner != null,
-            shape == Shape.PRIMITIVE_ARRAY ? TypeName.get(element).withoutAnnotations() : null);
+    Form form = new Form(shape, inner != null);
     return inner == null ? Stream.of(form) : Stream.concat(Stream.of(form), inner.forms());
   }
 
   /** The one order helpers are declared in, so that every Impl declares them alike. */
   private static final Comparator<Form> ORDER =
-      Comparator.comparing(Form::shape)
-          .thenComparing(Form::nested)
-          .thenComparing(
-              Form::primitive, Comparator.nullsFirst(Comparator.comparing(TypeName::toString)));
+      Comparator.comparing(Form::shape).thenComparing(Form::nested);
 
   /**
-   * The helpers the given copies call, each once, in one fixed order, with the map copy both map
-   * helpers share last, where either is called.
+   * The helpers the given copies call, each once, in one fixed order: the map copy both map helpers
+   * share comes after them, where either is called, and the guard every array copies through comes
+   * last, where one is copied.
    *
    * @param copies the copies an Impl's legs make
+   * @param marks the nullness annotations the helpers are written with
    * @return the helper methods to declare
    */
-  static List<MethodSpec> helpers(Stream<ContainerCopy> copies) {
+  static List<MethodSpec> helpers(Stream<ContainerCopy> copies, NullnessMarks marks) {
     Set<Form> used = copies.flatMap(ContainerCopy::forms).collect(Collectors.toSet());
-    Stream<MethodSpec> helpers = used.stream().sorted(ORDER).map(ContainerCopy::helper);
-    return used.stream().anyMatch(form -> form.shape() == Shape.MAP)
-        ? Stream.concat(helpers, Stream.of(mapCopyHelper())).toList()
-        : helpers.toList();
+    List<MethodSpec> helpers = new ArrayList<>();
+    used.stream()
+        .filter(form -> form.shape() != Shape.ARRAY || form.nested())
+        .sorted(ORDER)
+        .map(form -> helper(form, marks))
+        .forEach(helpers::add);
+    if (used.stream().anyMatch(form -> form.shape() == Shape.MAP)) {
+      helpers.add(mapCopyHelper(marks));
+    }
+    if (used.stream().anyMatch(form -> form.shape() == Shape.ARRAY)) {
+      helpers.add(ifPresentHelper(marks));
+    }
+    return List.copyOf(helpers);
   }
 
-  private static MethodSpec helper(Form form) {
+  private static MethodSpec helper(Form form, NullnessMarks marks) {
     return switch (form.shape()) {
-      case LIST -> form.nested() ? nestedListHelper() : listHelper();
-      case SET -> form.nested() ? nestedSetHelper() : setHelper();
-      case COLLECTION -> form.nested() ? nestedCollectionHelper() : collectionHelper();
-      case MAP -> form.nested() ? nestedMapHelper() : mapHelper();
-      case ARRAY -> form.nested() ? nestedArrayHelper() : arrayHelper();
-      case PRIMITIVE_ARRAY -> primitiveArrayHelper(form.primitive());
+      case LIST -> form.nested() ? nestedListHelper(marks) : listHelper(marks);
+      case SET -> form.nested() ? nestedSetHelper(marks) : setHelper(marks);
+      case COLLECTION -> form.nested() ? nestedCollectionHelper(marks) : collectionHelper(marks);
+      case MAP -> form.nested() ? nestedMapHelper(marks) : mapHelper(marks);
+      // Only an array of arrays has a helper: a one-level array is cloned where the guard runs.
+      case ARRAY -> nestedArrayHelper(marks);
       // An Optional is a level only when its value is one, so it only ever takes the lambda.
-      case OPTIONAL -> optionalHelper();
+      case OPTIONAL -> optionalHelper(marks);
     };
   }
 
-  // The helper bodies. Each copies a null argument to null and carries a null element as it is.
-
-  private static final TypeVariableName E = TypeVariableName.get("E");
+  // The helper bodies. Each copies a null argument to null, an array's through the guard, and
+  // carries a null element as it is.
 
   private static MethodSpec.Builder helperBuilder(
       TypeName type, String javadoc, TypeVariableName... variables) {
@@ -315,193 +339,248 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         .addJavadoc(javadoc);
   }
 
-  /** A collection form over {@code E}: its return type, and its {@code values} parameter. */
-  private static MethodSpec.Builder collectionBuilder(Shape shape, String javadoc) {
-    return helperBuilder(ParameterizedTypeName.get(shape.container, E), javadoc, E)
-        .addParameter(
-            ParameterizedTypeName.get(shape.container, WildcardTypeName.subtypeOf(E)), "values");
+  /**
+   * A form typed by the container it copies, {@code C}, which is exactly the shape's container over
+   * {@code arguments}: its return type, and the parameter it copies, with the {@code each} lambda a
+   * nested form also takes, over the {@code nested} element type. A null copies to null and a
+   * present container to a present one, so the copy is declared as the read it was made from.
+   */
+  private static MethodSpec.Builder containerBuilder(
+      Shape shape,
+      String javadoc,
+      NullnessMarks marks,
+      TypeVariableName nested,
+      TypeVariableName... arguments) {
+    TypeVariableName c =
+        TypeVariableName.get(
+            "C", marks.nullable(ParameterizedTypeName.get(shape.container, arguments)));
+    List<TypeVariableName> variables = new ArrayList<>(List.of(arguments));
+    variables.add(c);
+    // An Optional holds one value, where every other container holds values.
+    String parameter = shape == Shape.OPTIONAL ? "value" : "values";
+    MethodSpec.Builder builder =
+        helperBuilder(c, javadoc, variables.toArray(TypeVariableName[]::new))
+            .addParameter(c, parameter);
+    if (nested != null) {
+      builder.addParameter(elementCopy(nested), "each");
+    }
+    return builder.addCode(nullToNull(parameter));
   }
 
-  /** The {@code Function} a nested form takes each element's own copy as. */
+  /** A collection form over {@code E}, whose elements may be null. */
+  private static MethodSpec.Builder collectionBuilder(
+      Shape shape, String javadoc, NullnessMarks marks, boolean nested) {
+    TypeVariableName e = marks.nullableBounded("E");
+    return containerBuilder(shape, javadoc, marks, nested ? e : null, e);
+  }
+
+  /**
+   * The {@code Function} a nested form takes each element's own copy as. It is not a wildcard type,
+   * so that the lambda's parameter is the element type as the call declares it, a nullable one
+   * included.
+   */
   private static TypeName elementCopy(TypeName element) {
-    return ParameterizedTypeName.get(
-        FUNCTION, WildcardTypeName.supertypeOf(element), WildcardTypeName.subtypeOf(element));
+    return ParameterizedTypeName.get(FUNCTION, element, element);
   }
 
   private static CodeBlock nullToNull(String argument) {
     return CodeBlock.builder()
         .beginControlFlow("if ($L == null)", argument)
-        .addStatement("return null")
+        .addStatement("return $L", argument)
         .endControlFlow()
         .build();
   }
 
   /**
-   * Fills {@code copy}, declared as {@code type} and made by {@code empty}, with each element of
-   * {@code values}, a present one through its own copy.
+   * Hands {@code made}, of the container type the helper copies, back as {@code C}, the type the
+   * call declares it as: they are one type, since no copy is made for a subtype.
    */
-  private static CodeBlock copiedInto(TypeName type, CodeBlock empty) {
+  private static CodeBlock handedBackAs(CodeBlock made) {
     return CodeBlock.builder()
-        .addStatement("$T copy = $L", type, empty)
-        .beginControlFlow("for ($T value : values)", E)
-        .addStatement("copy.add(value == null ? null : each.apply(value))")
+        .add(
+            "@$T($S) // C is the container the call declares, since a subtype is never copied\n",
+            SuppressWarnings.class,
+            "unchecked")
+        .addStatement("C copy = (C) $L", made)
+        .addStatement("return copy")
+        .build();
+  }
+
+  /**
+   * Fills {@code copied}, declared to hold nullable elements and made by {@code empty}, with each
+   * element of {@code values}, a present one through its own copy.
+   */
+  private static CodeBlock copiedInto(Shape shape, NullnessMarks marks, CodeBlock empty) {
+    TypeVariableName e = TypeVariableName.get("E");
+    return CodeBlock.builder()
+        .addStatement(
+            "$T copied = $L", ParameterizedTypeName.get(shape.container, marks.nullable(e)), empty)
+        .beginControlFlow("for ($T value : values)", e)
+        .addStatement("copied.add(value == null ? null : each.apply(value))")
         .endControlFlow()
         .build();
   }
 
-  private static CodeBlock listCopy() {
-    return copiedInto(
-        ParameterizedTypeName.get(Shape.LIST.container, E),
-        CodeBlock.of("new $T<>(values.size())", ARRAY_LIST));
+  private static CodeBlock listCopy(NullnessMarks marks) {
+    return copiedInto(Shape.LIST, marks, CodeBlock.of("new $T<>(values.size())", ARRAY_LIST));
   }
 
-  private static CodeBlock setCopy() {
+  private static CodeBlock setCopy(NullnessMarks marks) {
     return copiedInto(
-        ParameterizedTypeName.get(Shape.SET.container, E),
-        CodeBlock.of("$T.newLinkedHashSet(values.size())", LINKED_HASH_SET));
+        Shape.SET, marks, CodeBlock.of("$T.newLinkedHashSet(values.size())", LINKED_HASH_SET));
   }
 
-  private static MethodSpec listHelper() {
+  private static MethodSpec listHelper(NullnessMarks marks) {
     return collectionBuilder(
             Shape.LIST,
             "Copies a same-typed list so the two sides never share it: an unmodifiable list"
-                + " in the same order, null elements included; a null list copies to null.\n")
-        .addStatement(
-            "return values == null ? null : $T.unmodifiableList(new $T<>(values))",
-            COLLECTIONS,
-            ARRAY_LIST)
+                + " in the same order, null elements included; a null list copies to null.\n",
+            marks,
+            false)
+        .addCode(
+            handedBackAs(
+                CodeBlock.of("$T.unmodifiableList(new $T<>(values))", COLLECTIONS, ARRAY_LIST)))
         .build();
   }
 
-  private static MethodSpec nestedListHelper() {
+  private static MethodSpec nestedListHelper(NullnessMarks marks) {
     return collectionBuilder(
             Shape.LIST,
             "Copies a same-typed list of containers so the two sides never share it: an"
                 + " unmodifiable list in the same order, each present element copied in turn and"
-                + " null elements included; a null list copies to null.\n")
-        .addParameter(elementCopy(E), "each")
-        .addCode(nullToNull("values"))
-        .addCode(listCopy())
-        .addStatement("return $T.unmodifiableList(copy)", COLLECTIONS)
+                + " null elements included; a null list copies to null.\n",
+            marks,
+            true)
+        .addCode(listCopy(marks))
+        .addCode(handedBackAs(CodeBlock.of("$T.unmodifiableList(copied)", COLLECTIONS)))
         .build();
   }
 
-  private static MethodSpec setHelper() {
+  private static MethodSpec setHelper(NullnessMarks marks) {
     return collectionBuilder(
             Shape.SET,
             "Copies a same-typed set so the two sides never share it: an unmodifiable set in"
                 + " the same iteration order, a null element included; a null set copies to"
-                + " null.\n")
-        .addStatement(
-            "return values == null ? null : $T.unmodifiableSet(new $T<>(values))",
-            COLLECTIONS,
-            LINKED_HASH_SET)
+                + " null.\n",
+            marks,
+            false)
+        .addCode(
+            handedBackAs(
+                CodeBlock.of("$T.unmodifiableSet(new $T<>(values))", COLLECTIONS, LINKED_HASH_SET)))
         .build();
   }
 
-  private static MethodSpec nestedSetHelper() {
+  private static MethodSpec nestedSetHelper(NullnessMarks marks) {
     return collectionBuilder(
             Shape.SET,
             "Copies a same-typed set of containers so the two sides never share it: an"
                 + " unmodifiable set in the same iteration order, each present element copied in"
-                + " turn and a null element included; a null set copies to null.\n")
-        .addParameter(elementCopy(E), "each")
-        .addCode(nullToNull("values"))
-        .addCode(setCopy())
-        .addStatement("return $T.unmodifiableSet(copy)", COLLECTIONS)
+                + " turn and a null element included; a null set copies to null.\n",
+            marks,
+            true)
+        .addCode(setCopy(marks))
+        .addCode(handedBackAs(CodeBlock.of("$T.unmodifiableSet(copied)", COLLECTIONS)))
         .build();
   }
 
-  private static MethodSpec collectionHelper() {
+  private static MethodSpec collectionHelper(NullnessMarks marks) {
     return collectionBuilder(
             Shape.COLLECTION,
             "Copies a same-typed collection so the two sides never share it: a set as an"
                 + " unmodifiable set in the same iteration order, anything else as an unmodifiable"
                 + " list in the same order, null elements included; a null collection copies to"
-                + " null.\n")
-        .addCode(nullToNull("values"))
-        .addStatement(
-            "return values instanceof $T<?> ? $T.unmodifiableSet(new $T<>(values))"
-                + " : $T.unmodifiableList(new $T<>(values))",
-            SET,
-            COLLECTIONS,
-            LINKED_HASH_SET,
-            COLLECTIONS,
-            ARRAY_LIST)
+                + " null.\n",
+            marks,
+            false)
+        .addCode(
+            handedBackAs(
+                CodeBlock.of(
+                    "(values instanceof $T<?> ? $T.unmodifiableSet(new $T<>(values))"
+                        + " : $T.unmodifiableList(new $T<>(values)))",
+                    SET,
+                    COLLECTIONS,
+                    LINKED_HASH_SET,
+                    COLLECTIONS,
+                    ARRAY_LIST)))
         .build();
   }
 
-  private static MethodSpec nestedCollectionHelper() {
+  private static MethodSpec nestedCollectionHelper(NullnessMarks marks) {
     return collectionBuilder(
             Shape.COLLECTION,
             "Copies a same-typed collection of containers so the two sides never share it:"
                 + " a set as an unmodifiable set in the same iteration order, anything else as an"
                 + " unmodifiable list in the same order, each present element copied in turn and"
-                + " null elements included; a null collection copies to null.\n")
-        .addParameter(elementCopy(E), "each")
-        .addCode(nullToNull("values"))
+                + " null elements included; a null collection copies to null.\n",
+            marks,
+            true)
         .beginControlFlow("if (values instanceof $T<?>)", SET)
-        .addCode(setCopy())
-        .addStatement("return $T.unmodifiableSet(copy)", COLLECTIONS)
+        .addCode(setCopy(marks))
+        .addCode(handedBackAs(CodeBlock.of("$T.unmodifiableSet(copied)", COLLECTIONS)))
         .endControlFlow()
-        .addCode(listCopy())
-        .addStatement("return $T.unmodifiableList(copy)", COLLECTIONS)
+        .addCode(listCopy(marks))
+        .addCode(handedBackAs(CodeBlock.of("$T.unmodifiableList(copied)", COLLECTIONS)))
         .build();
   }
 
-  private static final TypeVariableName K = TypeVariableName.get("K");
-  private static final TypeVariableName V = TypeVariableName.get("V");
-
-  /** A map form over {@code K} and {@code V}: its return type, and its {@code values} parameter. */
-  private static MethodSpec.Builder mapBuilder(String name, String javadoc) {
-    return helperBuilder(name, ParameterizedTypeName.get(Shape.MAP.container, K, V), javadoc, K, V)
-        .addParameter(
-            ParameterizedTypeName.get(
-                Shape.MAP.container, WildcardTypeName.subtypeOf(K), WildcardTypeName.subtypeOf(V)),
-            "values");
+  /** A map form over {@code K} and {@code V}, whose keys and values may be null. */
+  private static MethodSpec.Builder mapBuilder(
+      String javadoc, NullnessMarks marks, boolean nested) {
+    TypeVariableName k = marks.nullableBounded("K");
+    TypeVariableName v = marks.nullableBounded("V");
+    return containerBuilder(Shape.MAP, javadoc, marks, nested ? v : null, k, v);
   }
 
   /**
-   * Hands {@code copy} back: an {@code IdentityHashMap} as itself, since a read-only view of one is
-   * not an {@code IdentityHashMap}, and the next copy made from the view would look its keys up by
-   * {@code equals}; any other map as an unmodifiable view.
+   * Hands {@code copied} back: an {@code IdentityHashMap} as itself, since a read-only view of one
+   * is not an {@code IdentityHashMap}, and the next copy made from the view would look its keys up
+   * by {@code equals}; any other map as an unmodifiable view.
    */
   private static CodeBlock handBack() {
-    return CodeBlock.builder()
-        .addStatement(
-            "return copy instanceof $T<?, ?> ? copy : $T.unmodifiableMap(copy)",
+    return handedBackAs(
+        CodeBlock.of(
+            "(copied instanceof $T<?, ?> ? copied : $T.unmodifiableMap(copied))",
             IDENTITY_HASH_MAP,
-            COLLECTIONS)
-        .build();
+            COLLECTIONS));
   }
 
-  private static MethodSpec mapHelper() {
+  /** The map copy a map form fills, its keys and values declared to hold a null. */
+  private static CodeBlock mapCopied(NullnessMarks marks) {
+    return CodeBlock.of("$T copied = $L(values);\n", heldMap(marks), MAP_COPY);
+  }
+
+  /**
+   * A map whose keys and values may be null, as a fresh copy is declared to hold them: an element
+   * type that may be nullable can be written into a map only if the map is declared to hold one.
+   */
+  private static TypeName heldMap(NullnessMarks marks) {
+    return ParameterizedTypeName.get(Shape.MAP.container, marks.nullable(K), marks.nullable(V));
+  }
+
+  private static MethodSpec mapHelper(NullnessMarks marks) {
     return mapBuilder(
-            HELPER,
             "Copies a same-typed map so the two sides never share it: a new map in the same entry"
                 + " order, every key kept apart as the source keeps it and null values included,"
                 + " unmodifiable unless it is an IdentityHashMap of its own; a null map copies to"
-                + " null.\n")
-        .addCode(nullToNull("values"))
-        .addStatement(
-            "$T copy = $L(values)", ParameterizedTypeName.get(Shape.MAP.container, K, V), MAP_COPY)
+                + " null.\n",
+            marks,
+            false)
+        .addCode(mapCopied(marks))
         .addCode(handBack())
         .build();
   }
 
-  private static MethodSpec nestedMapHelper() {
+  private static MethodSpec nestedMapHelper(NullnessMarks marks) {
     return mapBuilder(
-            HELPER,
             "Copies a same-typed map of containers so the two sides never share it: a new map in"
                 + " the same entry order, every key kept apart as the source keeps it, each present"
                 + " value copied in turn and null values included, unmodifiable unless it is an"
-                + " IdentityHashMap of its own; a null map copies to null.\n")
-        .addParameter(elementCopy(V), "each")
-        .addCode(nullToNull("values"))
-        .addStatement(
-            "$T copy = $L(values)", ParameterizedTypeName.get(Shape.MAP.container, K, V), MAP_COPY)
+                + " IdentityHashMap of its own; a null map copies to null.\n",
+            marks,
+            true)
+        .addCode(mapCopied(marks))
         // Replacing a value moves no entry, in a LinkedHashMap or an IdentityHashMap alike.
-        .addStatement("copy.replaceAll((key, value) -> value == null ? null : each.apply(value))")
+        .addStatement("copied.replaceAll((key, value) -> value == null ? null : each.apply(value))")
         .addCode(handBack())
         .build();
   }
@@ -512,16 +591,26 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * names the remedies the copy offers: the {@code IdentityHashMap} itself, where the source is a
    * view of one, or the map's own type declared, which is handed over as it is. The pattern binds
    * an {@code IdentityHashMap}, so that copying a subclass passes one to its constructor, and only
-   * the clone's cast answers for a suppression.
+   * the clone's cast answers for a suppression. The copy is declared to hold null keys and values,
+   * as the source may, and each map form hands it back as the map its call declares.
    */
-  private static MethodSpec mapCopyHelper() {
-    ParameterizedTypeName map = ParameterizedTypeName.get(Shape.MAP.container, K, V);
-    return mapBuilder(
+  private static MethodSpec mapCopyHelper(NullnessMarks marks) {
+    TypeVariableName k = marks.nullableBounded("K");
+    TypeVariableName v = marks.nullableBounded("V");
+    TypeName map = heldMap(marks);
+    return helperBuilder(
             MAP_COPY,
+            map,
             "A new, mutable map with every entry of a same-typed map, in its entry order: an"
                 + " IdentityHashMap for an IdentityHashMap, so keys that are equal but not the same"
                 + " object stay apart, and a LinkedHashMap for any other map, which refuses a map"
-                + " holding two keys that equals() cannot tell apart rather than lose an entry.\n")
+                + " holding two keys that equals() cannot tell apart rather than lose an entry.\n",
+            k,
+            v)
+        .addParameter(
+            ParameterizedTypeName.get(
+                Shape.MAP.container, WildcardTypeName.subtypeOf(K), WildcardTypeName.subtypeOf(V)),
+            "values")
         .beginControlFlow(
             "if (values instanceof $T<? extends $T, ? extends $T> identity)",
             IDENTITY_HASH_MAP,
@@ -533,7 +622,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         .addStatement("return new $T<>(identity)", IDENTITY_HASH_MAP)
         .endControlFlow()
         .addCode(
-            "@$T($S) // a fresh clone nothing else holds, so it is safe to view as Map<K, V>\n",
+            "@$T($S) // a fresh clone nothing else holds, so it is safe to view as the copy\n",
             SuppressWarnings.class,
             "unchecked")
         .addStatement("$T clone = ($T) identity.clone()", map, map)
@@ -550,7 +639,8 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         .addStatement("copy.put(entry.getKey(), entry.getValue())")
         .beginControlFlow("if (copy.size() == before)")
         .addCode("// The copy kept the earlier of the two keys, the one equal to this key.\n")
-        .addStatement("$T<$T> kept = new $T<>(copy.keySet())", List.class, K, ARRAY_LIST)
+        .addStatement(
+            "$T<$T> kept = new $T<>(copy.keySet())", List.class, marks.nullable(K), ARRAY_LIST)
         .addStatement(
             "throw new $T($S + values.getClass().getName() + $S"
                 + " + kept.get(kept.indexOf(entry.getKey())) + $S + entry.getKey() + $S)",
@@ -568,61 +658,62 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         .build();
   }
 
-  private static MethodSpec arrayHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
-    return helperBuilder(
-            ArrayTypeName.of(e),
-            "Copies a same-typed array so the two sides never share it: a clone, null"
-                + " elements included; a null array copies to null.\n",
-            e)
-        .addParameter(ArrayTypeName.of(e), "values")
-        .addStatement("return values == null ? null : values.clone()")
-        .build();
-  }
+  private static final TypeVariableName K = TypeVariableName.get("K");
+  private static final TypeVariableName V = TypeVariableName.get("V");
 
-  private static MethodSpec nestedArrayHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
+  /**
+   * Copies an array of arrays, each row through the copy it takes, which is the guard's, so a null
+   * row is handed back as it is. The array itself is never null here: the guard calls this only
+   * with a present one.
+   */
+  private static MethodSpec nestedArrayHelper(NullnessMarks marks) {
+    TypeVariableName e = marks.nullableBounded("E");
     return helperBuilder(
             ArrayTypeName.of(e),
             "Copies a same-typed array of arrays so the two sides never share it: a clone, each"
-                + " present row copied in turn and null rows included; a null array copies to"
-                + " null.\n",
+                + " row copied in turn, a null row by handing it back.\n",
             e)
         .addParameter(ArrayTypeName.of(e), "values")
         .addParameter(elementCopy(e), "each")
-        .addCode(nullToNull("values"))
         .addStatement("$T copy = values.clone()", ArrayTypeName.of(e))
         .beginControlFlow("for (int i = 0; i < copy.length; i++)")
-        .beginControlFlow("if (copy[i] != null)")
         .addStatement("copy[i] = each.apply(copy[i])")
-        .endControlFlow()
         .endControlFlow()
         .addStatement("return copy")
         .build();
   }
 
-  private static MethodSpec primitiveArrayHelper(TypeName component) {
+  /**
+   * The guard an array copies through: a null is handed back, and a present array goes to {@code
+   * copy}, which is told it is present. Typed by the value it guards, so the copy is declared as
+   * the read it was made from.
+   */
+  private static MethodSpec ifPresentHelper(NullnessMarks marks) {
+    TypeVariableName a = marks.nullableBounded("A");
+    TypeName present = marks.nonNull(TypeVariableName.get("A"));
     return helperBuilder(
-            ArrayTypeName.of(component),
-            "Copies a same-typed array so the two sides never share it: a clone; a null"
-                + " array copies to null.\n")
-        .addParameter(ArrayTypeName.of(component), "values")
-        .addStatement("return values == null ? null : values.clone()")
+            IF_PRESENT,
+            a,
+            "Copies an array that may be null, which no helper can type by the array itself: a"
+                + " null is handed back, and a present array is copied.\n",
+            a)
+        .addParameter(a, "value")
+        .addParameter(ParameterizedTypeName.get(FUNCTION, present, present), "copy")
+        .addStatement("return value == null ? value : copy.apply(value)")
         .build();
   }
 
-  private static MethodSpec optionalHelper() {
+  private static MethodSpec optionalHelper(NullnessMarks marks) {
+    // An Optional never holds a null, so its value type keeps the non-null bound.
     TypeVariableName e = TypeVariableName.get("E");
-    return helperBuilder(
-            ParameterizedTypeName.get(Shape.OPTIONAL.container, e),
+    return containerBuilder(
+            Shape.OPTIONAL,
             "Copies a same-typed Optional of a container so the two sides never share the"
                 + " container: the present value's copy; a null Optional copies to null.\n",
+            marks,
+            e,
             e)
-        .addParameter(
-            ParameterizedTypeName.get(Shape.OPTIONAL.container, WildcardTypeName.subtypeOf(e)),
-            "value")
-        .addParameter(elementCopy(e), "each")
-        .addStatement("return value == null ? null : value.map(each)")
+        .addCode(handedBackAs(CodeBlock.of("value.map(each)")))
         .build();
   }
 }
