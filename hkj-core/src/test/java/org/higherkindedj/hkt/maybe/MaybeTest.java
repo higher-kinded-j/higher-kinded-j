@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.maybe;
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
 import static org.higherkindedj.hkt.util.validation.Operation.FLAT_MAP;
+import static org.higherkindedj.hkt.util.validation.Operation.FOLD;
 import static org.higherkindedj.hkt.util.validation.Operation.OR_ELSE_GET;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
@@ -206,6 +207,51 @@ class MaybeTest extends MaybeTestBase {
     void orElseGetDoesNotValidateNullSupplierForJust() {
       assertThatCode(() -> justInstance.orElseGet(null)).doesNotThrowAnyException();
       assertThat(justInstance.orElseGet(null)).isEqualTo(justValue);
+    }
+  }
+
+  @Nested
+  @DisplayName("fold - Complete Validation")
+  @SuppressWarnings("DataFlowIssue") // null passed to @NonNull fold to verify handling
+  class FoldTests {
+
+    @Test
+    @DisplayName("fold() applies justMapper for Just without calling the supplier")
+    void foldAppliesJustMapperForJust() {
+      AtomicBoolean supplierCalled = new AtomicBoolean(false);
+      Supplier<String> trackingSupplier =
+          () -> {
+            supplierCalled.set(true);
+            return "none";
+          };
+
+      assertThat(justInstance.fold(trackingSupplier, value -> "got " + value))
+          .isEqualTo("got " + justValue);
+      assertThat(supplierCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() returns the supplier's result for Nothing without calling justMapper")
+    void foldCallsSupplierForNothing() {
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
+      Function<String, String> trackingMapper =
+          value -> {
+            mapperCalled.set(true);
+            return "got " + value;
+          };
+
+      assertThat(nothingInstance.fold(() -> "none", trackingMapper)).isEqualTo("none");
+      assertThat(mapperCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() validates null arguments using ValidationTestBuilder")
+    void foldValidatesNullArguments() {
+      ValidationTestBuilder.create()
+          .assertFunctionNull(
+              () -> justInstance.fold(null, value -> value), "nothingSupplier", FOLD)
+          .assertFunctionNull(() -> nothingInstance.fold(() -> "none", null), "justMapper", FOLD)
+          .execute();
     }
   }
 

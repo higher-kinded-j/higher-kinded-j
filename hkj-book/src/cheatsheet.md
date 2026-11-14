@@ -92,7 +92,7 @@
 | `.run()` | Extract the underlying value | All paths |
 | `.unsafeRun()` | Execute a deferred effect (may throw) | IOPath, VTaskPath |
 | `.runSafe()` | Execute safely, returning `Try` | IOPath, VTaskPath |
-| `.fold(onErr, onOk)` | Handle both tracks (error-first) | EitherPath, TryPath, ValidationPath |
+| `.fold(onErr, onOk)` | Handle both tracks (error-first) | EitherPath, TryPath, ValidationPath, MaybePath, OptionalPath |
 | `.fold(identity, op)` | Reduce a sequence to one value | ListPath, NonDetPath, StreamPath, VStreamPath |
 | `.foldLeft(seed, fn)` / `.foldRight(seed, fn)` | Directional reduce (type-changing) | ListPath, NonDetPath, StreamPath |
 | `.foldMap(monoid, fn)` | Map then combine via a `Monoid` | ListPath, NonDetPath, StreamPath, VStreamPath |

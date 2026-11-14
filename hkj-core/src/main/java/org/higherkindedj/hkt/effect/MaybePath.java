@@ -109,6 +109,25 @@ public final class MaybePath<A> implements Recoverable<MaybePath<?>, Unit, A> {
   }
 
   /**
+   * Turns either case of this path into one result, as {@link Maybe#fold(Supplier, Function)} does:
+   * {@code nothingSupplier} gives it for {@code Nothing}, and {@code justMapper} gives it from a
+   * {@code Just}'s value.
+   *
+   * @param nothingSupplier the supplier of the result if this path is empty; must not be null
+   * @param justMapper the function to apply if this path contains a value; must not be null
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
+   * @return the result of whichever of the two ran
+   * @throws NullPointerException if either argument is null
+   */
+  public <B extends @Nullable Object> B fold(
+      Supplier<? extends B> nothingSupplier, Function<? super A, ? extends B> justMapper) {
+    Objects.requireNonNull(nothingSupplier, "nothingSupplier must not be null");
+    Objects.requireNonNull(justMapper, "justMapper must not be null");
+    return value.fold(nothingSupplier, justMapper);
+  }
+
+  /**
    * Filters the contained value by the predicate.
    *
    * <p>If this path contains a value and the predicate returns true, the value is kept. Otherwise,

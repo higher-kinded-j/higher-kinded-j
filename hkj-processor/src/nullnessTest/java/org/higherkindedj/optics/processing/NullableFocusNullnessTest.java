@@ -1717,11 +1717,14 @@ class NullableFocusNullnessTest {
                   import org.higherkindedj.hkt.WitnessArity;
                   import org.higherkindedj.hkt.effect.EitherOrBothPath;
                   import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.higherkindedj.hkt.effect.MaybePath;
+                  import org.higherkindedj.hkt.effect.OptionalPath;
                   import org.higherkindedj.hkt.effect.TryPath;
                   import org.higherkindedj.hkt.effect.ValidationPath;
                   import org.higherkindedj.hkt.either.Either;
                   import org.higherkindedj.hkt.eitherf.EitherF;
                   import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
+                  import org.higherkindedj.hkt.maybe.Maybe;
                   import org.higherkindedj.hkt.trymonad.Try;
                   import org.higherkindedj.hkt.validated.Validated;
                   import org.jspecify.annotations.Nullable;
@@ -1770,6 +1773,18 @@ class NullableFocusNullnessTest {
 
                     static @Nullable Integer tryPathFold(TryPath<Integer> p) {
                       return p.<@Nullable Integer>fold(_ -> null, v -> v);
+                    }
+
+                    static @Nullable Integer maybe(Maybe<Integer> m) {
+                      return m.<@Nullable Integer>fold(() -> null, v -> v);
+                    }
+
+                    static @Nullable Integer maybePath(MaybePath<Integer> p) {
+                      return p.<@Nullable Integer>fold(() -> null, v -> v);
+                    }
+
+                    static @Nullable Integer optionalPath(OptionalPath<Integer> p) {
+                      return p.<@Nullable Integer>fold(() -> null, v -> v);
                     }
                   }
                   """));
