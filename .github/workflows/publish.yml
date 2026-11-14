@@ -105,9 +105,20 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
 #          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+        # The snapshots repository rate-limits uploads with 429s. Publish one module at a time,
+        # retry a 429 with a longer backoff (Gradle's default is 3 attempts from 1s), and, for
+        # snapshots, skip the SHA-256/512 uploads it does not support.
         run: |
           echo "Publishing version ${{ steps.versioner.outputs.version }} to Central Portal"
-          ./gradlew publishToMavenCentral -PprojectVersion=${{ steps.versioner.outputs.version }}
+          EXTRA_ARGS=()
+          if [[ "${{ steps.versioner.outputs.is_snapshot }}" == "true" ]]; then
+            EXTRA_ARGS+=(-Dorg.gradle.internal.publish.checksums.insecure=true)
+          fi
+          ./gradlew publishToMavenCentral --no-parallel \
+            -Dorg.gradle.internal.network.retry.max.attempts=6 \
+            -Dorg.gradle.internal.network.retry.initial.backOff=5000 \
+            "${EXTRA_ARGS[@]}" \
+            -PprojectVersion=${{ steps.versioner.outputs.version }}
         shell: bash
 
       - name: Log publish result
