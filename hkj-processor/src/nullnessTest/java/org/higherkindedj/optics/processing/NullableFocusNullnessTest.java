@@ -1245,6 +1245,46 @@ class NullableFocusNullnessTest {
 
       assertThat(compilation).succeeded();
     }
+
+    @Test
+    @DisplayName("a factory whose function may return null takes one that never does")
+    void aMayReturnNullFactoryTakesANeverNullFunction() {
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.MayReturnNull",
+                  """
+                  package com.example;
+
+                  import java.util.function.Function;
+                  import java.util.function.Supplier;
+                  import org.higherkindedj.hkt.effect.context.JavaOptionalContext;
+                  import org.higherkindedj.hkt.effect.context.OptionalContext;
+                  import org.higherkindedj.optics.focus.AffinePath;
+                  import org.jspecify.annotations.Nullable;
+
+                  class MayReturnNull {
+                    record Box(@Nullable String s) {}
+
+                    static void pass(
+                        Supplier<String> never,
+                        Supplier<@Nullable String> maybe,
+                        Function<Box, String> neverGet,
+                        Function<Box, @Nullable String> maybeGet) {
+                      OptionalContext.io(never);
+                      OptionalContext.io(maybe);
+                      OptionalContext.io(() -> "x");
+                      JavaOptionalContext.io(never);
+                      JavaOptionalContext.io(maybe);
+                      AffinePath.ofNullable(neverGet, (box, s) -> new Box(s));
+                      AffinePath.ofNullable(maybeGet, (box, s) -> new Box(s));
+                      AffinePath.ofNullable(Box::s, (box, s) -> new Box(s));
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
   }
 
   @Nested
