@@ -136,11 +136,12 @@ public final class ValidationPath<E, A>
    *
    * @param supplier provides the default value; must not be null
    * @return the success value or the supplier's result
-   * @throws NullPointerException if supplier is null
+   * @throws NullPointerException if supplier is null, or if it is called and returns null
    */
   public A getOrElseGet(Supplier<? extends A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return value.fold(_ -> supplier.get(), a -> a);
+    return value.fold(
+        _ -> Objects.requireNonNull(supplier.get(), "supplier must not return null"), a -> a);
   }
 
   /**
