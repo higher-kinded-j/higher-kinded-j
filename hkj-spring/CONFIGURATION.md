@@ -506,7 +506,7 @@ Default timeout for VTaskPath responses in milliseconds.
 
 - **Type:** `long`
 - **Default:** `30000` (30 seconds)
-- **Effect:** Maximum time to wait for VTask completion before timing out the DeferredResult (HTTP 504). The starter then interrupts the task: it stops at its next interruptible point, and the response does not wait for it.
+- **Effect:** Maximum time to wait for VTask completion before timing out the DeferredResult (HTTP 504). The starter then interrupts the task, without waiting for it: a sleep, a wait or a blocking socket read in the task fails, though a task that catches the interrupt and carries on keeps running.
 
 **Example:**
 ```yaml

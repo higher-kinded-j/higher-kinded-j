@@ -58,7 +58,8 @@ final class InterruptibleFuture<A> extends CompletableFuture<A> {
 
   /**
    * Cancels this future and, if {@code mayInterruptIfRunning} is true, interrupts the task's
-   * thread. The task stops at its next interruptible point; this method does not wait for it.
+   * thread. A task that catches the interrupt and carries on keeps running; this method does not
+   * wait for it.
    *
    * @param mayInterruptIfRunning whether to interrupt the task if it is running
    * @return whether this future is now cancelled

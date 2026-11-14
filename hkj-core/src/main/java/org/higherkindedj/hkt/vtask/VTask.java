@@ -276,14 +276,14 @@ public interface VTask<A> extends VTaskKind<A> {
    * wait for the result or combine with other asynchronous operations.
    *
    * <p>Cancelling the returned future with {@code cancel(true)} interrupts the thread running the
-   * task, as cancelling a future from an {@link ExecutorService} does. The task stops at its next
-   * interruptible point, such as a sleep, a wait or a blocking socket read, and {@code cancel} does
-   * not wait for it. {@code cancel(false)} leaves the task running. Cancelling a stage built on the
-   * future, such as the one {@code thenApply} returns, does not reach the task: {@link
-   * CompletableFuture}'s rules apply to it. Completing the future with {@code orTimeout}, {@code
-   * completeOnTimeout} or {@code complete} also leaves the task running, and a later {@code cancel}
-   * then no longer reaches it. For a time limit that stops the task, use {@link
-   * #timeout(Duration)}.
+   * task, as cancelling a future from an {@link ExecutorService} does. A sleep, a wait or a
+   * blocking socket read in the task then fails, though a task that catches the interrupt and
+   * carries on keeps running, and {@code cancel} does not wait for it. {@code cancel(false)} leaves
+   * the task running. Cancelling a stage built on the future, such as the one {@code thenApply}
+   * returns, does not reach the task: {@link CompletableFuture}'s rules apply to it. Completing the
+   * future with {@code orTimeout}, {@code completeOnTimeout} or {@code complete} also leaves the
+   * task running, and a later {@code cancel} then no longer reaches it. For a time limit that stops
+   * the task, use {@link #timeout(Duration)}.
    *
    * @return A {@link CompletableFuture} that will complete with the result. Never null. A
    *     hand-written task that returns null completes it exceptionally with a {@link

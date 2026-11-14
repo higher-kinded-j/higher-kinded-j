@@ -165,8 +165,8 @@ public class VTaskPathReturnValueHandler implements AsyncHandlerMethodReturnValu
             metricsService.recordVTaskDuration((System.nanoTime() - startNanos) / 1_000_000);
           }
           // cancel() settles the future so the (now no-op) completion callback fires, and
-          // interrupts the task, which stops at its next interruptible point. The response does
-          // not wait for it to stop (see VTask.runAsync).
+          // interrupts the task. A task that catches the interrupt and carries on keeps running;
+          // the response does not wait for it (see VTask.runAsync).
           future.cancel(true);
           // Settle the DeferredResult so Spring does not dispatch an
           // AsyncRequestTimeoutException onto the committed response.

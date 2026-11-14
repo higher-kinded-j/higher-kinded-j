@@ -5,6 +5,7 @@ package org.higherkindedj.spring.actuator;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.FreePath;
@@ -106,8 +107,9 @@ public final class ObservableEffectBoundary<F extends WitnessArity<TypeArity.Una
    * Interprets asynchronously, recording metrics on completion.
    *
    * <p>Cancelling the returned future, with either flag, interrupts the program, as cancelling the
-   * future from {@link EffectBoundary#runAsync(Free)} with {@code cancel(true)} does, and records
-   * the invocation as an error, a {@link CancellationException}.
+   * future from {@link EffectBoundary#runAsync(Free)} with {@code cancel(true)} does. It records
+   * the invocation once, as an error, a {@link CancellationException}, unless the program's own
+   * outcome was already being recorded.
    *
    * @param program the Free monad program
    * @param <A> the result type
@@ -115,25 +117,32 @@ public final class ObservableEffectBoundary<F extends WitnessArity<TypeArity.Una
    */
   public <A> CompletableFuture<A> runAsync(Free<F, A> program) {
     long start = System.currentTimeMillis();
+    // The outcome is recorded once, by whichever of the two callbacks below gets there first
+    AtomicBoolean recorded = new AtomicBoolean(false);
     CompletableFuture<A> running = delegate.runAsync(program);
     CompletableFuture<A> observed =
         running.whenComplete(
             (result, throwable) -> {
-              if (throwable != null) {
-                metrics.recordEffectBoundaryError(throwable.getClass().getSimpleName());
-              } else {
-                metrics.recordEffectBoundarySuccess();
+              if (recorded.compareAndSet(false, true)) {
+                if (throwable != null) {
+                  metrics.recordEffectBoundaryError(throwable.getClass().getSimpleName());
+                } else {
+                  metrics.recordEffectBoundarySuccess();
+                }
+                metrics.recordEffectBoundaryDuration(System.currentTimeMillis() - start);
               }
-              metrics.recordEffectBoundaryDuration(System.currentTimeMillis() - start);
             });
     // A cancel on the metrics stage would not reach the program, so pass it through. The metrics
-    // callback is then skipped, since its stage already has a result, so record the cancel here.
+    // callback is then skipped, since its stage already has a result, so record the cancel here,
+    // unless that callback was already recording when the cancel landed.
     observed.whenComplete(
         (_, _) -> {
           if (observed.isCancelled()) {
             running.cancel(true);
-            metrics.recordEffectBoundaryError(CancellationException.class.getSimpleName());
-            metrics.recordEffectBoundaryDuration(System.currentTimeMillis() - start);
+            if (recorded.compareAndSet(false, true)) {
+              metrics.recordEffectBoundaryError(CancellationException.class.getSimpleName());
+              metrics.recordEffectBoundaryDuration(System.currentTimeMillis() - start);
+            }
           }
         });
     return observed;

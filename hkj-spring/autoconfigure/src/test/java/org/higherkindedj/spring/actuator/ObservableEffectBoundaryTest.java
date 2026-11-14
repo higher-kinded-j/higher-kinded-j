@@ -47,6 +47,51 @@ class ObservableEffectBoundaryTest {
     }
 
     @Test
+    @DisplayName(
+        "Should record one outcome when a cancel lands while the success is being recorded")
+    void recordsOneOutcomeWhenACancelRacesTheSuccess() throws Exception {
+      CountDownLatch recordingSuccess = new CountDownLatch(1);
+      CountDownLatch successMayFinish = new CountDownLatch(1);
+      HkjMetricsService slowSuccess =
+          new HkjMetricsService(registry) {
+            @Override
+            public void recordEffectBoundarySuccess() {
+              super.recordEffectBoundarySuccess();
+              recordingSuccess.countDown();
+              try {
+                successMayFinish.await(5, TimeUnit.SECONDS);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
+            }
+          };
+      ObservableEffectBoundary<IOKind.Witness> racing =
+          new ObservableEffectBoundary<>(
+              EffectBoundary.of(Natural.<IOKind.Witness>identity()), slowSuccess);
+
+      CompletableFuture<String> future = racing.runAsync(Free.<IOKind.Witness, String>pure("done"));
+      assertThat(recordingSuccess.await(5, TimeUnit.SECONDS)).isTrue();
+      // The success is still being recorded, so the future is not yet complete and the cancel lands
+      assertThat(future.cancel(true)).isTrue();
+      successMayFinish.countDown();
+
+      assertThat(
+              registry
+                  .get("hkj.effect.boundary.invocations")
+                  .tag("result", "success")
+                  .counter()
+                  .count())
+          .isEqualTo(1.0);
+      assertThat(
+              registry
+                  .get("hkj.effect.boundary.invocations")
+                  .tag("result", "error")
+                  .counter()
+                  .count())
+          .isZero();
+    }
+
+    @Test
     @DisplayName("Should interrupt the program, and record an error, when its future is cancelled")
     @SuppressWarnings("migration-nudge") // lifts an IO instruction directly, to block in it
     void cancellingTheFutureInterruptsTheProgram() throws Exception {
