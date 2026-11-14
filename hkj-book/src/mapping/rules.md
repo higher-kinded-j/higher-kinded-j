@@ -21,6 +21,8 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | **Optional fields** | | |
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
+| [Can a `@Nullable` component be copied into one declared non-null?](#nullable-copy-into-non-null) | No: `build` would write the `null`, so give both one nullness. | by design |
+| [Is a `@Nullable` component handed to a leaf or a nested spec refused?](#nullable-copy-into-non-null) | Not yet: `build` throws when it meets the `null`. | not supported yet |
 | [Can a bean spec declare `@OptionalBridge`?](#optional-bridge-on-a-bean-wire) | Yes, but it changes nothing: the processor answers with a note. | by design |
 | [Can a bridged value go through a leaf or a spec?](#what-converts-a-bridged-value) | Yes: whatever converts it unbridged, over the inner types. | by design |
 | **Shared vocabulary** | | |
@@ -149,6 +151,35 @@ Nothing refuses these at compile time, and only the first draws a warning. Each 
 ---
 
 ## Nulls {#nulls}
+
+### A `@Nullable` component is not copied into a non-null one {#nullable-copy-into-non-null}
+
+**A same-typed component is copied as it is, a `null` included.** So the processor refuses a domain component declared `@Nullable` where `build` copies it into a site declared non-null, as it refuses a [bridged component](#bridged-component-nullable) there. The site is a record component, setter or builder setter carrying a non-null annotation, or carrying no `@Nullable` inside a JSpecify `@NullMarked` scope. Here a reader's nickname may be absent, and the view says it never is:
+
+<!-- verify:rejects "is declared @Nullable, and build copies it to" -->
+```java
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+record Reader(String name, @Nullable String nickname) {}
+
+record ReaderView(String name, @NonNull String nickname) {}
+
+@GenerateMapping
+interface ReaderViewMapping extends MappingSpec<Reader, ReaderView> {}
+```
+
+The processor answers that `Reader.nickname` `is declared @Nullable, and build copies it to` a component declared non-null. Give the pair one nullness: mark `ReaderView.nickname` `@Nullable`, or declare `Reader.nickname` non-null if every `Reader` that `build` is given has one. On a Lombok bean, mark the field: Lombok copies its `@Nullable` to the setter it writes. In a mapping, a leaf is no way out, since its `build` refuses a `null`.
+
+- The domain component counts as nullable by the same wide reading: any annotation named `Nullable` or `CheckForNull`, or JSR-305's `@Nonnull(when = MAYBE)`, on the component, its type, its accessor or its field.
+- The site is read where `build` hands it the value, a record's canonical constructor parameter. One that an explicit constructor declares `@Nullable` takes the `null` whatever the component says, and one it declares non-null takes none where the component says nothing.
+- A wire class you cannot change keeps one more way. Hold the component as an `Optional` in the domain, and give it a leaf over the whole `Optional` that says what an absent value becomes on the wire.
+- `parse` needs no such rule: it refuses a `null` read whatever the domain declares, as [the null contract](#the-null-contract-precisely) says.
+- A primitive, a bean property `build` never writes, and a component or a site that says nothing either way are copied as before. A mapping that only parses, such as a protobuf [`FieldMask` update](beans.md#a-patch-through-its-fieldmask), writes no site, so this rule never refuses it.
+- A plain [`@GenerateMerge`](#how-a-merge-fills) refuses a `@Nullable` source component copied into a target component declared non-null, the same way. It offers one more fix: a leaf on that fill, or on any other, makes the merge fallible, and a fallible merge guards each read, reporting a `null` as `must not be null`.
+- Only a copy is checked. Refusing a `@Nullable` component that `build` hands to a leaf, a nested spec, a lifted container, a `@Singular` builder method or a getter-only list is not supported yet. Each of those throws when `build` meets the `null`, but a `@Singular(ignoreNullCollections = true)` method skips it.
 
 ### The null contract, precisely {#the-null-contract-precisely}
 
@@ -340,6 +371,7 @@ A component whose type is the same on both sides, with no leaf of its own, cross
 
 - The copy keeps the source's order, with a `Set` copied as a set and any other `Collection` as a list: the shape an element-lifted leg's result already has. It is unmodifiable, an `IdentityHashMap` aside. Code that adds to a built bean's list afterwards throws `UnsupportedOperationException`; set a new list instead, or copy it first (`new ArrayList<>(bean.getTags())`). A getter-only list filled through `getTags().addAll(...)` stays the bean's own.
 - It carries what it copies. A `null` element stays where it was (the [null scan](#the-null-contract-precisely) decides what `parse` makes of it, and `build` stays total), and a `null` container copies to `null`.
+- It says so to a nullness checker: where your module can read JSpecify, each copy, and each guard `parse` reads through, declares the `null` it takes or gives. NullAway does not yet follow a nullable element type, such as `List<@Nullable String>`, through `parse`, so a mapping with one passes only when it is build-only.
 - Every level inside is copied too: each list inside a `List<List<String>>`, each value of a `Map<String, List<String>>`, each row of a `String[][]`, and the container an `Optional` holds. Each call allocates one copy per container it hands over, at every level.
 - A copy compares the way a list, set or map does. A sorted source (`TreeSet`, `TreeMap`) keeps its order but not its comparator; declare the sorted type, which is handed over as it is, or sort again in the record's compact constructor. A `Collection` holding an `ArrayDeque`, which compares by identity, comes back comparing by its elements.
 - A `Map` copy keeps every entry under the source's own key. An `IdentityHashMap` declared as `Map` comes back an `IdentityHashMap` of its own, in the same order, so equal keys that are not the same object stay apart. It alone can be written to: a read-only view of one is no `IdentityHashMap`, so the next copy would refuse it.
@@ -912,7 +944,7 @@ interface SearchMapping<U extends Number> extends MappingSpec<Search<U>, SearchD
 **A merge is one abstract method on an `@GenerateMerge` interface: two or more record sources in, one record target out.** The processor refuses fewer than two sources, a second abstract method, and a generic merge.
 
 - **Each target component fills from the one source with a component of the same name.** A merge matches by name only and has no rename, so the processor refuses a target component no source names ([`is not filled by any source`](compiler_errors.md#merge-unfilled)), and one that two or more sources carry ([`both carry it`](compiler_errors.md#merge-component-ambiguous)). A source component the target lacks fills nothing.
-- **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies).
+- **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies). A plain merge refuses a `@Nullable` source component whose target component is [declared non-null](#nullable-copy-into-non-null).
 - **A leaf converts a fill.** It is a zero-parameter `default` method on the merge interface, named after the target component, returning `ValidatedPrism<SourceComponent, TargetComponent>`, source first. An explicit leaf wins even when the types match.
 - **A `@GenerateMapping` spec fills a component as `parse`.** The source component must be the spec's wire and the target component its domain, in this module or a dependency. A merge never runs a spec's `build`, so an outbound view cannot fill through one yet.
 - **A threaded spec fills by the rule a mapping nests it by.** It fills where its pair has the components' shape and its bounds admit each argument, through `PageMappingImpl.<Integer>instance()`, and [the most specific spec is used](#generic-spec-precedence), your own specs before a dependency's.
@@ -1024,7 +1056,7 @@ interface LeaderboardMerge {
 
 ### Nulls and guards in a merge {#nulls-and-guards-in-a-merge}
 
-A fallible merge, one returning `Validated`, carries the [same null doctrine as `parse`](basics.md#null-doctrine): a null source-component read is a located, accumulated `FieldError`, never an exception, while a null source *argument* stays the caller's `NullPointerException`. It carries parse's [constructor guard](absence.md#constructor-invariants) too: an exception the target's constructor throws becomes an unlabelled `FieldError` with its message. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them, and whatever that constructor throws propagates. (The return type follows the fills, so the guards cannot be bought by declaration alone: an identity-only merge that wants them should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
+A fallible merge, one returning `Validated`, carries the [same null doctrine as `parse`](basics.md#null-doctrine): a null source-component read is a located, accumulated `FieldError`, never an exception, while a null source *argument* stays the caller's `NullPointerException`. It carries parse's [constructor guard](absence.md#constructor-invariants) too: an exception the target's constructor throws becomes an unlabelled `FieldError` with its message. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them, and whatever that constructor throws propagates. A `@Nullable` source component whose target component is declared non-null is [refused](#nullable-copy-into-non-null). (The return type follows the fills, so the guards cannot be bought by declaration alone: an identity-only merge that wants them should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
 
 ### Error envelope rules {#error-envelope-rules}
 

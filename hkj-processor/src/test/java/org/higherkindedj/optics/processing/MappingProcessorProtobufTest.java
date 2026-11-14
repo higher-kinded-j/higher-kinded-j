@@ -212,9 +212,10 @@ class MappingProcessorProtobufTest {
                   interface MaskMapping extends MappingSpec<Mask, FieldMask> {}
                   """));
       Assertions.assertThat(generated(result.compilation(), "MaskMappingImpl"))
-          // Both directions copy, so neither side holds the other's list.
+          // Both directions copy, so neither side holds the other's list. The getter answers a
+          // ProtocolStringList, read as the List<String> the field is, so the copy is one too.
           .contains("b.addAllPaths(hkj$copyOf(domain.paths()));")
-          .contains("hkj$copyOf(wire.getPathsList())");
+          .contains("hkj$copyOf(((List<String>) wire.getPathsList()))");
       Object impl = result.instance("com.example.MaskMappingImpl");
       Object mask = record(result, "Mask", List.of("user.name", "user.email"));
       FieldMask wire = FieldMask.newBuilder().addPaths("user.name").addPaths("user.email").build();
@@ -1457,7 +1458,7 @@ class MappingProcessorProtobufTest {
                   + " Type.getDescriptor().findFieldByNumber(Type.SOURCE_CONTEXT_FIELD_NUMBER).getName();")
           .contains("all || paths.contains(hkj$path$sourceContext) ? wire : null")
           // The domain takes a copy of what the message holds, as parse does.
-          .contains("hkj$copyOf(wire.getOneofsList())")
+          .contains("hkj$copyOf(((List<String>) wire.getOneofsList()))")
           .contains("Map.ofEntries()");
       Object impl = result.instance("com.example.TypePatchImpl");
       Object current =

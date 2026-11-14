@@ -25,6 +25,7 @@ import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.edit.Edit;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated sparse PATCH write-back for {@link CustomerPatchMapping}: folds the present wire fields into an {@code Edits.Accumulated<Domain>}.
@@ -33,11 +34,11 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   public static final CustomerPatchMappingImpl INSTANCE = new CustomerPatchMappingImpl();
 
-  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$phones;
+  private volatile @Nullable ValidatedPrism<String, PhoneNumber> hkj$leaf$phones;
 
-  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$speedDial;
+  private volatile @Nullable ValidatedPrism<String, PhoneNumber> hkj$leaf$speedDial;
 
-  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$fax;
+  private volatile @Nullable ValidatedPrism<String, PhoneNumber> hkj$leaf$fax;
 
   private CustomerPatchMappingImpl() {
   }
@@ -108,7 +109,7 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
    * Guards an identity-copied collection: a null element is a located invalid at its position, accumulating, or, in a set, which has no positions, the unlocated {@code must not contain a null element}.
    */
   private static <C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(
-      C values) {
+      @Nullable C values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
@@ -129,7 +130,7 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
    * Guards an identity-copied map: a null value is a located invalid under its key, accumulating; a null key is the caller's NullPointerException.
    */
   private static <C extends Map<?, ?>> Validated<NonEmptyList<FieldError>, C> hkj$valuesPresent(
-      C values) {
+      @Nullable C values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
@@ -147,41 +148,50 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   /**
    * Copies a same-typed list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
    */
-  private static <E> List<E> hkj$copyOf(List<? extends E> values) {
-    return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
+  private static <E extends @Nullable Object, C extends @Nullable List<E>> C hkj$copyOf(C values) {
+    if (values == null) {
+      return values;
+    }
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
+    C copy = (C) Collections.unmodifiableList(new ArrayList<>(values));
+    return copy;
   }
 
   /**
    * Copies a same-typed map so the two sides never share it: a new map in the same entry order, every key kept apart as the source keeps it and null values included, unmodifiable unless it is an IdentityHashMap of its own; a null map copies to null.
    */
-  private static <K, V> Map<K, V> hkj$copyOf(Map<? extends K, ? extends V> values) {
+  private static <K extends @Nullable Object, V extends @Nullable Object, C extends @Nullable Map<K, V>> C hkj$copyOf(
+      C values) {
     if (values == null) {
-      return null;
+      return values;
     }
-    Map<K, V> copy = hkj$mapCopy(values);
-    return copy instanceof IdentityHashMap<?, ?> ? copy : Collections.unmodifiableMap(copy);
+    Map<@Nullable K, @Nullable V> copied = hkj$mapCopy(values);
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
+    C copy = (C) (copied instanceof IdentityHashMap<?, ?> ? copied : Collections.unmodifiableMap(copied));
+    return copy;
   }
 
   /**
    * A new, mutable map with every entry of a same-typed map, in its entry order: an IdentityHashMap for an IdentityHashMap, so keys that are equal but not the same object stay apart, and a LinkedHashMap for any other map, which refuses a map holding two keys that equals() cannot tell apart rather than lose an entry.
    */
-  private static <K, V> Map<K, V> hkj$mapCopy(Map<? extends K, ? extends V> values) {
+  private static <K extends @Nullable Object, V extends @Nullable Object> Map<@Nullable K, @Nullable V> hkj$mapCopy(
+      Map<? extends K, ? extends V> values) {
     if (values instanceof IdentityHashMap<? extends K, ? extends V> identity) {
       if (identity.getClass() != IdentityHashMap.class) {
         // A subclass is copied into a plain one, so none of its code runs on the copy.
         return new IdentityHashMap<>(identity);
       }
-      @SuppressWarnings("unchecked") // a fresh clone nothing else holds, so it is safe to view as Map<K, V>
-      Map<K, V> clone = (Map<K, V>) identity.clone();
+      @SuppressWarnings("unchecked") // a fresh clone nothing else holds, so it is safe to view as the copy
+      Map<@Nullable K, @Nullable V> clone = (Map<@Nullable K, @Nullable V>) identity.clone();
       return clone;
     }
-    Map<K, V> copy = LinkedHashMap.newLinkedHashMap(values.size());
+    Map<@Nullable K, @Nullable V> copy = LinkedHashMap.newLinkedHashMap(values.size());
     for (Map.Entry<? extends K, ? extends V> entry : values.entrySet()) {
       int before = copy.size();
       copy.put(entry.getKey(), entry.getValue());
       if (copy.size() == before) {
         // The copy kept the earlier of the two keys, the one equal to this key.
-        List<K> kept = new ArrayList<>(copy.keySet());
+        List<@Nullable K> kept = new ArrayList<>(copy.keySet());
         throw new IllegalArgumentException("A generated Impl cannot copy this " + values.getClass().getName() + " without losing an entry: its keys " + kept.get(kept.indexOf(entry.getKey())) + " and " + entry.getKey() + " are equal by equals(), and the copy looks keys up by equals(). If this is a view of an IdentityHashMap, hold the IdentityHashMap itself; otherwise declare the map's own type, which is handed over as it is. A key changed after it went into the map also causes this.");
       }
     }

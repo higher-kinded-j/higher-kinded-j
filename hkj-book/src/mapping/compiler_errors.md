@@ -61,6 +61,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`Add '@OptionalBridge`](#add-optional-bridge) | A domain `Optional` faces a plain wire component |
 | [`bridges to the primitive`](#bridges-to-a-primitive) | The bridged wire component is a primitive |
 | [`which is declared non-null`](#declared-non-null) | The bridged wire component is declared non-null |
+| [`and build copies it to`](#nullable-copied-into-non-null) | A `@Nullable` component is copied into one declared non-null |
 | [`is declared over the whole Optional`](#bridged-leaf-over-whole-optional) | A bridged leaf is declared over the `Optional` |
 | [`is redundant on a bean wire`](#redundant-on-a-bean-wire) | **Note.** A bean wire bridges without the marker |
 
@@ -154,6 +155,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`which a merge does not compose`](#merge-element-mapped) | A merge would fill through an element-mapped spec |
 | [`uses fallible fills but declares a plain`](#merge-plain-return) | A fallible merge declares a plain return |
 | [`declares a Validated return but every fill is an identity copy`](#merge-validated-identity) | A merge of copies declares a Validated return |
+| [`and the merge copies it to`](#merge-nullable-into-non-null) | A plain merge copies a `@Nullable` source into a non-null target |
 | [`is not filled by any source`](#merge-unfilled) | No merge source names a target component |
 | [`is a primitive`](#envelope-primitive-context) | An envelope context component is a primitive |
 | [`is a class, not a record`](#envelope-variant-not-a-record) | An envelope variant is a class |
@@ -876,6 +878,35 @@ interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
   @OptionalBridge
   Optional<String> nickname();
 }
+```
+~~~
+
+### `domain field 'X.y' is declared @Nullable, and build copies it to the record component 'XDto.y', which is declared non-null` {#nullable-copied-into-non-null}
+
+A same-typed component is copied as it is, so the `null` the domain may hold would be written into a site declared non-null, by an annotation or by a JSpecify `@NullMarked` scope.
+
+**Fix.** Mark the wire component `@Nullable` (on a Lombok bean, its field), or declare the domain component non-null.
+
+```
+@GenerateMapping: domain field 'Reader.nickname' is declared @Nullable, and build copies it to
+the record component 'ReaderDto.nickname', which is declared non-null. A same-typed component is
+copied as it is, a null included, and 'ReaderDto.nickname' is annotated @NonNull, so build would
+write a null its declaration rules out, and either throw or leave a null its type says it cannot
+hold. As 'Reader.nickname' may be absent, replace @NonNull on 'ReaderDto.nickname' with
+@Nullable; or declare 'Reader.nickname' non-null, if build never meets it null.
+```
+
+The rule: [A `@Nullable` component is not copied into a non-null one](rules.md#nullable-copy-into-non-null).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "and build copies it to" -->
+```java
+record Reader(String name, @Nullable String nickname) {}
+
+record ReaderDto(String name, @NonNull String nickname) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
 ```
 ~~~
 
@@ -3068,6 +3099,42 @@ record Dashboard(String name, String accountId, boolean darkMode) {}
 interface DashboardAssembly {
   Validated<NonEmptyList<FieldError>, Dashboard> assemble(
       Customer customer, Account account, Settings settings);
+}
+```
+~~~
+
+### `@GenerateMerge: source component 'X.y' is declared @Nullable, and the merge copies it to the record component 'Z.y', which is declared non-null` {#merge-nullable-into-non-null}
+
+A plain merge copies each source value as it is, so the `null` the source may hold would be written into a target component declared non-null.
+
+**Fix.** Mark the target component `@Nullable`, declare the source component non-null, or add a leaf for it and return `Validated`, so the merge, now fallible, reports the `null` as `must not be null`.
+
+```
+@GenerateMerge: source component 'Gift.note' is declared @Nullable, and the merge copies it to
+the record component 'GiftTag.note', which is declared non-null. A plain merge copies each
+source value as it is, a null included, and 'GiftTag.note' is annotated @NonNull, so the merge
+would write a null its declaration rules out, and either throw or leave a null its type says it
+cannot hold. As 'Gift.note' may be absent, replace @NonNull on 'GiftTag.note' with @Nullable; or
+declare 'Gift.note' non-null, if the merge never meets it null; or add 'default
+ValidatedPrism<java.lang.String, java.lang.String> note()' to the merge and return
+Validated<NonEmptyList<FieldError>, GiftTag>, so the merge, now fallible, reports a null as
+'note: must not be null'.
+```
+
+The rule: [A `@Nullable` component is not copied into a non-null one](rules.md#nullable-copy-into-non-null).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "and the merge copies it to" -->
+```java
+record Gift(String item, @Nullable String note) {}
+
+record Giver(String sender) {}
+
+record GiftTag(String item, @NonNull String note, String sender) {}
+
+@GenerateMerge
+interface GiftTagAssembly {
+  GiftTag assemble(Gift gift, Giver giver);
 }
 ```
 ~~~

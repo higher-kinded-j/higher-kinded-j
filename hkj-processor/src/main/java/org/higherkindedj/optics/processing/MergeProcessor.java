@@ -12,6 +12,7 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -279,7 +280,81 @@ public class MergeProcessor extends AbstractProcessor {
           "Declare the plain '" + shape.target().getSimpleName() + "' return type.");
       return;
     }
+    if (!fallible && !checkNoNullableIntoNonNull(mergeMethod, shape.target(), fills)) {
+      return;
+    }
     writeImpl(spec, mergeMethod, shape, fills);
+  }
+
+  /**
+   * Refuses each fill of a plain merge from a source component declared {@code @Nullable} into a
+   * target component declared non-null, and answers whether none was. A plain merge copies every
+   * source value as it is, a null included, where a fallible one guards each read and reports a
+   * null as a failure. It is the rule a mapping's {@code build} keeps for the same copy, in the
+   * same shape, with one more fix: a leaf on any fill makes the merge fallible, so its guard takes
+   * this read too. A primitive never holds a null, and a component that says nothing either way
+   * copies as before.
+   */
+  private boolean checkNoNullableIntoNonNull(
+      ExecutableElement mergeMethod, TypeElement target, List<Fill> fills) {
+    boolean clean = true;
+    for (Fill fill : fills) {
+      TypeElement source =
+          mergeMethod.getParameters().stream()
+              .filter(parameter -> parameter.getSimpleName().contentEquals(fill.sourceParam()))
+              .map(parameter -> asRecord(parameter.asType()))
+              .findFirst()
+              .orElseThrow();
+      RecordComponentElement from = componentNamed(source, fill.component());
+      if (from.asType().getKind().isPrimitive() || !NullableAnnotations.declaresNullable(from)) {
+        continue;
+      }
+      RecordComponentElement to = componentNamed(target, fill.component());
+      MappingProcessor.NonNullSite site =
+          MappingProcessor.nonNullComponent(processingEnv.getTypeUtils(), target, to);
+      if (site == null) {
+        continue;
+      }
+      String spelt = "'" + source.getSimpleName() + "." + fill.component() + "'";
+      String nullable = MappingProcessor.nullableFix(processingEnv, site);
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          mergeMethod,
+          TAG,
+          "source component "
+              + spelt
+              + " is declared @Nullable, and the merge copies it to "
+              + site.member()
+              + ".",
+          "A plain merge copies each source value as it is, a null included, and "
+              + site.declaration()
+              + " "
+              + MappingProcessor.nonNullBecause(processingEnv, site)
+              + ", so the merge would write a null its declaration rules out, and either throw or"
+              + " leave a null its type says it cannot hold.",
+          "As "
+              + spelt
+              + " may be absent, "
+              + nullable
+              + "; or declare "
+              + spelt
+              + " non-null, if the merge never meets it null; or add "
+              + leafDeclaration(fill.component(), from.asType(), to.asType())
+              + " to the merge and return Validated<NonEmptyList<FieldError>, "
+              + target.getSimpleName()
+              + ">, so the merge, now fallible, reports a null as '"
+              + fill.component()
+              + ": must not be null'.");
+      clean = false;
+    }
+    return clean;
+  }
+
+  private static RecordComponentElement componentNamed(TypeElement record, String name) {
+    return record.getRecordComponents().stream()
+        .filter(component -> component.getSimpleName().contentEquals(name))
+        .findFirst()
+        .orElseThrow();
   }
 
   /**
@@ -963,46 +1038,43 @@ public class MergeProcessor extends AbstractProcessor {
             .map(source -> source.getSimpleName().toString())
             .collect(Collectors.toUnmodifiableSet());
     if (shape.fallibleDeclared()) {
+      // A fill's copy is bound to a local ahead of the ladder, as a mapping's parse binds a leg's
+      // copy (LegLocals says why), and the fill reads it.
+      Set<String> inScope = new HashSet<>(sourceNames);
+      fills.forEach(fill -> inScope.add(fill.component()));
+      LegLocals locals = new LegLocals(inScope);
       List<CodeBlock> legs = new ArrayList<>();
       for (Fill fill : fills) {
+        CodeBlock read =
+            fill.copy() == null
+                ? fill.read(sourceNames)
+                : locals.bind(fill.component(), fill.read(sourceNames));
         // Every reference read is null-guarded (the null doctrine): a null source
         // component is a located FieldError, never an exception. Primitive identity reads can
         // never be null and copy directly.
+        CodeBlock value;
         if (fill.fallible()) {
-          legs.add(
+          value =
               CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L.$L(), $L::parse))",
-                  fill.component(),
+                  "hkj$$ifPresent($L.$L(), $L::parse)",
                   fill.sourceParam(),
                   fill.component(),
-                  fill.prism()));
+                  fill.prism());
         } else if (fill.scan() != null) {
-          legs.add(
-              CodeBlock.of(
-                  "\n.field($S, $L)",
-                  fill.component(),
-                  fill.scan().on(fill.read(sourceNames), sourceNames)));
+          value = fill.scan().on(read, sourceNames);
         } else if (fill.guardedRead()) {
-          legs.add(
-              CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L, $T::validNel))",
-                  fill.component(),
-                  fill.read(sourceNames),
-                  VALIDATED));
+          value = CodeBlock.of("hkj$$ifPresent($L, $T::validNel)", read, VALIDATED);
         } else {
-          legs.add(
-              CodeBlock.of(
-                  "\n.field($S, $T.validNel($L))",
-                  fill.component(),
-                  VALIDATED,
-                  fill.read(sourceNames)));
+          value = CodeBlock.of("$T.validNel($L)", VALIDATED, read);
         }
+        legs.add(CodeBlock.of("\n.field($S, $L)", fill.component(), value));
       }
+      method.addCode(locals.statements());
       // The merge method's parameters carry the spec author's names, so they are reserved
       // against the emitted lambda parameters (and, past one ladder, the chunk locals). Either
       // form ends in the guarded constructor call: an invariant the target's constructor
       // enforces refuses the merged combination at the root instead of throwing.
-      Set<String> reserved = new LinkedHashSet<>();
+      Set<String> reserved = new LinkedHashSet<>(locals.names());
       for (VariableElement source : mergeMethod.getParameters()) {
         reserved.add(source.getSimpleName().toString());
       }
@@ -1071,15 +1143,16 @@ public class MergeProcessor extends AbstractProcessor {
     // never references them. A fallible merge always references hkj$ifPresent (the return-type
     // discipline rejects a Validated return over pure identities, and a fallible fill is always a
     // guarded reference read) and always ends in the guarded constructor call.
+    NullnessMarks marks = NullnessMarks.of(processingEnv.getElementUtils(), spec);
     if (shape.fallibleDeclared()) {
-      implBuilder.addMethod(MappingProcessor.ifPresentHelper());
+      implBuilder.addMethod(MappingProcessor.ifPresentHelper(marks));
       implBuilder.addMethods(
-          NullScan.helpers(fills.stream().map(Fill::scan).filter(Objects::nonNull)));
+          NullScan.helpers(fills.stream().map(Fill::scan).filter(Objects::nonNull), marks));
       implBuilder.addMethod(GuardedConstruction.helper());
     }
     // Either path copies, so the target shares no container with a source.
     implBuilder.addMethods(
-        ContainerCopy.helpers(fills.stream().map(Fill::copy).filter(Objects::nonNull)));
+        ContainerCopy.helpers(fills.stream().map(Fill::copy).filter(Objects::nonNull), marks));
     // A merge's leaves are its own zero-parameter default methods, as findLeaf reads them.
     leafCache.addOverrides(
         processingEnv,

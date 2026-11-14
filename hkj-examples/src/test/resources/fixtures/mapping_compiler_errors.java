@@ -38,6 +38,7 @@ import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.validated.StandardCodecs;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.openapitools.jackson.nullable.JsonNullable;
 
 record EmailAddress(String value) {}

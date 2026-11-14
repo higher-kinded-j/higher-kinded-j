@@ -537,6 +537,17 @@ matter: it maps build-only whatever its width, derived fields included.
   there, hold an `IdentityHashMap` copy in the component in place of a map they refuse. A list set on a
   built bean is unmodifiable, so do not add to it afterwards; a
   getter-only list filled through `getX().addAll(...)` stays the bean's own.
+- **A `@Nullable` component is not copied into one declared non-null.** A same-typed copy hands
+  over a `null` too, so a domain component declared `@Nullable` that `build` copies into a record
+  component, setter or builder setter declared non-null (a non-null annotation, or `@NullMarked`
+  without `@Nullable`) is refused, and so is a plain `@GenerateMerge` source copied into such a
+  target. Mark the wire side `@Nullable` (on a Lombok bean, its field), or declare the domain side
+  non-null; a merge can instead take a leaf and return `Validated`. `parse` needs no such rule: it
+  refuses every unbridged `null` read. A `@Nullable` component handed to a leaf, nested spec or
+  lifted container is not checked yet, and throws from `build` on a `null`. The generated copies,
+  guards and leaf caches declare their nulls in JSpecify's annotations, so a nullness checker can
+  check them; it does not yet follow a nullable element type such as `List<@Nullable String>`
+  through `parse`.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args

@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
@@ -266,6 +267,38 @@ class ContainerCopyTest {
 
                       @GenerateMapping
                       public interface ScoresPatchMapping extends UpdateSpec<Scores, ScoresPatch> {}
+
+                      // A bridged primitive array copies with no scan, on a record, a projection
+                      // and a bean.
+                      public record Badge(String id, Optional<int[]> codes) {}
+
+                      public record BadgeDto(String id, int[] codes) {}
+
+                      @GenerateMapping
+                      public interface BadgeMapping extends MappingSpec<Badge, BadgeDto> {
+                        @OptionalBridge
+                        Optional<int[]> codes();
+                      }
+
+                      public record BadgeView(int[] codes) {}
+
+                      @GenerateMapping
+                      public interface BadgeViewMapping extends MappingSpec<Badge, BadgeView> {
+                        @OptionalBridge
+                        Optional<int[]> codes();
+                      }
+
+                      public record Avatar(Optional<byte[]> image) {}
+
+                      public static class AvatarBean {
+                        private byte[] image;
+
+                        public byte[] getImage() { return image; }
+                        public void setImage(byte[] image) { this.image = image; }
+                      }
+
+                      @GenerateMapping
+                      public interface AvatarMapping extends MappingSpec<Avatar, AvatarBean> {}
 
                       public record Names(List<String> names) {}
 
@@ -919,6 +952,36 @@ class ContainerCopyTest {
                       }
 
                       /** The way out the message offers: the map's own type, handed over as it is. */
+                      public static List<String> bridgedArrays() {
+                        int[] codes = {1, 2};
+                        Badge domain = new Badge("b", Optional.of(codes));
+                        Badge parsed =
+                            FixturesBadgeMappingImpl.INSTANCE.parse(new BadgeDto("b", codes)).get();
+                        BadgeDto built = FixturesBadgeMappingImpl.INSTANCE.build(domain);
+                        Badge patched =
+                            FixturesBadgeViewMappingImpl.INSTANCE
+                                .patch(domain, new BadgeView(codes))
+                                .get();
+                        byte[] image = {3};
+                        AvatarBean bean = new AvatarBean();
+                        bean.setImage(image);
+                        Avatar avatar = FixturesAvatarMappingImpl.INSTANCE.parse(bean).get();
+                        List<String> shared =
+                            shared(
+                                "parse", parsed.codes().orElseThrow(), codes,
+                                "build", built.codes(), codes,
+                                "patch", patched.codes().orElseThrow(), codes,
+                                "bean", avatar.image().orElseThrow(), image);
+                        if (FixturesBadgeMappingImpl.INSTANCE
+                            .parse(new BadgeDto("b", null))
+                            .get()
+                            .codes()
+                            .isPresent()) {
+                          shared.add("absent read as present");
+                        }
+                        return shared;
+                      }
+
                       public static List<Object> mergingMapDeclaredAsItsOwnType() {
                         TreeMap<Tag, String> sorted = merging("a", "b");
                         TaggedDto wire = new TaggedDto(Map.of(), Map.of(), sorted);
@@ -1075,6 +1138,12 @@ class ContainerCopyTest {
       "a @MapKey map's values and a bridged Optional's value copy both ways; a map whose values"
           + " have no copy is not copied first")
   void keyedAndBridgedValuesCopy() throws ReflectiveOperationException {
+    // A bridged primitive array has no scan: its copy is bound ahead of the ladder, and its leg,
+    // which the ladder types, stays in it.
+    assertThat(probe("bridgedArrays")).isEqualTo(List.of());
+    assertThat(generated("FixturesBadgeMappingImpl"))
+        .contains("var hkj$codes = hkj$copyOrNull(wire.codes(), e -> e.clone());")
+        .contains(".field(\"codes\", Validated.validNel(Optional.ofNullable(hkj$codes)))");
     assertThat(probe("keyed")).isEqualTo(List.of());
     assertThat(generated("FixturesKeyedMappingImpl"))
         .contains("hkj$ifPresent(wire.names(), namesKey()::parseKeys)")
@@ -1089,7 +1158,7 @@ class ContainerCopyTest {
     assertThat(probe("sparse")).isEqualTo(List.of());
     assertThat(generated("FixturesScoresPatchMappingImpl"))
         .contains("Edit.setIfPresent(")
-        .contains("hkj$copyOf(wire.getScores())");
+        .contains("hkj$copyOrNull(wire.getScores(), e -> e.clone())");
   }
 
   @Test
@@ -1110,12 +1179,14 @@ class ContainerCopyTest {
           + " a subclass is copied without its clone()")
   void anIdentityMapKeepsEveryKey() throws ReflectiveOperationException {
     assertThat(probe("identityMaps")).isEqualTo(List.of());
-    // Only the clone's cast answers for a suppression, on its own local variable.
+    // Each cast answers for its own suppression, on its own local variable: the clone's, and the
+    // copy's, handed back as the map its call declares. No method carries one.
     assertThat(generated("FixturesTaggedMappingImpl"))
-        .containsOnlyOnce("@SuppressWarnings(\"unchecked\")")
         .containsPattern(
-            "@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+Map<K, V> clone = \\(Map<K, V>\\)"
-                + " identity\\.clone\\(\\);");
+            "@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+Map<@Nullable K, @Nullable V> clone"
+                + " = \\(Map<@Nullable K, @Nullable V>\\) identity\\.clone\\(\\);")
+        .containsPattern("@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+C copy = \\(C\\)")
+        .doesNotContainPattern("@SuppressWarnings\\([^\\n]*\\n\\s*(private|public|static) ");
   }
 
   @Test
@@ -1134,5 +1205,63 @@ class ContainerCopyTest {
                     + " is. A key changed after it went into the map also causes this."));
     // Declared as its own type, the same map is handed over as it is, with both entries.
     assertThat(probe("mergingMapDeclaredAsItsOwnType")).isEqualTo(List.of(true, 2));
+  }
+
+  @Test
+  @DisplayName(
+      "where the code cannot read JSpecify, every helper is written without its nullness"
+          + " annotations, and compiles clean")
+  void withoutJSpecifyTheHelpersCarryNoAnnotation() throws IOException {
+    List<File> classpath =
+        Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
+            .filter(entry -> !entry.contains("jspecify"))
+            .map(File::new)
+            .toList();
+    Compilation compilation =
+        javac()
+            .withClasspath(classpath)
+            .withProcessors(new MappingProcessor(), new CompanionAnnotationProcessor())
+            .withOptions("-Xlint:all", "-Werror")
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.example.bare.Bare",
+                    """
+                    package com.example.bare;
+
+                    import java.util.List;
+                    import java.util.Map;
+                    import java.util.Optional;
+                    import org.higherkindedj.optics.annotations.GenerateMapping;
+                    import org.higherkindedj.optics.annotations.MappingSpec;
+
+                    public final class Bare {
+                      private Bare() {}
+
+                      public record Shapes(
+                          String name, List<List<String>> lists, Map<String, String> map,
+                          String[][] grid, Optional<List<String>> maybe) {}
+
+                      public record ShapesDto(
+                          String name, List<List<String>> lists, Map<String, String> map,
+                          String[][] grid, Optional<List<String>> maybe) {}
+
+                      @GenerateMapping
+                      public interface ShapesMapping extends MappingSpec<Shapes, ShapesDto> {}
+                    }
+                    """));
+
+    assertThat(compilation).succeededWithoutWarnings();
+    String generated =
+        compilation
+            .generatedSourceFile("com.example.bare.BareShapesMappingImpl")
+            .orElseThrow()
+            .getCharContent(true)
+            .toString();
+    assertThat(generated)
+        .doesNotContain("org.jspecify")
+        .contains("private static <E, C extends List<E>> C hkj$copyOf(C values)")
+        .contains("private static <A> A hkj$copyOrNull(A value, Function<A, A> copy)")
+        .contains("hkj$ifPresent(S value,")
+        .containsPattern("hkj\\$presentWithin\\(\\s*O value,");
   }
 }
