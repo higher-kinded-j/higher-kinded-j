@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -1687,20 +1689,24 @@ final class BeanPropertyAnalyser {
       Set.of("lombok.Data", "lombok.Setter", "lombok.Builder", "lombok.experimental.SuperBuilder");
 
   /**
-   * The field Lombok writes {@code property}'s setter or builder setter from, where it does: the
-   * field, or the class declaring it, carries an annotation that has Lombok write one. The field is
+   * The field Lombok writes {@code writer}, {@code property}'s setter or builder setter, from,
+   * where it does: Lombok wrote the writer ({@link #writtenByLombok}), and the field, or the class
+   * declaring it, carries an annotation that has Lombok write one. Lombok writes no setter a class
+   * declares itself, so a hand-written one names no field, whatever the field carries. The field is
    * looked for in {@code owner} and then up its superclasses, where a {@code @SuperBuilder}'s
-   * parent declares it. Lombok copies the field's nullness annotations to what it writes, so a
-   * writer whose parameter says less than its field does, such as a non-null one beside a
-   * {@code @Nullable} field, is one written by hand, and no field is named for it. A diagnostic
-   * names the field as the place to change a Lombok writer's declaration, which the bean's source
-   * never shows.
+   * parent declares it. A diagnostic names the field as the place to change a Lombok writer's
+   * declaration, which the bean's source never shows.
    *
+   * @param writer the setter or builder setter
    * @param owner the class the writer belongs to: the bean, or the class a builder builds
    * @param property the property the writer writes
    * @return the field, if Lombok writes from it
    */
-  static Optional<VariableElement> lombokSourceField(TypeElement owner, String property) {
+  static Optional<VariableElement> lombokSourceField(
+      ExecutableElement writer, TypeElement owner, String property) {
+    if (!writtenByLombok(writer)) {
+      return Optional.empty();
+    }
     for (TypeElement type = owner; type != null; type = superclassOf(type)) {
       TypeElement declaring = type;
       Optional<VariableElement> field =
@@ -1710,12 +1716,26 @@ final class BeanPropertyAnalyser {
       if (field.isPresent()) {
         return field.filter(
             found ->
-                (annotatedWithAny(found, LOMBOK_FIELD_WRITERS)
-                        || annotatedWithAny(declaring, LOMBOK_TYPE_WRITERS))
-                    && !NullableAnnotations.declaresNullable(found));
+                annotatedWithAny(found, LOMBOK_FIELD_WRITERS)
+                    || annotatedWithAny(declaring, LOMBOK_TYPE_WRITERS));
       }
     }
     return Optional.empty();
+  }
+
+  /**
+   * Whether Lombok wrote {@code method}, by the marks it puts on each method it writes: {@code
+   * lombok.Generated}, by default since Lombok 1.18.34, and {@code @SuppressWarnings("all")}, the
+   * only one before then. A {@code lombok.config} that turns both off leaves none to read, and its
+   * writers read as hand-written.
+   */
+  private static boolean writtenByLombok(ExecutableElement method) {
+    return annotatedWithAny(method, Set.of("lombok.Generated"))
+        || method.getAnnotationMirrors().stream()
+            .filter(mirror -> qualifiedName(mirror).equals("java.lang.SuppressWarnings"))
+            .flatMap(mirror -> mirror.getElementValues().values().stream())
+            .flatMap(names -> ((List<?>) names.getValue()).stream())
+            .anyMatch(name -> "all".equals(((AnnotationValue) name).getValue()));
   }
 
   /** A class's superclass, or null for {@code Object} and a type with none. */
@@ -1727,12 +1747,11 @@ final class BeanPropertyAnalyser {
 
   private static boolean annotatedWithAny(Element element, Set<String> names) {
     return element.getAnnotationMirrors().stream()
-        .anyMatch(
-            mirror ->
-                names.contains(
-                    ((TypeElement) mirror.getAnnotationType().asElement())
-                        .getQualifiedName()
-                        .toString()));
+        .anyMatch(mirror -> names.contains(qualifiedName(mirror)));
+  }
+
+  private static String qualifiedName(AnnotationMirror mirror) {
+    return ((TypeElement) mirror.getAnnotationType().asElement()).getQualifiedName().toString();
   }
 
   /**

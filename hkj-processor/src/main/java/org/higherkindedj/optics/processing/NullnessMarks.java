@@ -6,6 +6,8 @@ import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
+import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.util.Elements;
 
@@ -26,6 +28,7 @@ record NullnessMarks(boolean present) {
 
   private static final ClassName NULLABLE = ClassName.get("org.jspecify.annotations", "Nullable");
   private static final ClassName NON_NULL = ClassName.get("org.jspecify.annotations", "NonNull");
+  private static final Set<TypeName> MARKS = Set.of(NULLABLE, NON_NULL);
 
   /**
    * The marks for code generated for {@code site}: written when JSpecify's {@code Nullable} can be
@@ -42,12 +45,31 @@ record NullnessMarks(boolean present) {
 
   /** {@code type} marked {@code @Nullable}, where the marks are written. */
   TypeName nullable(TypeName type) {
-    return present ? type.annotated(AnnotationSpec.builder(NULLABLE).build()) : type;
+    return marked(type, NULLABLE);
   }
 
   /** {@code type} marked {@code @NonNull}, where the marks are written. */
   TypeName nonNull(TypeName type) {
-    return present ? type.annotated(AnnotationSpec.builder(NON_NULL).build()) : type;
+    return marked(type, NON_NULL);
+  }
+
+  /**
+   * {@code type} with {@code mark} as the one JSpecify nullness annotation on it, its other
+   * annotations and its type arguments' kept. A type named from a declaration keeps what its source
+   * wrote, such as a leaf declared {@code @Nullable ValidatedPrism<String, Code>}, and neither
+   * annotation is repeatable, nor do the two agree.
+   */
+  private TypeName marked(TypeName type, ClassName mark) {
+    if (!present) {
+      return type;
+    }
+    List<AnnotationSpec> kept =
+        type.annotations().stream()
+            .filter(annotation -> !MARKS.contains(annotation.type()))
+            .toList();
+    return type.withoutAnnotations()
+        .annotated(kept)
+        .annotated(AnnotationSpec.builder(mark).build());
   }
 
   /**

@@ -388,6 +388,79 @@ class LeafCacheTest {
 
   @Test
   @DisplayName(
+      "a leaf declared @Nullable or @NonNull is cached in a field marked @Nullable once, its other"
+          + " annotations kept")
+  void aLeafDeclaredWithANullnessIsCachedOnce() {
+    JavaFileObject checked =
+        JavaFileObjects.forSourceString(
+            "com.example.Checked",
+            """
+            package com.example;
+
+            import java.lang.annotation.ElementType;
+            import java.lang.annotation.Target;
+
+            @Target(ElementType.TYPE_USE)
+            public @interface Checked {}
+            """);
+    JavaFileObject specs =
+        JavaFileObjects.forSourceString(
+            "com.example.Declared",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+            import org.jspecify.annotations.NonNull;
+            import org.jspecify.annotations.Nullable;
+
+            public final class Declared {
+              private Declared() {}
+
+              @GenerateMapping
+              public interface MaybeMapping extends MappingSpec<Customer, CustomerDto> {
+                default @Nullable ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+
+              @GenerateMapping
+              public interface SureMapping extends MappingSpec<Customer, CustomerDto> {
+                default @NonNull ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+
+              @GenerateMapping
+              public interface CheckedMapping extends MappingSpec<Customer, CustomerDto> {
+                default @Checked @NonNull ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+            }
+            """);
+
+    Compilation compilation = compile(EMAIL, CUSTOMER, CUSTOMER_DTO, checked, specs);
+
+    assertThat(compilation).succeeded();
+    for (String impl : List.of("DeclaredMaybeMappingImpl", "DeclaredSureMappingImpl")) {
+      Assertions.assertThat(generatedSource(compilation, "com.example." + impl))
+          .containsOnlyOnce(
+              "private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;");
+    }
+    Assertions.assertThat(generatedSource(compilation, "com.example.DeclaredCheckedMappingImpl"))
+        .containsOnlyOnce(
+            "private volatile @Checked @Nullable ValidatedPrism<String, EmailAddress>"
+                + " hkj$leaf$email;");
+  }
+
+  @Test
+  @DisplayName(
       "an inherited leaf the Impl never calls gets no override, even one whose type it could not"
           + " name")
   void anUncalledLeafGetsNoOverride() {

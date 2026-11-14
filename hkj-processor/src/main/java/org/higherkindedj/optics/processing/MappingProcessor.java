@@ -10465,7 +10465,10 @@ public class MappingProcessor extends AbstractProcessor {
       return null;
     }
     Correspondence correspondence = resolved.correspondence();
+    // Only build writes the wire: a mapping that only parses, such as a FieldMask update, hands
+    // its write sites nothing.
     if (correspondence.kind() == Kind.IDENTITY
+        && need != Need.PARSE
         && reportedNullableIntoNonNull(spec, domain, wire, name, wireName, domainType)) {
       return null;
     }
@@ -11224,7 +11227,7 @@ public class MappingProcessor extends AbstractProcessor {
         TypeElement owner =
             role == WireShape.UnpairedAccessor.Role.BUILDER_SETTER ? bean.element() : declaredBy;
         Optional<String> lombokField =
-            BeanPropertyAnalyser.lombokSourceField(owner, wireName)
+            BeanPropertyAnalyser.lombokSourceField(setter.method(), owner, wireName)
                 .map(
                     field ->
                         "the field '"
@@ -11259,20 +11262,20 @@ public class MappingProcessor extends AbstractProcessor {
    * The record component a canonical constructor writes, when it is declared non-null ({@link
    * NullableAnnotations#nonNullReason}), or null. What the value is handed to is the canonical
    * constructor's parameter, so one an explicit constructor declares nullable takes the null,
-   * whatever the component says, as a constructor that defaults it does. Shared with the merge,
-   * whose target is a record.
+   * whatever the component says, as a constructor that defaults it does, and one it declares
+   * non-null takes none, where the component says nothing either way. Shared with the merge, whose
+   * target is a record.
    */
   static NonNullSite nonNullComponent(
       Types types, TypeElement record, RecordComponentElement component) {
     int index = record.getRecordComponents().indexOf(component);
     // Found by its parameter types, since Elements.isCanonicalConstructor answers false for every
     // constructor of a record read from a class file.
-    boolean parameterNullable =
+    Optional<VariableElement> parameter =
         ProcessorUtils.canonicalConstructorOf(types, record)
-            .anyMatch(
-                constructor ->
-                    NullableAnnotations.declaresNullable(constructor.getParameters().get(index)));
-    if (parameterNullable) {
+            .findFirst()
+            .map(constructor -> constructor.getParameters().get(index));
+    if (parameter.filter(NullableAnnotations::declaresNullable).isPresent()) {
       return null;
     }
     String spelt = "'" + record.getSimpleName() + "." + component.getSimpleName() + "'";
@@ -11285,7 +11288,36 @@ public class MappingProcessor extends AbstractProcessor {
                     component.asType(),
                     record,
                     reason))
+        .or(() -> parameter.flatMap(taken -> nonNullParameter(record, spelt, taken)))
         .orElse(null);
+  }
+
+  /**
+   * A canonical constructor's parameter, as the site of the component it writes, when the parameter
+   * is declared non-null and the component says nothing either way: the fix is made on the
+   * parameter, so the diagnostic names it.
+   */
+  private static Optional<NonNullSite> nonNullParameter(
+      TypeElement record, String component, VariableElement parameter) {
+    String constructor =
+        ((ExecutableElement) parameter.getEnclosingElement())
+            .getParameters().stream()
+                .map(each -> ProcessorUtils.simpleTypeName(each.asType()))
+                .collect(Collectors.joining(", ", record.getSimpleName() + "(", ")"));
+    return NullableAnnotations.nonNullReason(parameter)
+        .map(
+            reason ->
+                new NonNullSite(
+                    "the record component "
+                        + component
+                        + ", whose canonical constructor's parameter is declared non-null",
+                    "the parameter '"
+                        + parameter.getSimpleName()
+                        + "' of the canonical constructor "
+                        + constructor,
+                    parameter.asType(),
+                    record,
+                    reason));
   }
 
   /**

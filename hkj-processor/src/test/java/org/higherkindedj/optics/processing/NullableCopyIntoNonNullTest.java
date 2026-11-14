@@ -104,6 +104,18 @@ class NullableCopyIntoNonNullTest {
                   @GenerateMapping
                   public interface LooseViewMapping extends MappingSpec<Account, LooseView> {}
 
+                  // The component says nothing, and the constructor build calls takes no null.
+                  @NullUnmarked
+                  public record CheckedView(String id, String name) {
+                    public CheckedView(@NonNull String id, String name) {
+                      this.id = id;
+                      this.name = name;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface CheckedViewMapping extends MappingSpec<Account, CheckedView> {}
+
                   public static class AccountBean {
                     private @Nullable String id;
                     private @Nullable String name;
@@ -215,6 +227,15 @@ class NullableCopyIntoNonNullTest {
                 + " @Nullable;");
     assertThat(compilation)
         .hadErrorContaining(
+            "build copies it to the record component 'CheckedView.id', whose canonical"
+                + " constructor's parameter is declared non-null. A same-typed component is copied"
+                + " as it is, a null included, and the parameter 'id' of the canonical constructor"
+                + " CheckedView(String, String) is annotated @NonNull, so build would write a null"
+                + " its declaration rules out, and either throw or leave a null its type says it"
+                + " cannot hold. As 'Account.id' may be absent, replace @NonNull on the parameter"
+                + " 'id' of the canonical constructor CheckedView(String, String) with @Nullable;");
+    assertThat(compilation)
+        .hadErrorContaining(
             "build copies it to the bean property 'id', whose setter setId(String) is declared"
                 + " non-null. A same-typed component is copied as it is, a null included, and the"
                 + " parameter of setId(String) carries no @Nullable");
@@ -252,7 +273,7 @@ class NullableCopyIntoNonNullTest {
         .hadErrorContaining(
             "As 'Account.id' may be absent, mark the parameter of setId(String) @Nullable; or"
                 + " declare 'Account.id' non-null");
-    Assertions.assertThat(compilation.errors()).hasSize(9);
+    Assertions.assertThat(compilation.errors()).hasSize(10);
   }
 
   @Test
@@ -315,18 +336,15 @@ class NullableCopyIntoNonNullTest {
   @Test
   @DisplayName("a writer Lombok generates is fixed on the field it is written from")
   void aLombokWriterIsFixedOnItsField() {
-    Compilation compilation =
-        javac()
-            .withProcessors(LombokInteropTest.lombok(), new MappingProcessor())
-            .compile(
-                MARKED_PACKAGE,
-                JavaFileObjects.forSourceString(
-                    "com.marked.Lomboked",
-                    """
+    JavaFileObject lomboked =
+        JavaFileObjects.forSourceString(
+            "com.marked.Lomboked",
+            """
                     package com.marked;
 
                     import org.higherkindedj.optics.annotations.GenerateMapping;
                     import org.higherkindedj.optics.annotations.MappingSpec;
+                    import org.jspecify.annotations.NonNull;
                     import org.jspecify.annotations.Nullable;
 
                     public final class Lomboked {
@@ -391,8 +409,77 @@ class NullableCopyIntoNonNullTest {
 
                       @GenerateMapping
                       public interface AccountHandMapping extends MappingSpec<Account, AccountHand> {}
+
+                      // Nor beside one written by hand whose field says nothing.
+                      @lombok.Data
+                      public static class AccountChecked {
+                        private String id;
+                        private @Nullable String name;
+
+                        public void setId(@NonNull String id) {
+                          this.id = id;
+                        }
+                      }
+
+                      @GenerateMapping
+                      public interface AccountCheckedMapping
+                          extends MappingSpec<Account, AccountChecked> {}
+
+                      // Lombok before 1.18.34 marks a writer @SuppressWarnings("all") alone.
+                      @lombok.Data
+                      public static class AccountOlder {
+                        private String id;
+                        private @Nullable String name;
+
+                        @SuppressWarnings("all")
+                        public void setId(String id) {
+                          this.id = id;
+                        }
+                      }
+
+                      @GenerateMapping
+                      public interface AccountOlderMapping extends MappingSpec<Account, AccountOlder> {}
+
+                      // A writer that carries the mark, in a class Lombok does not write.
+                      public static class AccountQuiet {
+                        private @Nullable String id;
+                        private @Nullable String name;
+
+                        public @Nullable String getId() { return id; }
+                        @SuppressWarnings("all")
+                        public void setId(String id) { this.id = id; }
+                        public @Nullable String getName() { return name; }
+                        public void setName(@Nullable String name) { this.name = name; }
+                      }
+
+                      @GenerateMapping
+                      public interface AccountQuietMapping extends MappingSpec<Account, AccountQuiet> {}
+
+                      // A builder Lombok writes from a constructor's parameters, which no field
+                      // of the name backs.
+                      public static final class AccountTicket {
+                        private final @Nullable String code;
+                        private final @Nullable String label;
+
+                        @lombok.Builder
+                        AccountTicket(String id, @Nullable String name) {
+                          this.code = id;
+                          this.label = name;
+                        }
+
+                        public @Nullable String getId() { return code; }
+                        public @Nullable String getName() { return label; }
+                      }
+
+                      @GenerateMapping
+                      public interface AccountTicketMapping
+                          extends MappingSpec<Account, AccountTicket> {}
                     }
-                    """));
+                    """);
+    Compilation compilation =
+        javac()
+            .withProcessors(LombokInteropTest.lombok(), new MappingProcessor())
+            .compile(MARKED_PACKAGE, lomboked);
 
     assertThat(compilation).failed();
     assertThat(compilation)
@@ -414,7 +501,77 @@ class NullableCopyIntoNonNullTest {
     assertThat(compilation)
         .hadErrorContaining(
             "which Lombok writes from the field 'BaseCard.id', is declared non-null.");
-    Assertions.assertThat(compilation.errors()).hasSize(5);
+    assertThat(compilation)
+        .hadErrorContaining(
+            "As 'Account.id' may be absent, replace @NonNull on the parameter of setId(String) with"
+                + " @Nullable;");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "As 'Account.id' may be absent, mark the field 'AccountOlder.id' @Nullable;");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "As 'Account.id' may be absent, mark the parameter of setId(String) @Nullable;")
+        .inFile(lomboked)
+        .onLineContaining("interface AccountQuietMapping");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "whose builder setter id(String) is declared non-null. A same-typed component is"
+                + " copied as it is, a null included, and the parameter of id(String) carries no"
+                + " @Nullable")
+        .inFile(lomboked)
+        .onLineContaining("interface AccountTicketMapping");
+    Assertions.assertThat(compilation.errors()).hasSize(9);
+  }
+
+  @Test
+  @DisplayName(
+      "an update that only parses a message writes none of its setters, so only the mapping that"
+          + " builds it is refused")
+  void aParseOnlyUpdateIsAccepted() {
+    Compilation compilation =
+        javac()
+            .withProcessors(new MappingProcessor())
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.example.proto.package-info",
+                    """
+                    @NullMarked
+                    package com.example.proto;
+
+                    import org.jspecify.annotations.NullMarked;
+                    """),
+                JavaFileObjects.forSourceString(
+                    "com.example.Messages",
+                    """
+                    package com.example;
+
+                    import com.example.proto.LegacyProto;
+                    import org.higherkindedj.optics.annotations.GenerateMapping;
+                    import org.higherkindedj.optics.annotations.MappingSpec;
+                    import org.higherkindedj.optics.annotations.UpdateSpec;
+                    import org.jspecify.annotations.Nullable;
+
+                    public final class Messages {
+                      private Messages() {}
+
+                      public record Account(@Nullable String id, String nickname) {}
+
+                      @GenerateMapping
+                      public interface AccountPatch extends UpdateSpec<Account, LegacyProto.Account> {}
+
+                      @GenerateMapping
+                      public interface AccountMapping
+                          extends MappingSpec<Account, LegacyProto.Account> {}
+                    }
+                    """));
+
+    assertThat(compilation)
+        .hadErrorContaining(
+            "build copies it to the bean property 'id', whose builder setter setId(String) is"
+                + " declared non-null.")
+        .inFile(compilation.sourceFiles().get(1))
+        .onLineContaining("interface AccountMapping");
+    Assertions.assertThat(compilation.errors()).hasSize(1);
   }
 
   @Test
