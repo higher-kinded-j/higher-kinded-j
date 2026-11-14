@@ -113,6 +113,26 @@ public final class OptionalPath<A> implements Chainable<OptionalPath<?>, A> {
   }
 
   /**
+   * Turns either case of this path into one result: {@code emptySupplier} gives it for an empty
+   * {@code Optional}, and {@code presentMapper} gives it from a present one's value.
+   *
+   * <p>The empty case comes first, as in {@link MaybePath#fold(Supplier, Function)}.
+   *
+   * @param emptySupplier the supplier of the result if this path is empty; must not be null
+   * @param presentMapper the function to apply if this path contains a value; must not be null
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
+   * @return the result of whichever of the two ran
+   * @throws NullPointerException if either argument is null
+   */
+  public <B extends @Nullable Object> B fold(
+      Supplier<? extends B> emptySupplier, Function<? super A, ? extends B> presentMapper) {
+    Objects.requireNonNull(emptySupplier, "emptySupplier must not be null");
+    Objects.requireNonNull(presentMapper, "presentMapper must not be null");
+    return value.isPresent() ? presentMapper.apply(value.get()) : emptySupplier.get();
+  }
+
+  /**
    * Returns true if this path contains a value.
    *
    * @return true if present, false if empty

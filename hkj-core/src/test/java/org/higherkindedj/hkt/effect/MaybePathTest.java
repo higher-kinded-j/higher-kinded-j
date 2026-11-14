@@ -163,6 +163,56 @@ class MaybePathTest {
           .isThrownBy(() -> path.getOrElseGet(() -> null))
           .withMessage("supplier must not return null");
     }
+
+    @Test
+    @DisplayName("fold() applies justMapper for Just without calling supplier")
+    void foldAppliesMapperForJust() {
+      MaybePath<String> path = Path.just(TEST_VALUE);
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      String result =
+          path.fold(
+              () -> {
+                called.set(true);
+                return "default";
+              },
+              s -> "got " + s);
+
+      assertThat(result).isEqualTo("got " + TEST_VALUE);
+      assertThat(called).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() calls supplier for Nothing")
+    void foldCallsSupplierForNothing() {
+      MaybePath<String> path = Path.nothing();
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      String result =
+          path.fold(
+              () -> "default",
+              s -> {
+                called.set(true);
+                return "got " + s;
+              });
+
+      assertThat(result).isEqualTo("default");
+      assertThat(called).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() validates null arguments")
+    @SuppressWarnings("DataFlowIssue") // null passed to @NonNull fold to verify handling
+    void foldValidatesNullArguments() {
+      MaybePath<String> path = Path.just(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(null, s -> s))
+          .withMessage("nothingSupplier must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(() -> "default", null))
+          .withMessage("justMapper must not be null");
+    }
   }
 
   @Nested

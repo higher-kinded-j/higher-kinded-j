@@ -160,6 +160,56 @@ class OptionalPathTest {
     }
 
     @Test
+    @DisplayName("fold() applies presentMapper for present without calling supplier")
+    void foldAppliesMapperForPresent() {
+      OptionalPath<String> path = Path.present(TEST_VALUE);
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      String result =
+          path.fold(
+              () -> {
+                called.set(true);
+                return "default";
+              },
+              s -> "got " + s);
+
+      assertThat(result).isEqualTo("got " + TEST_VALUE);
+      assertThat(called).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() calls supplier for absent")
+    void foldCallsSupplierForAbsent() {
+      OptionalPath<String> path = Path.absent();
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      String result =
+          path.fold(
+              () -> "default",
+              s -> {
+                called.set(true);
+                return "got " + s;
+              });
+
+      assertThat(result).isEqualTo("default");
+      assertThat(called).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() validates null arguments")
+    @SuppressWarnings("DataFlowIssue") // null passed to @NonNull fold to verify handling
+    void foldValidatesNullArguments() {
+      OptionalPath<String> path = Path.present(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(null, s -> s))
+          .withMessage("emptySupplier must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(() -> "default", null))
+          .withMessage("presentMapper must not be null");
+    }
+
+    @Test
     @DisplayName("isPresent() returns true for present")
     void isPresentReturnsTrueForPresent() {
       OptionalPath<String> path = Path.present(TEST_VALUE);

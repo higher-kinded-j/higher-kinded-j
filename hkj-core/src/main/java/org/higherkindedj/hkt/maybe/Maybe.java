@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.maybe;
 
+import static org.higherkindedj.hkt.util.validation.Operation.FOLD;
 import static org.higherkindedj.hkt.util.validation.Operation.FROM_EITHER;
 import static org.higherkindedj.hkt.util.validation.Operation.JUST;
 import static org.higherkindedj.hkt.util.validation.Operation.TO_EITHER;
@@ -164,6 +165,37 @@ public sealed interface Maybe<T> extends MaybeKind<T> permits Just, Nothing {
    *     or returns {@code null}.
    */
   T orElseGet(Supplier<? extends T> otherSupplier);
+
+  /**
+   * Turns either case into one result: {@code nothingSupplier} gives it for {@link Nothing}, and
+   * {@code justMapper} gives it from a {@link Just}'s value. Only one of the two runs.
+   *
+   * <p>The empty case comes first, as the failure case does in {@link Either#fold(Function,
+   * Function)}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * Maybe.just(42).fold(() -> "none", n -> "got " + n);              // "got 42"
+   * Maybe.<Integer>nothing().fold(() -> "none", n -> "got " + n);    // "none"
+   * }</pre>
+   *
+   * @param nothingSupplier The non-null supplier of the result if this is {@link Nothing}.
+   * @param justMapper The non-null function from a {@link Just}'s value to the result.
+   * @param <B> The type of the result. It may be {@code @Nullable}: name it as a type argument, as
+   *     in {@code <@Nullable String>fold}.
+   * @return The result of whichever of the two ran.
+   * @throws NullPointerException if {@code nothingSupplier} or {@code justMapper} is null.
+   */
+  default <B extends @Nullable Object> B fold(
+      Supplier<? extends B> nothingSupplier, Function<? super T, ? extends B> justMapper) {
+    Validation.function().require(nothingSupplier, "nothingSupplier", FOLD);
+    Validation.function().require(justMapper, "justMapper", FOLD);
+    return switch (this) {
+      case Just<T>(var value) -> justMapper.apply(value);
+      case Nothing<T> _ -> nothingSupplier.get();
+    };
+  }
 
   /**
    * If a value is present (i.e., this is a {@link Just}), returns a {@code Maybe} describing the
