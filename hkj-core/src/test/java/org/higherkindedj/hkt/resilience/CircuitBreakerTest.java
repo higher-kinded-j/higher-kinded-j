@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.awaitility.core.ConditionFactory;
 import org.higherkindedj.hkt.test.fixtures.HeldTask;
+import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1733,6 +1734,530 @@ class CircuitBreakerTest {
           .isSameAs(failure)
           .satisfies(thrown -> assertThat(thrown.getSuppressed()).isEmpty());
       assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+  }
+
+  @Nested
+  @DisplayName("A Call the Breaker Already Protects Counts Once, Nearest the Dependency")
+  class NestedProtectionTests {
+
+    /** A failing dependency that counts how often it is reached. */
+    private static VTask<String> down(AtomicInteger reached) {
+      return () -> {
+        reached.incrementAndGet();
+        throw new IOException("down");
+      };
+    }
+
+    @Test
+    @DisplayName("a success guarded twice, through a map, is admitted and counted once")
+    void aSuccessCountsOnce() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+
+      String result =
+          breaker
+              .protect(breaker.protect(VTask.succeed("inventory")).map(String::toUpperCase))
+              .run();
+
+      assertThat(result).isEqualTo("INVENTORY");
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().successfulCalls()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a failure guarded twice counts once, so it takes failureThreshold of them")
+    void aFailureCountsOnce() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+      VTask<String> twice = breaker.protect(breaker.protect(VTask.fail(new IOException("down"))));
+
+      assertThatThrownBy(twice::run).hasRootCauseInstanceOf(IOException.class);
+
+      assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("three guards of one breaker count the call once")
+    void threeGuardsCountOnce() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+
+      breaker
+          .protect(breaker.protect(breaker.protect(VTask.succeed("x")).map(s -> s)).map(s -> s))
+          .run();
+
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().successfulCalls()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a timeout or detachOnCancel between the two guards still counts the call once")
+    void throughAThreadOfItsOwn() {
+      CircuitBreaker timed = CircuitBreaker.create(configWithThresholds(2, 1));
+      CircuitBreaker detached = CircuitBreaker.create(configWithThresholds(2, 1));
+
+      timed.protect(timed.protect(VTask.succeed("x")).timeout(GENEROUS_TIMEOUT)).run();
+      detached.protect(detached.protect(VTask.succeed("x")).detachOnCancel()).run();
+
+      assertThat(timed.metrics().totalCalls()).isEqualTo(1);
+      assertThat(detached.metrics().totalCalls()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a half-open breaker with a success threshold of one closes for such a call")
+    void halfOpenCloses() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      causeFailures(breaker, 1);
+      awaitHalfOpen(breaker);
+
+      String result =
+          breaker
+              .protect(breaker.protect(VTask.succeed("inventory")).map(String::toUpperCase))
+              .run();
+
+      assertThat(result).isEqualTo("INVENTORY");
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName(
+        "a retry between the guards counts each attempt, and stops reaching the dependency once"
+            + " the circuit opens")
+    void aRetryBetweenTheGuards() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+      AtomicInteger reached = new AtomicInteger();
+      VTask<String> repository =
+          Retry.retryTask(breaker.protect(down(reached)), RetryPolicy.fixed(6, Duration.ZERO));
+
+      assertThatThrownBy(() -> breaker.protect(repository).run()).isNotNull();
+
+      assertThat(reached).hasValue(2);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+      assertThat(breaker.metrics().failedCalls()).isEqualTo(2);
+      assertThat(breaker.metrics().rejectedCalls()).isEqualTo(4);
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("a fallback between the guards cannot hide the failure from the breaker")
+    void aFallbackBetweenTheGuards() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      AtomicInteger reached = new AtomicInteger();
+
+      String result = breaker.protect(breaker.protect(down(reached)).recover(_ -> "cached")).run();
+
+      assertThat(result).isEqualTo("cached");
+      assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().successfulCalls()).isZero();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName("an inner guard reached after the circuit opened is turned away, as a lone one is")
+    void theInnerGuardChecksTheCircuit() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+      VTask<String> inner = breaker.protect(VTask.succeed("ran"));
+
+      assertThatThrownBy(
+              () ->
+                  breaker
+                      .protect(
+                          () -> {
+                            breaker.tripOpen();
+                            return inner.execute();
+                          })
+                      .run())
+          .isInstanceOf(CircuitOpenException.class);
+
+      // The call was admitted, and the inner guard, admitted on its own once the circuit opened,
+      // was
+      // turned away: two admissions, one rejection, and no outcome counted for the call
+      assertThat(breaker.metrics().rejectedCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(2);
+      assertThat(breaker.metrics().failedCalls()).isZero();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName("a call guarded twice that times out counts the timeout once")
+    void aTimeoutCountsOnce() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .openDuration(SHORT_OPEN_DURATION)
+                  .callTimeout(Duration.ofMillis(100))
+                  .build());
+      VTask<String> hung =
+          () -> {
+            Thread.sleep(5000); // until the outer call's timeout interrupts it
+            return "late";
+          };
+
+      assertThatThrownBy(() -> breaker.protect(breaker.protect(hung)).run())
+          .hasRootCauseInstanceOf(TimeoutException.class);
+
+      assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName(
+        "a nested guard that is cancelled hands the call's probe place back to the next attempt")
+    void aCancelledAttemptHandsThePlaceBack() throws Exception {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      causeFailures(breaker, 1);
+      awaitHalfOpen(breaker);
+      CountDownLatch started = new CountDownLatch(1);
+      VTask<String> slow =
+          breaker.protect(
+              () -> {
+                started.countDown();
+                Thread.sleep(5000); // until the test interrupts the thread running it
+                return "slow";
+              });
+
+      String result =
+          breaker
+              .protect(
+                  () -> {
+                    Thread attempt = startSwallowing(slow);
+                    assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                    attempt.interrupt();
+                    attempt.join(5000);
+                    return breaker.protect(VTask.succeed("second")).execute();
+                  })
+              .run();
+
+      assertThat(result).isEqualTo("second");
+      assertThat(breaker.metrics().rejectedCalls()).isZero();
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("a thread the call starts and waits for is inside the call")
+    void aThreadTheCallWaitsFor() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+      AtomicReference<String> seen = new AtomicReference<>();
+
+      breaker
+          .protect(
+              () -> {
+                Thread worker =
+                    Thread.ofVirtual()
+                        .start(() -> seen.set(breaker.protect(VTask.succeed("inner")).run()));
+                worker.join();
+                return "outer";
+              })
+          .run();
+
+      assertThat(seen.get()).isEqualTo("inner");
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a thread the call leaves running calls the breaker on its own once the call is over")
+    void aThreadTheCallLeavesBehind() throws InterruptedException {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+      CountDownLatch callOver = new CountDownLatch(1);
+      AtomicReference<Thread> left = new AtomicReference<>();
+
+      breaker
+          .protect(
+              () -> {
+                left.set(
+                    Thread.ofVirtual()
+                        .start(
+                            () -> {
+                              try {
+                                callOver.await();
+                                breaker.protect(VTask.succeed("later")).run();
+                              } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                              }
+                            }));
+                return "outer";
+              })
+          .run();
+      callOver.countDown();
+      left.get().join(5000);
+
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(2);
+      assertThat(breaker.metrics().successfulCalls()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("another breaker inside the call guards and counts as usual")
+    void anotherBreakerCountsOnItsOwn() {
+      CircuitBreaker outer = CircuitBreaker.create(configWithThresholds(2, 1));
+      CircuitBreaker other = CircuitBreaker.create(configWithThresholds(2, 1));
+
+      outer.protect(other.protect(outer.protect(VTask.succeed("x")))).run();
+
+      assertThat(outer.metrics().totalCalls()).isEqualTo(1);
+      assertThat(other.metrics().totalCalls()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a throwing predicate is consulted once for a call guarded twice")
+    void aThrowingPredicateIsConsultedOnce() {
+      AtomicInteger consulted = new AtomicInteger();
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(2)
+                  .callTimeout(GENEROUS_TIMEOUT)
+                  .recordFailure(
+                      _ -> {
+                        consulted.incrementAndGet();
+                        throw new IllegalStateException("predicate");
+                      })
+                  .build());
+
+      IOException failure = new IOException("down");
+
+      assertThatThrownBy(breaker.protect(breaker.protect(VTask.fail(failure)))::execute)
+          .isSameAs(failure);
+
+      assertThat(consulted).hasValue(1);
+      assertThat(failure.getSuppressed()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a nested guard that is cancelled counts nothing, and the outer call counts its own failure")
+    void aCancelledBorrowerLeavesTheOuterOutcome() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      CountDownLatch started = new CountDownLatch(1);
+      VTask<String> slow =
+          breaker.protect(
+              () -> {
+                started.countDown();
+                Thread.sleep(5000); // until the test interrupts the thread running it
+                return "slow";
+              });
+
+      assertThatThrownBy(
+              breaker.protect(
+                      () -> {
+                        Thread attempt = startSwallowing(slow);
+                        assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+                        attempt.interrupt();
+                        attempt.join(5000);
+                        throw new IOException("the outer call's own failure");
+                      })
+                  ::execute)
+          .isInstanceOf(IOException.class);
+
+      assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName(
+        "two guards forked by one call while half-open free the call's probe place when the fork"
+            + " fails, so the circuit can still close")
+    void aForkThatFailsFreesThePlace() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      causeFailures(breaker, 1);
+      awaitHalfOpen(breaker);
+      CountDownLatch borrowed = new CountDownLatch(1);
+      VTask<String> slow =
+          breaker.protect(
+              () -> {
+                borrowed.countDown();
+                Thread.sleep(5000); // until the fork's failure cancels it
+                return "slow";
+              });
+      // Reaches its guard once the slow fork runs on the call's place, so it finds none free
+      VTask<String> turnedAway =
+          () -> {
+            assertThat(borrowed.await(5, TimeUnit.SECONDS)).isTrue();
+            return breaker.protect(VTask.succeed("fast")).execute();
+          };
+
+      assertThatThrownBy(() -> breaker.protect(Par.zip(slow, turnedAway)).run())
+          .isInstanceOf(CircuitOpenException.class);
+
+      assertThat(breaker.protect(VTask.succeed("next")).run()).isEqualTo("next");
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName(
+        "a nested guard that outlives the call leaves the count to the call, which finished first")
+    void aGuardThatOutlivesTheCallLeavesTheCount() throws InterruptedException {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+      CountDownLatch borrowed = new CountDownLatch(1);
+      CountDownLatch callOver = new CountDownLatch(1);
+      AtomicReference<Thread> left = new AtomicReference<>();
+      VTask<String> failsLater =
+          breaker.protect(
+              () -> {
+                borrowed.countDown();
+                assertThat(callOver.await(5, TimeUnit.SECONDS)).isTrue();
+                throw new IOException("down");
+              });
+
+      String result =
+          breaker
+              .protect(
+                  () -> {
+                    left.set(startSwallowing(failsLater));
+                    // The call ends only once the guard it leaves runs on its admission
+                    assertThat(borrowed.await(5, TimeUnit.SECONDS)).isTrue();
+                    return "outer";
+                  })
+              .run();
+      callOver.countDown();
+      left.get().join(5000);
+
+      assertThat(result).isEqualTo("outer");
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().successfulCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().failedCalls()).isZero();
+    }
+
+    @Test
+    @DisplayName(
+        "a call and the nested guard that outlives it, both cancelled, free the call's probe place")
+    void bothCancelledFreeThePlace() throws InterruptedException {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      causeFailures(breaker, 1);
+      awaitHalfOpen(breaker);
+      CountDownLatch borrowed = new CountDownLatch(1);
+      AtomicReference<Thread> left = new AtomicReference<>();
+      VTask<String> slow =
+          breaker.protect(
+              () -> {
+                borrowed.countDown();
+                Thread.sleep(5000); // until the test interrupts the thread running it
+                return "slow";
+              });
+      VTask<String> call =
+          breaker.protect(
+              () -> {
+                left.set(startSwallowing(slow));
+                assertThat(borrowed.await(5, TimeUnit.SECONDS)).isTrue();
+                Thread.sleep(5000); // until the test cancels the call
+                return "outer";
+              });
+
+      Thread caller = startSwallowing(call);
+      assertThat(borrowed.await(5, TimeUnit.SECONDS)).isTrue();
+      caller.interrupt();
+      caller.join(5000);
+      left.get().interrupt();
+      left.get().join(5000);
+
+      // Neither counted anything, beside the failure that opened the circuit, and the place is free
+      // for the next probe
+      assertThat(breaker.metrics().successfulCalls()).isZero();
+      assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.HALF_OPEN);
+      assertThat(breaker.protect(VTask.succeed("next")).run()).isEqualTo("next");
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName(
+        "detachOnCancel between the guards lets the outer call's timeout open the circuit when it"
+            + " runs out, as for a lone guard")
+    void aDetachedCallOpensTheCircuitAtTheTimeout() {
+      CircuitBreaker breaker =
+          CircuitBreaker.create(
+              CircuitBreakerConfig.builder()
+                  .failureThreshold(1)
+                  .openDuration(Duration.ofMinutes(1))
+                  .callTimeout(Duration.ofMillis(100))
+                  .build());
+      CountDownLatch release = new CountDownLatch(1);
+      VTask<String> hangs =
+          () -> {
+            // A dependency an interrupt cannot stop, held until the test lets it go
+            while (true) {
+              try {
+                release.await();
+                return "late";
+              } catch (InterruptedException ignored) {
+                // carries on, as a call blocked where an interrupt cannot reach does
+              }
+            }
+          };
+
+      try {
+        assertThatThrownBy(() -> breaker.protect(breaker.protect(hangs).detachOnCancel()).run())
+            .hasRootCauseInstanceOf(TimeoutException.class);
+
+        assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+        assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+      } finally {
+        release.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a guard nested in one that outlived the call, which counted first, is admitted on its own"
+            + " and counted")
+    void aGuardOnASettledAdmissionIsAdmittedOnItsOwn() throws InterruptedException {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(1, 1));
+      CountDownLatch borrowed = new CountDownLatch(1);
+      CountDownLatch callOver = new CountDownLatch(1);
+      AtomicReference<Thread> left = new AtomicReference<>();
+      VTask<String> dependency = breaker.protect(VTask.fail(new IOException("down")));
+      VTask<String> outlives =
+          breaker.protect(
+              () -> {
+                borrowed.countDown();
+                assertThat(callOver.await(5, TimeUnit.SECONDS)).isTrue();
+                return dependency.execute();
+              });
+
+      breaker
+          .protect(
+              () -> {
+                left.set(startSwallowing(outlives));
+                assertThat(borrowed.await(5, TimeUnit.SECONDS)).isTrue();
+                return "outer";
+              })
+          .run();
+      callOver.countDown();
+      left.get().join(5000);
+
+      // The call's own success settled its admission, so the dependency's guard is admitted on
+      // its own, and its failure counts
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(2);
+      assertThat(breaker.metrics().successfulCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().failedCalls()).isEqualTo(1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName("a guard reached after a nested one counted is a call of its own")
+    void aSecondGuardCountsOnItsOwn() {
+      CircuitBreaker breaker = CircuitBreaker.create(configWithThresholds(2, 1));
+      VTask<String> nested = breaker.protect(breaker.protect(VTask.succeed("first")));
+      VTask<String> second = breaker.protect(VTask.succeed("second"));
+
+      String result = breaker.protect(() -> nested.execute() + " " + second.execute()).run();
+
+      assertThat(result).isEqualTo("first second");
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(2);
+      assertThat(breaker.metrics().successfulCalls()).isEqualTo(2);
+    }
+
+    /** Starts {@code task} on a virtual thread of its own, which swallows what it throws. */
+    private static Thread startSwallowing(VTask<String> task) {
+      return Thread.ofVirtual()
+          .start(
+              () -> {
+                try {
+                  task.execute();
+                } catch (Throwable ignored) {
+                  // the test asserts on the breaker, not on this thread
+                }
+              });
     }
   }
 }

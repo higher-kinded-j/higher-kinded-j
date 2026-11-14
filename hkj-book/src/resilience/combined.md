@@ -50,6 +50,8 @@ The order in which patterns wrap the underlying call determines their behaviour.
     └──────────────────┘
 ```
 
+Guarding the call with one breaker on both sides of the retry, as a repository and the service that calls it may, counts as the inner guard alone does: each attempt once. [The State Machine](circuit_breaker.md#the-state-machine) has the rule.
+
 ## The Correct Order
 
 `ResilienceBuilder` applies patterns in a fixed order, from outermost to innermost:

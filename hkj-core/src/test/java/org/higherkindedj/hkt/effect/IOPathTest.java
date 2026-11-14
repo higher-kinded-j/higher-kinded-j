@@ -1406,6 +1406,23 @@ class IOPathTest {
     }
 
     @Test
+    @DisplayName("withCircuitBreaker: one breaker applied twice counts the call once")
+    void withCircuitBreakerTwiceCountsOnce() {
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+
+      String result =
+          Path.io(() -> "inventory")
+              .withCircuitBreaker(breaker)
+              .map(String::toUpperCase)
+              .withCircuitBreaker(breaker)
+              .unsafeRun();
+
+      assertThat(result).isEqualTo("INVENTORY");
+      assertThat(breaker.metrics().totalCalls()).isEqualTo(1);
+      assertThat(breaker.metrics().successfulCalls()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("withCircuitBreaker: an open circuit rejects with CircuitOpenException")
     void withCircuitBreakerRejectsWhenOpen() {
       CircuitBreaker breaker = CircuitBreaker.withDefaults();

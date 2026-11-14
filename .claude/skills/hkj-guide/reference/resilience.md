@@ -174,6 +174,8 @@ Stops calling a failing service to let it recover. Tracks consecutive failures a
 | OPEN | All calls rejected with `CircuitOpenException` | HALF_OPEN (after openDuration expires) |
 | HALF_OPEN | A call runs as a probe while running and successful probes are fewer than `successThreshold`; other calls rejected with `CircuitOpenException` (`status()` is `HALF_OPEN`) | CLOSED (`successThreshold` probes succeed) or OPEN (a probe fails) |
 
+A call one breaker guards twice (a repository and the service that calls it, `io.withCircuitBreaker(b).withRetry(p).withCircuitBreaker(b)`) counts each attempt once, at the guard nearest the dependency: the inner guard checks the circuit, times and counts each attempt, so a retry's later attempts are turned away once the circuit opens, and the outer guard counts nothing. A fallback between the guards cannot hide a failure; put it outside the outer guard. A thread an executor starts during the call belongs to the call while it runs.
+
 ### Configuration
 
 <!-- verify -->
