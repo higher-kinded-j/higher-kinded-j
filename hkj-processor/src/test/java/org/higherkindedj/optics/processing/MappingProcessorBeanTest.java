@@ -675,7 +675,8 @@ class MappingProcessorBeanTest {
           .contains("wire.setPrimary(domain.primary().map(primary()::build));")
           .contains(".field(\"all\", hkj$ifPresent(wire.getAll(), all()::parseAll))")
           .contains(".field(\"tagged\", hkj$ifPresent(wire.getTagged(), tagged()::parseValues))")
-          .contains(".field(\"primary\", hkj$ifPresent(wire.getPrimary(), o -> o.map(v ->");
+          .contains(
+              ".field(\"primary\", hkj$ifPresent(wire.getPrimary(), o -> hkj$parsePresent(o.orElse(null), v ->");
     }
 
     @Test
@@ -2325,7 +2326,7 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generated)
           .contains("wire.setEmail(domain.email().map(email()::build).orElse(null));")
           .contains(
-              ".field(\"email\", Optional.ofNullable(wire.getEmail()).map(v ->"
+              ".field(\"email\", hkj$parsePresent(wire.getEmail(), v ->"
                   + " email().parse(v).map(Optional::of))");
     }
 
@@ -4914,7 +4915,7 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generatedSource(compilation, "com.example.ShelfUpdateImpl"))
           .contains(
               "hkj$sent(wire.getTags()), hkj$held -> hkj$allPresent(hkj$copyOf(hkj$held.get())))")
-          .contains("Optional.ofNullable(hkj$copyOf(hkj$held.get()))");
+          .contains("hkj$parsePresent(hkj$copyOf(hkj$held.get()), v ->");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.ShelfUpdateImpl");

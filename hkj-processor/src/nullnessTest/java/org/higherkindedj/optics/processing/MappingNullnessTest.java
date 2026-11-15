@@ -8,6 +8,7 @@ import static org.higherkindedj.optics.processing.NullAwayCompiler.source;
 
 import com.google.testing.compile.Compilation;
 import java.util.List;
+import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.NullAwayCompiler.Configuration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,11 @@ import org.junit.jupiter.params.provider.EnumSource;
  * non-null, on every tier that copies: a record or bean wire both ways, a builder, a sparse update
  * and a merge, beside a leaf, a {@code @MapKey} leaf and a record wide enough to parse in chunks.
  * They share one javac run per configuration, which also holds Error Prone's {@code
- * NullableOptional} check, run by default, to the guards.
+ * NullableOptional} check, run by default, to the guards. The {@code Optional} legs, bridged and
+ * lifted, have a run of their own, on every tier that parses them: over a record, a PATCH bean
+ * holding {@code JsonNullable} and {@code Optional} properties, and a protobuf-java message, whose
+ * {@code build} writes a field with a {@code hasX()} only when its {@code Optional} holds a value,
+ * with a wildcard-carrying element and holder among them.
  *
  * <p>Each two-way pair declares the same nullness on both sides, and a nullable element type is
  * written by {@code build} into a bean that is only written: a checker does not infer a nullable
@@ -35,6 +40,49 @@ import org.junit.jupiter.params.provider.EnumSource;
 @ParameterizedClass(name = "{0}")
 @EnumSource(Configuration.class)
 class MappingNullnessTest {
+
+  /**
+   * Stands in for jackson-databind-nullable's {@code JsonNullable}, which the processor recognises
+   * by name, outside the {@code @NullMarked} package, as the library is: the main suite's {@code
+   * JsonNullableStub}, which this suite's classpath does not reach.
+   */
+  private static final JavaFileObject JSON_NULLABLE =
+      source(
+          "org.openapitools.jackson.nullable.JsonNullable",
+          """
+          package org.openapitools.jackson.nullable;
+
+          public final class JsonNullable<T> {
+            private static final JsonNullable<?> UNDEFINED = new JsonNullable<>(null, false);
+            private final T value;
+            private final boolean present;
+
+            private JsonNullable(T value, boolean present) {
+              this.value = value;
+              this.present = present;
+            }
+
+            @SuppressWarnings("unchecked")
+            public static <T> JsonNullable<T> undefined() {
+              return (JsonNullable<T>) UNDEFINED;
+            }
+
+            public static <T> JsonNullable<T> of(T value) {
+              return new JsonNullable<>(value, true);
+            }
+
+            public boolean isPresent() {
+              return present;
+            }
+
+            public T get() {
+              if (!present) {
+                throw new java.util.NoSuchElementException("undefined");
+              }
+              return value;
+            }
+          }
+          """);
 
   private final Configuration configuration;
 
@@ -382,6 +430,166 @@ class MappingNullnessTest {
                   @GenerateMerge
                   public interface MergedAssembly {
                     Merged merge(Names names, Labels labels);
+                  }
+                }
+                """));
+
+    assertThat(compilation).succeeded();
+  }
+
+  @Test
+  @DisplayName("an Optional, bridged or lifted, on every tier, a PATCH bean's and a message's too")
+  void optionalLegsPassTheChecker() {
+    Compilation compilation =
+        compile(
+            configuration,
+            List.of(new MappingProcessor(), new CompanionAnnotationProcessor()),
+            List.of("-Xep:NullableOptional:ERROR"),
+            JSON_NULLABLE,
+            source(
+                "com.example.Profiles",
+                """
+                package com.example;
+
+                import com.google.protobuf.DescriptorProtos.EnumValueDescriptorProto;
+                import com.google.protobuf.DescriptorProtos.EnumValueOptions;
+                import java.util.List;
+                import java.util.Optional;
+                import org.higherkindedj.hkt.validated.Validated;
+                import org.higherkindedj.optics.annotations.GenerateMapping;
+                import org.higherkindedj.optics.annotations.MappingSpec;
+                import org.higherkindedj.optics.annotations.OptionalBridge;
+                import org.higherkindedj.optics.annotations.UpdateSpec;
+                import org.higherkindedj.optics.validated.ValidatedPrism;
+                import org.jspecify.annotations.Nullable;
+                import org.openapitools.jackson.nullable.JsonNullable;
+
+                public final class Profiles {
+                  private Profiles() {}
+
+                  public record Code(String value) {}
+
+                  public record Profile(
+                      Optional<List<String>> nicknames, Optional<Code> code, Optional<Code> lead) {}
+
+                  // The leaves every tier shares; a sparse update leaves the bridge markers inert.
+                  public interface ProfileLeaves {
+                    @OptionalBridge
+                    Optional<List<String>> nicknames();
+
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> code() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+
+                    default ValidatedPrism<String, Code> lead() {
+                      return code();
+                    }
+                  }
+
+                  public record ProfileDto(
+                      @Nullable List<String> nicknames, @Nullable String code, Optional<String> lead) {}
+
+                  @GenerateMapping
+                  public interface ProfileMapping
+                      extends MappingSpec<Profile, ProfileDto>, ProfileLeaves {}
+
+                  // A projection with a leaf: the validated patch.
+                  public record ProfileView(@Nullable String code, Optional<String> lead) {}
+
+                  @GenerateMapping
+                  public interface ProfileViewMapping
+                      extends MappingSpec<Profile, ProfileView>, ProfileLeaves {}
+
+                  // A PATCH bean: each property null until a client sends it.
+                  @SuppressWarnings("NullableOptional")
+                  public static class ProfileForm {
+                    private @Nullable JsonNullable<List<String>> nicknames;
+                    private @Nullable JsonNullable<String> code;
+                    private @Nullable Optional<String> lead;
+
+                    public @Nullable JsonNullable<List<String>> getNicknames() { return nicknames; }
+                    public void setNicknames(@Nullable JsonNullable<List<String>> nicknames) {
+                      this.nicknames = nicknames;
+                    }
+                    public @Nullable JsonNullable<String> getCode() { return code; }
+                    public void setCode(@Nullable JsonNullable<String> code) { this.code = code; }
+                    public @Nullable Optional<String> getLead() { return lead; }
+                    public void setLead(@Nullable Optional<String> lead) { this.lead = lead; }
+                  }
+
+                  @GenerateMapping
+                  public interface ProfilePatch extends UpdateSpec<Profile, ProfileForm>, ProfileLeaves {}
+
+                  // A protobuf-java message, from the protobuf-java Error Prone brings: build writes a
+                  // field with a hasX() only when its Optional holds a value, and the update follows
+                  // its FieldMask.
+                  public record Constant(
+                      Optional<Code> name, Optional<Integer> number, Optional<EnumValueOptions> options) {}
+
+                  public interface ConstantLeaves {
+                    default ValidatedPrism<String, Code> name() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface ConstantMapping
+                      extends MappingSpec<Constant, EnumValueDescriptorProto>, ConstantLeaves {}
+
+                  @GenerateMapping
+                  public interface ConstantPatch
+                      extends UpdateSpec<Constant, EnumValueDescriptorProto>, ConstantLeaves {}
+
+                  // A wildcard-carrying element, named in the leg: through a null scan and a leaf.
+                  public record Aliases(
+                      Optional<List<? extends CharSequence>> names,
+                      Optional<List<? extends CharSequence>> initials) {}
+
+                  public static class AliasesBean {
+                    private @Nullable List<? extends CharSequence> names;
+                    private @Nullable String initials;
+
+                    public @Nullable List<? extends CharSequence> getNames() { return names; }
+                    public void setNames(@Nullable List<? extends CharSequence> names) {
+                      this.names = names;
+                    }
+                    public @Nullable String getInitials() { return initials; }
+                    public void setInitials(@Nullable String initials) { this.initials = initials; }
+                  }
+
+                  @GenerateMapping
+                  public interface AliasesMapping extends MappingSpec<Aliases, AliasesBean> {
+                    default ValidatedPrism<String, List<? extends CharSequence>> initials() {
+                      return ValidatedPrism.of(
+                          raw -> Validated.validNel(List.of(raw)), values -> values.getFirst().toString());
+                    }
+                  }
+
+                  // A wildcard holder, and a component declared Optional<? extends Code>.
+                  public record Contact(Optional<Code> alias, Optional<? extends Code> backup) {}
+
+                  public static class ContactForm {
+                    private @Nullable JsonNullable<? extends String> alias;
+                    private @Nullable JsonNullable<String> backup;
+
+                    public @Nullable JsonNullable<? extends String> getAlias() { return alias; }
+                    public void setAlias(@Nullable JsonNullable<? extends String> alias) {
+                      this.alias = alias;
+                    }
+                    public @Nullable JsonNullable<String> getBackup() { return backup; }
+                    public void setBackup(@Nullable JsonNullable<String> backup) { this.backup = backup; }
+                  }
+
+                  @GenerateMapping
+                  public interface ContactPatch extends UpdateSpec<Contact, ContactForm> {
+                    default ValidatedPrism<String, Code> alias() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+
+                    default ValidatedPrism<String, Code> backup() {
+                      return alias();
+                    }
                   }
                 }
                 """));

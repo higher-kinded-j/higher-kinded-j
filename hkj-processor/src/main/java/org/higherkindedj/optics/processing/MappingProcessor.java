@@ -5815,6 +5815,15 @@ public class MappingProcessor extends AbstractProcessor {
       return prism != null || scan != null;
     }
 
+    /**
+     * Whether the edit parses through the {@code hkj$parsePresent} guard: an {@code Optional} edit,
+     * which always carries its element's leaf and takes the element parser the dense legs do, or a
+     * sent value whose held correspondence parses through it.
+     */
+    boolean parsesPresent() {
+      return held == null ? kind == Kind.OPTIONAL : usesParsePresent(held);
+    }
+
     /** The null scan the edit's value carries: its own, or its sent value's. */
     NullScan valueScan() {
       return held == null ? scan : held.valueScan();
@@ -7077,17 +7086,21 @@ public class MappingProcessor extends AbstractProcessor {
             .addType(componentsRecord(domainDeclared, written, implName.packageName()));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
+    NullnessMarks marks = marks(spec);
     if (holders) {
       implBuilder.addMethod(
           sentHelper(
               ClassName.get(
                   processingEnv
                       .getElementUtils()
-                      .getTypeElement(BeanPropertyAnalyser.JSON_NULLABLE))));
+                      .getTypeElement(BeanPropertyAnalyser.JSON_NULLABLE)),
+              marks));
     }
-    NullnessMarks marks = marks(spec);
     if (edits.stream().anyMatch(edit -> edit.held() != null && usesIfPresent(edit.held(), wire))) {
       implBuilder.addMethod(ifPresentHelper(marks));
+    }
+    if (edits.stream().anyMatch(UpdateEdit::parsesPresent)) {
+      implBuilder.addMethod(parsePresentHelper(marks));
     }
     implBuilder.addMethods(
         NullScan.helpers(
@@ -7103,17 +7116,19 @@ public class MappingProcessor extends AbstractProcessor {
    * client sent the field, as {@code null} or a value, and {@code null} when it left the field out,
    * which binds {@code undefined()}, or the bean holds no holder at all. {@code parseIfPresent}
    * reads that {@code null} as absent and leaves the component unchanged. It is generic in the
-   * holder's own type, so a raw or wildcard holder passes without an unchecked conversion.
+   * holder's own type, so a raw or wildcard holder passes without an unchecked conversion. Where
+   * the marks are written, it takes the holder declared {@code @Nullable}, for a bean that holds
+   * none, and answers {@code @Nullable}, for a field the client left out.
    */
-  private static MethodSpec sentHelper(ClassName jsonNullable) {
+  private static MethodSpec sentHelper(ClassName jsonNullable, NullnessMarks marks) {
     TypeVariableName holder =
         TypeVariableName.get(
             "H", ParameterizedTypeName.get(jsonNullable, WildcardTypeName.subtypeOf(Object.class)));
     return MethodSpec.methodBuilder("hkj$sent")
         .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
         .addTypeVariable(holder)
-        .returns(holder)
-        .addParameter(holder, "holder")
+        .returns(marks.nullable(holder))
+        .addParameter(marks.nullable(holder), "holder")
         .addJavadoc(
             "The holder when its field was sent, as null or a value; null when it was left out.\n")
         .addStatement("return holder != null && holder.isPresent() ? holder : null")
@@ -12719,7 +12734,9 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The bridged build value: the domain {@code Optional}, carried as-is when its present value
    * copies, or mapped through the call its unbridged pair's build makes, then unwrapped to the
-   * {@code null} that encodes absence.
+   * {@code null} that encodes absence. A property that tracks its presence is written only when the
+   * {@code Optional} holds a value ({@link #presentWhen}), so it takes that value instead, through
+   * the same call, and no {@code null} reaches its setter, a primitive one included.
    *
    * <p>The {@code null} is written on a bean wire too, never skipped. A bean may initialise the
    * field behind a property ({@code status = "ACTIVE"}), and a skipped write would leave that
@@ -12731,6 +12748,12 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock bridgeBuildValue(
       WireShape.WireComponent wc, Correspondence c, String targetPackage) {
+    if (wc.presence().isPresent()) {
+      CodeBlock value = CodeBlock.of("$L.orElseThrow()", domainRead(c));
+      return c.present().prism() == null
+          ? value
+          : buildCall(c.present(), wc, targetPackage).on(value);
+    }
     CodeBlock present =
         c.present().prism() == null
             ? domainRead(c)
@@ -12953,6 +12976,14 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Whether a leg parses an absent value as an empty {@code Optional} through the {@code
+   * hkj$parsePresent} guard: a lifted {@code Optional}, and a bridge whose present value parses.
+   */
+  private static boolean usesParsePresent(Correspondence c) {
+    return c.kind() == Kind.OPTIONAL || (c.kind() == Kind.OPTIONAL_BRIDGE && presentParses(c));
+  }
+
+  /**
    * Whether every correspondence reads totally, so the mapping can be an optic: {@code asIso()} on
    * a full mapping, {@code asLens()} on a projection. A fallible correspondence, or a guarded read
    * on a bean wire ({@link #lossyRead}), makes a read partial: the full tier then withholds {@code
@@ -13012,6 +13043,46 @@ public class MappingProcessor extends AbstractProcessor {
             VALIDATED,
             FIELD_ERROR,
             "must not be null")
+        .build();
+  }
+
+  /**
+   * The {@code hkj$parsePresent} guard the {@code Optional} legs take ({@link #usesParsePresent}):
+   * a null read is valid emptiness, and a present one goes to {@code parse}, which wraps what it
+   * parses in the {@code Optional} itself, so a leg that names the {@code Optional}'s argument
+   * names it there. Unlike a chain over {@code Optional}, whose {@code orElseGet} a nullness
+   * checker given the JDK's JSpecify models reads as nullable, it says what it does with a {@code
+   * null}: it takes the read declared {@code @Nullable}, where the marks are written, as {@link
+   * #ifPresentHelper} does.
+   */
+  private static MethodSpec parsePresentHelper(NullnessMarks marks) {
+    TypeVariableName s = TypeVariableName.get("S");
+    TypeVariableName a = TypeVariableName.get("A");
+    ClassName optional = ClassName.get("java.util", "Optional");
+    TypeName validatedOfOptional =
+        ParameterizedTypeName.get(
+            VALIDATED,
+            ParameterizedTypeName.get(NEL, FIELD_ERROR),
+            ParameterizedTypeName.get(optional, a));
+    TypeName parseFn =
+        ParameterizedTypeName.get(
+            ClassName.get("java.util.function", "Function"),
+            WildcardTypeName.supertypeOf(s),
+            validatedOfOptional);
+    return MethodSpec.methodBuilder("hkj$parsePresent")
+        .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+        .addTypeVariable(s)
+        .addTypeVariable(a)
+        .returns(validatedOfOptional)
+        .addParameter(marks.nullable(s), "value")
+        .addParameter(parseFn, "parse")
+        .addJavadoc(
+            "Parses a nullable read to an {@code Optional}: a null is valid emptiness, otherwise"
+                + " the value is parsed.\n")
+        .addStatement(
+            "return value == null ? $T.validNel($T.empty()) : parse.apply(value)",
+            VALIDATED,
+            optional)
         .build();
   }
 
@@ -13395,6 +13466,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (comps.stream().anyMatch(c -> usesIfPresent(c, wire))) {
       implBuilder.addMethod(ifPresentHelper(marks));
     }
+    if (comps.stream().anyMatch(MappingProcessor::usesParsePresent)) {
+      implBuilder.addMethod(parsePresentHelper(marks));
+    }
     implBuilder.addMethods(
         NullScan.helpers(
             comps.stream().map(Correspondence::valueScan).filter(Objects::nonNull), marks));
@@ -13482,16 +13556,14 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The element-of-Optional parser lambda, shared by the dense {@code OPTIONAL} leg and the sparse
    * {@code OPTIONAL} edit so the two tiers cannot drift: a present element parses through its leaf
-   * or nested spec, an empty Optional is valid emptiness.
+   * or nested spec, an empty Optional is valid emptiness, through the {@code hkj$parsePresent}
+   * guard.
    */
   private static CodeBlock elementOfOptionalParser(CodeBlock prism) {
-    ClassName optional = ClassName.get("java.util", "Optional");
     return CodeBlock.of(
-        "o -> o.map(v -> $L.map($T::of)).orElseGet(() -> $T.validNel($T.empty()))",
+        "o -> hkj$$parsePresent(o.orElse(null), v -> $L.map($T::of))",
         parseCall(Kind.LEAF, prism, null, null, null).on(CodeBlock.of("v")),
-        optional,
-        VALIDATED,
-        optional);
+        ClassName.get("java.util", "Optional"));
   }
 
   /**
@@ -13598,9 +13670,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The bridged value: an absent (null) read is valid emptiness, and a present one parses exactly
-   * as its unbridged pair would, through the call that pair's leg makes, through the identity
-   * container's null scan, or straight through. They share one shape so the bridge cannot drift
-   * from the legs it stands in for.
+   * as its unbridged pair would, through the call that pair's leg makes or the identity container's
+   * null scan, behind the {@code hkj$parsePresent} guard, or straight through. They share one shape
+   * so the bridge cannot drift from the legs it stands in for.
    *
    * <p>Absence is the only thing the bridge excuses. A wire {@code List} that is present but holds
    * a null element is not absent, and the located-null doctrine applies to it exactly as it does to
@@ -13625,14 +13697,7 @@ public class MappingProcessor extends AbstractProcessor {
     return present == null
         ? CodeBlock.of("$T.validNel($T.$LofNullable($L))", VALIDATED, optional, witness, read)
         : CodeBlock.of(
-            "$T.ofNullable($L).map(v -> $L.map($T::$Lof)).orElseGet(() -> $T.validNel($T.empty()))",
-            optional,
-            read,
-            present,
-            optional,
-            witness,
-            VALIDATED,
-            optional);
+            "hkj$$parsePresent($L, v -> $L.map($T::$Lof))", read, present, optional, witness);
   }
 
   /**

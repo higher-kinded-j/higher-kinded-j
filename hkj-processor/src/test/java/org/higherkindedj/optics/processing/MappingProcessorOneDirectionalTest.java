@@ -1072,7 +1072,7 @@ class MappingProcessorOneDirectionalTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "VendorShelfMappingImpl"))
           .contains(
-              "Optional.ofNullable(wire.getTop()).map(v ->"
+              "hkj$parsePresent(wire.getTop(), v ->"
                   + " VendorItemMappingImpl.INSTANCE.asValidatedParse().parse(v).map(Optional::of))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
