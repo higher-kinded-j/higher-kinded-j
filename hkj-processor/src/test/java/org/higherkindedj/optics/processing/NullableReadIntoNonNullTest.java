@@ -144,6 +144,40 @@ class NullableReadIntoNonNullTest {
             @Target(ElementType.TYPE_USE)
             public @interface Tag {}
 
+            // Lists whose class names its element through its own type variable.
+            public static final class Nested<E extends @Nullable Object> extends ArrayList<List<E>> {
+              private static final long serialVersionUID = 1L;
+            }
+
+            public static final class ArrayRows<E extends @Nullable Object> extends ArrayList<E[]> {
+              private static final long serialVersionUID = 1L;
+            }
+
+            public static final class WildRows<E extends @Nullable Object>
+                extends ArrayList<List<? extends E>> {
+              private static final long serialVersionUID = 1L;
+            }
+
+            // A list whose class extends it raw, so it names no element.
+            @SuppressWarnings("rawtypes")
+            public static final class RawNames extends ArrayList {
+              private static final long serialVersionUID = 1L;
+            }
+
+            // A list whose element is a member type of another class.
+            public static final class Crate {
+              public final class Box<T extends @Nullable Object> {}
+            }
+
+            public static final class Boxes<E extends @Nullable Object>
+                extends ArrayList<Crate.Box<E>> {
+              private static final long serialVersionUID = 1L;
+            }
+
+            public static final class IntRows extends ArrayList<int[]> {
+              private static final long serialVersionUID = 1L;
+            }
+
             // A list whose class fixes its element type, so it passes none through.
             public static final class Names extends ArrayList<String> {
               private static final long serialVersionUID = 1L;
@@ -330,7 +364,49 @@ class NullableReadIntoNonNullTest {
 
             public record HoledItemList(List<@Nullable String> items) {}
 
+            public record Grid2(Nested<String> rows) {}
+
+            public record HoledGrid2(Nested<@Nullable String> rows) {}
+
+            @GenerateMapping
+            public interface NestedMapping extends MappingSpec<Grid2, HoledGrid2> {}
+
+            public record Sheet(ArrayRows<String> rows) {}
+
+            public record HoledSheet(ArrayRows<@Nullable String> rows) {}
+
+            @GenerateMapping
+            public interface ArrayRowsMapping extends MappingSpec<Sheet, HoledSheet> {}
+
+            public record Ledger(WildRows<String> rows) {}
+
+            public record HoledLedger(WildRows<@Nullable String> rows) {}
+
+            @GenerateMapping
+            public interface WildRowsMapping extends MappingSpec<Ledger, HoledLedger> {}
+
             // Pairs that keep their optic.
+
+            public record RawRoster(RawNames names) {}
+
+            public record RawRosterDto(RawNames names) {}
+
+            @GenerateMapping
+            public interface RawRosterMapping extends MappingSpec<RawRoster, RawRosterDto> {}
+
+            public record Shelving(Boxes<String> boxes) {}
+
+            public record ShelvingDto(Boxes<@Nullable String> boxes) {}
+
+            @GenerateMapping
+            public interface ShelvingMapping extends MappingSpec<Shelving, ShelvingDto> {}
+
+            public record Ints(IntRows rows) {}
+
+            public record IntsDto(IntRows rows) {}
+
+            @GenerateMapping
+            public interface IntsMapping extends MappingSpec<Ints, IntsDto> {}
 
             // A captured wildcard declares nothing of its own, so it says nothing.
             public record AnyList(List<?> items) {}
@@ -512,7 +588,10 @@ class NullableReadIntoNonNullTest {
         "ItemMapping",
         "ItemsMapping",
         "RacksMapping",
-        "LabelledMapping");
+        "LabelledMapping",
+        "NestedMapping",
+        "ArrayRowsMapping",
+        "WildRowsMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -552,7 +631,10 @@ class NullableReadIntoNonNullTest {
         "CountMapping",
         "LegacyBoxMapping",
         "OptBagMapping",
-        "AnyListMapping");
+        "AnyListMapping",
+        "RawRosterMapping",
+        "ShelvingMapping",
+        "IntsMapping");
   }
 
   @ParameterizedTest(name = "{0}")
