@@ -10250,15 +10250,15 @@ public class MappingProcessor extends AbstractProcessor {
    * Classifies one record component of {@code owner} (the domain, or a flattened component's
    * record) against the wire: its wire counterpart by name or rename, claimed once, then resolved
    * by {@link #resolveCorrespondence}. Reports and returns null when the component has no
-   * counterpart or the counterpart is already taken.
+   * counterpart or the counterpart is already taken. {@code arguments} is where the owner's type
+   * arguments are written: the spec for the domain, or the domain for a flattened component's
+   * record.
    */
   private Correspondence classifyComponent(
       TypeElement spec,
       List<RegisteredSpec> registry,
       TypeElement owner,
       DeclaredType ownerDeclared,
-      // Where the owner's type arguments are written: the spec for the domain, or the domain for
-      // a flattened group's record.
       Element arguments,
       List<String> ownerNames,
       Group group,
@@ -10536,9 +10536,7 @@ public class MappingProcessor extends AbstractProcessor {
         && reportedNullableIntoNonNull(spec, domain, wire, name, wireName, domainType)) {
       return null;
     }
-    // A primitive read is never null, whatever its declaration says.
     if (correspondence.kind() == Kind.IDENTITY
-        && !domainType.getKind().isPrimitive()
         && wire instanceof WireShape.RecordShape record
         && readsNullableIntoNonNull(
             spec,
@@ -13206,6 +13204,10 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireType,
       TypeMirror domainType,
       NullScan scan) {
+    // A primitive read is never null, whatever its declaration says.
+    if (domainType.getKind().isPrimitive()) {
+      return false;
+    }
     Types types = processingEnv.getTypeUtils();
     Elements elements = processingEnv.getElementUtils();
     RecordComponentElement from = componentNamed(wire.element(), wireName);
@@ -13247,8 +13249,10 @@ public class MappingProcessor extends AbstractProcessor {
    * declaration is read in. A type variable with no nullness annotation of its own, as {@code T} in
    * {@code record Page<T extends @Nullable Object>(T item)}, stands for its type argument ({@link
    * #deferred}): the instantiated form counts then, read where that argument is written, and so do
-   * the levels below it, which the argument wrote too. Any other declaration counts as it is
-   * written, {@code @Nullable T} and {@code @NonNull T} among them, read in its own scope.
+   * the levels below it, which the argument wrote too, unless the variable's own bound rules a null
+   * out. Any other declaration counts as it is written, {@code @Nullable T} and {@code @NonNull T}
+   * among them, read in its own scope. A variable javac made by capturing a wildcard declares
+   * nothing of its own, so it is read as it is written, and says nothing.
    */
   private record Written(TypeMirror declared, TypeMirror instantiated, List<Element> scopes) {
 
@@ -13258,7 +13262,7 @@ public class MappingProcessor extends AbstractProcessor {
 
     /** Whether the declaration leaves its nullness to its type argument. */
     boolean deferred() {
-      return declared.getKind() == TypeKind.TYPEVAR
+      return NullableAnnotations.declaredVariable(declared)
           && !NullableAnnotations.annotatesNullness(declared);
     }
 
@@ -13281,12 +13285,17 @@ public class MappingProcessor extends AbstractProcessor {
     /**
      * Whether the form that counts rules a null out ({@link NullableAnnotations#rulesOutNull}) in a
      * scope it is read in: its own, or, for a deferred declaration, where its argument is {@code
-     * written}.
+     * written}. A deferred variable whose own bound is non-null rules a null out whatever its
+     * argument, as {@link MappingProcessor#nonNullComponent} reads it for the component itself.
      */
     boolean nonNull(List<Element> written) {
-      TypeMirror counted = counted();
-      return (deferred() ? written : scopes)
-          .stream().anyMatch(scope -> NullableAnnotations.rulesOutNull(counted, scope));
+      if (!deferred()) {
+        return scopes.stream().anyMatch(scope -> NullableAnnotations.rulesOutNull(declared, scope));
+      }
+      return scopes.stream()
+              .anyMatch(scope -> NullableAnnotations.nonNullReason(declared, scope).isPresent())
+          || written.stream()
+              .anyMatch(scope -> NullableAnnotations.rulesOutNull(instantiated, scope));
     }
 
     private TypeMirror counted() {

@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
@@ -181,9 +182,21 @@ public final class NullableAnnotations {
    */
   static boolean rulesOutNull(TypeMirror type, Element site) {
     return nonNullReason(type, site).isPresent()
-        || type.getKind() == TypeKind.TYPEVAR
-            && !declaresNullable(type)
-            && nullMarkedScope(site).isPresent();
+        || declaredVariable(type) && !declaresNullable(type) && nullMarkedScope(site).isPresent();
+  }
+
+  /**
+   * Whether a type is a type variable that a declaration introduces, on a class, an interface, a
+   * method or a constructor, rather than one javac made by capturing a wildcard. A capture belongs
+   * to none of them, and its nullness is its wildcard's bound, not an argument's.
+   *
+   * @param type the type
+   * @return whether it is a declared type variable
+   */
+  static boolean declaredVariable(TypeMirror type) {
+    return type.getKind() == TypeKind.TYPEVAR
+        && ((TypeParameterElement) ((TypeVariable) type).asElement()).getGenericElement().getKind()
+            != ElementKind.OTHER;
   }
 
   /**

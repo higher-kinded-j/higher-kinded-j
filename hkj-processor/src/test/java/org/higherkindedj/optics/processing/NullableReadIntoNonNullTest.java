@@ -97,6 +97,11 @@ class NullableReadIntoNonNullTest {
             public interface LooseItemMapping<T extends @Nullable Object>
                 extends MappingSpec<Wires.Item<T>, Wires.ItemDto<T>> {}
 
+            // A type variable whose own bound is non-null rules a null out, whatever its argument.
+            @GenerateMapping
+            public interface BoundedMapping
+                extends MappingSpec<Wires.Bounded<String>, Wires.HoledItemList> {}
+
             // A flattened group's argument is written by the domain, which is marked.
             @GenerateMapping
             public interface NamedOrderMapping
@@ -321,7 +326,20 @@ class NullableReadIntoNonNullTest {
 
             public record NamedOrderDto(String id, @Nullable String first) {}
 
+            public record Bounded<T>(List<T> items) {}
+
+            public record HoledItemList(List<@Nullable String> items) {}
+
             // Pairs that keep their optic.
+
+            // A captured wildcard declares nothing of its own, so it says nothing.
+            public record AnyList(List<?> items) {}
+
+            public record HoledAnyList(List<? extends @Nullable Object> items) {}
+
+            @GenerateMapping
+            public interface AnyListMapping extends MappingSpec<AnyList, HoledAnyList> {}
+
             public record Draft(@Nullable String title) {}
 
             public record DraftDto(@Nullable String title) {}
@@ -533,7 +551,8 @@ class NullableReadIntoNonNullTest {
         "OpenedMapping",
         "CountMapping",
         "LegacyBoxMapping",
-        "OptBagMapping");
+        "OptBagMapping",
+        "AnyListMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -550,13 +569,16 @@ class NullableReadIntoNonNullTest {
   @Test
   @DisplayName(
       "a spec in a package that says nothing writes arguments that say nothing, but a flattened"
-          + " group's arguments are written by its domain")
+          + " group's arguments are written by its domain, and a non-null bound holds")
   void aSpecOutsideTheMarkedPackage() {
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseBagMappingImpl"))
         .contains("asIso");
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseItemMappingImpl"))
         .contains("asIso");
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsNamedOrderMappingImpl"))
+        .contains("build", "parse")
+        .doesNotContain("asIso");
+    Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsBoundedMappingImpl"))
         .contains("build", "parse")
         .doesNotContain("asIso");
   }
