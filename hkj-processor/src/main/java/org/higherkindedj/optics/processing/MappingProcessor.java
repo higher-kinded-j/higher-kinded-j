@@ -12600,10 +12600,16 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The expression {@code build} fills a wire component with, from its correspondence. The value is
-   * the same on either wire shape; only the write around it differs.
+   * the same on either wire shape; only the write around it differs. A copy is typed as its site
+   * where the site declares its type arguments more nullable ({@link NullableArgumentCast}).
    */
   private static CodeBlock buildValue(
-      WireShape.WireComponent wc, List<Correspondence> comps, String targetPackage) {
+      Types types,
+      WireShape wire,
+      TypeElement domain,
+      WireShape.WireComponent wc,
+      List<Correspondence> comps,
+      String targetPackage) {
     Correspondence c = correspondenceFor(wc, comps);
     CodeBlock value =
         switch (c.kind()) {
@@ -12625,7 +12631,64 @@ public class MappingProcessor extends AbstractProcessor {
                   : buildCall(c, wc, targetPackage).on(CodeBlock.of("hkj$$v"));
         };
     // What the domain holds reaches the wire as a copy, never as the domain's own container.
-    return ContainerCopy.through(c.valueCopy(), value, SCAN_SCOPE);
+    CodeBlock copied = ContainerCopy.through(c.valueCopy(), value, SCAN_SCOPE);
+    // Only a copy can be typed wider; a derived field has no component to read.
+    TypeMirror from = c.valueCopy() == null ? null : held(c, componentType(c, domain));
+    TypeMirror to = siteType(types, wire, wc);
+    return from == null || to == null
+        ? copied
+        : NullableArgumentCast.on(c.valueCopy(), from, to, targetPackage, copied);
+  }
+
+  /**
+   * The type of the parameter {@code build} hands {@code wc}'s value to: a record's canonical
+   * constructor's, or a setter's or builder setter's, either of which may take less than the
+   * component or the getter declares. Null for a property written any other way: a getter-only
+   * list's {@code addAll} takes a {@code Collection<? extends E>}, which a copy holding no {@code
+   * null} already is.
+   */
+  private static TypeMirror siteType(Types types, WireShape wire, WireShape.WireComponent wc) {
+    return switch (wire) {
+      case WireShape.RecordShape record ->
+          GuardedConstruction.takenAs(types, record.element(), wc.name());
+      case WireShape.BeanShape bean ->
+          writeSite(bean, wc.name()) instanceof WireShape.WriteSite.Setter setter
+              ? setter.parameter().asType()
+              : null;
+    };
+  }
+
+  /**
+   * The type of the value {@code c} copies, from {@code type}, its component's on the domain side:
+   * that type, or, bridged as it is, the type its {@code Optional} holds. Null where {@code c}
+   * converts the value instead, through a leaf or a nested spec. {@code build} reads it from the
+   * component's own type, and {@code parse} hands it on as its canonical constructor's.
+   */
+  private static TypeMirror held(Correspondence c, TypeMirror type) {
+    return switch (c.kind()) {
+      case IDENTITY -> type;
+      case OPTIONAL_BRIDGE ->
+          c.present().prism() == null ? ((DeclaredType) type).getTypeArguments().getFirst() : null;
+      default -> null;
+    };
+  }
+
+  /** The type the domain declares {@code c}'s component with, in its record or its group's. */
+  private static TypeMirror componentType(Correspondence c, TypeElement domain) {
+    return componentNamed(owner(c, domain), c.name()).asType();
+  }
+
+  /**
+   * The type the canonical constructor of {@code c}'s record, the domain or its group, takes the
+   * component as: what {@code parse} hands it.
+   */
+  private static TypeMirror takenType(Types types, Correspondence c, TypeElement domain) {
+    return GuardedConstruction.takenAs(types, owner(c, domain), c.name());
+  }
+
+  /** The record {@code c}'s component belongs to: the domain, or its flattened group's. */
+  private static TypeElement owner(Correspondence c, TypeElement domain) {
+    return c.group() == null ? domain : c.group().record();
   }
 
   /**
@@ -12772,12 +12835,18 @@ public class MappingProcessor extends AbstractProcessor {
    * WireShape.WireValue}).
    */
   private static CodeBlock wireBuildBody(
-      WireShape wire, TypeName wireName, List<Correspondence> comps, String targetPackage) {
+      Types types,
+      WireShape wire,
+      TypeName wireName,
+      TypeElement domain,
+      List<Correspondence> comps,
+      String targetPackage) {
     return wire.buildStatements(
         wireName,
         wc -> {
           Correspondence c = correspondenceFor(wc, comps);
-          return new WireShape.WireValue(buildValue(wc, comps, targetPackage), presentWhen(c, wc));
+          return new WireShape.WireValue(
+              buildValue(types, wire, domain, wc, comps, targetPackage), presentWhen(c, wc));
         });
   }
 
@@ -12828,10 +12897,13 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * One leg of the parse ladder: the name its value takes as a lambda parameter of the ladder's
-   * terminal, its {@code .field(...)} code, and the lambda parameters that code declares itself (a
-   * flattened group's own terminal), which a chunked ladder's locals must stay clear of.
+   * terminal, which is the domain component's own, its {@code .field(...)} code, the lambda
+   * parameters that code declares itself (a flattened group's own terminal), which a chunked
+   * ladder's locals must stay clear of, and the component's type as the terminal may declare it
+   * ({@link #legType}).
    */
-  private record Leg(String name, CodeBlock code, List<String> declares) {
+  private record Leg(
+      String name, CodeBlock code, List<String> declares, GuardedConstruction.LegType type) {
 
     Leg {
       declares = List.copyOf(declares);
@@ -12845,7 +12917,12 @@ public class MappingProcessor extends AbstractProcessor {
    * address.street}): the located-null doctrine, the leaf vocabulary and the constructor guard
    * apply inside the group exactly as at the top level. A derived field contributes no leg.
    */
-  private List<Leg> parseLegs(WireShape wire, List<Correspondence> comps, LegLocals locals) {
+  private List<Leg> parseLegs(
+      WireShape wire,
+      TypeElement domain,
+      List<Correspondence> comps,
+      LegLocals locals,
+      String targetPackage) {
     List<Leg> legs = new ArrayList<>();
     for (List<Correspondence> run : runs(comps)) {
       Correspondence first = run.getFirst();
@@ -12855,15 +12932,25 @@ public class MappingProcessor extends AbstractProcessor {
         // the identity copy; the guard locates the null under the field label.
         CodeBlock leg =
             parseLeg(
-                wire, first, wireRead(wire, first.wireName()), guardedRead(first, wire), locals);
+                wire,
+                domain,
+                first,
+                wireRead(wire, first.wireName()),
+                guardedRead(first, wire),
+                locals,
+                targetPackage);
         if (!leg.isEmpty()) {
-          legs.add(new Leg(first.name(), leg, List.of()));
+          legs.add(
+              new Leg(
+                  first.name(),
+                  leg,
+                  List.of(),
+                  legType(processingEnv.getTypeUtils(), wire, domain, first)));
         }
         continue;
       }
-      List<String> params =
-          GuardedConstruction.parameterNames(
-              run.stream().map(Correspondence::name).toList(), Set.of("wire"));
+      List<String> members = run.stream().map(Correspondence::name).toList();
+      List<String> params = GuardedConstruction.parameterNames(members, Set.of("wire"));
       CodeBlock inner =
           GuardedConstruction.assembly(
               run.stream()
@@ -12871,12 +12958,19 @@ public class MappingProcessor extends AbstractProcessor {
                       member ->
                           parseLeg(
                               wire,
+                              domain,
                               member,
                               wireRead(wire, member.wireName()),
                               guardedRead(member, wire),
-                              locals))
+                              locals,
+                              targetPackage))
                   .toList(),
               params,
+              GuardedConstruction.parameterTypes(
+                  run.stream()
+                      .map(member -> legType(processingEnv.getTypeUtils(), wire, domain, member))
+                      .toList(),
+                  targetPackage),
               first.group().record(),
               first.group().type());
       // The group's guarded call is an argument of the outer ladder's field, which offers it no
@@ -12889,7 +12983,12 @@ public class MappingProcessor extends AbstractProcessor {
                   first.group().type(),
                   first.group().name(),
                   GuardedConstruction.call(inner, first.group().type())),
-              params));
+              params,
+              // The group's own call builds its record exactly, its members typed in its ladder.
+              new GuardedConstruction.LegType(
+                  GuardedConstruction.takenAs(
+                      processingEnv.getTypeUtils(), domain, first.group().name()),
+                  true)));
     }
     return legs;
   }
@@ -13112,7 +13211,14 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
+    CodeBlock buildBody =
+        wireBuildBody(
+            processingEnv.getTypeUtils(),
+            wire,
+            wireName,
+            (TypeElement) domainDeclared.asElement(),
+            comps,
+            implPackage(spec));
 
     CodeBlock reverseArgs = reverseArgs(wire, comps);
     List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
@@ -13129,7 +13235,10 @@ public class MappingProcessor extends AbstractProcessor {
             .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
                 parseMethod(
-                    domainName, wireName, suppression, parseBody(wire, comps, domain, domainName)))
+                    domainName,
+                    wireName,
+                    suppression,
+                    parseBody(wire, comps, domain, domainName, implPackage(spec))))
             .addField(asValidatedPrismField(wireName, domainName))
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
@@ -13210,10 +13319,19 @@ public class MappingProcessor extends AbstractProcessor {
                     domainName,
                     wireName,
                     suppression,
-                    wireBuildBody(wire, wireName, comps, implPackage(spec))))
+                    wireBuildBody(
+                        processingEnv.getTypeUtils(),
+                        wire,
+                        wireName,
+                        (TypeElement) domainDeclared.asElement(),
+                        comps,
+                        implPackage(spec))))
             .addMethod(
                 parseMethod(
-                    domainName, wireName, suppression, parseBody(wire, comps, domain, domainName)))
+                    domainName,
+                    wireName,
+                    suppression,
+                    parseBody(wire, comps, domain, domainName, implPackage(spec))))
             .addField(asValidatedParseField(wireName, domainName, PARSE_ADAPTER_FIELD))
             .addMethod(
                 asValidatedParseMethod(
@@ -13319,7 +13437,12 @@ public class MappingProcessor extends AbstractProcessor {
                     domainName,
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
-                    parseBody(wire, comps, (TypeElement) domainDeclared.asElement(), domainName)))
+                    parseBody(
+                        wire,
+                        comps,
+                        (TypeElement) domainDeclared.asElement(),
+                        domainName,
+                        implPackage(spec))))
             .addField(asValidatedParseField(wireName, domainName, ADAPTER_FIELD))
             .addMethod(
                 asValidatedParseMethod(
@@ -13370,7 +13493,13 @@ public class MappingProcessor extends AbstractProcessor {
                     domainName,
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
-                    wireBuildBody(wire, wireName, comps, implPackage(spec))))
+                    wireBuildBody(
+                        processingEnv.getTypeUtils(),
+                        wire,
+                        wireName,
+                        (TypeElement) domainDeclared.asElement(),
+                        comps,
+                        implPackage(spec))))
             .addField(asValidatedBuildField(wireName, domainName, ADAPTER_FIELD))
             .addMethod(
                 asValidatedBuildMethod(
@@ -13394,12 +13523,18 @@ public class MappingProcessor extends AbstractProcessor {
    * which parse alike.
    */
   private CodeBlock parseBody(
-      WireShape wire, List<Correspondence> comps, TypeElement domain, TypeName domainName) {
+      WireShape wire,
+      List<Correspondence> comps,
+      TypeElement domain,
+      TypeName domainName,
+      String targetPackage) {
     Set<String> inScope = new HashSet<>(Set.of("wire"));
     comps.forEach(c -> inScope.add(c.name()));
     LegLocals locals = new LegLocals(inScope);
-    List<Leg> legs = parseLegs(wire, comps, locals);
+    List<Leg> legs = parseLegs(wire, domain, comps, locals, targetPackage);
     List<CodeBlock> code = legs.stream().map(Leg::code).toList();
+    List<TypeName> types =
+        GuardedConstruction.parameterTypes(legs.stream().map(Leg::type).toList(), targetPackage);
     if (legs.size() <= ArityCeilings.ASSEMBLY) {
       return CodeBlock.builder()
           .add(locals.statements())
@@ -13409,6 +13544,7 @@ public class MappingProcessor extends AbstractProcessor {
                       code,
                       GuardedConstruction.parameterNames(
                           legs.stream().map(Leg::name).toList(), Set.of("wire")),
+                      types,
                       domain,
                       domainName),
                   domainName))
@@ -13429,6 +13565,7 @@ public class MappingProcessor extends AbstractProcessor {
                 NEL,
                 reserved,
                 domainName,
+                types,
                 values ->
                     GuardedConstruction.thunk(
                         domainName, GuardedConstruction.canonicalArguments(domain, values))))
@@ -13573,13 +13710,60 @@ public class MappingProcessor extends AbstractProcessor {
    * container is bound to a local among {@code locals}, ahead of the ladder, and the leg reads it.
    */
   private CodeBlock parseLeg(
-      WireShape wire, Correspondence c, CodeBlock wireRead, boolean guard, LegLocals locals) {
+      WireShape wire,
+      TypeElement domain,
+      Correspondence c,
+      CodeBlock wireRead,
+      boolean guard,
+      LegLocals locals,
+      String targetPackage) {
     CodeBlock read =
         c.valueCopy() == null
             ? wireRead
-            : locals.bind(c.name(), ContainerCopy.through(c.valueCopy(), wireRead, SCAN_SCOPE));
+            : locals.bind(
+                c.name(),
+                widenedCopy(
+                    processingEnv.getTypeUtils(), wire, domain, c, wireRead, targetPackage));
     CodeBlock value = copiedLegValue(c, read, guard);
     return value.isEmpty() ? value : CodeBlock.of("\n.field($S, $L)", c.name(), value);
+  }
+
+  /**
+   * The copy {@code c}'s leg reads, typed as the domain's canonical constructor takes it where that
+   * declares a type argument more nullable than the wire's ({@link NullableArgumentCast}), so the
+   * ladder hands it on as the type its terminal's parameter declares.
+   */
+  private static CodeBlock widenedCopy(
+      Types types,
+      WireShape wire,
+      TypeElement domain,
+      Correspondence c,
+      CodeBlock wireRead,
+      String targetPackage) {
+    CodeBlock copied = ContainerCopy.through(c.valueCopy(), wireRead, SCAN_SCOPE);
+    TypeMirror to = held(c, takenType(types, c, domain));
+    return to == null
+        ? copied
+        : NullableArgumentCast.on(c.valueCopy(), wireType(wire, c), to, targetPackage, copied);
+  }
+
+  /**
+   * The type a terminal's parameter would declare {@code c}'s component with, and whether its leg's
+   * value holds it truthfully: a copy unless it can be typed as the component neither as it stands
+   * nor by a cast, and a converted value only where the type carries no nullable type argument.
+   */
+  private static GuardedConstruction.LegType legType(
+      Types types, WireShape wire, TypeElement domain, Correspondence c) {
+    TypeMirror type = takenType(types, c, domain);
+    TypeMirror copied = held(c, type);
+    return copied == null
+        ? GuardedConstruction.LegType.converted(type)
+        : GuardedConstruction.LegType.copied(type, c.valueCopy(), wireType(wire, c), copied);
+  }
+
+  /** The type the wire declares {@code c}'s component with. */
+  private static TypeMirror wireType(WireShape wire, Correspondence c) {
+    return wire.componentNamed(c.wireName()).orElseThrow().type();
   }
 
   /**
@@ -13739,7 +13923,14 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
+    CodeBlock buildBody =
+        wireBuildBody(
+            processingEnv.getTypeUtils(),
+            wire,
+            wireName,
+            (TypeElement) domainDeclared.asElement(),
+            comps,
+            implPackage(spec));
     List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
     // A oneof's first arm reads the component for its other arms, which read nothing of their own.
@@ -13753,7 +13944,15 @@ public class MappingProcessor extends AbstractProcessor {
       // property, so every reference read is guarded into a located FieldError (the locked
       // null policy, the same guardedRead the full tier uses); a primitive
       // read can never be null and copies directly.
-      patchLegs.add(parseLeg(wire, c, wireRead(wire, c.wireName()), guardedRead(c, wire), locals));
+      patchLegs.add(
+          parseLeg(
+              wire,
+              domain,
+              c,
+              wireRead(wire, c.wireName()),
+              guardedRead(c, wire),
+              locals,
+              implPackage(spec)));
     }
 
     // The write-back ends in the guarded constructor call either way: an invariant the domain's
@@ -13779,6 +13978,10 @@ public class MappingProcessor extends AbstractProcessor {
         unprojected.stream()
             .map(name -> CodeBlock.of("var $L = domain.$L()", nameFor.get(name), name))
             .toList();
+    List<TypeName> types =
+        GuardedConstruction.parameterTypes(
+            legs.stream().map(c -> legType(processingEnv.getTypeUtils(), wire, domain, c)).toList(),
+            implPackage(spec));
     CodeBlock patchBody;
     // Never empty: a projection carrying no component reads nothing that can fail, so it maps as
     // a lens.
@@ -13789,6 +13992,7 @@ public class MappingProcessor extends AbstractProcessor {
                   patchLegs,
                   GuardedConstruction.apply(
                       legs.stream().map(c -> nameFor.get(c.name()).toString()).toList(),
+                      types,
                       GuardedConstruction.boundThunk(
                           unprojectedReads,
                           domainName,
@@ -13809,6 +14013,7 @@ public class MappingProcessor extends AbstractProcessor {
               NEL,
               reserved,
               domainName,
+              types,
               values -> {
                 // values align 1:1 with the legs: every leading correspondence emits exactly one
                 // .field (a projection can never carry a DERIVED correspondence, and a oneof's
@@ -13906,7 +14111,14 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
+    CodeBlock buildBody =
+        wireBuildBody(
+            processingEnv.getTypeUtils(),
+            wire,
+            wireName,
+            (TypeElement) domainDeclared.asElement(),
+            comps,
+            implPackage(spec));
     // The lens's set reads through the copies, whose lambdas infer element types, as build does.
     List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 

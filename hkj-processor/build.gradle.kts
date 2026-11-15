@@ -195,6 +195,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.NullnessMarks*",
                 "org.higherkindedj.optics.processing.NullableAnnotations*",
                 "org.higherkindedj.optics.processing.LegLocals*",
+                "org.higherkindedj.optics.processing.NullableArgumentCast*",
                 "org.higherkindedj.optics.processing.BeanPropertyAnalyser*",
                 "org.higherkindedj.optics.processing.WireShape*",
                 "org.higherkindedj.optics.processing.WaitingSpecs*",

@@ -545,9 +545,12 @@ matter: it maps build-only whatever its width, derived fields included.
   non-null; a merge can instead take a leaf and return `Validated`. `parse` needs no such rule: it
   refuses every unbridged `null` read. A `@Nullable` component handed to a leaf, nested spec or
   lifted container is not checked yet, and throws from `build` on a `null`. The generated copies,
-  guards and leaf caches declare their nulls in JSpecify's annotations, so a nullness checker can
-  check them; it does not yet follow a nullable element type such as `List<@Nullable String>`
-  through `parse`.
+  guards and leaf caches declare their nulls in JSpecify's annotations, so the Impl passes
+  NullAway, `List<@Nullable String>` included. NullAway still reports any component of a generic
+  record, a leaf lifted over such a list, an array of arrays, a leg that widens and narrows at
+  once, a narrowing leg in a record of more than 16 components, and a container handed over as it
+  is (an `ArrayList`) whose nullness differs; no declaration clears the first five yet. Where only one side's elements may be null, it reports
+  `asIso()`/`asLens()` or `build` rightly: declare both sides with one nullness.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args

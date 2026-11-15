@@ -24,17 +24,17 @@ import org.junit.jupiter.params.provider.EnumSource;
  * <p>Every container shape a copy takes is here, at the top and inside, declared nullable and
  * non-null, on every tier that copies: a record or bean wire both ways, a builder, a sparse update
  * and a merge, beside a leaf, a {@code @MapKey} leaf and a record wide enough to parse in chunks.
- * They share one javac run per configuration, which also holds Error Prone's {@code
+ * Each test is one javac run per configuration, which also holds Error Prone's {@code
  * NullableOptional} check, run by default, to the guards. The {@code Optional} legs, bridged and
- * lifted, have a run of their own, on every tier that parses them: over a record, a PATCH bean
+ * lifted, have one of their own, on every tier that parses them: over a record, a PATCH bean
  * holding {@code JsonNullable} and {@code Optional} properties, and a protobuf-java message, whose
  * {@code build} writes a field with a {@code hasX()} only when its {@code Optional} holds a value,
  * with a wildcard-carrying element and holder among them.
  *
- * <p>Each two-way pair declares the same nullness on both sides, and a nullable element type is
- * written by {@code build} into a bean that is only written: a checker does not infer a nullable
- * type argument through the {@code parse} ladder, and {@code asIso()} reads a wire component
- * straight into the domain's.
+ * <p>A pair with an {@code asIso()} declares the same nullness on both sides, since its reverse
+ * reads a wire component straight into the domain's. A nullable type argument passes through {@code
+ * parse}'s ladder at every depth, and {@code build} widens a copy into a wire whose type arguments
+ * are declared more nullable, on every tier that copies one.
  */
 @DisplayName("A nullness checker accepts a generated mapping implementation")
 @ParameterizedClass(name = "{0}")
@@ -263,7 +263,7 @@ class MappingNullnessTest {
                   @GenerateMapping
                   public interface WideMapping extends MappingSpec<Wide, WideDto> {}
 
-                  // Elements that may be null, written by build into a bean that is only written.
+                  // Elements that may be null, at every depth, both ways through a bean.
                   public record Holed(
                       List<@Nullable String> holedList,
                       @Nullable Collection<@Nullable String> holedColl,
@@ -287,6 +287,17 @@ class MappingNullnessTest {
                     private @Nullable String @Nullable [] holedArray;
                     private String @Nullable [] @Nullable [] holedGrid;
                     private Optional<List<@Nullable String>> holedValues = Optional.empty();
+
+                    public @Nullable List<@Nullable String> getHoledList() { return holedList; }
+                    public @Nullable Collection<@Nullable String> getHoledColl() { return holedColl; }
+                    public @Nullable Map<String, @Nullable String> getHoledMap() { return holedMap; }
+                    public @Nullable List<@Nullable List<@Nullable String>> getHoledLists() { return holedLists; }
+                    public @Nullable Set<@Nullable List<String>> getHoledSet() { return holedSet; }
+                    public @Nullable Map<String, @Nullable List<String>> getHoledMapOfLists() { return holedMapOfLists; }
+                    public @Nullable List<String @Nullable []> getHoledListOfArrays() { return holedListOfArrays; }
+                    public @Nullable String @Nullable [] getHoledArray() { return holedArray; }
+                    public String @Nullable [] @Nullable [] getHoledGrid() { return holedGrid; }
+                    public Optional<List<@Nullable String>> getHoledValues() { return holedValues; }
 
                     public void setHoledList(List<@Nullable String> holedList) {
                       this.holedList = holedList;
@@ -591,6 +602,266 @@ class MappingNullnessTest {
                       return alias();
                     }
                   }
+                }
+                """));
+
+    assertThat(compilation).succeeded();
+  }
+
+  @Test
+  @DisplayName(
+      "a nullable type argument, through parse's ladder and into a wire whose elements may be null")
+  void aNullableTypeArgumentPassesTheChecker() {
+    Compilation compilation =
+        compile(
+            configuration,
+            List.of(
+                new MappingProcessor(), new MergeProcessor(), new CompanionAnnotationProcessor()),
+            List.of("-Xep:NullableOptional:ERROR"),
+            source(
+                "com.example.Arguments",
+                """
+                package com.example;
+
+                import java.util.List;
+                import java.util.Map;
+                import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+                import org.higherkindedj.hkt.validated.FieldError;
+                import org.higherkindedj.hkt.validated.Validated;
+                import org.higherkindedj.optics.annotations.Flatten;
+                import org.higherkindedj.optics.annotations.GenerateMapping;
+                import org.higherkindedj.optics.annotations.GenerateMerge;
+                import org.higherkindedj.optics.annotations.MappingSpec;
+                import org.higherkindedj.optics.annotations.UpdateSpec;
+                import org.higherkindedj.optics.validated.ValidatedPrism;
+                import org.jspecify.annotations.Nullable;
+
+                public final class Arguments {
+                  private Arguments() {}
+
+                  public record Code(String value) {}
+
+                  // The same nullable type argument on both sides, through parse and asIso.
+                  public record Holed(
+                      List<@Nullable String> tags,
+                      Map<String, @Nullable String> byKey,
+                      int count,
+                      String name) {}
+
+                  public record HoledDto(
+                      List<@Nullable String> tags,
+                      Map<String, @Nullable String> byKey,
+                      int count,
+                      String name) {}
+
+                  // parse widens a copy holding no null into a record whose elements may be.
+                  public record Grown(List<@Nullable String> tags, Map<String, @Nullable String> byKey) {}
+
+                  public static class GrownView {
+                    public List<String> getTags() { return List.of(); }
+                    public Map<String, String> getByKey() { return Map.of(); }
+                  }
+
+                  @GenerateMapping
+                  public interface GrownMapping extends MappingSpec<Grown, GrownView> {}
+
+                  // The canonical constructor takes less than the component declares, so build
+                  // hands it the copy as it is. A leaf withholds asIso.
+                  public record Taken(List<String> tags, Code code) {}
+
+                  public record TakenDto(List<@Nullable String> tags, String code) {
+                    public TakenDto(List<String> tags, String code) {
+                      this.tags = new java.util.ArrayList<>(tags);
+                      this.code = code;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface TakenMapping extends MappingSpec<Taken, TakenDto> {
+                    default ValidatedPrism<String, Code> code() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+                  }
+
+                  // A nested array's cells widen nowhere, so parse reads them as it did.
+                  public record Gridded(@Nullable String[][] grid) {}
+
+                  public static class GriddedView {
+                    public String[][] getGrid() { return new String[0][]; }
+                  }
+
+                  @GenerateMapping
+                  public interface GriddedMapping extends MappingSpec<Gridded, GriddedView> {}
+
+                  @GenerateMapping
+                  public interface HoledMapping extends MappingSpec<Holed, HoledDto> {}
+
+                  // Non-null elements built into a wire whose elements may be null. A leaf
+                  // withholds asIso, whose reverse copies the other way.
+                  public record Wid(
+                      @Nullable List<String> maybe, List<List<String>> grid, String[] cells, Code code) {}
+
+                  public record WidDto(
+                      @Nullable List<@Nullable String> maybe,
+                      List<List<@Nullable String>> grid,
+                      @Nullable String[] cells,
+                      String code) {}
+
+                  @GenerateMapping
+                  public interface WidMapping extends MappingSpec<Wid, WidDto> {
+                    default ValidatedPrism<String, Code> code() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+                  }
+
+                  public record Tagged(List<String> tags) {}
+
+                  public static class TaggedBean {
+                    private List<@Nullable String> tags = List.of();
+
+                    public List<@Nullable String> getTags() { return tags; }
+                    public void setTags(List<@Nullable String> tags) { this.tags = tags; }
+                  }
+
+                  @GenerateMapping
+                  public interface TaggedBeanMapping extends MappingSpec<Tagged, TaggedBean> {}
+
+                  public static final class TaggedCard {
+                    private final List<@Nullable String> tags;
+
+                    private TaggedCard(List<@Nullable String> tags) { this.tags = tags; }
+
+                    public List<@Nullable String> getTags() { return tags; }
+                    public static Builder builder() { return new Builder(); }
+
+                    public static final class Builder {
+                      private List<@Nullable String> tags = List.of();
+
+                      public Builder tags(List<@Nullable String> tags) {
+                        this.tags = tags;
+                        return this;
+                      }
+                      public TaggedCard build() { return new TaggedCard(tags); }
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface TaggedCardMapping extends MappingSpec<Tagged, TaggedCard> {}
+
+                  public record Names(List<String> names) {}
+
+                  public record HoledNames(List<@Nullable String> names) {}
+
+                  public record Codes(String code) {}
+
+                  public record Merged(List<@Nullable String> names, String code) {}
+
+                  @GenerateMerge
+                  public interface MergedAssembly {
+                    Merged merge(Names names, Codes codes);
+                  }
+
+                  @GenerateMerge
+                  public interface CheckedAssembly {
+                    Validated<NonEmptyList<FieldError>, Merged> merge(Names names, Codes codes);
+
+                    default ValidatedPrism<String, String> code() {
+                      return ValidatedPrism.of(Validated::validNel, code -> code);
+                    }
+                  }
+
+                  @GenerateMerge
+                  public interface HoledAssembly {
+                    Validated<NonEmptyList<FieldError>, Merged> merge(HoledNames names, Codes codes);
+
+                    default ValidatedPrism<String, String> code() {
+                      return ValidatedPrism.of(Validated::validNel, code -> code);
+                    }
+                  }
+
+                  public record Inner(List<@Nullable String> tags, String note) {}
+
+                  public record Outer(String id, Inner inner) {}
+
+                  public record OuterDto(String id, List<@Nullable String> tags, String note) {}
+
+                  @GenerateMapping
+                  public interface OuterMapping extends MappingSpec<Outer, OuterDto> {
+                    @Flatten
+                    Inner inner();
+                  }
+
+                  // A leaf's write-back can fail, so the projection maps as the validated patch.
+                  public record Profile(String id, List<@Nullable String> tags, Code code) {}
+
+                  public record ProfileView(List<@Nullable String> tags, String code) {}
+
+                  @GenerateMapping
+                  public interface ProfileViewMapping extends MappingSpec<Profile, ProfileView> {
+                    default ValidatedPrism<String, Code> code() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+                  }
+
+                  public record Sparse(List<@Nullable String> tags, String name) {}
+
+                  public static class SparseRequest {
+                    private @Nullable List<@Nullable String> tags;
+                    private @Nullable String name;
+
+                    public @Nullable List<@Nullable String> getTags() { return tags; }
+                    public void setTags(@Nullable List<@Nullable String> tags) { this.tags = tags; }
+                    public @Nullable String getName() { return name; }
+                    public void setName(@Nullable String name) { this.name = name; }
+                  }
+
+                  @GenerateMapping
+                  public interface SparsePatch extends UpdateSpec<Sparse, SparseRequest> {}
+
+                  // Chunked, beside a wildcard-typed leg a copy reads as its capture, and ending in a
+                  // primitive the ladder hands on boxed.
+                  public record Wide(
+                      List<? extends Number> w,
+                      List<@Nullable String> c0,
+                      List<@Nullable String> c1,
+                      List<@Nullable String> c2,
+                      List<@Nullable String> c3,
+                      List<@Nullable String> c4,
+                      List<@Nullable String> c5,
+                      List<@Nullable String> c6,
+                      List<@Nullable String> c7,
+                      List<@Nullable String> c8,
+                      List<@Nullable String> c9,
+                      List<@Nullable String> c10,
+                      List<@Nullable String> c11,
+                      List<@Nullable String> c12,
+                      List<@Nullable String> c13,
+                      List<@Nullable String> c14,
+                      List<@Nullable String> c15,
+                      double d) {}
+
+                  public record WideDto(
+                      List<? extends Number> w,
+                      List<@Nullable String> c0,
+                      List<@Nullable String> c1,
+                      List<@Nullable String> c2,
+                      List<@Nullable String> c3,
+                      List<@Nullable String> c4,
+                      List<@Nullable String> c5,
+                      List<@Nullable String> c6,
+                      List<@Nullable String> c7,
+                      List<@Nullable String> c8,
+                      List<@Nullable String> c9,
+                      List<@Nullable String> c10,
+                      List<@Nullable String> c11,
+                      List<@Nullable String> c12,
+                      List<@Nullable String> c13,
+                      List<@Nullable String> c14,
+                      List<@Nullable String> c15,
+                      double d) {}
+
+                  @GenerateMapping
+                  public interface WideMapping extends MappingSpec<Wide, WideDto> {}
                 }
                 """));
 

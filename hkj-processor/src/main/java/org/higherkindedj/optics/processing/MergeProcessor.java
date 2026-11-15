@@ -991,6 +991,51 @@ public class MergeProcessor extends AbstractProcessor {
     return null;
   }
 
+  /**
+   * A fill's read, its copy typed as the target's canonical constructor takes the component where
+   * that declares a type argument more nullable than the source's ({@link NullableArgumentCast}):
+   * handed straight to the target by a plain merge, and bound ahead of the ladder by a fallible
+   * one, whose terminal then declares its parameter with that type.
+   */
+  private CodeBlock widenedCopy(
+      ExecutableElement mergeMethod,
+      TypeElement target,
+      Fill fill,
+      Set<String> taken,
+      String targetPackage) {
+    return NullableArgumentCast.on(
+        fill.copy(),
+        sourceType(mergeMethod, fill),
+        GuardedConstruction.takenAs(processingEnv.getTypeUtils(), target, fill.component()),
+        targetPackage,
+        fill.read(taken));
+  }
+
+  /**
+   * The type a fallible merge's terminal would declare a fill's target component with, and whether
+   * the fill's value holds it truthfully, by the rule a mapping's legs follow.
+   */
+  private GuardedConstruction.LegType legType(
+      ExecutableElement mergeMethod, TypeElement target, Fill fill) {
+    TypeMirror type =
+        GuardedConstruction.takenAs(processingEnv.getTypeUtils(), target, fill.component());
+    return fill.fallible()
+        ? GuardedConstruction.LegType.converted(type)
+        : GuardedConstruction.LegType.copied(
+            type, fill.copy(), sourceType(mergeMethod, fill), type);
+  }
+
+  /** The type the merge's source declares the component a fill reads with. */
+  private TypeMirror sourceType(ExecutableElement mergeMethod, Fill fill) {
+    TypeElement source =
+        mergeMethod.getParameters().stream()
+            .filter(parameter -> parameter.getSimpleName().contentEquals(fill.sourceParam()))
+            .map(parameter -> asRecord(parameter.asType()))
+            .findFirst()
+            .orElseThrow();
+    return componentNamed(source, fill.component()).asType();
+  }
+
   private void writeImpl(
       TypeElement spec, ExecutableElement mergeMethod, ReturnShape shape, List<Fill> fills) {
     ClassName specName = ClassName.get(spec);
@@ -1048,7 +1093,10 @@ public class MergeProcessor extends AbstractProcessor {
         CodeBlock read =
             fill.copy() == null
                 ? fill.read(sourceNames)
-                : locals.bind(fill.component(), fill.read(sourceNames));
+                : locals.bind(
+                    fill.component(),
+                    widenedCopy(
+                        mergeMethod, shape.target(), fill, sourceNames, specName.packageName()));
         // Every reference read is null-guarded (the null doctrine): a null source
         // component is a located FieldError, never an exception. Primitive identity reads can
         // never be null and copy directly.
@@ -1078,6 +1126,10 @@ public class MergeProcessor extends AbstractProcessor {
       for (VariableElement source : mergeMethod.getParameters()) {
         reserved.add(source.getSimpleName().toString());
       }
+      List<TypeName> types =
+          GuardedConstruction.parameterTypes(
+              fills.stream().map(fill -> legType(mergeMethod, shape.target(), fill)).toList(),
+              specName.packageName());
       if (legs.size() <= ArityCeilings.ASSEMBLY) {
         method.addCode(
             GuardedConstruction.returning(
@@ -1085,6 +1137,7 @@ public class MergeProcessor extends AbstractProcessor {
                     legs,
                     GuardedConstruction.parameterNames(
                         fills.stream().map(Fill::component).toList(), reserved),
+                    types,
                     shape.target(),
                     targetName),
                 targetName));
@@ -1097,6 +1150,7 @@ public class MergeProcessor extends AbstractProcessor {
                 NEL,
                 reserved,
                 targetName,
+                types,
                 values ->
                     GuardedConstruction.thunk(
                         targetName,
@@ -1110,7 +1164,8 @@ public class MergeProcessor extends AbstractProcessor {
           args.add(", ");
         }
         first = false;
-        args.add(fill.read(sourceNames));
+        args.add(
+            widenedCopy(mergeMethod, shape.target(), fill, sourceNames, specName.packageName()));
       }
       method.addStatement("return new $T($L)", targetName, args.build());
     }

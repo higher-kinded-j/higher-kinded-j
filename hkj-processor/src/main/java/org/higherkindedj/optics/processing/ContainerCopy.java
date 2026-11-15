@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
@@ -89,6 +90,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * could make two of them equal, which is any element holding a {@code Collection}, however deeply:
  * that copies into a list, which compares by its elements where an {@code ArrayDeque} compares by
  * identity. A raw container copies, but its elements, which name no type, are not copied inside.
+ *
+ * <p>The levels a copy rebuilds are also where its type may differ from the read's ({@link
+ * #retyping}): a rebuilt level belongs to the side it is handed to alone, so a copy of a {@code
+ * List<String>} may be typed as the {@code List<@Nullable String>} a site declares, and a level
+ * handed over as it is may not.
  *
  * <p>The walk always ends: each level's element is a proper part of the type the level was given.
  */
@@ -195,6 +201,110 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    */
   Stream<TypeMirror> inferred() {
     return inner == null ? Stream.empty() : Stream.concat(Stream.of(element), inner.inferred());
+  }
+
+  /**
+   * How a copy of one type can be typed as another of the same shape, which declares some position
+   * inside it nullable that the copy's does not, or the other way round.
+   */
+  enum Retyping {
+    /**
+     * No position widens: the copy is the other type as it stands, or narrower where it differs.
+     */
+    AS_IS,
+    /** Some position widens and none narrows, so the copy is cast to the wider type. */
+    CAST,
+    /**
+     * Neither: a position that differs is one the copy shares, or one widens beside one that
+     * narrows.
+     */
+    NONE
+  }
+
+  /**
+   * How a copy of {@code from} can be typed as {@code to}. Every position at which the two types
+   * declare a different nullness must be one {@code copy} makes fresh: an element, key or value of
+   * a level the copy rebuilds, or a wildcard's bound there. A fresh level belongs to the side it is
+   * handed to alone, so a wider type lets nothing the other side holds take a {@code null}, and a
+   * narrower one is checked before it is read. Below a level handed over as it is, or inside a
+   * map's key, which no copy rebuilds, the two sides share the container, and either side could put
+   * a {@code null} into what the other declares holds none. Neither is an array's component below
+   * the top, whose nullness the null scan's element lambda does not keep. Two types of different
+   * kinds, as a bridged wildcard and the wire's container are, pair nowhere, and positions are
+   * paired by index.
+   *
+   * @param copy the copy of {@code from}, or null where it has none
+   * @param from the type copied
+   * @param to the type the copy is to be typed as
+   * @return how the copy can be typed as {@code to}
+   */
+  static Retyping retyping(ContainerCopy copy, TypeMirror from, TypeMirror to) {
+    List<Position> positions = positions(true, true, copy, from, to).toList();
+    if (!positions.stream().allMatch(Position::sound)) {
+      return Retyping.NONE;
+    }
+    if (positions.stream().noneMatch(Position::widened)) {
+      return Retyping.AS_IS;
+    }
+    return positions.stream().anyMatch(Position::narrowed) ? Retyping.NONE : Retyping.CAST;
+  }
+
+  /**
+   * One position inside a type, read on both sides: whether each declares it nullable, and whether
+   * the level holding it is fresh.
+   */
+  private record Position(boolean from, boolean to, boolean fresh) {
+
+    /** Shapes that do not pair: a position nothing makes fresh, declared nullable on one side. */
+    static final Position UNPAIRED = new Position(false, true, false);
+
+    boolean widened() {
+      return to && !from;
+    }
+
+    boolean narrowed() {
+      return from && !to;
+    }
+
+    boolean sound() {
+      return fresh || from == to;
+    }
+  }
+
+  /**
+   * The positions inside {@code from} and {@code to}, paired: {@code fresh} says whether the level
+   * holding the two types is rebuilt, {@code top} whether the two are the copy's own types, and
+   * {@code copy} is their own copy, or null. A wildcard's bound stands where the wildcard does; any
+   * other type's arguments are fresh where the type is a level the copy rebuilds, an array below
+   * the top aside, and only the level's element is copied further inside.
+   */
+  private static Stream<Position> positions(
+      boolean fresh, boolean top, ContainerCopy copy, TypeMirror from, TypeMirror to) {
+    if (from.getKind() != to.getKind()) {
+      return Stream.of(Position.UNPAIRED);
+    }
+    List<? extends TypeMirror> froms = NullableAnnotations.inside(from).toList();
+    List<? extends TypeMirror> tos = NullableAnnotations.inside(to).toList();
+    boolean wildcard = from.getKind() == TypeKind.WILDCARD;
+    boolean held = wildcard ? fresh : copy != null && (top || from.getKind() != TypeKind.ARRAY);
+    return IntStream.range(0, Math.min(froms.size(), tos.size()))
+        .boxed()
+        .flatMap(
+            i ->
+                Stream.concat(
+                    Stream.of(
+                        new Position(
+                            NullableAnnotations.nullableHere(froms.get(i)),
+                            NullableAnnotations.nullableHere(tos.get(i)),
+                            held)),
+                    positions(
+                        held,
+                        false,
+                        wildcard
+                            ? copy
+                            : copy != null && i == copy.shape.argument ? copy.inner : null,
+                        froms.get(i),
+                        tos.get(i))));
   }
 
   /**
