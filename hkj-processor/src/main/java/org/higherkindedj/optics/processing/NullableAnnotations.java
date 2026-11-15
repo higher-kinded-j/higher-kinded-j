@@ -143,7 +143,9 @@ public final class NullableAnnotations {
    * Whether a type is declared as one that may hold {@code null}: an annotation on it reads as
    * nullable, by the rule {@link #declaredNonNull} applies first. It reads a type that a
    * declaration names inside its own, such as a list's element type, where only a {@code TYPE_USE}
-   * annotation can land.
+   * annotation can land. It reads any annotation that reads as nullable, as a check that withholds
+   * or refuses gives the benefit of the doubt, where {@link #isNullable} decides what code to
+   * generate and so names only the libraries it is sure of.
    *
    * @param type the type, such as a container's element type
    * @return whether it is declared as one that may hold {@code null}
@@ -206,7 +208,7 @@ public final class NullableAnnotations {
   }
 
   /**
-   * The rule both write sites share, in order:
+   * The rule every reading of a declared non-null shares, in order:
    *
    * <ol>
    *   <li>An annotation that reads as nullable makes the site nullable: one named {@code Nullable}

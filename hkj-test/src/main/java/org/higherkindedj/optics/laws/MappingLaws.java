@@ -139,10 +139,10 @@ public final class MappingLaws {
    * constructor accepts: a null-carrying wire parses to a located {@code Invalid} while {@code
    * reverseGet} copies the null as it is, and a value the constructor refuses parses to an {@code
    * Invalid} while {@code reverseGet} throws, so coherence deliberately extends to neither. Feed
-   * such wires to {@code parse} directly and assert the accumulation instead. A wire whose
-   * declaration says a component, or an element inside it, may be null where the domain's says it
-   * may not offers no {@code asIso()} to check, so the scope excludes only nulls that a wire's own
-   * type rules out.
+   * such wires to {@code parse} directly and assert the accumulation instead. A mapping whose wire
+   * declares that a component, or an element inside it, may be null where the domain declares it
+   * may not offers no {@code asIso()} to check; any other null-carrying wire stays outside the
+   * scope, whatever its type declares.
    */
   public static <D, W> void assertParseAgreesWithIso(
       Iso<D, W> iso, ValidatedPrism<W, D> mapping, W wireSample) {

@@ -451,7 +451,7 @@ Depending on what the mapping can honour:
 | Mapping is | You also get |
 |------------|--------------|
 | Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element) the domain declares non-null |
-| A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, or on a bean wire any reference property (it can be unset): validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
+| A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, on a bean wire any reference property (it can be unset), or on a record wire a `@Nullable` component (or element) the domain declares non-null: validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
 | Full (it builds and parses, and no property is `@ReadOnly`, its own or a nested spec's) | `asValidatedPrism()` |
 | A bean wire with getters and nothing that writes it | `parse` + `asValidatedParse()`, **no** `build` |
 | A bean wire that is written and declares no getter | `build` + `asValidatedBuild()`, **no** `parse` |
@@ -484,7 +484,8 @@ matter: it maps build-only whatever its width, derived fields included.
   and a null map *key* (a structurally broken map, not a wrong value). A null container *component* is guarded like any reference read
   (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
   list/map is the caller's error. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
-  parse-iso coherence scoped to non-null wires the domain accepts); a bean's guarded reads still cost the Iso tier,
+  parse-iso coherence scoped to non-null wires the domain accepts), unless its wire declares
+  `@Nullable` what the domain declares non-null; a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
   merge stays total by its declaration).
@@ -554,11 +555,12 @@ matter: it maps build-only whatever its width, derived fields included.
   nullness.
 - **A `@Nullable` record wire component costs the optics where the domain says non-null.** Where
   a record wire declares a component `@Nullable`, or an element type that `parse`'s null scan
-  reaches (`List<@Nullable String>`, a map's values, an array's elements), and the domain declares
-  its own non-null, `parse` refuses the `null` and no total optic can hand it over. So a full
-  mapping has no `asIso()`, and a projection maps as `patch`, not `asLens()`. A side that says
-  nothing keeps the optic; map keys do not count. Call `asValidatedPrism()` or `patch`, or give the
-  pair one nullness.
+  reaches (`List<@Nullable String>`, a map's values, an array's elements, a wildcard's bound), and
+  the domain declares its own non-null, `parse` refuses the `null` and no total optic can hand it
+  over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not `asLens()`. A type
+  argument the spec supplies counts (`Page<@Nullable String>` for `Page<T extends @Nullable
+  Object>`). A side that says nothing keeps the optic; map keys do not count. Call
+  `asValidatedPrism()` or `patch`, or give the pair one nullness.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args
@@ -957,7 +959,7 @@ before rearranging the spec.
 | Annotating the *record* with `@GenerateMapping` | It goes on the **spec interface**. That is what lets you map records you do not own |
 | Adding to a list after `build` (`bean.getTags().add(...)`) | A same-typed list crosses as an unmodifiable copy, so the add throws `UnsupportedOperationException`: set a new list, or copy it first (`new ArrayList<>(bean.getTags())`) |
 | Declaring the instance on the spec, MapStruct-style (`CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;` inside `CustomerMapping`, or inside a mix-in it extends) | Compiles, with a warning at the constant (`holds the generated CustomerMappingImpl in a constant`; do not suppress it to keep the constant), but reads `null` (a `NullPointerException` at the first `MAPPER.parse(...)`) whenever the Impl is used before the constant is first read and the interface holding it declares a leaf, a derived field or any `private` instance helper: the JVM initialises that interface inside the Impl's own initialisation, before `INSTANCE` is assigned. Concurrent first use can deadlock instead. A constant typed as a surface (`ValidatedPrism<CustomerDto, Customer> PRISM = CustomerMappingImpl.INSTANCE.asValidatedPrism();`) draws no warning and fails harder: `ExceptionInInitializerError`, then `NoClassDefFoundError` for every later use. Bind it in the caller: a local, a `private static final CustomerMappingImpl` field there, or an injected surface |
-| Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying, or a bean with a reference property), not `parse` |
+| Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying, a bean with a reference property, or a record wire declaring `@Nullable` what the domain declares non-null), not `parse` |
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |
 | One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |
 | Expecting `build` from a getter-only bean | Nothing can write it, so it maps parse-only, and a note says why. Give it a no-args constructor with setters, or a builder, and it maps both ways |
@@ -983,6 +985,7 @@ before rearranging the spec.
 | A `private` record or component type nested beside the spec, an `@GenerateAssembly` record or an `@GenerateErrorEnvelope` hierarchy | The generated Impl or companion is a top-level class in that package, so the processor refuses it (`cannot be reached from`): leave the nested type package-private, and make a type from another package `public` |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |
 | `@GenerateAssembly` on a **generic** record | Not supported. Use the hand-written `fields()` ladder |
+| Expecting `asIso()` or `asLens()` where a record wire declares `@Nullable` what a `@NullMarked` domain declares non-null | `parse` refuses that `null`, so no total optic is emitted: call `asValidatedPrism()` or `patch`, or give the pair one nullness |
 | Expecting `asIso()` alongside a derived field | A derived field is recomputed on the round trip, so the mapping is not an identity |
 | Adding `-parameters` manually | The plugin already does it |
 | Assuming `@GenerateErrorEnvelope` changes HTTP status codes | It does not. Status is mapped by error **class name** |

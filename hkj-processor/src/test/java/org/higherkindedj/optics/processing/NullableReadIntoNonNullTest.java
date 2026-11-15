@@ -9,6 +9,7 @@ import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invok
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
@@ -29,13 +30,17 @@ import org.junit.jupiter.params.provider.MethodSource;
  * read does. The same holds where the {@code null} sits inside the value, at any level the copy
  * reaches: a list's element, a map's value, an array's element, or one inside an {@code Optional}.
  *
- * <p>A pair whose sides agree, or where either side says nothing about {@code null}, keeps the
- * optic it has always had, as does a domain whose canonical constructor takes the {@code null}.
+ * <p>A type is read as the record declares it and as the spec instantiates it, so a type argument
+ * the spec supplies counts, and a wildcard is read through its bound. A pair whose sides agree, or
+ * where either side says nothing about {@code null}, keeps the optic it has always had, as does a
+ * domain whose canonical constructor takes the {@code null}, a map's keys, which {@code parse} does
+ * not scan, and an {@code Optional}, which cannot hold a {@code null} itself.
  *
- * <p>Every spec shares one javac run, under {@code -Xlint:all -Werror}, and is then run.
+ * <p>Every spec shares one javac run, under every lint but the processing one, as errors, and is
+ * then run.
  */
 @DisplayName("A nullable record wire component read into a non-null domain component")
-class NullableWireReadTest {
+class NullableReadIntoNonNullTest {
 
   private static final String PKG = "com.marked";
 
@@ -56,6 +61,7 @@ class NullableWireReadTest {
           package com.marked;
 
           import java.util.ArrayList;
+          import java.util.HashMap;
           import java.util.List;
           import java.util.Map;
           import java.util.Optional;
@@ -67,6 +73,16 @@ class NullableWireReadTest {
 
           public final class Wires {
             private Wires() {}
+
+            // A map whose class names its value type first.
+            public static final class Inverted<V, K> extends HashMap<K, V> {
+              private static final long serialVersionUID = 1L;
+            }
+
+            // A list whose class fixes its element type, so it passes none through.
+            public static final class Names extends ArrayList<String> {
+              private static final long serialVersionUID = 1L;
+            }
 
             // The issue's two shapes: a full mapping and a projection.
             public record Customer(String name, List<String> tags) {}
@@ -146,6 +162,41 @@ class NullableWireReadTest {
             @GenerateMapping
             public interface HoledTagsMapping extends MappingSpec<Tagged, HoledTags> {}
 
+            public record Wild(List<? extends String> codes) {}
+
+            public record HoledWild(List<? extends @Nullable String> codes) {}
+
+            @GenerateMapping
+            public interface HoledWildMapping extends MappingSpec<Wild, HoledWild> {}
+
+            public record Lookup(Inverted<String, String> byKey) {}
+
+            public record HoledLookup(Inverted<@Nullable String, String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledLookupMapping extends MappingSpec<Lookup, HoledLookup> {}
+
+            // Nullness a generic record leaves to its type argument, which the spec supplies.
+            public record Form<T extends @Nullable Object>(T title) {}
+
+            @GenerateMapping
+            public interface FormMapping extends MappingSpec<Title, Form<@Nullable String>> {}
+
+            public record ListForm<T extends @Nullable Object>(List<T> codes) {}
+
+            @GenerateMapping
+            public interface ListFormMapping extends MappingSpec<Codes, ListForm<@Nullable String>> {}
+
+            public record Holder<T extends @Nullable Object>(T title) {}
+
+            @GenerateMapping
+            public interface HolderMapping extends MappingSpec<Holder<String>, DraftDto> {}
+
+            public record Bag<T extends @Nullable Object>(List<T> codes) {}
+
+            @GenerateMapping
+            public interface BagMapping extends MappingSpec<Bag<String>, HoledList> {}
+
             // Pairs that keep their optic.
             public record Draft(@Nullable String title) {}
 
@@ -188,6 +239,64 @@ class NullableWireReadTest {
             @GenerateMapping
             public interface HolesMapping extends MappingSpec<Holes, HoledList> {}
 
+            public record Keyed(Map<String, String> byKey) {}
+
+            public record HoledKeys(Map<@Nullable String, String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledKeysMapping extends MappingSpec<Keyed, HoledKeys> {}
+
+            public record HoledKeyLookup(Inverted<String, @Nullable String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledKeyLookupMapping extends MappingSpec<Lookup, HoledKeyLookup> {}
+
+            public record HoledOptional(Optional<@Nullable List<String>> maybe) {}
+
+            @GenerateMapping
+            public interface HoledOptionalMapping extends MappingSpec<Maybe, HoledOptional> {}
+
+            @SuppressWarnings("rawtypes")
+            public record Raw(List codes) {}
+
+            @SuppressWarnings("rawtypes")
+            public record RawDto(List codes) {}
+
+            @GenerateMapping
+            public interface RawMapping extends MappingSpec<Raw, RawDto> {}
+
+            public record Roster(Names names) {}
+
+            public record RosterDto(Names names) {}
+
+            @GenerateMapping
+            public interface RosterMapping extends MappingSpec<Roster, RosterDto> {}
+
+            public record HoledCodes(List<@Nullable String> codes) {}
+
+            @GenerateMapping
+            public interface NullableBagMapping extends MappingSpec<Bag<@Nullable String>, HoledCodes> {}
+
+            public record LooseCodesDto(List<@Nullable String> codes) {}
+
+            // The spec says nothing of the type argument it supplies.
+            @NullUnmarked
+            @GenerateMapping
+            public interface LooseBagMapping extends MappingSpec<Bag<String>, LooseCodesDto> {}
+
+            public record NoteDto(@Nullable String title) {}
+
+            @GenerateMapping
+            public interface NullableHolderMapping
+                extends MappingSpec<Holder<@Nullable String>, NoteDto> {}
+
+            public record Opt<T>(@Nullable T title) {}
+
+            public record OptDto(@Nullable String title) {}
+
+            @GenerateMapping
+            public interface OptMapping extends MappingSpec<Opt<String>, OptDto> {}
+
             public record Note(String id, @Nullable String title) {}
 
             @GenerateMapping
@@ -219,7 +328,13 @@ class NullableWireReadTest {
         "HoledArrayMapping",
         "HoledGridMapping",
         "HoledKeptMapping",
-        "HoledMaybeMapping");
+        "HoledMaybeMapping",
+        "HoledWildMapping",
+        "HoledLookupMapping",
+        "FormMapping",
+        "ListFormMapping",
+        "HolderMapping",
+        "BagMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -245,7 +360,16 @@ class NullableWireReadTest {
         "LooseDtoMapping",
         "DefaultedMapping",
         "LooseCodesMapping",
-        "HolesMapping");
+        "HolesMapping",
+        "HoledKeysMapping",
+        "HoledKeyLookupMapping",
+        "HoledOptionalMapping",
+        "RawMapping",
+        "RosterMapping",
+        "NullableBagMapping",
+        "LooseBagMapping",
+        "NullableHolderMapping",
+        "OptMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -292,6 +416,27 @@ class NullableWireReadTest {
     assertThatValidated(validated(invoke(accounts, "patch", account, renamed)))
         .isValid()
         .hasValue(compiled.newInstance(PKG + ".Wires$Account", "a1", "Bo"));
+  }
+
+  @Test
+  @DisplayName("the patch hands the domain a copy of the list it read, not the wire's own")
+  void thePatchCopiesWhatItReads() throws ReflectiveOperationException {
+    Object tags = compiled.instance(implOf("HoledTagsMapping"));
+    Object tagged =
+        compiled
+            .loadClass(PKG + ".Wires$Tagged")
+            .getDeclaredConstructor(String.class, List.class)
+            .newInstance("t1", List.of("a"));
+    List<String> read = new ArrayList<>(List.of("b", "c"));
+    Object wire =
+        compiled
+            .loadClass(PKG + ".Wires$HoledTags")
+            .getDeclaredConstructor(List.class)
+            .newInstance(read);
+    Object patched =
+        validated(invoke(tags, "patch", tagged, wire))
+            .orElseThrow(() -> new AssertionError("the patch did not validate"));
+    Assertions.assertThat(invoke(patched, "tags")).isEqualTo(read).isNotSameAs(read);
   }
 
   /** A nested spec's Impl joins the simple names it is nested in. */

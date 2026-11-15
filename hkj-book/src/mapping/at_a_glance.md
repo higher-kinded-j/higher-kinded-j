@@ -79,7 +79,7 @@ are in [Compiler Messages](compiler_errors.md).
 
 | Wire shape | `build` | `parse` | Projection write-back | `updateFrom` |
 |---|:--:|:--:|:--:|:--:|
-| Record | ✅ | ✅ | `asLens()`, or `patch` where a field validates | ❌ (records cannot express absence) |
+| Record | ✅ | ✅ | `asLens()`, or `patch` where a field validates or [may hand the domain a `null`](rules.md#where-a-nullable-record-component-lands) | ❌ (records cannot express absence) |
 | Getter/setter bean | ✅ | ✅ | `patch` (any reference property), `asLens()` if all primitive | ✅ |
 | Builder bean (`builder()`/`newBuilder()`) | ✅ | ✅ | as above | ✅ |
 | Getter-only bean (nothing writes it) | ❌ | ✅ | ❌ | ❌ |
@@ -92,7 +92,8 @@ are in [Compiler Messages](compiler_errors.md).
 
 A lossless pair also earns `asIso()`; a bean pair with a reference property does not, because an
 unset property is an ordinary state. Nor does a record pair whose wire declares `@Nullable` a
-component the domain declares non-null. [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.
+component the domain declares non-null, and such a projection takes `patch`:
+[Where a `@Nullable` record component lands](rules.md#where-a-nullable-record-component-lands). [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.
 
 ---
 

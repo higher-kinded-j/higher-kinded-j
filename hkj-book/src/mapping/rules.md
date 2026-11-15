@@ -55,7 +55,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a spec-carrying module sit on the module path?](#how-a-dependencys-specs-are-found) | Not with the index: keep those jars on the classpath, or delegate with a leaf. | not supported yet |
 | **Emission tiers** | | |
 | [Why does a bean mapping, or an `@OptionalBridge` component, lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset, and a bridged value can be absent. An all-primitive bean keeps it. | by design |
-| [Why does a `@Nullable` record component cost `asIso()` or `asLens()`?](#where-a-nullable-record-component-lands) | The domain declares it non-null, so `parse` refuses its `null`, and an optic cannot. | by design |
+| [Why does a record wire's `@Nullable` component cost `asIso()` or `asLens()`?](#where-a-nullable-record-component-lands) | Where the domain declares it non-null, an optic would hand over a `null` its type rules out; `parse` refuses it. | by design |
 | [Why does a validating projection get no `asLens()`?](tiers.md#leaf-carrying-projections-the-validated-patch) | A lens cannot fail, so it takes the validated `patch`. | by design |
 | [How wide can a record be?](testing.md#diagnostics-and-limits) | No ceiling but the JVM's: about 254 components. | by design |
 | **Bean wires** | | |
@@ -451,13 +451,15 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 
 ### Where a `@Nullable` record component lands {#where-a-nullable-record-component-lands}
 
-**A record wire's guarded read is still a plain copy**, since a record holds a `null` only when a binder leaves one there. The exception is a component the wire declares `@Nullable`, copied into a domain component declared non-null, as `ApplicantForm(@Nullable String name)` is into `Applicant(String name)` in a `@NullMarked` package. Its type says the `null` is a value it holds, and `parse` refuses it with a located error, so no optic that cannot fail can hand it over.
+**On a record wire, a guarded read is a plain copy**, since a record holds a `null` only when a binder leaves one there. The exception is a component the wire declares `@Nullable`, copied into a domain component declared non-null, as `ApplicantForm(@Nullable String name)` is into `Applicant(String name)` in a `@NullMarked` package. Its type says the `null` is a value it holds and the domain's says it is not, so no optic that cannot fail can hand it over.
 
-Such a mapping withholds `asIso()`, so a call to it fails with [`cannot find symbol`](compiler_errors.md#no-such-surface), and such a projection takes `patch` in place of `asLens()`, as a bean does. `parse` and `build` are unchanged, and `asValidatedPrism()` and `patch` report the `null` as a located error.
+Such a mapping withholds `asIso()`, so a call to it fails with [`cannot find symbol`](compiler_errors.md#no-such-surface), and such a projection takes `patch` in place of `asLens()`, as a bean does. `parse` and `build` are unchanged, and `parse`, `asValidatedPrism()` and `patch` report the `null` as a located error.
 
-- **Inside the value counts too.** An element type declared nullable, as in `List<@Nullable String>`, against the domain's non-null one, costs the optic at any level [the null scan](#the-null-contract-precisely) reaches. That is an element of a `Collection` or an array, a `Map`'s value, or one inside an `Optional`. A map's keys are not scanned, so they do not count.
-- **Each side is read as [the check on `build`](#nullable-copy-into-non-null) reads it.** The wire's component counts as nullable by the same wide reading. The domain's counts as non-null by an annotation, or by a `@NullMarked` scope with no `@Nullable`.
-- **A side that says nothing either way keeps the optic**, as does a domain whose canonical constructor declares the parameter `@Nullable`.
+- **Inside the value counts too.** An element type declared nullable, as in `List<@Nullable String>`, against the domain's non-null one, costs the optic at any level [the null scan](#the-null-contract-precisely) reaches. That is an element of a `Collection` or an array, a `Map`'s value, or an element of a container inside an `Optional`.
+- **A wildcard is read through its bound**, so `List<? extends @Nullable String>` counts as nullable. A map's keys are not scanned, so they do not count.
+- **Each side is read by the rules of [the check on `build`](#nullable-copy-into-non-null), with the roles swapped.** The wire's component counts as nullable by the wide reading that check gives the domain's. The domain's counts as non-null by an annotation, or by a `@NullMarked` scope with no `@Nullable`, read at its canonical constructor's parameter.
+- **A type argument the spec supplies counts too.** Where a generic record leaves a component's nullness to its type variable, as `record Page<T extends @Nullable Object>(T item)` does, the spec's argument decides. `Page<@Nullable String>` may hold a `null`, and an unannotated argument is read by the spec's own `@NullMarked` scope.
+- **A side that says nothing either way keeps the optic**, as does a domain whose canonical constructor declares the parameter itself `@Nullable`. The parameter's element types are not read.
 - **To keep the optic**, give the pair one nullness. Or call `asValidatedPrism()` or `patch` in its place.
 
 ---

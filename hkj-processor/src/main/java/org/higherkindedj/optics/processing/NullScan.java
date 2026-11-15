@@ -199,8 +199,17 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    */
   private static boolean passesThrough(
       TypeElement declaration, Shape shape, Types types, Elements elements) {
-    return argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape)
-        instanceof TypeVariable;
+    return elementArgument(declaration, shape, types, elements) instanceof TypeVariable;
+  }
+
+  /**
+   * The element a container class names for {@code shape}, in terms of its own type parameters:
+   * {@code E} for {@code ArrayList<E>}, {@code String} for a class that fixes it, and null for one
+   * that extends the container raw.
+   */
+  private static TypeMirror elementArgument(
+      TypeElement declaration, Shape shape, Types types, Elements elements) {
+    return argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape);
   }
 
   /** The type as the given container, under the arguments it is reached by, or null. */
@@ -215,9 +224,10 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    * views, which keep no type annotation, so a {@code TYPE_USE} annotation on an element type, as
    * in {@code List<@Nullable String>}, is read here instead. That is an array's component type, or
    * the type argument that the container class passes through as its element, as {@code
-   * ArrayList<E>} passes {@code E}. Where the class fixes its element, names none, or the type is
-   * written another way, such as a type variable or a wildcard, it is {@link #element}, which is
-   * null for a raw container.
+   * ArrayList<E>} passes {@code E}, read through its bound where it is a wildcard. Where the class
+   * fixes its element, names none, or the type is written another way, such as a type variable, it
+   * is {@link #element}, which is null for a raw container. So is a wildcard with no upper bound,
+   * whose elements its type does not describe.
    *
    * @param written the type this level scans, as a declaration writes it
    * @param types the round's type utilities
@@ -227,22 +237,22 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   TypeMirror writtenElement(TypeMirror written, Types types, Elements elements) {
     return switch (written.getKind()) {
       case ARRAY -> ((ArrayType) written).getComponentType();
-      case DECLARED -> passedThrough((DeclaredType) written, types, elements);
+      case DECLARED -> writtenArgument((DeclaredType) written, types, elements);
       default -> element;
     };
   }
 
-  /** The argument of {@code written} its class passes through as this level's element. */
-  private TypeMirror passedThrough(DeclaredType written, Types types, Elements elements) {
+  /** The argument of {@code written} that its class passes through as this level's element. */
+  private TypeMirror writtenArgument(DeclaredType written, Types types, Elements elements) {
     TypeElement declaration = (TypeElement) written.asElement();
-    TypeMirror passed =
-        argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape);
     int index =
-        passed instanceof TypeVariable variable
+        elementArgument(declaration, shape, types, elements) instanceof TypeVariable variable
             ? declaration.getTypeParameters().indexOf(variable.asElement())
             : -1;
     List<? extends TypeMirror> arguments = written.getTypeArguments();
-    return index < 0 || index >= arguments.size() ? element : arguments.get(index);
+    return index < 0 || index >= arguments.size()
+        ? element
+        : Objects.requireNonNullElse(ProcessorUtils.resolveWildcard(arguments.get(index)), element);
   }
 
   /**
