@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.trymonad;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -339,6 +340,24 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
           Either.left(
               Objects.requireNonNull(
                   failureToLeftMapper.apply(cause), "failureToLeftMapper must not return null"));
+    };
+  }
+
+  /**
+   * Converts this {@code Try} to an {@link Optional}, keeping a {@link Success}'s value and
+   * dropping a {@link Failure}'s exception.
+   *
+   * <p>A {@link Failure} gives {@link Optional#empty()}, so its exception is lost; {@link
+   * #fold(Function, Function)} keeps it. A {@link Success} never holds {@code null}, so its value
+   * is never lost.
+   *
+   * @return An {@code Optional} holding the {@link Success} value, or {@link Optional#empty()} if
+   *     this is a {@link Failure}. Never {@code null}.
+   */
+  default Optional<T> toOptional() {
+    return switch (this) {
+      case Success<T>(var value) -> Optional.of(value);
+      case Failure<T> _ -> Optional.empty();
     };
   }
 
