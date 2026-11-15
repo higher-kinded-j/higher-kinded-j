@@ -12,8 +12,10 @@ import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -24,8 +26,10 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.IntersectionType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -199,14 +203,108 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    */
   private static boolean passesThrough(
       TypeElement declaration, Shape shape, Types types, Elements elements) {
-    return argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape)
-        instanceof TypeVariable;
+    return elementArgument(declaration, shape, types, elements) instanceof TypeVariable;
+  }
+
+  /**
+   * The element a container class names for {@code shape}, in terms of its own type parameters:
+   * {@code E} for {@code ArrayList<E>}, {@code String} for a class that fixes it, and null for one
+   * that extends the container raw.
+   */
+  private static TypeMirror elementArgument(
+      TypeElement declaration, Shape shape, Types types, Elements elements) {
+    return argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape);
   }
 
   /** The type as the given container, under the arguments it is reached by, or null. */
   private static DeclaredType view(DeclaredType type, Shape shape, Types types, Elements elements) {
     return (DeclaredType)
         ProcessorUtils.supertypeOf(types, type, elements.getTypeElement(shape.container));
+  }
+
+  /**
+   * The type this level's elements are written as inside {@code written}, the type the level scans
+   * as a declaration writes it. The scan reads {@link #element} through capture and supertype
+   * views, which keep no type annotation, so a {@code TYPE_USE} annotation on an element type, as
+   * in {@code List<@Nullable String>}, is read here instead. That is an array's component type, or
+   * the element the container class names, with the type's own arguments put in for its type
+   * variables, as {@code ArrayList<E>} names {@code E} and {@code ArrayList<List<E>>} names {@code
+   * List<E>}, read through its bound where it is a wildcard. Where the class names no element, or
+   * the type is used raw or written another way, such as a type variable, it is {@link #element},
+   * which is null for a raw container. So is a wildcard with no upper bound, whose elements its
+   * type does not describe.
+   *
+   * @param written the type this level scans, as a declaration writes it
+   * @param types the round's type utilities
+   * @param elements the round's element utilities
+   * @return the type this level's elements are written as
+   */
+  TypeMirror writtenElement(TypeMirror written, Types types, Elements elements) {
+    return switch (written.getKind()) {
+      case ARRAY -> ((ArrayType) written).getComponentType();
+      case DECLARED -> writtenArgument((DeclaredType) written, types, elements);
+      default -> element;
+    };
+  }
+
+  /**
+   * The element {@code written}'s class names for this level, with {@code written}'s own arguments
+   * put in for the class's type variables.
+   */
+  private TypeMirror writtenArgument(DeclaredType written, Types types, Elements elements) {
+    TypeElement declaration = (TypeElement) written.asElement();
+    TypeMirror named = elementArgument(declaration, shape, types, elements);
+    List<? extends TypeMirror> arguments = written.getTypeArguments();
+    // A class that extends its container raw names no element, and a raw use binds no variable.
+    if (named == null || arguments.size() != declaration.getTypeParameters().size()) {
+      return element;
+    }
+    Map<Element, TypeMirror> bound = new HashMap<>();
+    for (int i = 0; i < arguments.size(); i++) {
+      bound.put(declaration.getTypeParameters().get(i), arguments.get(i));
+    }
+    return Objects.requireNonNullElse(
+        ProcessorUtils.resolveWildcard(substituted(named, bound, types)), element);
+  }
+
+  /**
+   * {@code type} with the arguments {@code bound} gives put in for its type variables, at every
+   * depth. javac's own substitution keeps no type annotation, so the type is rebuilt here, which
+   * keeps the arguments' own: {@code List<E>} under {@code E = @Nullable String} becomes {@code
+   * List<@Nullable String>}. A type with no arguments, and a member type of another, which names
+   * its enclosing type too, are kept as they are written.
+   */
+  private static TypeMirror substituted(
+      TypeMirror type, Map<Element, TypeMirror> bound, Types types) {
+    return switch (type.getKind()) {
+      case TYPEVAR -> bound.getOrDefault(((TypeVariable) type).asElement(), type);
+      case DECLARED -> {
+        DeclaredType declared = (DeclaredType) type;
+        yield declared.getTypeArguments().isEmpty()
+                || declared.getEnclosingType().getKind() != TypeKind.NONE
+            ? declared
+            : types.getDeclaredType(
+                (TypeElement) declared.asElement(),
+                declared.getTypeArguments().stream()
+                    .map(argument -> substituted(argument, bound, types))
+                    .toArray(TypeMirror[]::new));
+      }
+      case ARRAY ->
+          types.getArrayType(substituted(((ArrayType) type).getComponentType(), bound, types));
+      case WILDCARD -> {
+        WildcardType wildcard = (WildcardType) type;
+        yield types.getWildcardType(
+            substitutedBound(wildcard.getExtendsBound(), bound, types),
+            substitutedBound(wildcard.getSuperBound(), bound, types));
+      }
+      default -> type;
+    };
+  }
+
+  /** A wildcard's bound with {@code bound}'s arguments put in, or null where it has none. */
+  private static TypeMirror substitutedBound(
+      TypeMirror wildcardBound, Map<Element, TypeMirror> bound, Types types) {
+    return wildcardBound == null ? null : substituted(wildcardBound, bound, types);
   }
 
   /**

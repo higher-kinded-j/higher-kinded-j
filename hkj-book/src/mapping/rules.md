@@ -55,6 +55,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a spec-carrying module sit on the module path?](#how-a-dependencys-specs-are-found) | Not with the index: keep those jars on the classpath, or delegate with a leaf. | not supported yet |
 | **Emission tiers** | | |
 | [Why does a bean mapping, or an `@OptionalBridge` component, lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset, and a bridged value can be absent. An all-primitive bean keeps it. | by design |
+| [Why does a record wire's `@Nullable` component cost `asIso()` or `asLens()`?](#where-a-nullable-record-component-lands) | Where the domain declares it non-null, an optic would hand over a `null` the domain's type rules out; `parse` refuses it. | by design |
 | [Why does a validating projection get no `asLens()`?](tiers.md#leaf-carrying-projections-the-validated-patch) | A lens cannot fail, so it takes the validated `patch`. | by design |
 | [How wide can a record be?](testing.md#diagnostics-and-limits) | No ceiling but the JVM's: about 254 components. | by design |
 | **Bean wires** | | |
@@ -447,6 +448,21 @@ None of these index caveats apply to a vocabulary itself: it is found by ordinar
 ### Where a bean or a bridged component lands {#where-a-bean-or-bridged-component-lands}
 
 The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every component simply copies. On a bean wire an unset reference property is an ordinary state, so its guarded reads are not a plain copy. A lossless-*looking* bean mapping therefore withholds `asIso()`, as [Bean-Shaped Wires](beans.md#bean-shaped-wire-targets) shows. The same reads decide a bean projection: any reference property makes it land on `patch`, while an all-primitive bean projection, whose reads can never be null, takes `asLens()`. A projection that also declares a [derived field](basics.md#derived-wire-fields) is rejected outright. An [`@OptionalBridge`](absence.md#optional-bridge) component is not a plain copy on either row, on either wire shape: absence is a real correspondence, so a mapping carrying one withholds `asIso()` and a projection carrying one takes `patch`.
+
+### Where a `@Nullable` record component lands {#where-a-nullable-record-component-lands}
+
+**On a record wire, a guarded read is a plain copy**, since a record holds a `null` only when a binder leaves one there. The exception is a component the wire declares `@Nullable`, copied into a domain component declared non-null, as `ApplicantForm(@Nullable String name)` is into `Applicant(String name)` in a `@NullMarked` package. Its type says the `null` is a value it holds and the domain's says it is not, so no optic that cannot fail can hand it over.
+
+Such a mapping withholds `asIso()`, so a call to it fails with [`cannot find symbol`](compiler_errors.md#no-such-surface), and such a projection takes `patch` in place of `asLens()`, as a bean does. The mapping keeps `parse` and `build`, and `parse`, `asValidatedPrism()` and `patch` report the `null` as a located error.
+
+- **Inside the value counts too.** An element type declared nullable, as in `List<@Nullable String>`, against the domain's non-null one, costs the optic at any level [the null scan](#the-null-contract-precisely) reaches. That is an element of a `Collection` or an array, a `Map`'s value, or an element of a container inside an `Optional`.
+- **A wildcard is read through its `extends` bound**, so `List<? extends @Nullable String>` counts as nullable.
+- **Three places do not count:** a `? super` wildcard, a map's keys, which are not scanned, and an `Optional`'s own element, as in `Optional<@Nullable String>`, since an `Optional` cannot hold a `null`.
+- **Each side is read by the rules of [the check on `build`](#nullable-copy-into-non-null), with the roles swapped.** The wire's component counts as nullable by the wide reading that check gives the domain's. The domain's counts as non-null by an annotation, or by the `@NullMarked` scope it is declared in, with no `@Nullable`, read at its canonical constructor's parameter.
+- **A type argument counts too.** Where a generic record leaves a component's nullness to an unannotated type variable, as `record Page<T extends @Nullable Object>(T item)` does, its argument decides. `Page<@Nullable String>` may hold a `null`. An unannotated argument is non-null where it is written, by the spec or by the domain for a flattened group, or where the Impl is declared, the spec's package, is `@NullMarked`.
+- **An annotated use decides alone**, as `@NonNull T` or `@Nullable T` does, whatever the argument, and so does a non-null bound, as on `<T>` in a `@NullMarked` record. An unannotated type variable in a `@NullMarked` scope may stand for a non-null type, so it rules a `null` out too.
+- **A side that says nothing either way keeps the optic**, as does a domain whose canonical constructor declares the parameter itself `@Nullable`. The parameter's element types are not read.
+- **To keep the optic**, give the pair one nullness. Or call `asValidatedPrism()` or `patch` in its place.
 
 ---
 

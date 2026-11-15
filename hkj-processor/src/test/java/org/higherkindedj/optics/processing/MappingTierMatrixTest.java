@@ -45,9 +45,11 @@ import org.junit.jupiter.params.provider.MethodSource;
  * <p>One predicate decides both optic tiers: a mapping whose reads are all total earns {@code
  * asIso()} when full and {@code asLens()} when a projection; any partial read withholds the optic,
  * and a projection maps as the validated {@code patch} instead. What makes a read partial differs
- * by wire shape only in one place: a bean's reference property can be left unset, so its guarded
- * read is partial where the same read on a record is not. The matrix pins that rule kind by kind,
- * so the two tiers cannot drift apart and neither wire shape can regress on its own.
+ * by wire shape in one place: a bean's reference property can be left unset, so its guarded read is
+ * partial where the same read on a record is not, unless the record's declarations say the read may
+ * hand the domain a {@code null} it rules out ({@code NullableReadIntoNonNullTest} pins that case).
+ * The matrix pins the rule kind by kind, so the two tiers cannot drift apart and neither wire shape
+ * can regress on its own.
  *
  * <p>Each case is compiled once, together, under {@code -Xlint:unchecked,rawtypes -Werror}, and
  * then exercised at runtime: every write-back round-trips a domain value, and an unset reference

@@ -31,10 +31,11 @@ import org.junit.jupiter.params.provider.EnumSource;
  * {@code build} writes a field with a {@code hasX()} only when its {@code Optional} holds a value,
  * with a wildcard-carrying element and holder among them.
  *
- * <p>A pair with an {@code asIso()} declares the same nullness on both sides, since its reverse
- * reads a wire component straight into the domain's. A nullable type argument passes through {@code
- * parse}'s ladder at every depth, and {@code build} widens a copy into a wire whose type arguments
- * are declared more nullable, on every tier that copies one.
+ * <p>A record wire component declared nullable, read into a domain component declared non-null, is
+ * here too: such a mapping offers no {@code asIso()} or {@code asLens()}, which would copy the read
+ * straight into the domain's component. A nullable type argument passes through {@code parse}'s
+ * ladder at every depth, and {@code build} widens a copy into a wire whose type arguments are
+ * declared more nullable, on every tier that copies one.
  */
 @DisplayName("A nullness checker accepts a generated mapping implementation")
 @ParameterizedClass(name = "{0}")
@@ -442,6 +443,22 @@ class MappingNullnessTest {
                   public interface MergedAssembly {
                     Merged merge(Names names, Labels labels);
                   }
+
+                  // A wire that may hold a null the domain rules out, which parse refuses: the
+                  // mapping has no asIso(), and the projection maps as the validated patch.
+                  public record Applicant(String name, List<String> skills) {}
+
+                  public record ApplicantForm(@Nullable String name, @Nullable List<String> skills) {}
+
+                  @GenerateMapping
+                  public interface ApplicantFormMapping extends MappingSpec<Applicant, ApplicantForm> {}
+
+                  public record Profile(String id, String name) {}
+
+                  public record ProfileView(@Nullable String name) {}
+
+                  @GenerateMapping
+                  public interface ProfileViewMapping extends MappingSpec<Profile, ProfileView> {}
                 }
                 """));
 

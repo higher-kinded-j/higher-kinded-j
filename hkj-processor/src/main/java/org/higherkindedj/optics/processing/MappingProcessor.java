@@ -121,7 +121,10 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * a wrong value). What stays bean-only is the <em>absence</em> contract: only a bean property is
  * legitimately unset, so only bean guards cost the Iso tier — {@code asIso()} is truthful for an
  * all-primitive bean, while a lossless record mapping keeps it with the parse-iso coherence law
- * scoped to wires whose reference components are non-null and whose values the domain accepts.
+ * scoped to wires whose reference components are non-null and whose values the domain accepts. A
+ * record wire whose declaration says a component, or an element its copy scans, may be null, where
+ * the domain's says it may not, is the exception: {@code parse} refuses that null, so the mapping
+ * offers no total optic that would hand it over ({@link #readsNullableIntoNonNull}).
  *
  * <p>Once every component has parsed, the domain's canonical constructor runs inside a {@link
  * GuardedConstruction guard}: a {@code RuntimeException} it throws (the record's own invariant)
@@ -1445,7 +1448,8 @@ public class MappingProcessor extends AbstractProcessor {
         null,
         null,
         null,
-        null);
+        null,
+        false);
   }
 
   /**
@@ -7861,6 +7865,10 @@ public class MappingProcessor extends AbstractProcessor {
    * build half these are. {@code nested} is the spec such a mapping nests, which decides whether it
    * has two halves too; null where the correspondence nests no spec, or not where its mapping
    * builds and parses.
+   *
+   * <p>{@code nullableIntoNonNull} says an identity copy from a record wire may hand the domain a
+   * {@code null} that the domain's declaration rules out ({@link #readsNullableIntoNonNull}), so
+   * the copy is no total read; false for every other correspondence.
    */
   private record Correspondence(
       String name,
@@ -7876,7 +7884,8 @@ public class MappingProcessor extends AbstractProcessor {
       SealedOneof oneof,
       CodeBlock built,
       CodeBlock builtValues,
-      RegisteredSpec nested) {
+      RegisteredSpec nested,
+      boolean nullableIntoNonNull) {
 
     Correspondence {
       built = built == null ? prism : built;
@@ -7884,7 +7893,9 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
-      this(name, wireName, kind, prism, null, null, null, null, null, null, null, null, null, null);
+      this(
+          name, wireName, kind, prism, null, null, null, null, null, null, null, null, null, null,
+          false);
     }
 
     /**
@@ -7906,7 +7917,8 @@ public class MappingProcessor extends AbstractProcessor {
           null,
           resolved.built(),
           null,
-          resolved.nested());
+          resolved.nested(),
+          false);
     }
 
     /** The same correspondence as a member of {@code group}. */
@@ -7925,7 +7937,8 @@ public class MappingProcessor extends AbstractProcessor {
           oneof,
           built,
           builtValues,
-          nested);
+          nested,
+          nullableIntoNonNull);
     }
 
     /** The same correspondence as an arm of the sealed component mapping {@code sealed}. */
@@ -7944,7 +7957,8 @@ public class MappingProcessor extends AbstractProcessor {
           sealed,
           built,
           builtValues,
-          nested);
+          nested,
+          nullableIntoNonNull);
     }
 
     /** The arm of the sealed component this {@code ONEOF} correspondence writes. */
@@ -7979,7 +7993,8 @@ public class MappingProcessor extends AbstractProcessor {
           oneof,
           built,
           builtValues,
-          nested);
+          nested,
+          nullableIntoNonNull);
     }
 
     /**
@@ -8001,7 +8016,8 @@ public class MappingProcessor extends AbstractProcessor {
           oneof,
           built,
           values.built(),
-          values.nested());
+          values.nested(),
+          nullableIntoNonNull);
     }
 
     /**
@@ -8023,7 +8039,31 @@ public class MappingProcessor extends AbstractProcessor {
           oneof,
           built,
           builtValues,
-          nested);
+          nested,
+          nullableIntoNonNull);
+    }
+
+    /**
+     * The same identity copy, read from a record wire that may hand the domain a {@code null} the
+     * domain's declaration rules out.
+     */
+    Correspondence readingNullableIntoNonNull() {
+      return new Correspondence(
+          name,
+          wireName,
+          kind,
+          prism,
+          group,
+          domainElement,
+          valuePrism,
+          present,
+          scan,
+          copy,
+          oneof,
+          built,
+          builtValues,
+          nested,
+          true);
     }
 
     /**
@@ -10156,6 +10196,7 @@ public class MappingProcessor extends AbstractProcessor {
                 registry,
                 domain,
                 domainDeclared,
+                spec,
                 domainNames,
                 null,
                 wire,
@@ -10182,6 +10223,7 @@ public class MappingProcessor extends AbstractProcessor {
                 registry,
                 group.record(),
                 group.type(),
+                domain,
                 innerNames,
                 tag,
                 wire,
@@ -10208,13 +10250,16 @@ public class MappingProcessor extends AbstractProcessor {
    * Classifies one record component of {@code owner} (the domain, or a flattened component's
    * record) against the wire: its wire counterpart by name or rename, claimed once, then resolved
    * by {@link #resolveCorrespondence}. Reports and returns null when the component has no
-   * counterpart or the counterpart is already taken.
+   * counterpart or the counterpart is already taken. {@code arguments} is where the owner's type
+   * arguments are written: the spec for the domain, or the domain for a flattened component's
+   * record.
    */
   private Correspondence classifyComponent(
       TypeElement spec,
       List<RegisteredSpec> registry,
       TypeElement owner,
       DeclaredType ownerDeclared,
+      Element arguments,
       List<String> ownerNames,
       Group group,
       WireShape wire,
@@ -10304,6 +10349,7 @@ public class MappingProcessor extends AbstractProcessor {
         wireName,
         wireComponent.type(),
         domainType,
+        arguments,
         ownerNames,
         wire.readOnly(wireName) ? Need.PARSE : need,
         false);
@@ -10379,6 +10425,8 @@ public class MappingProcessor extends AbstractProcessor {
    * Optional bridge, whose present value resolves by that same rule — reporting and returning null
    * when nothing usable exists. Shared by the full tier ({@link #classify}) and the wire-driven
    * tiers ({@link #classifyWire}), so a projection resolves exactly like a full-tier component.
+   * {@code arguments} is where the type arguments {@code domainType} is instantiated with are
+   * written.
    */
   private Correspondence resolveCorrespondence(
       TypeElement spec,
@@ -10389,6 +10437,7 @@ public class MappingProcessor extends AbstractProcessor {
       String wireName,
       TypeMirror declared,
       TypeMirror domainType,
+      Element arguments,
       List<String> domainNames,
       Need need,
       boolean projection) {
@@ -10486,6 +10535,20 @@ public class MappingProcessor extends AbstractProcessor {
         && need != Need.PARSE
         && reportedNullableIntoNonNull(spec, domain, wire, name, wireName, domainType)) {
       return null;
+    }
+    if (correspondence.kind() == Kind.IDENTITY
+        && wire instanceof WireShape.RecordShape record
+        && readsNullableIntoNonNull(
+            spec,
+            arguments,
+            domain,
+            record,
+            name,
+            wireName,
+            declared,
+            domainType,
+            correspondence.scan())) {
+      return correspondence.readingNullableIntoNonNull();
     }
     return correspondence;
   }
@@ -11283,13 +11346,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   static NonNullSite nonNullComponent(
       Types types, TypeElement record, RecordComponentElement component) {
-    int index = record.getRecordComponents().indexOf(component);
-    // Found by its parameter types, since Elements.isCanonicalConstructor answers false for every
-    // constructor of a record read from a class file.
-    Optional<VariableElement> parameter =
-        ProcessorUtils.canonicalConstructorOf(types, record)
-            .findFirst()
-            .map(constructor -> constructor.getParameters().get(index));
+    Optional<VariableElement> parameter = canonicalParameter(types, record, component);
     if (parameter.filter(NullableAnnotations::declaresNullable).isPresent()) {
       return null;
     }
@@ -11305,6 +11362,19 @@ public class MappingProcessor extends AbstractProcessor {
                     reason))
         .or(() -> parameter.flatMap(taken -> nonNullParameter(record, spelt, taken)))
         .orElse(null);
+  }
+
+  /**
+   * The parameter of {@code record}'s canonical constructor that writes {@code component}, found by
+   * its parameter types, since {@code Elements.isCanonicalConstructor} answers false for every
+   * constructor of a record read from a class file.
+   */
+  private static Optional<VariableElement> canonicalParameter(
+      Types types, TypeElement record, RecordComponentElement component) {
+    int index = record.getRecordComponents().indexOf(component);
+    return ProcessorUtils.canonicalConstructorOf(types, record)
+        .findFirst()
+        .map(constructor -> constructor.getParameters().get(index));
   }
 
   /**
@@ -11881,6 +11951,7 @@ public class MappingProcessor extends AbstractProcessor {
               wireName,
               writtenAs(wire, wireName, wireComponent.type(), domainType),
               domainType,
+              spec,
               domainNames,
               need,
               projection);
@@ -13084,26 +13155,152 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * Whether every correspondence reads totally, so the mapping can be an optic: {@code asIso()} on
-   * a full mapping, {@code asLens()} on a projection. A fallible correspondence, or a guarded read
-   * on a bean wire ({@link #lossyRead}), makes a read partial: the full tier then withholds {@code
-   * asIso()}, and a projection maps as the validated {@code patch}. On a record wire this is
-   * exactly "no fallible correspondence"; an all-primitive bean can never read null, so it keeps
-   * both optics.
+   * a full mapping, {@code asLens()} on a projection. A fallible correspondence, or a read that can
+   * fail ({@link #lossyRead}), makes a read partial: the full tier then withholds {@code asIso()},
+   * and a projection maps as the validated {@code patch}. An all-primitive bean can never read
+   * null, so it keeps both optics.
    */
   private static boolean totalReads(List<Correspondence> comps, WireShape wire) {
     return comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire));
   }
 
   /**
-   * Whether a guarded read is partial: only on a bean wire. A bean's reference property is
-   * legitimately unset in normal use, so its guarded read can fail, and {@link #totalReads} counts
-   * it. A record wire's guard exists for hostile input (a null-carrying JSON binding), not for a
-   * representable absent state, so a lossless record mapping keeps {@code asIso()} — the parse-iso
-   * coherence law is scoped to wires whose reference components are non-null and whose values the
-   * domain accepts.
+   * Whether a read that is not fallible can still fail, so {@link #totalReads} counts it partial.
+   * On a bean wire every guarded read can: a bean's reference property is legitimately unset in
+   * normal use. A record wire's guard exists for hostile input, such as a JSON binding that leaves
+   * a component null, so its read can fail only where the wire's declaration says the null is a
+   * value it holds and the domain's says it is not ({@link #readsNullableIntoNonNull}). Elsewhere a
+   * lossless record mapping keeps {@code asIso()}, and the parse-iso coherence law is scoped to
+   * wires whose reference components are non-null.
    */
   private static boolean lossyRead(Correspondence c, WireShape wire) {
-    return wire instanceof WireShape.BeanShape && guardedRead(c, wire);
+    return wire instanceof WireShape.BeanShape ? guardedRead(c, wire) : c.nullableIntoNonNull();
+  }
+
+  /**
+   * Whether a record wire's identity copy may hand the domain a {@code null} the domain's
+   * declaration rules out, which {@code parse} refuses with a located error, so no total optic can
+   * hand it over. The wire's component may be declared nullable, read as {@link
+   * #reportedNullableIntoNonNull} reads the domain's for {@code build}, where the domain's is
+   * declared non-null, read as that check reads its write site ({@link #nonNullComponent}). Or an
+   * element, at a level the copy's null scan reaches ({@link NullScan}), may be declared nullable
+   * where the domain's element at that level rules a null out. An {@code Optional} cannot hold a
+   * null, so its own level counts for nothing, and a side that says nothing either way rules
+   * nothing out.
+   *
+   * <p>Each type is read as the record declares it and as it is instantiated ({@link Written}):
+   * {@code wireType} and {@code domainType} are the instantiated components, {@code scan} is the
+   * copy's scan over {@code domainType}, and {@code arguments} is where the domain's type arguments
+   * are written. The build-side check reads declarations alone, so it does not follow a type
+   * argument this way.
+   */
+  private boolean readsNullableIntoNonNull(
+      TypeElement spec,
+      Element arguments,
+      TypeElement domain,
+      WireShape.RecordShape wire,
+      String name,
+      String wireName,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      NullScan scan) {
+    // A primitive read is never null, whatever its declaration says.
+    if (domainType.getKind().isPrimitive()) {
+      return false;
+    }
+    Types types = processingEnv.getTypeUtils();
+    Elements elements = processingEnv.getElementUtils();
+    RecordComponentElement from = componentNamed(wire.element(), wireName);
+    RecordComponentElement to = componentNamed(domain, name);
+    // A type argument is read where it is written, and where the Impl, which spells it again,
+    // is declared: the spec's package.
+    List<Element> written = List.of(arguments, elements.getPackageOf(spec));
+    Written wireSide = new Written(from.asType(), wireType, List.of(from));
+    Written domainSide = new Written(to.asType(), domainType, List.of(to));
+    // The domain's component is read where its canonical constructor takes it, unless its
+    // declaration leaves the nullness to its type argument.
+    boolean domainNonNull =
+        nonNullComponent(types, domain, to) != null
+            || domainSide.deferred()
+                && !NullableAnnotations.declaresNullable(to)
+                && canonicalParameter(types, domain, to)
+                    .filter(NullableAnnotations::declaresNullable)
+                    .isEmpty()
+                && domainSide.nonNull(written);
+    if ((NullableAnnotations.declaresNullable(from) || wireSide.nullable()) && domainNonNull) {
+      return true;
+    }
+    for (NullScan level = scan; level != null; level = level.inner()) {
+      wireSide = wireSide.element(level, written, types, elements);
+      domainSide = domainSide.element(level, written, types, elements);
+      // A raw container names no element type, so it says nothing either way.
+      if (level.element() != null
+          && level.shape() != NullScan.Shape.OPTIONAL
+          && wireSide.nullable()
+          && domainSide.nonNull(written)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * A type as a record declares it and as it is instantiated, read together, with the scopes the
+   * declaration is read in. A type variable with no nullness annotation of its own, as {@code T} in
+   * {@code record Page<T extends @Nullable Object>(T item)}, stands for its type argument ({@link
+   * #deferred}): the instantiated form counts then, read where that argument is written, and so do
+   * the levels below it, which the argument wrote too, unless the variable's own bound rules a null
+   * out. Any other declaration counts as it is written, {@code @Nullable T} and {@code @NonNull T}
+   * among them, read in its own scope. A variable javac made by capturing a wildcard declares
+   * nothing of its own, so it is read as it is written, and says nothing.
+   */
+  private record Written(TypeMirror declared, TypeMirror instantiated, List<Element> scopes) {
+
+    Written {
+      scopes = List.copyOf(scopes);
+    }
+
+    /** Whether the declaration leaves its nullness to its type argument. */
+    boolean deferred() {
+      return NullableAnnotations.declaredVariable(declared)
+          && !NullableAnnotations.annotatesNullness(declared);
+    }
+
+    /**
+     * Both forms' element types at {@code level}, as {@link NullScan#writtenElement} reads them;
+     * below a deferred declaration, the argument's alone, read where it is {@code written}.
+     */
+    Written element(NullScan level, List<Element> written, Types types, Elements elements) {
+      TypeMirror inner = level.writtenElement(instantiated, types, elements);
+      return deferred()
+          ? new Written(inner, inner, written)
+          : new Written(level.writtenElement(declared, types, elements), inner, scopes);
+    }
+
+    /** Whether the form that counts is declared nullable. */
+    boolean nullable() {
+      return NullableAnnotations.declaresNullable(counted());
+    }
+
+    /**
+     * Whether the form that counts rules a null out ({@link NullableAnnotations#rulesOutNull}) in a
+     * scope it is read in: its own, or, for a deferred declaration, where its argument is {@code
+     * written}. A deferred variable whose own bound is non-null rules a null out whatever its
+     * argument, as {@link MappingProcessor#nonNullComponent} reads it for the component itself.
+     */
+    boolean nonNull(List<Element> written) {
+      if (!deferred()) {
+        return scopes.stream().anyMatch(scope -> NullableAnnotations.rulesOutNull(declared, scope));
+      }
+      return scopes.stream()
+              .anyMatch(scope -> NullableAnnotations.nonNullReason(declared, scope).isPresent())
+          || written.stream()
+              .anyMatch(scope -> NullableAnnotations.rulesOutNull(instantiated, scope));
+    }
+
+    private TypeMirror counted() {
+      return deferred() ? instantiated : declared;
+    }
   }
 
   /**

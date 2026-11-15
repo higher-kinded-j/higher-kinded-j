@@ -3310,7 +3310,7 @@ AuthorMappingImpl mapper = AuthorMappingImpl.INSTANCE;
 
 ### `cannot find symbol: method asIso()` {#no-such-surface}
 
-The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`. A mapping with a read-only property, or nesting or dispatching to one, has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`.
+The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`. A mapping with a read-only property, or nesting or dispatching to one, has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`. A record wire component declared `@Nullable`, whose domain component is [declared non-null](rules.md#where-a-nullable-record-component-lands), withholds `asIso()` too, and on a projection `asLens()`, which `patch` replaces.
 
 **Fix.** Call a method your spec's shape gets; [the method table](tiers.md#which-methods-your-spec-gets) says when each appears.
 

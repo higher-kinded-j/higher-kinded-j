@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
@@ -16,6 +17,7 @@ import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
@@ -140,6 +142,78 @@ public final class NullableAnnotations {
   }
 
   /**
+   * Whether a type is declared as one that may hold {@code null}: an annotation on it reads as
+   * nullable, by the rule {@link #declaredNonNull} applies first. It reads a type that a
+   * declaration names inside its own, such as a list's element type, where only a {@code TYPE_USE}
+   * annotation can land. It reads any annotation that reads as nullable, as a check that withholds
+   * or refuses gives the benefit of the doubt, where {@link #isNullable} decides what code to
+   * generate and so names only the libraries it is sure of.
+   *
+   * @param type the type, such as a container's element type
+   * @return whether it is declared as one that may hold {@code null}
+   */
+  static boolean declaresNullable(TypeMirror type) {
+    return type.getAnnotationMirrors().stream().anyMatch(NullableAnnotations::readsNullable);
+  }
+
+  /**
+   * Whether a type carries an annotation that says anything about {@code null}: one that reads as
+   * nullable, or a recognised non-null one. A type variable with none stands for its type argument,
+   * whose nullness is then the one that counts.
+   *
+   * @param type the type, such as a type variable's use
+   * @return whether an annotation on it says whether it may hold {@code null}
+   */
+  static boolean annotatesNullness(TypeMirror type) {
+    return type.getAnnotationMirrors().stream()
+        .anyMatch(mirror -> readsNullable(mirror) || declaresNonNull(mirror));
+  }
+
+  /**
+   * Whether a type rules {@code null} out where {@code site} names it: declared non-null, as {@link
+   * #nonNullReason(TypeMirror, Element)} reads it, or a type variable with no {@code @Nullable} of
+   * its own inside a {@code NullMarked} scope. Such a variable stands for whatever its type
+   * argument is, which may be non-null, so it may not hold a {@code null}: JSpecify calls its
+   * nullness parametric.
+   *
+   * @param type the type, such as a container's element type
+   * @param site the declaration that names it, whose scope decides an unannotated type
+   * @return whether a {@code null} is one the type may not hold
+   */
+  static boolean rulesOutNull(TypeMirror type, Element site) {
+    return nonNullReason(type, site).isPresent()
+        || declaredVariable(type) && !declaresNullable(type) && nullMarkedScope(site).isPresent();
+  }
+
+  /**
+   * Whether a type is a type variable that a declaration introduces, on a class, an interface, a
+   * method or a constructor, rather than one javac made by capturing a wildcard. A capture belongs
+   * to none of them, and its nullness is its wildcard's bound, not an argument's.
+   *
+   * @param type the type
+   * @return whether it is a declared type variable
+   */
+  static boolean declaredVariable(TypeMirror type) {
+    return type.getKind() == TypeKind.TYPEVAR
+        && ((TypeParameterElement) ((TypeVariable) type).asElement()).getGenericElement().getKind()
+            != ElementKind.OTHER;
+  }
+
+  /**
+   * Why a type that a declaration names inside its own, such as a list's element type, holds no
+   * {@code null}, or empty when it may hold one or says nothing either way: an annotation on it, or
+   * the {@code NullMarked} scope that {@code site}, the declaration, is in, by the rule {@link
+   * #declaredNonNull} applies.
+   *
+   * @param type the type, such as a container's element type
+   * @param site the declaration that names it, whose scope decides an unannotated type
+   * @return the reason the type is declared non-null, if it is
+   */
+  static Optional<NonNullReason> nonNullReason(TypeMirror type, Element site) {
+    return declaredNonNull(List.copyOf(type.getAnnotationMirrors()), type, site);
+  }
+
+  /**
    * The annotations a record component's declaration carries, wherever javac puts them: on the
    * component, its type, its accessor and its backing field. An annotation targeting fields and
    * methods but not record components reaches the accessor only when the accessor is implicit, and
@@ -179,7 +253,7 @@ public final class NullableAnnotations {
   }
 
   /**
-   * The rule both write sites share, in order:
+   * The rule every reading of a declared non-null shares, in order:
    *
    * <ol>
    *   <li>An annotation that reads as nullable makes the site nullable: one named {@code Nullable}
