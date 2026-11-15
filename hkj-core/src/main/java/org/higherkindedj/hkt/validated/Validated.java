@@ -6,6 +6,7 @@ import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -272,6 +273,21 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    */
   default Either<E, A> toEither() {
     return fold(Either::left, Either::right);
+  }
+
+  /**
+   * Converts this {@code Validated} to an {@link Optional}, keeping a {@link Valid}'s value and
+   * dropping an {@link Invalid}'s error.
+   *
+   * <p>An {@link Invalid} gives {@link Optional#empty()}, so its error is lost; {@link
+   * #fold(Function, Function)} keeps it. A {@link Valid} never holds {@code null}, so its value is
+   * never lost.
+   *
+   * @return An {@code Optional} holding the {@link Valid} value, or {@link Optional#empty()} if
+   *     this is an {@link Invalid}. Never {@code null}.
+   */
+  default Optional<A> toOptional() {
+    return fold(_ -> Optional.empty(), Optional::of);
   }
 
   /**

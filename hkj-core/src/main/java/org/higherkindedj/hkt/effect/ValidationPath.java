@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -226,8 +225,7 @@ public final class ValidationPath<E, A>
    * @return an OptionalPath containing the value if Valid, or empty if Invalid
    */
   public OptionalPath<A> toOptionalPath() {
-    return value.fold(
-        _ -> new OptionalPath<>(Optional.empty()), a -> new OptionalPath<>(Optional.of(a)));
+    return new OptionalPath<>(value.toOptional());
   }
 
   // ===== Composable implementation =====
