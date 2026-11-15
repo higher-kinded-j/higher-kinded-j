@@ -16,6 +16,7 @@ import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
@@ -152,6 +153,37 @@ public final class NullableAnnotations {
    */
   static boolean declaresNullable(TypeMirror type) {
     return type.getAnnotationMirrors().stream().anyMatch(NullableAnnotations::readsNullable);
+  }
+
+  /**
+   * Whether a type carries an annotation that says anything about {@code null}: one that reads as
+   * nullable, or a recognised non-null one. A type variable with none stands for its type argument,
+   * whose nullness is then the one that counts.
+   *
+   * @param type the type, such as a type variable's use
+   * @return whether an annotation on it says whether it may hold {@code null}
+   */
+  static boolean annotatesNullness(TypeMirror type) {
+    return type.getAnnotationMirrors().stream()
+        .anyMatch(mirror -> readsNullable(mirror) || declaresNonNull(mirror));
+  }
+
+  /**
+   * Whether a type rules {@code null} out where {@code site} names it: declared non-null, as {@link
+   * #nonNullReason(TypeMirror, Element)} reads it, or a type variable with no {@code @Nullable} of
+   * its own inside a {@code NullMarked} scope. Such a variable stands for whatever its type
+   * argument is, which may be non-null, so it may not hold a {@code null}: JSpecify calls its
+   * nullness parametric.
+   *
+   * @param type the type, such as a container's element type
+   * @param site the declaration that names it, whose scope decides an unannotated type
+   * @return whether a {@code null} is one the type may not hold
+   */
+  static boolean rulesOutNull(TypeMirror type, Element site) {
+    return nonNullReason(type, site).isPresent()
+        || type.getKind() == TypeKind.TYPEVAR
+            && !declaresNullable(type)
+            && nullMarkedScope(site).isPresent();
   }
 
   /**

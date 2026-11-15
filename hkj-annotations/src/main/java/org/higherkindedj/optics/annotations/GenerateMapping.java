@@ -91,7 +91,8 @@ import java.lang.annotation.Target;
  *       shapes: an unset bean property is null, and a JSON binder leaves a missing record component
  *       null just the same. A bean's guarded reads make {@code asIso()} truthful only for an
  *       all-primitive bean; a lossless record mapping keeps {@code asIso()}, its guards covering
- *       hostile bindings only.
+ *       hostile bindings only, unless its wire declares {@code @Nullable} a component, or an
+ *       element inside it, that the domain declares non-null.
  *   <li>A component with the same container type on both sides and no leaf of its own crosses as a
  *       copy in both directions, not as the container that was read: an unmodifiable copy in the
  *       source's order, a set as a set and a null element carried, with every level inside copied
@@ -129,8 +130,9 @@ import java.lang.annotation.Target;
  *       asValidatedPrism()}.
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire with fewer components maps as
  *       a projection with {@code asLens()} and no {@code parse} (truthful types); a projection
- *       carrying a fallible leaf, or a bean projection with a reference property (which can read
- *       null), swaps the lens for a validated {@code patch(Domain, Wire)} write-back —
+ *       carrying a fallible leaf, a bean projection with a reference property (which can read
+ *       null), or a record projection whose wire declares {@code @Nullable} what the domain
+ *       declares non-null, swaps the lens for a validated {@code patch(Domain, Wire)} write-back —
  *       <em>dense</em> semantics: every projected component is written, never skipped, so a null is
  *       a located error (a bridged {@code Optional} reads it as empty). Every mapping that builds
  *       and parses gets {@code asValidatedPrism()} so it plugs in wherever a leaf does, unless it

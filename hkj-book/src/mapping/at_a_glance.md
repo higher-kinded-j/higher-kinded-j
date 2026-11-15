@@ -92,7 +92,7 @@ are in [Compiler Messages](compiler_errors.md).
 
 A lossless pair also earns `asIso()`; a bean pair with a reference property does not, because an
 unset property is an ordinary state. Nor does a record pair whose wire declares `@Nullable` a
-component the domain declares non-null, and such a projection takes `patch`:
+component the domain declares non-null; a projection of such a pair takes `patch`:
 [Where a `@Nullable` record component lands](rules.md#where-a-nullable-record-component-lands). [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.
 
 ---

@@ -30,11 +30,14 @@ import org.junit.jupiter.params.provider.MethodSource;
  * read does. The same holds where the {@code null} sits inside the value, at any level the copy
  * reaches: a list's element, a map's value, an array's element, or one inside an {@code Optional}.
  *
- * <p>A type is read as the record declares it and as the spec instantiates it, so a type argument
- * the spec supplies counts, and a wildcard is read through its bound. A pair whose sides agree, or
- * where either side says nothing about {@code null}, keeps the optic it has always had, as does a
- * domain whose canonical constructor takes the {@code null}, a map's keys, which {@code parse} does
- * not scan, and an {@code Optional}, which cannot hold a {@code null} itself.
+ * <p>A type is read as the record declares it and as it is instantiated. A type variable with no
+ * nullness of its own stands for its type argument, read where that argument is written and in the
+ * Impl's package, and an unannotated one in a {@code @NullMarked} scope may not hold a {@code
+ * null}; an annotated use decides alone. A wildcard is read through its bound. A pair whose sides
+ * agree, or where either side says nothing about {@code null}, keeps the optic it has always had,
+ * as do a domain whose canonical constructor takes the {@code null}, a primitive, a map's keys,
+ * which {@code parse} does not scan, and an {@code Optional}, which cannot hold a {@code null}
+ * itself.
  *
  * <p>Every spec shares one javac run, under every lint but the processing one, as errors, and is
  * then run.
@@ -54,12 +57,64 @@ class NullableReadIntoNonNullTest {
           import org.jspecify.annotations.NullMarked;
           """);
 
+  /** A declaration annotation named {@code Nullable}, which javac copies to field and accessor. */
+  private static final JavaFileObject LEGACY_NULLABLE =
+      JavaFileObjects.forSourceString(
+          "com.legacy.Nullable",
+          """
+          package com.legacy;
+
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Target;
+
+          @Target({ElementType.FIELD, ElementType.METHOD})
+          public @interface Nullable {}
+          """);
+
+  /** Specs in a package that says nothing about {@code null}, whose Impls are declared there. */
+  private static final JavaFileObject LOOSE_SPECS =
+      JavaFileObjects.forSourceString(
+          "com.loose.LooseSpecs",
+          """
+          package com.loose;
+
+          import com.marked.Wires;
+          import org.higherkindedj.optics.annotations.Flatten;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.jspecify.annotations.Nullable;
+
+          public final class LooseSpecs {
+            private LooseSpecs() {}
+
+            // The argument the spec writes says nothing, here and where the Impl is declared.
+            @GenerateMapping
+            public interface LooseBagMapping
+                extends MappingSpec<Wires.Bag<String>, Wires.LooseCodesDto> {}
+
+            // A type variable in a scope that says nothing may hold a null.
+            @GenerateMapping
+            public interface LooseItemMapping<T extends @Nullable Object>
+                extends MappingSpec<Wires.Item<T>, Wires.ItemDto<T>> {}
+
+            // A flattened group's argument is written by the domain, which is marked.
+            @GenerateMapping
+            public interface NamedOrderMapping
+                extends MappingSpec<Wires.NamedOrder, Wires.NamedOrderDto> {
+              @Flatten
+              Wires.Named<String> name();
+            }
+          }
+          """);
+
   private static final JavaFileObject WIRES =
       JavaFileObjects.forSourceString(
           PKG + ".Wires",
           """
           package com.marked;
 
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Target;
           import java.util.ArrayList;
           import java.util.HashMap;
           import java.util.List;
@@ -68,6 +123,7 @@ class NullableReadIntoNonNullTest {
           import org.higherkindedj.optics.annotations.Flatten;
           import org.higherkindedj.optics.annotations.GenerateMapping;
           import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.jspecify.annotations.NonNull;
           import org.jspecify.annotations.NullUnmarked;
           import org.jspecify.annotations.Nullable;
 
@@ -78,6 +134,10 @@ class NullableReadIntoNonNullTest {
             public static final class Inverted<V, K> extends HashMap<K, V> {
               private static final long serialVersionUID = 1L;
             }
+
+            // A type-use annotation that says nothing of null.
+            @Target(ElementType.TYPE_USE)
+            public @interface Tag {}
 
             // A list whose class fixes its element type, so it passes none through.
             public static final class Names extends ArrayList<String> {
@@ -197,6 +257,70 @@ class NullableReadIntoNonNullTest {
             @GenerateMapping
             public interface BagMapping extends MappingSpec<Bag<String>, HoledList> {}
 
+            // The spec says nothing, but its Impl is declared in the marked package.
+            public record UncheckedCodes(List<@Nullable String> codes) {}
+
+            @NullUnmarked
+            @GenerateMapping
+            public interface UnmarkedSpecMapping extends MappingSpec<Bag<String>, UncheckedCodes> {}
+
+            // An annotated use decides alone, whatever the argument.
+            public record Pinned<T extends @Nullable Object>(@NonNull T title) {}
+
+            @GenerateMapping
+            public interface PinnedMapping extends MappingSpec<Pinned<@Nullable String>, NoteDto> {}
+
+            public record PinnedBag<T extends @Nullable Object>(List<@NonNull T> codes) {}
+
+            @GenerateMapping
+            public interface PinnedBagMapping
+                extends MappingSpec<PinnedBag<@Nullable String>, HoledList> {}
+
+            // A level below a type variable is read where its argument is written.
+            @NullUnmarked
+            public record UPage<T>(List<T> items) {}
+
+            public record HoledItems(List<List<@Nullable String>> items) {}
+
+            @GenerateMapping
+            public interface UPageMapping extends MappingSpec<UPage<List<String>>, HoledItems> {}
+
+            // A type variable in a marked scope may stand for a type that holds no null.
+            public record Item<T extends @Nullable Object>(T item) {}
+
+            public record ItemDto<T extends @Nullable Object>(@Nullable T item) {}
+
+            @GenerateMapping
+            public interface ItemMapping<T extends @Nullable Object>
+                extends MappingSpec<Item<T>, ItemDto<T>> {}
+
+            public record Items<T extends @Nullable Object>(List<T> items) {}
+
+            public record ItemsDto<T extends @Nullable Object>(List<@Nullable T> items) {}
+
+            @GenerateMapping
+            public interface ItemsMapping<T extends @Nullable Object>
+                extends MappingSpec<Items<T>, ItemsDto<T>> {}
+
+            // Below an annotated type variable, the scan's own element type is read.
+            public record Racks<L extends List<String>>(List<@NonNull L> racks) {}
+
+            public record HoledRacks(List<List<@Nullable String>> racks) {}
+
+            @GenerateMapping
+            public interface RacksMapping extends MappingSpec<Racks<List<String>>, HoledRacks> {}
+
+            public record Labelled<T extends @Nullable Object>(@Tag T title) {}
+
+            @GenerateMapping
+            public interface LabelledMapping extends MappingSpec<Labelled<String>, OptDto> {}
+
+            public record Named<T extends @Nullable Object>(T first) {}
+
+            public record NamedOrder(String id, Named<String> name) {}
+
+            public record NamedOrderDto(String id, @Nullable String first) {}
+
             // Pairs that keep their optic.
             public record Draft(@Nullable String title) {}
 
@@ -279,11 +403,6 @@ class NullableReadIntoNonNullTest {
 
             public record LooseCodesDto(List<@Nullable String> codes) {}
 
-            // The spec says nothing of the type argument it supplies.
-            @NullUnmarked
-            @GenerateMapping
-            public interface LooseBagMapping extends MappingSpec<Bag<String>, LooseCodesDto> {}
-
             public record NoteDto(@Nullable String title) {}
 
             @GenerateMapping
@@ -296,6 +415,39 @@ class NullableReadIntoNonNullTest {
 
             @GenerateMapping
             public interface OptMapping extends MappingSpec<Opt<String>, OptDto> {}
+
+            public record PinnedForm<T extends @Nullable Object>(@NonNull T title) {}
+
+            @GenerateMapping
+            public interface PinnedFormMapping extends MappingSpec<Title, PinnedForm<@Nullable String>> {}
+
+            public record Opened<T extends @Nullable Object>(T title) {
+              public Opened(@Nullable T title) {
+                this.title = title;
+              }
+            }
+
+            @GenerateMapping
+            public interface OpenedMapping extends MappingSpec<Opened<String>, DraftDto> {}
+
+            public record Count(int n) {}
+
+            public record CountDto(@com.legacy.Nullable int n) {}
+
+            @GenerateMapping
+            public interface CountMapping extends MappingSpec<Count, CountDto> {}
+
+            public record LegacyBox<T extends @Nullable Object>(@com.legacy.Nullable T code) {}
+
+            public record CodeDto(@Nullable String code) {}
+
+            @GenerateMapping
+            public interface LegacyBoxMapping extends MappingSpec<LegacyBox<String>, CodeDto> {}
+
+            public record OptBag<T extends @Nullable Object>(List<@Nullable T> codes) {}
+
+            @GenerateMapping
+            public interface OptBagMapping extends MappingSpec<OptBag<String>, HoledList> {}
 
             public record Note(String id, @Nullable String title) {}
 
@@ -314,7 +466,7 @@ class NullableReadIntoNonNullTest {
             // no processor claims JSpecify's, which is all the processing lint would report.
             .withProcessors(new MappingProcessor(), new CompanionAnnotationProcessor())
             .withOptions("-Xlint:all,-processing", "-Werror")
-            .compile(MARKED_PACKAGE, WIRES);
+            .compile(MARKED_PACKAGE, LEGACY_NULLABLE, WIRES, LOOSE_SPECS);
     assertThat(compilation).succeeded();
     compiled = new RuntimeCompilationHelper.CompiledResult(compilation);
   }
@@ -334,7 +486,15 @@ class NullableReadIntoNonNullTest {
         "FormMapping",
         "ListFormMapping",
         "HolderMapping",
-        "BagMapping");
+        "BagMapping",
+        "UnmarkedSpecMapping",
+        "PinnedMapping",
+        "PinnedBagMapping",
+        "UPageMapping",
+        "ItemMapping",
+        "ItemsMapping",
+        "RacksMapping",
+        "LabelledMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -367,9 +527,13 @@ class NullableReadIntoNonNullTest {
         "RawMapping",
         "RosterMapping",
         "NullableBagMapping",
-        "LooseBagMapping",
         "NullableHolderMapping",
-        "OptMapping");
+        "OptMapping",
+        "PinnedFormMapping",
+        "OpenedMapping",
+        "CountMapping",
+        "LegacyBoxMapping",
+        "OptBagMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -381,6 +545,20 @@ class NullableReadIntoNonNullTest {
 
   static Stream<String> aProjectionMapsAsThePatch() {
     return Stream.of("AccountViewMapping", "HoledTagsMapping");
+  }
+
+  @Test
+  @DisplayName(
+      "a spec in a package that says nothing writes arguments that say nothing, but a flattened"
+          + " group's arguments are written by its domain")
+  void aSpecOutsideTheMarkedPackage() {
+    Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseBagMappingImpl"))
+        .contains("asIso");
+    Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseItemMappingImpl"))
+        .contains("asIso");
+    Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsNamedOrderMappingImpl"))
+        .contains("build", "parse")
+        .doesNotContain("asIso");
   }
 
   @Test
@@ -445,12 +623,16 @@ class NullableReadIntoNonNullTest {
   }
 
   private static List<String> methodsOf(String spec) {
+    return methodsOfImpl(implOf(spec));
+  }
+
+  private static List<String> methodsOfImpl(String impl) {
     try {
-      return Arrays.stream(compiled.loadClass(implOf(spec)).getDeclaredMethods())
+      return Arrays.stream(compiled.loadClass(impl).getDeclaredMethods())
           .map(method -> method.getName())
           .toList();
     } catch (ClassNotFoundException e) {
-      throw new AssertionError("no Impl was generated for " + spec, e);
+      throw new AssertionError("no Impl was generated as " + impl, e);
     }
   }
 

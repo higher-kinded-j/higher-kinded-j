@@ -558,9 +558,11 @@ matter: it maps build-only whatever its width, derived fields included.
   reaches (`List<@Nullable String>`, a map's values, an array's elements, a wildcard's bound), and
   the domain declares its own non-null, `parse` refuses the `null` and no total optic can hand it
   over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not `asLens()`. A type
-  argument the spec supplies counts (`Page<@Nullable String>` for `Page<T extends @Nullable
-  Object>`). A side that says nothing keeps the optic; map keys do not count. Call
-  `asValidatedPrism()` or `patch`, or give the pair one nullness.
+  argument counts where an unannotated type variable leaves the nullness to it (`Page<@Nullable
+  String>` for `Page<T extends @Nullable Object>`), and an annotated use (`@NonNull T`) decides
+  alone. A side that says nothing keeps the optic; map keys, `? super` wildcards and an
+  `Optional`'s own element do not count. Call `asValidatedPrism()` or `patch`, or give the pair one
+  nullness.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args
