@@ -14,8 +14,11 @@ import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 
 /**
@@ -27,7 +30,8 @@ import javax.lang.model.util.ElementFilter;
  * non-null, by an annotation or by JSpecify's {@code @NullMarked} scope ({@link #nonNullReason}),
  * so a mapping that would write a {@code null} there can be refused, and whether a getter says it
  * may answer {@code null} ({@link #declaresNullable}), so a mapping fills the list it answers only
- * when there is one.
+ * when there is one, and whether a type declares one inside it nullable ({@link
+ * #hasNullableTypeArgument}), which generated code then writes out where inference drops it.
  */
 public final class NullableAnnotations {
 
@@ -336,5 +340,43 @@ public final class NullableAnnotations {
     return mirrors.stream()
         .map(mirror -> mirror.getAnnotationType().toString())
         .anyMatch(NULLABLE_ANNOTATION_NAMES::contains);
+  }
+
+  /**
+   * Whether a type inside {@code type}, at any depth, is declared nullable, as {@code String} is in
+   * {@code List<@Nullable String>}: a type argument, a wildcard's bound or an array's component,
+   * though not {@code type} itself. A nullness checker holds each such position to the nullness it
+   * declares, whatever javac infers there.
+   *
+   * @param type the type to read
+   * @return whether a type inside it is declared nullable
+   */
+  static boolean hasNullableTypeArgument(TypeMirror type) {
+    return inside(type).anyMatch(inner -> nullableHere(inner) || hasNullableTypeArgument(inner));
+  }
+
+  /**
+   * The types one level inside {@code type}: a declared type's arguments, a wildcard's bounds, or
+   * an array's component. An enclosing type's arguments are not among them.
+   */
+  static Stream<? extends TypeMirror> inside(TypeMirror type) {
+    return switch (type.getKind()) {
+      case DECLARED -> ((DeclaredType) type).getTypeArguments().stream();
+      case WILDCARD ->
+          Stream.concat(
+              Stream.ofNullable(((WildcardType) type).getExtendsBound()),
+              Stream.ofNullable(((WildcardType) type).getSuperBound()));
+      case ARRAY -> Stream.of(((ArrayType) type).getComponentType());
+      default -> Stream.empty();
+    };
+  }
+
+  /**
+   * Whether {@code type} itself is declared nullable, by any annotation that reads so ({@link
+   * #readsNullable}): wider than {@link #isNullable}'s recognised names, since a nullness checker
+   * takes any annotation named {@code Nullable} as one.
+   */
+  static boolean nullableHere(TypeMirror type) {
+    return type.getAnnotationMirrors().stream().anyMatch(NullableAnnotations::readsNullable);
   }
 }

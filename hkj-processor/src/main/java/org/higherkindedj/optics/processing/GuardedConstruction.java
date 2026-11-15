@@ -16,6 +16,8 @@ import java.util.stream.IntStream;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -128,12 +130,16 @@ final class GuardedConstruction {
    * Validated.validNel(() -> new Deleted())}.
    */
   static CodeBlock assembly(
-      List<CodeBlock> legs, List<String> params, TypeElement record, TypeName type) {
+      List<CodeBlock> legs,
+      List<String> params,
+      List<TypeName> declared,
+      TypeElement record,
+      TypeName type) {
     if (legs.isEmpty()) {
       return CodeBlock.of(
           "$T.validNel($L)", VALIDATED, thunk(type, canonicalArguments(record, List.of())));
     }
-    return ladder(legs, applyThunk(params, record, type));
+    return ladder(legs, applyThunk(params, declared, record, type));
   }
 
   /** The constructor thunk {@code () -> new Range(lo, hi)}. */
@@ -155,19 +161,122 @@ final class GuardedConstruction {
 
   /**
    * A {@code fields()} ladder's terminal over the legs' lambda parameters, {@code .apply((lo, hi)
-   * -> body)}, where {@code body} ends in a constructor thunk.
+   * -> body)}, where {@code body} ends in a constructor thunk. The parameters are declared with
+   * {@code declared} where there are any ({@link #parameterTypes}).
    */
-  static CodeBlock apply(List<String> params, CodeBlock body) {
-    return CodeBlock.of("\n.apply(($L) -> $L)", String.join(", ", params), body);
+  static CodeBlock apply(List<String> params, List<TypeName> declared, CodeBlock body) {
+    return CodeBlock.of("\n.apply(($L) -> $L)", parameters(params, declared), body);
+  }
+
+  /**
+   * A lambda's parameter list: the names alone, {@code lo, hi}, or each declared with its type,
+   * {@code List<@Nullable String> tags, String name}.
+   */
+  static CodeBlock parameters(List<String> params, List<TypeName> declared) {
+    return declared.isEmpty()
+        ? CodeBlock.of("$L", String.join(", ", params))
+        : IntStream.range(0, params.size())
+            .mapToObj(i -> CodeBlock.of("$T $L", declared.get(i), params.get(i)))
+            .collect(CodeBlock.joining(", "));
+  }
+
+  /**
+   * A leg's component type, as the record's canonical constructor takes it, and whether the leg's
+   * value holds that type truthfully, so a terminal's parameter can be declared with it.
+   *
+   * @param type the component's type
+   * @param truthful whether the leg's value holds {@code type} truthfully
+   */
+  record LegType(TypeMirror type, boolean truthful) {
+
+    /**
+     * A leg that hands on a copy of {@code from} as {@code to}: truthful unless the copy can be
+     * typed as {@code to} neither as it stands nor by a cast ({@link ContainerCopy#retyping}). A
+     * copy the domain narrows is checked by its scan before the record reads it, wherever the copy
+     * rebuilds the level.
+     *
+     * @param type the component's type
+     * @param copy the copy, or null where the value is handed over as it is
+     * @param from the type copied
+     * @param to the type the copy is handed on as
+     * @return the leg's type
+     */
+    static LegType copied(TypeMirror type, ContainerCopy copy, TypeMirror from, TypeMirror to) {
+      return new LegType(
+          type, ContainerCopy.retyping(copy, from, to) != ContainerCopy.Retyping.NONE);
+    }
+
+    /**
+     * A leg whose value a leaf or a nested spec converts, holding the conversion's own type, which
+     * is not read for its nullness: truthful only where {@code type} carries no nullable type
+     * argument.
+     *
+     * @param type the component's type
+     * @return the leg's type
+     */
+    static LegType converted(TypeMirror type) {
+      return new LegType(type, !NullableAnnotations.hasNullableTypeArgument(type));
+    }
+  }
+
+  /**
+   * The types a terminal declares its lambda parameters with, one per leg, or none, leaving them
+   * implicit, unless a leg's type carries a nullable type argument ({@link
+   * NullableAnnotations#hasNullableTypeArgument}). A nullness checker types an implicit parameter
+   * from the ladder, which keeps no type argument's nullness, so a {@code List<@Nullable String>}
+   * arrives as a {@code List<String>}; a declared parameter is held as it is written. Each type is
+   * boxed, as the ladder hands a primitive on. Where a leg's value does not hold its type
+   * truthfully the parameters stay implicit, and the checker reports the leg as it did. So does a
+   * type naming a type variable: the record's own variable is not the one the generated class has
+   * in scope, if it has one.
+   *
+   * @param legs the legs' types, in order
+   * @param targetPackage the package the generated class is written into
+   * @return the parameters' types, or an empty list for implicit parameters
+   */
+  static List<TypeName> parameterTypes(List<LegType> legs, String targetPackage) {
+    return legs.stream().allMatch(LegType::truthful)
+            && legs.stream()
+                .map(LegType::type)
+                .anyMatch(NullableAnnotations::hasNullableTypeArgument)
+            && legs.stream().map(LegType::type).noneMatch(ProcessorUtils::namesTypeVariable)
+        ? legs.stream()
+            .map(leg -> ProcessorUtils.typeNameOf(leg.type(), targetPackage).box())
+            .toList()
+        : List.of();
+  }
+
+  /**
+   * The type {@code record}'s canonical constructor takes its component {@code name} as, which an
+   * explicit constructor may declare narrower than the component.
+   *
+   * @param types the round's type utilities
+   * @param record the record
+   * @param name the component's name
+   * @return the canonical constructor's parameter type
+   */
+  static TypeMirror takenAs(Types types, TypeElement record, String name) {
+    List<? extends RecordComponentElement> components = record.getRecordComponents();
+    int index =
+        IntStream.range(0, components.size())
+            .filter(i -> components.get(i).getSimpleName().contentEquals(name))
+            .findFirst()
+            .orElseThrow();
+    return ProcessorUtils.canonicalConstructorOf(types, record)
+        .findFirst()
+        .map(constructor -> constructor.getParameters().get(index).asType())
+        .orElseThrow();
   }
 
   /**
    * {@link #apply} over a bare thunk whose arguments are exactly the parameters, one per component
    * of {@code record} in order: {@code .apply((lo, hi) -> () -> new Range(lo, hi))}.
    */
-  private static CodeBlock applyThunk(List<String> params, TypeElement record, TypeName type) {
+  private static CodeBlock applyThunk(
+      List<String> params, List<TypeName> declared, TypeElement record, TypeName type) {
     return apply(
         params,
+        declared,
         thunk(
             type,
             canonicalArguments(record, params.stream().map(p -> CodeBlock.of("$L", p)).toList())));
