@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Semigroup;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -178,21 +179,29 @@ class OptionalPathTest {
     }
 
     @Test
-    @DisplayName("fold() calls supplier for absent")
+    @DisplayName("fold() returns the supplier's result for absent without calling presentMapper")
     void foldCallsSupplierForAbsent() {
       OptionalPath<String> path = Path.absent();
-      AtomicBoolean called = new AtomicBoolean(false);
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
 
       String result =
           path.fold(
               () -> "default",
               s -> {
-                called.set(true);
+                mapperCalled.set(true);
                 return "got " + s;
               });
 
       assertThat(result).isEqualTo("default");
-      assertThat(called).isFalse();
+      assertThat(mapperCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() keeps a null from presentMapper rather than calling the supplier")
+    void foldKeepsANullFromPresentMapper() {
+      OptionalPath<String> path = Path.present(TEST_VALUE);
+
+      assertThat(path.<@Nullable String>fold(() -> "default", _ -> null)).isNull();
     }
 
     @Test

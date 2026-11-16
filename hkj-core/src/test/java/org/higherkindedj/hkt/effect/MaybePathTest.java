@@ -183,21 +183,21 @@ class MaybePathTest {
     }
 
     @Test
-    @DisplayName("fold() calls supplier for Nothing")
+    @DisplayName("fold() returns the supplier's result for Nothing without calling justMapper")
     void foldCallsSupplierForNothing() {
       MaybePath<String> path = Path.nothing();
-      AtomicBoolean called = new AtomicBoolean(false);
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
 
       String result =
           path.fold(
               () -> "default",
               s -> {
-                called.set(true);
+                mapperCalled.set(true);
                 return "got " + s;
               });
 
       assertThat(result).isEqualTo("default");
-      assertThat(called).isFalse();
+      assertThat(mapperCalled).isFalse();
     }
 
     @Test

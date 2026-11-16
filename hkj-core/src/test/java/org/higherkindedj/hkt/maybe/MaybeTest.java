@@ -22,6 +22,7 @@ import org.higherkindedj.hkt.exception.KindUnwrapException;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
 import org.higherkindedj.hkt.test.fixtures.TestFunctions;
 import org.higherkindedj.hkt.util.validation.Operation;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -242,6 +243,12 @@ class MaybeTest extends MaybeTestBase {
 
       assertThat(nothingInstance.fold(() -> "none", trackingMapper)).isEqualTo("none");
       assertThat(mapperCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() keeps a null from justMapper rather than calling the supplier")
+    void foldKeepsANullFromJustMapper() {
+      assertThat(justInstance.<@Nullable String>fold(() -> "none", _ -> null)).isNull();
     }
 
     @Test
