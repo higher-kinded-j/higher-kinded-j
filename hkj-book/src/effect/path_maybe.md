@@ -84,6 +84,7 @@ MaybePath<String> path = Path.just("hello");
 Maybe<String> maybe = path.run();
 String value = path.getOrElse("default");
 String computed = path.getOrElseGet(() -> expensiveDefault());
+String described = path.fold(() -> "nothing", s -> "got " + s);
 ```
 
 ---

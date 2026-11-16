@@ -43,6 +43,7 @@ OptionalPath<String> path = Path.present("hello");
 
 Optional<String> optional = path.run();
 String value = path.getOrElse("default");
+String described = path.fold(() -> "nothing", s -> "got " + s);
 boolean hasValue = path.isPresent();
 
 // Convert to MaybePath for richer operations

@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Semigroup;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -157,6 +158,64 @@ class OptionalPathTest {
       assertThatNullPointerException()
           .isThrownBy(() -> path.getOrElseGet(() -> null))
           .withMessage("supplier must not return null");
+    }
+
+    @Test
+    @DisplayName("fold() applies presentMapper for present without calling supplier")
+    void foldAppliesMapperForPresent() {
+      OptionalPath<String> path = Path.present(TEST_VALUE);
+      AtomicBoolean called = new AtomicBoolean(false);
+
+      String result =
+          path.fold(
+              () -> {
+                called.set(true);
+                return "default";
+              },
+              s -> "got " + s);
+
+      assertThat(result).isEqualTo("got " + TEST_VALUE);
+      assertThat(called).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() returns the supplier's result for absent without calling presentMapper")
+    void foldCallsSupplierForAbsent() {
+      OptionalPath<String> path = Path.absent();
+      AtomicBoolean mapperCalled = new AtomicBoolean(false);
+
+      String result =
+          path.fold(
+              () -> "default",
+              s -> {
+                mapperCalled.set(true);
+                return "got " + s;
+              });
+
+      assertThat(result).isEqualTo("default");
+      assertThat(mapperCalled).isFalse();
+    }
+
+    @Test
+    @DisplayName("fold() keeps a null from presentMapper rather than calling the supplier")
+    void foldKeepsANullFromPresentMapper() {
+      OptionalPath<String> path = Path.present(TEST_VALUE);
+
+      assertThat(path.<@Nullable String>fold(() -> "default", _ -> null)).isNull();
+    }
+
+    @Test
+    @DisplayName("fold() validates null arguments")
+    @SuppressWarnings("DataFlowIssue") // null passed to @NonNull fold to verify handling
+    void foldValidatesNullArguments() {
+      OptionalPath<String> path = Path.present(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(null, s -> s))
+          .withMessage("emptySupplier must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.fold(() -> "default", null))
+          .withMessage("presentMapper must not be null");
     }
 
     @Test

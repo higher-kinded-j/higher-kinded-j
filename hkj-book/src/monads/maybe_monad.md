@@ -79,7 +79,7 @@ The two `Nothing` results look the same: one order has not shipped, and the othe
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/maybe/MaybeBook.java:reading}}
 ```
 
-`city` is `"not dispatched yet"`. `get()` returns a `Just`'s value and throws `NoSuchElementException` on `Nothing`, so keep it for tests. `Just` and `Nothing` are not public types, so a `switch` cannot name them: read a `Maybe` through its methods.
+`city` is `"not dispatched yet"`. `get()` returns a `Just`'s value and throws `NoSuchElementException` on `Nothing`, so keep it for tests. `Just` and `Nothing` are not public types, so a `switch` cannot name them: read a `Maybe` through its methods, such as `fold`, which turns either case into one result.
 
 ## Bridging to the JDK {#interacting-with-maybe-values}
 
@@ -127,6 +127,7 @@ import org.higherkindedj.hkt.effect.Path;
 | `map(f)` | Changes a `Just`'s value; a function that returns `null` gives `Nothing` |
 | `flatMap(f)` | Runs a step that gives a `Maybe` on a `Just`'s value; `Nothing` passes through |
 | `orElse(other)`, `orElseGet(supplier)` | Return the value, or a fallback |
+| `fold(onNothing, onJust)` | Turns either case into one result |
 | `toEither(error)`, `toEither(supplier)` | Give an `Either` whose `Left` says why the value is missing |
 | `stream()` | Gives a stream of zero or one element |
 | `get()` | Returns the value, or throws `NoSuchElementException` on `Nothing` |
