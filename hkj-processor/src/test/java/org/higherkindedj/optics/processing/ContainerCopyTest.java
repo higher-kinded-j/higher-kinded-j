@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
@@ -62,6 +63,7 @@ class ContainerCopyTest {
                     import java.util.Map;
                     import java.util.Optional;
                     import java.util.Set;
+                    import java.util.TreeMap;
                     import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
                     import org.higherkindedj.hkt.validated.FieldError;
                     import org.higherkindedj.hkt.validated.Validated;
@@ -266,6 +268,38 @@ class ContainerCopyTest {
                       @GenerateMapping
                       public interface ScoresPatchMapping extends UpdateSpec<Scores, ScoresPatch> {}
 
+                      // A bridged primitive array copies with no scan, on a record, a projection
+                      // and a bean.
+                      public record Badge(String id, Optional<int[]> codes) {}
+
+                      public record BadgeDto(String id, int[] codes) {}
+
+                      @GenerateMapping
+                      public interface BadgeMapping extends MappingSpec<Badge, BadgeDto> {
+                        @OptionalBridge
+                        Optional<int[]> codes();
+                      }
+
+                      public record BadgeView(int[] codes) {}
+
+                      @GenerateMapping
+                      public interface BadgeViewMapping extends MappingSpec<Badge, BadgeView> {
+                        @OptionalBridge
+                        Optional<int[]> codes();
+                      }
+
+                      public record Avatar(Optional<byte[]> image) {}
+
+                      public static class AvatarBean {
+                        private byte[] image;
+
+                        public byte[] getImage() { return image; }
+                        public void setImage(byte[] image) { this.image = image; }
+                      }
+
+                      @GenerateMapping
+                      public interface AvatarMapping extends MappingSpec<Avatar, AvatarBean> {}
+
                       public record Names(List<String> names) {}
 
                       public record Labels(Map<String, String> labels, String note) {}
@@ -304,6 +338,37 @@ class ContainerCopyTest {
                         @Flatten
                         Inner inner();
                       }
+
+                      /** A key equal by name alone, so a map ordered by rank holds two equals merges. */
+                      public record Tag(String name, int rank) {
+                        @Override
+                        public boolean equals(Object other) {
+                          return other instanceof Tag tag && tag.name.equals(name);
+                        }
+
+                        @Override
+                        public int hashCode() {
+                          return name.hashCode();
+                        }
+
+                        @Override
+                        public String toString() {
+                          return name + "#" + rank;
+                        }
+                      }
+
+                      public record Tagged(
+                          Map<Tag, String> byTag,
+                          Map<Tag, List<String>> lists,
+                          TreeMap<Tag, String> sorted) {}
+
+                      public record TaggedDto(
+                          Map<Tag, String> byTag,
+                          Map<Tag, List<String>> lists,
+                          TreeMap<Tag, String> sorted) {}
+
+                      @GenerateMapping
+                      public interface TaggedMapping extends MappingSpec<Tagged, TaggedDto> {}
                     }
                     """
                         .formatted(wideComponents)),
@@ -318,6 +383,9 @@ class ContainerCopyTest {
                     import java.util.Arrays;
                     import java.util.Collection;
                     import java.util.Collections;
+                    import java.util.Comparator;
+                    import java.util.IdentityHashMap;
+                    import java.util.Iterator;
                     import java.util.LinkedHashMap;
                     import java.util.LinkedHashSet;
                     import java.util.List;
@@ -762,6 +830,164 @@ class ContainerCopyTest {
                             FixturesOuterMappingImpl.INSTANCE.asIso().reverseGet(outer).inner().tags(),
                             outer.tags());
                       }
+
+                      /** An identity map whose clone() throws, so a copy that cloned it would fail. */
+                      @SuppressWarnings("serial") // never serialised
+                      public static final class NoClone<K, V> extends IdentityHashMap<K, V> {
+                        @Override
+                        public Object clone() {
+                          throw new UnsupportedOperationException("cloned");
+                        }
+                      }
+
+                      /** Six keys that are equal but not the same object, each holding a value. */
+                      private static <V, M extends Map<Tag, V>> M sixEqualKeys(M map, V value) {
+                        for (int i = 0; i < 6; i++) {
+                          map.put(new Tag("k", 1), value);
+                        }
+                        return map;
+                      }
+
+                      private static <V> TreeMap<Tag, V> merging(V first, V second) {
+                        TreeMap<Tag, V> map = new TreeMap<>(Comparator.comparingInt(Tag::rank));
+                        map.put(new Tag("k", 1), first);
+                        map.put(new Tag("k", 2), second);
+                        return map;
+                      }
+
+                      /** A new identity map holding the source's own keys. */
+                      private static boolean holdsEveryKey(Map<Tag, ?> copy, Map<Tag, ?> source) {
+                        return copy != source
+                            && copy instanceof IdentityHashMap<?, ?>
+                            && copy.size() == source.size()
+                            && source.keySet().stream().allMatch(copy::containsKey)
+                            && !copy.containsKey(new Tag("k", 1));
+                      }
+
+                      /** As holdsEveryKey, and in the source's own order. */
+                      private static boolean keepsEveryKey(Map<Tag, ?> copy, Map<Tag, ?> source) {
+                        Iterator<Tag> copied = copy.keySet().iterator();
+                        return holdsEveryKey(copy, source)
+                            && source.keySet().stream().allMatch(key -> copied.next() == key);
+                      }
+
+                      /** Whether each value of a nested copy is a copy, not the source's own. */
+                      private static boolean copiesValues(
+                          Map<Tag, List<String>> copy, Map<Tag, List<String>> source) {
+                        return source.keySet().stream()
+                            .allMatch(key -> copy.get(key) != source.get(key)
+                                && copy.get(key).equals(source.get(key)));
+                      }
+
+                      /** The names of the checks that failed, each given as a name and a result. */
+                      private static List<String> failing(Object... checks) {
+                        List<String> failing = new ArrayList<>();
+                        for (int i = 0; i < checks.length; i += 2) {
+                          if (!(Boolean) checks[i + 1]) {
+                            failing.add((String) checks[i]);
+                          }
+                        }
+                        return failing;
+                      }
+
+                      /** The copies of an identity map, flat and nested, that lost a key. */
+                      public static List<String> identityMaps() {
+                        TaggedDto wire =
+                            new TaggedDto(
+                                sixEqualKeys(new IdentityHashMap<>(), "v"),
+                                sixEqualKeys(new IdentityHashMap<>(), list("v")),
+                                new TreeMap<>());
+                        Tagged domain = new Tagged(wire.byTag(), wire.lists(), new TreeMap<>());
+                        Tagged parsed = FixturesTaggedMappingImpl.INSTANCE.parse(wire).get();
+                        TaggedDto built = FixturesTaggedMappingImpl.INSTANCE.build(domain);
+                        Tagged iso = FixturesTaggedMappingImpl.INSTANCE.asIso().reverseGet(wire);
+                        // Back and forth: what one copy hands over, the next copy takes.
+                        TaggedDto rebuilt = FixturesTaggedMappingImpl.INSTANCE.build(parsed);
+                        Tagged reparsed = FixturesTaggedMappingImpl.INSTANCE.parse(built).get();
+                        Tagged subclass =
+                            new Tagged(
+                                sixEqualKeys(new NoClone<>(), "v"),
+                                sixEqualKeys(new NoClone<>(), list("v")),
+                                new TreeMap<>());
+                        TaggedDto fromSubclass = FixturesTaggedMappingImpl.INSTANCE.build(subclass);
+                        return failing(
+                            "parse.byTag", keepsEveryKey(parsed.byTag(), wire.byTag()),
+                            "parse.lists", keepsEveryKey(parsed.lists(), wire.lists()),
+                            "parse.lists values", copiesValues(parsed.lists(), wire.lists()),
+                            "build.byTag", keepsEveryKey(built.byTag(), domain.byTag()),
+                            "build.lists", keepsEveryKey(built.lists(), domain.lists()),
+                            "iso.byTag", keepsEveryKey(iso.byTag(), wire.byTag()),
+                            "iso.lists", keepsEveryKey(iso.lists(), wire.lists()),
+                            "parse then build.byTag", keepsEveryKey(rebuilt.byTag(), wire.byTag()),
+                            "parse then build.lists", keepsEveryKey(rebuilt.lists(), wire.lists()),
+                            "build then parse.byTag", keepsEveryKey(reparsed.byTag(), domain.byTag()),
+                            "build then parse.lists", keepsEveryKey(reparsed.lists(), domain.lists()),
+                            "subclass.byTag", holdsEveryKey(fromSubclass.byTag(), subclass.byTag()),
+                            "subclass.lists", holdsEveryKey(fromSubclass.lists(), subclass.lists()));
+                      }
+
+                      private static String refusal(Runnable copy) {
+                        try {
+                          copy.run();
+                          return "copied";
+                        } catch (IllegalArgumentException refused) {
+                          return refused.getMessage();
+                        }
+                      }
+
+                      /** What each copy says of a map holding two keys that equals merges. */
+                      public static List<String> mergingMaps() {
+                        Map<Tag, String> flat = merging("a", "b");
+                        Map<Tag, List<String>> nested = merging(list("a"), list("b"));
+                        return List.of(
+                            refusal(
+                                () -> FixturesTaggedMappingImpl.INSTANCE.parse(
+                                    new TaggedDto(flat, Map.of(), new TreeMap<>()))),
+                            refusal(
+                                () -> FixturesTaggedMappingImpl.INSTANCE.build(
+                                    new Tagged(Map.of(), nested, new TreeMap<>()))),
+                            refusal(
+                                () -> FixturesTaggedMappingImpl.INSTANCE.asIso().reverseGet(
+                                    new TaggedDto(flat, Map.of(), new TreeMap<>()))));
+                      }
+
+                      /** The way out the message offers: the map's own type, handed over as it is. */
+                      public static List<String> bridgedArrays() {
+                        int[] codes = {1, 2};
+                        Badge domain = new Badge("b", Optional.of(codes));
+                        Badge parsed =
+                            FixturesBadgeMappingImpl.INSTANCE.parse(new BadgeDto("b", codes)).get();
+                        BadgeDto built = FixturesBadgeMappingImpl.INSTANCE.build(domain);
+                        Badge patched =
+                            FixturesBadgeViewMappingImpl.INSTANCE
+                                .patch(domain, new BadgeView(codes))
+                                .get();
+                        byte[] image = {3};
+                        AvatarBean bean = new AvatarBean();
+                        bean.setImage(image);
+                        Avatar avatar = FixturesAvatarMappingImpl.INSTANCE.parse(bean).get();
+                        List<String> shared =
+                            shared(
+                                "parse", parsed.codes().orElseThrow(), codes,
+                                "build", built.codes(), codes,
+                                "patch", patched.codes().orElseThrow(), codes,
+                                "bean", avatar.image().orElseThrow(), image);
+                        if (FixturesBadgeMappingImpl.INSTANCE
+                            .parse(new BadgeDto("b", null))
+                            .get()
+                            .codes()
+                            .isPresent()) {
+                          shared.add("absent read as present");
+                        }
+                        return shared;
+                      }
+
+                      public static List<Object> mergingMapDeclaredAsItsOwnType() {
+                        TreeMap<Tag, String> sorted = merging("a", "b");
+                        TaggedDto wire = new TaggedDto(Map.of(), Map.of(), sorted);
+                        Tagged parsed = FixturesTaggedMappingImpl.INSTANCE.parse(wire).get();
+                        return List.of(parsed.sorted() == sorted, parsed.sorted().size());
+                      }
                     }
                     """));
     compiled = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -912,6 +1138,12 @@ class ContainerCopyTest {
       "a @MapKey map's values and a bridged Optional's value copy both ways; a map whose values"
           + " have no copy is not copied first")
   void keyedAndBridgedValuesCopy() throws ReflectiveOperationException {
+    // A bridged primitive array has no scan: its copy is bound ahead of the ladder, and its leg,
+    // which the ladder types, stays in it.
+    assertThat(probe("bridgedArrays")).isEqualTo(List.of());
+    assertThat(generated("FixturesBadgeMappingImpl"))
+        .contains("var hkj$codes = hkj$copyOrNull(wire.codes(), e -> e.clone());")
+        .contains(".field(\"codes\", Validated.validNel(Optional.ofNullable(hkj$codes)))");
     assertThat(probe("keyed")).isEqualTo(List.of());
     assertThat(generated("FixturesKeyedMappingImpl"))
         .contains("hkj$ifPresent(wire.names(), namesKey()::parseKeys)")
@@ -926,7 +1158,7 @@ class ContainerCopyTest {
     assertThat(probe("sparse")).isEqualTo(List.of());
     assertThat(generated("FixturesScoresPatchMappingImpl"))
         .contains("Edit.setIfPresent(")
-        .contains("hkj$copyOf(wire.getScores())");
+        .contains("hkj$copyOrNull(wire.getScores(), e -> e.clone())");
   }
 
   @Test
@@ -939,5 +1171,97 @@ class ContainerCopyTest {
   @DisplayName("a chunked ladder, a flattened group and its asIso copy like any other leg")
   void chunkedAndFlattenedLegsCopy() throws ReflectiveOperationException {
     assertThat(probe("wideAndFlattened")).isEqualTo(List.of());
+  }
+
+  @Test
+  @DisplayName(
+      "a map copy keeps every key of an IdentityHashMap, in its order, flat or nested, both ways;"
+          + " a subclass is copied without its clone()")
+  void anIdentityMapKeepsEveryKey() throws ReflectiveOperationException {
+    assertThat(probe("identityMaps")).isEqualTo(List.of());
+    // Each cast answers for its own suppression, on its own local variable: the clone's, and the
+    // copy's, handed back as the map its call declares. No method carries one.
+    assertThat(generated("FixturesTaggedMappingImpl"))
+        .containsPattern(
+            "@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+Map<@Nullable K, @Nullable V> clone"
+                + " = \\(Map<@Nullable K, @Nullable V>\\) identity\\.clone\\(\\);")
+        .containsPattern("@SuppressWarnings\\(\"unchecked\"\\)[^\\n]*\\n\\s+C copy = \\(C\\)")
+        .doesNotContainPattern("@SuppressWarnings\\([^\\n]*\\n\\s*(private|public|static) ");
+  }
+
+  @Test
+  @DisplayName(
+      "a map copy refuses a map holding two keys that equals cannot tell apart, on parse, build"
+          + " and asIso, naming both keys and the way out")
+  void aMergingMapIsRefused() throws ReflectiveOperationException {
+    assertThat(probe("mergingMaps"))
+        .isEqualTo(
+            Collections.nCopies(
+                3,
+                "A generated Impl cannot copy this java.util.TreeMap without losing an entry: its"
+                    + " keys k#1 and k#2 are equal by equals(), and the copy looks keys up by"
+                    + " equals(). If this is a view of an IdentityHashMap, hold the IdentityHashMap"
+                    + " itself; otherwise declare the map's own type, which is handed over as it"
+                    + " is. A key changed after it went into the map also causes this."));
+    // Declared as its own type, the same map is handed over as it is, with both entries.
+    assertThat(probe("mergingMapDeclaredAsItsOwnType")).isEqualTo(List.of(true, 2));
+  }
+
+  @Test
+  @DisplayName(
+      "where the code cannot read JSpecify, every helper is written without its nullness"
+          + " annotations, and compiles clean")
+  void withoutJSpecifyTheHelpersCarryNoAnnotation() throws IOException {
+    List<File> classpath =
+        Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
+            .filter(entry -> !entry.contains("jspecify"))
+            .map(File::new)
+            .toList();
+    Compilation compilation =
+        javac()
+            .withClasspath(classpath)
+            .withProcessors(new MappingProcessor(), new CompanionAnnotationProcessor())
+            .withOptions("-Xlint:all", "-Werror")
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.example.bare.Bare",
+                    """
+                    package com.example.bare;
+
+                    import java.util.List;
+                    import java.util.Map;
+                    import java.util.Optional;
+                    import org.higherkindedj.optics.annotations.GenerateMapping;
+                    import org.higherkindedj.optics.annotations.MappingSpec;
+
+                    public final class Bare {
+                      private Bare() {}
+
+                      public record Shapes(
+                          String name, List<List<String>> lists, Map<String, String> map,
+                          String[][] grid, Optional<List<String>> maybe) {}
+
+                      public record ShapesDto(
+                          String name, List<List<String>> lists, Map<String, String> map,
+                          String[][] grid, Optional<List<String>> maybe) {}
+
+                      @GenerateMapping
+                      public interface ShapesMapping extends MappingSpec<Shapes, ShapesDto> {}
+                    }
+                    """));
+
+    assertThat(compilation).succeededWithoutWarnings();
+    String generated =
+        compilation
+            .generatedSourceFile("com.example.bare.BareShapesMappingImpl")
+            .orElseThrow()
+            .getCharContent(true)
+            .toString();
+    assertThat(generated)
+        .doesNotContain("org.jspecify")
+        .contains("private static <E, C extends List<E>> C hkj$copyOf(C values)")
+        .contains("private static <A> A hkj$copyOrNull(A value, Function<A, A> copy)")
+        .contains("hkj$ifPresent(S value,")
+        .containsPattern("hkj\\$presentWithin\\(\\s*O value,");
   }
 }

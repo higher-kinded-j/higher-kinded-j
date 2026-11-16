@@ -126,11 +126,12 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    *
    * @param supplier provides the default value; must not be null
    * @return the success value or the supplier's result
-   * @throws NullPointerException if supplier is null
+   * @throws NullPointerException if supplier is null, or if it is called and returns null
    */
   public A getOrElseGet(Supplier<? extends A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return value.fold(e -> supplier.get(), a -> a);
+    return value.fold(
+        e -> Objects.requireNonNull(supplier.get(), "supplier must not return null"), a -> a);
   }
 
   /**
@@ -138,11 +139,12 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    *
    * @param leftMapper the function to apply if this path contains an error; must not be null
    * @param rightMapper the function to apply if this path contains a value; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of applying the appropriate function
    * @throws NullPointerException if either mapper is null
    */
-  public <B> B fold(
+  public <B extends @Nullable Object> B fold(
       Function<? super E, ? extends B> leftMapper, Function<? super A, ? extends B> rightMapper) {
     Objects.requireNonNull(leftMapper, "leftMapper must not be null");
     Objects.requireNonNull(rightMapper, "rightMapper must not be null");
@@ -757,9 +759,9 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
   /**
    * Executes the step through the circuit breaker. A {@code Left} is a successfully computed value
    * - it does <em>not</em> count as a breaker failure; thrown exceptions trip the circuit. When the
-   * circuit is open the {@link CircuitOpenException} propagates as-is; use {@link
-   * #withCircuitBreaker(Supplier, CircuitBreaker, Function)} to keep the rejection on the typed
-   * channel.
+   * breaker rejects the step, because it is open or half-open with every probe place taken, the
+   * {@link CircuitOpenException} propagates as-is; use {@link #withCircuitBreaker(Supplier,
+   * CircuitBreaker, Function)} to keep the rejection on the typed channel.
    *
    * <p>The breaker also applies its configured per-call budget ({@code
    * CircuitBreakerConfig.callTimeout()}, 10 seconds by default): a step slower than that - even one
@@ -772,7 +774,8 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    * @param <E> the error type
    * @param <A> the success type
    * @return the outcome as a path; never null
-   * @throws CircuitOpenException if the circuit is open
+   * @throws CircuitOpenException if the breaker rejects the step: it is open, or half-open with
+   *     every probe place taken
    * @throws NullPointerException if any argument is null
    */
   public static <E, A> EitherPath<E, A> withCircuitBreaker(
@@ -783,7 +786,7 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
   }
 
   /**
-   * Executes the step through the circuit breaker, keeping an open-circuit rejection on the typed
+   * Executes the step through the circuit breaker, keeping the breaker's rejection on the typed
    * channel: {@link CircuitOpenException} becomes {@code Left(onOpen.apply(e))}. A {@code Left} is
    * a successfully computed value and does not count as a breaker failure. The per-call budget
    * caveat on {@link #withCircuitBreaker(Supplier, CircuitBreaker)} applies here too.
@@ -794,7 +797,8 @@ public final class EitherPath<E, A> implements Recoverable<EitherPath<? extends 
    *
    * @param step the computation to protect; must not be null
    * @param circuitBreaker the (shareable) breaker; must not be null
-   * @param onOpen types the open-circuit rejection; must not be null, and must not return null
+   * @param onOpen types the breaker's rejection, open or half-open; must not be null, and must not
+   *     return null
    * @param <E> the error type
    * @param <A> the success type
    * @return the outcome as a path; never null

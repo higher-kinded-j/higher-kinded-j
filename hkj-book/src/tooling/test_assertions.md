@@ -355,7 +355,7 @@ void statusPrismIsLawful() {
 - **Build-only** (a bean that is only written): pass `asValidatedBuild()` with a domain sample; checks that `build` renders it without failing.
 - **Two halves** (a `@ReadOnly` property, its own or nested): check each half alone.
 
-The laws compare by `equals`. A same-typed array crosses as a clone, and a record compares an array component by reference, so a record with an array component needs an `equals` of its own that uses `Arrays.equals` before these laws apply to it; otherwise assert its round trip elementwise.
+The laws compare by `equals`. A same-typed array crosses as a clone, and a record compares it by reference, so give such a record an `equals` that uses `Arrays.equals`, or assert its round trip elementwise. An `IdentityHashMap` compares values by reference too: assert its copied entries elementwise.
 
 ``` java
 import org.higherkindedj.optics.laws.MappingLaws;

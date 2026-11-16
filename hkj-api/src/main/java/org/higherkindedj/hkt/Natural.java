@@ -133,7 +133,9 @@ import org.jspecify.annotations.NullMarked;
  *   <li><b>Functor:</b> Natural transformations operate on functors; naturality law involves map
  *   <li><b>Free Monad:</b> Interpretation via foldMap uses natural transformations
  *   <li><b>Monad Transformers:</b> lift operations are natural transformations
- *   <li><b>Coyoneda:</b> lowering from Coyoneda uses natural transformation to apply the functor
+ *   <li><b>Coyoneda:</b> {@code Coyoneda.foldMap} runs a held value through a natural
+ *       transformation, and {@code Coyoneda.interpreter} turns one into an interpreter for a {@code
+ *       Free} program over Coyoneda
  * </ul>
  *
  * <h2>Implementation Notes</h2>

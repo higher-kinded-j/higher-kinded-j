@@ -9,13 +9,16 @@ import java.time.Instant;
  *
  * <p>Metrics are captured at a point in time and provide insight into how the circuit breaker is
  * performing: how many calls have been made, how many succeeded or failed, how many were rejected
- * because the circuit was open, and when the last state change occurred.
+ * because the circuit was open or had no probe place free, and when the last state change occurred.
+ * A call that finishes after the circuit has changed state is counted here, though it moves the
+ * circuit no further.
  *
  * @param totalCalls total number of calls attempted (including rejected and cancelled)
  * @param successfulCalls number of calls recorded as successes, including those whose exception the
  *     failure predicate does not select
  * @param failedCalls number of calls that failed (counted as failures by the predicate)
- * @param rejectedCalls number of calls rejected because the circuit was open
+ * @param rejectedCalls number of calls rejected because the circuit was open, or half-open with
+ *     every probe place taken
  * @param stateTransitions total number of state transitions
  * @param lastStateChange when the last state transition occurred
  * @see CircuitBreaker#metrics()

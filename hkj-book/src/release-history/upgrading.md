@@ -78,7 +78,7 @@ Already moved without step 1? Run it on your last commit on 0.4.x, or check each
 
 ## To 0.5.0 {#to-050}
 
-The 0.5.0 notes give the details in [Upgrading from 0.4.11](v0_5_0.md#upgrading). Run `MigrateDeprecationsTo0_5_0` first, while the project is still on 0.4.11, since its recipes find the APIs in [Removals in 0.5.0](#removals-in-050) only there. [Before you upgrade](v0_5_0.md#before-you-upgrade) lists that step and the others to take first. Then read [What a running program can notice](v0_5_0.md#runtime-changes), most of it about null values, because the compiler cannot point at those changes. Each entry in [What stops a build that compiled](v0_5_0.md#build-changes) fails at a line the message names, with its fix.
+The 0.5.0 notes give the details in [Upgrading from 0.4.11](v0_5_0.md#upgrading). Run `MigrateDeprecationsTo0_5_0` first, while the project is still on 0.4.11, since its recipes find the APIs in [Removals in 0.5.0](#removals-in-050) only there. [Before you upgrade](v0_5_0.md#before-you-upgrade) lists that step and the others to take first. Then read [What a running program can notice](v0_5_0.md#runtime-changes), most of it about null values, because the compiler cannot point at those changes. Each entry in [What stops a build that compiled](v0_5_0.md#build-changes) fails at a line the message names, with its fix. That table's entries for a nullness checker leave out a lambda that returns null through `VTask.of`, `Try.of`, `IO.delay` or another factory taking a JDK `Supplier` or `Callable`. NullAway flags one only with the two options in [What a nullness checker sees](../hkts/core-concepts.md#what-a-nullness-checker-sees).
 
 ---
 

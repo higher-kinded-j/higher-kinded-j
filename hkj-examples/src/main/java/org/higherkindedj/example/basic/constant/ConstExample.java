@@ -72,11 +72,6 @@ public class ConstExample {
     System.out.println("Constant value: " + listConst.value());
     // Output: [accumulate, values, here]
 
-    // Const can hold any value, including null
-    Const<String, Boolean> nullConst = new Const<>(null);
-    System.out.println("\nConst can hold null: " + nullConst.value());
-    // Output: null
-
     System.out.println("\n");
   }
 

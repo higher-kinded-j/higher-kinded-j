@@ -100,11 +100,14 @@ public final class EitherOrBothPath<L, A>
    *
    * @param supplier provides the default value; must not be null
    * @return the success value or the supplier's result
-   * @throws NullPointerException if supplier is null
+   * @throws NullPointerException if supplier is null, or if it is called and returns null
    */
   public A getOrElseGet(Supplier<? extends A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return value.fold(l -> supplier.get(), r -> r, (l, r) -> r);
+    return value.fold(
+        l -> Objects.requireNonNull(supplier.get(), "supplier must not return null"),
+        r -> r,
+        (l, r) -> r);
   }
 
   /**
@@ -113,11 +116,12 @@ public final class EitherOrBothPath<L, A>
    * @param onLeft applied to the left value if this is a {@code Left}; must not be null
    * @param onRight applied to the right value if this is a {@code Right}; must not be null
    * @param onBoth applied to both values if this is a {@code Both}; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of the matching function
    * @throws NullPointerException if any function is null
    */
-  public <B> B fold(
+  public <B extends @Nullable Object> B fold(
       Function<? super L, ? extends B> onLeft,
       Function<? super A, ? extends B> onRight,
       BiFunction<? super L, ? super A, ? extends B> onBoth) {

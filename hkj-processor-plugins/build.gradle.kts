@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    // Depends on the processor to get the SPI interface
+    // Depends on the processor to get the SPI interface and its base class
     implementation(project(":hkj-processor"))
     // Depends on the core library for the types the generators support
     implementation(project(":hkj-core"))

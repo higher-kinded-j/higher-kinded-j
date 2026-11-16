@@ -389,6 +389,30 @@ class VStreamReactiveTest {
   }
 
   /**
+   * A publisher that sends one element at the first request, then nothing more, and runs {@code
+   * onCancel} when cancelled, so a pull after the first waits until its run is closed.
+   */
+  private static Flow.Publisher<Integer> oneThenQuiet(Runnable onCancel) {
+    return subscriber -> {
+      AtomicBoolean sent = new AtomicBoolean();
+      subscriber.onSubscribe(
+          new Flow.Subscription() {
+            @Override
+            public void request(long n) {
+              if (sent.compareAndSet(false, true)) {
+                subscriber.onNext(1);
+              }
+            }
+
+            @Override
+            public void cancel() {
+              onCancel.run();
+            }
+          });
+    };
+  }
+
+  /**
    * A cold publisher of {@code count} integers from 1, sent as they are requested, on the
    * requesting thread. It counts its subscriptions and the elements requested of it.
    */
@@ -451,9 +475,10 @@ class VStreamReactiveTest {
       VTask<VStream.Step<Integer>> firstPull = stream.pull();
 
       assertThat(subscriptions).hasValue(0);
-      assertThat(firstPull.run()).isInstanceOf(VStream.Step.Emit.class);
+      VStream.Step<Integer> first = firstPull.run();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
       assertThat(subscriptions).hasValue(1);
-      stream.close().run();
+      ((VStream.Step.Emit<Integer>) first).tail().close().run();
     }
 
     @Test
@@ -498,7 +523,7 @@ class VStreamReactiveTest {
       assertThat(second).isInstanceOf(VStream.Step.Emit.class);
       assertThat(afterOneTaken).isEqualTo(5);
       assertThat(requested).hasValue(6);
-      stream.close().run();
+      ((VStream.Step.Emit<Integer>) second).tail().close().run();
     }
 
     @Test
@@ -514,18 +539,22 @@ class VStreamReactiveTest {
 
       assertThat(((VStream.Step.Emit<Integer>) once).value()).isEqualTo(2);
       assertThat(twice).isSameAs(once);
-      stream.close().run();
+      tail.close().run();
     }
 
     @Test
-    @DisplayName("closing the stream after a pull cancels that run's subscription")
+    @DisplayName(
+        "closing the tail a pull gave cancels that run's subscription, and closing the stream"
+            + " itself does not")
     void closingAfterAPullCancels() {
       VStream<Integer> stream =
           VStreamReactive.fromPublisher(counting(10, subscriptions, requested, cancelled), 4);
 
-      stream.pull().run();
+      VStream<Integer> tail = ((VStream.Step.Emit<Integer>) stream.pull().run()).tail();
       stream.close().run();
+      assertThat(cancelled).as("closing the stream itself").isFalse();
 
+      tail.close().run();
       assertThat(cancelled).isTrue();
     }
 
@@ -559,8 +588,7 @@ class VStreamReactiveTest {
     }
 
     @Test
-    @DisplayName(
-        "an element sent after the stream is closed is dropped, so it cannot fill the buffer")
+    @DisplayName("an element sent after the run is closed is dropped, so it cannot fill the buffer")
     void anElementSentAfterCloseIsDropped() {
       AtomicReference<Flow.Subscriber<? super Integer>> reading = new AtomicReference<>();
       Flow.Publisher<Integer> publisher =
@@ -583,8 +611,9 @@ class VStreamReactiveTest {
           };
       VStream<Integer> stream = VStreamReactive.fromPublisher(publisher, 1);
 
-      assertThat(stream.pull().run()).isInstanceOf(VStream.Step.Emit.class);
-      stream.close().run();
+      VStream.Step<Integer> first = stream.pull().run();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      ((VStream.Step.Emit<Integer>) first).tail().close().run();
       assertThat(cancelled).isTrue();
 
       // The buffer has room for one element and the end, and the end is already in it, so a
@@ -598,7 +627,7 @@ class VStreamReactiveTest {
     }
 
     @Test
-    @DisplayName("a signal that ends a run after its stream is closed is dropped, so never waits")
+    @DisplayName("a signal that ends a run after the run is closed is dropped, so never waits")
     void anEndAfterCloseIsDropped() {
       AtomicReference<Flow.Subscriber<? super Integer>> reading = new AtomicReference<>();
       Flow.Publisher<Integer> publisher =
@@ -619,8 +648,9 @@ class VStreamReactiveTest {
           };
       VStream<Integer> stream = VStreamReactive.fromPublisher(publisher, 1);
 
-      assertThat(stream.pull().run()).isInstanceOf(VStream.Step.Emit.class);
-      stream.close().run();
+      VStream.Step<Integer> first = stream.pull().run();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      ((VStream.Step.Emit<Integer>) first).tail().close().run();
 
       // The buffer has room for one element and the end, and the close's end is already in it.
       // The error takes the room left, as an element sent while the stream closed can, so the end
@@ -782,24 +812,15 @@ class VStreamReactiveTest {
     }
 
     @Test
-    @DisplayName("closing the stream wakes a pull that waits for an element, which gives Done")
+    @DisplayName("closing a run's tail wakes a pull that waits for an element, which gives Done")
     void closingWakesAWaitingPull() throws Exception {
-      Flow.Publisher<Integer> quiet =
-          subscriber ->
-              subscriber.onSubscribe(
-                  new Flow.Subscription() {
-                    @Override
-                    public void request(long n) {}
-
-                    @Override
-                    public void cancel() {}
-                  });
-      VStream<Integer> stream = VStreamReactive.fromPublisher(quiet, 4);
+      VStream<Integer> stream = VStreamReactive.fromPublisher(oneThenQuiet(() -> {}), 4);
+      VStream<Integer> rest = ((VStream.Step.Emit<Integer>) stream.pull().run()).tail();
       AtomicReference<Try<VStream.Step<Integer>>> outcome = new AtomicReference<>();
-      Thread pulling = Thread.startVirtualThread(() -> outcome.set(stream.pull().runSafe()));
+      Thread pulling = Thread.startVirtualThread(() -> outcome.set(rest.pull().runSafe()));
       await().atMost(Duration.ofSeconds(5)).until(() -> pulling.getState() == Thread.State.WAITING);
 
-      stream.close().run();
+      rest.close().run();
       pulling.join(Duration.ofSeconds(5));
 
       assertThat(outcome.get().isSuccess()).isTrue();
@@ -811,24 +832,19 @@ class VStreamReactiveTest {
     @DisplayName("a cancel that throws still wakes a waiting pull, and the close fails with it")
     void aCancelThatThrowsStillWakesAPull() throws Exception {
       IllegalStateException refused = new IllegalStateException("cancel refused");
-      Flow.Publisher<Integer> quiet =
-          subscriber ->
-              subscriber.onSubscribe(
-                  new Flow.Subscription() {
-                    @Override
-                    public void request(long n) {}
-
-                    @Override
-                    public void cancel() {
-                      throw refused;
-                    }
-                  });
-      VStream<Integer> stream = VStreamReactive.fromPublisher(quiet, 4);
+      VStream<Integer> stream =
+          VStreamReactive.fromPublisher(
+              oneThenQuiet(
+                  () -> {
+                    throw refused;
+                  }),
+              4);
+      VStream<Integer> rest = ((VStream.Step.Emit<Integer>) stream.pull().run()).tail();
       AtomicReference<Try<VStream.Step<Integer>>> outcome = new AtomicReference<>();
-      Thread pulling = Thread.startVirtualThread(() -> outcome.set(stream.pull().runSafe()));
+      Thread pulling = Thread.startVirtualThread(() -> outcome.set(rest.pull().runSafe()));
       await().atMost(Duration.ofSeconds(5)).until(() -> pulling.getState() == Thread.State.WAITING);
 
-      assertThat(stream.close().runSafe()).isEqualTo(Try.failure(refused));
+      assertThat(rest.close().runSafe()).isEqualTo(Try.failure(refused));
       pulling.join(Duration.ofSeconds(5));
 
       assertThat(outcome.get().isSuccess()).isTrue();

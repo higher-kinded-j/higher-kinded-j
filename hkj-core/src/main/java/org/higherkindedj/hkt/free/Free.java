@@ -34,12 +34,14 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *   <li>Optimising programs before execution
  * </ul>
  *
- * <p>The implementation uses three constructors for stack-safe execution:
+ * <p>The implementation has five constructors:
  *
  * <ul>
  *   <li>{@code Pure} - A completed computation with a value
  *   <li>{@code Suspend} - A suspended computation in the functor F
  *   <li>{@code FlatMapped} - A sequenced computation (flatMap optimisation)
+ *   <li>{@code HandleError} - A program with a handler for a failure of an error type
+ *   <li>{@code Ap} - Independent instructions combined applicatively
  * </ul>
  *
  * <p>As part of the HKT simulation, {@code Free} extends {@link FreeKind}, so every {@code Free} is
@@ -330,20 +332,14 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
    * transformation. This is the preferred method for interpreting Free monads as it provides
    * compile-time type safety for the transformation.
    *
-   * <p>This is a stack-safe interpreter that uses the {@link Trampoline} monad internally to ensure
-   * stack safety during Free structure traversal.
-   *
-   * <p>By leveraging Higher-Kinded-J's own Trampoline implementation, this method demonstrates the
-   * composability and practical utility of the library's abstractions whilst ensuring stack-safe
-   * execution for deeply nested Free structures.
-   *
-   * <p><b>Monad transformer limitation:</b> The internal interpreter uses an eager optimisation for
-   * {@code Suspend} nodes: when the target monad evaluates strictly (e.g. {@code Id}-based
-   * transformers like {@code WriterT<Id, W, A>}), the interpreter extracts the inner {@code Free}
-   * value and recurses directly, discarding the monadic context returned by the natural
-   * transformation. This means side effects accumulated in the transformer layer (such as {@code
-   * WriterT} log entries) are lost. Programs targeting monad transformers that accumulate state
-   * should use a lazy outer monad (e.g. {@code IO}) or use mutable recording interpreters instead.
+   * <p>Each instruction's whole value reaches the target monad: a {@code Writer}'s log, a {@code
+   * List}'s other elements and an {@code EitherOrBoth}'s warnings are all kept. The interpreter
+   * walks the program in a loop, with a stack of its own for continuations and {@code handleError}
+   * handlers, so a deep program runs into {@code Id}, {@code Either}, {@code Writer}, {@code
+   * EitherOrBoth}, {@code State} or {@code IO} without overflowing. Two things still deepen the
+   * stack: an instruction whose value holds several results, such as a {@code List} of two, runs
+   * the rest of the program once for each, and a target whose own {@code flatMap} nests, such as
+   * {@code Reader}, nests one call for each instruction when it runs.
    *
    * <h2>Example Usage</h2>
    *
@@ -375,7 +371,7 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
       Natural<F, M> transform, Monad<M> monad) {
     Validation.function().require(transform, "transform", FOLD_MAP);
     Validation.function().require(monad, "monad", FOLD_MAP);
-    return interpretFreeNatural(this, transform, monad).run();
+    return FreeInterpreter.foldMap(this, transform, monad);
   }
 
   /**
@@ -385,16 +381,16 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
    * Natural} transformation is not needed. For type-safe interpretation, prefer {@link
    * #foldMap(Natural, Monad)}.
    *
-   * <p>This is a stack-safe interpreter that uses the {@link Trampoline} monad internally to ensure
-   * stack safety during Free structure traversal.
+   * <p>It interprets as {@link #foldMap(Natural, Monad)} does.
    *
-   * <p><b>Monad transformer limitation:</b> The internal interpreter uses an eager optimisation for
-   * {@code Suspend} nodes: when the target monad evaluates strictly (e.g. {@code Id}-based
-   * transformers like {@code WriterT<Id, W, A>}), the interpreter extracts the inner {@code Free}
-   * value and recurses directly, discarding the monadic context returned by the natural
-   * transformation. This means side effects accumulated in the transformer layer (such as {@code
-   * WriterT} log entries) are lost. Programs targeting monad transformers that accumulate state
-   * should use a lazy outer monad (e.g. {@code IO}) or use mutable recording interpreters instead.
+   * <p>Each instruction's whole value reaches the target monad: a {@code Writer}'s log, a {@code
+   * List}'s other elements and an {@code EitherOrBoth}'s warnings are all kept. The interpreter
+   * walks the program in a loop, with a stack of its own for continuations and {@code handleError}
+   * handlers, so a deep program runs into {@code Id}, {@code Either}, {@code Writer}, {@code
+   * EitherOrBoth}, {@code State} or {@code IO} without overflowing. Two things still deepen the
+   * stack: an instruction whose value holds several results, such as a {@code List} of two, runs
+   * the rest of the program once for each, and a target whose own {@code flatMap} nests, such as
+   * {@code Reader}, nests one call for each instruction when it runs.
    *
    * @param transform The transformation function from F to M (natural transformation as function)
    * @param monad The monad instance for M
@@ -408,7 +404,7 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
     Validation.function().require(transform, "transform", FOLD_MAP);
     Validation.function().require(monad, "monad", FOLD_MAP);
     // Adapt the raw function to a Natural and interpret through the single Natural-based path.
-    return interpretFreeNatural(this, asNatural(transform), monad).run();
+    return FreeInterpreter.foldMap(this, asNatural(transform), monad);
   }
 
   /**
@@ -434,138 +430,5 @@ public sealed interface Free<F extends WitnessArity<TypeArity.Unary>, A> extends
         return (Kind<M, B>) transform.apply(fa);
       }
     };
-  }
-
-  /**
-   * Internal helper that interprets a Free monad using a type-safe {@link Natural} transformation
-   * and Trampoline for stack-safe traversal.
-   *
-   * @param free The Free monad to interpret
-   * @param transform The natural transformation from F to M
-   * @param monad The monad instance for M
-   * @param <F> The functor type
-   * @param <M> The target monad type
-   * @param <A> The result type
-   * @return A Trampoline that produces the interpreted result in monad M
-   */
-  private static <
-          F extends WitnessArity<TypeArity.Unary>, M extends WitnessArity<TypeArity.Unary>, A>
-      Trampoline<Kind<M, A>> interpretFreeNatural(
-          Free<F, A> free, Natural<F, M> transform, Monad<M> monad) {
-
-    return switch (free) {
-      case Pure<F, A> pure ->
-          // Terminal case: lift the pure value into the target monad
-          Trampoline.done(monad.of(pure.value()));
-
-      case Suspend<F, A> suspend -> {
-        // Transform the suspended computation using the type-safe Natural transformation
-        Kind<M, Free<F, A>> transformed = transform.apply(suspend.computation());
-
-        // Probe whether the target monad is strict by running a side-effecting map over the
-        // transformed value: a strict monad (e.g. Id-based transformers) invokes the mapper
-        // synchronously, setting eager[0] and capturing the inner Free; a lazy monad (IO, State)
-        // defers the mapper, leaving eager[0] false. This deliberately exploits map's evaluation
-        // timing to branch — it is an internal interpreter trick, not a pattern to emulate, and
-        // relies on map being called at most once per element.
-        @SuppressWarnings("unchecked")
-        Free<F, A>[] innerFreeRef = (Free<F, A>[]) new Free<?, ?>[1];
-        boolean[] eager = {false};
-        monad.map(
-            innerFree -> {
-              innerFreeRef[0] = innerFree;
-              eager[0] = true;
-              return innerFree;
-            },
-            transformed);
-
-        if (eager[0]) {
-          // Strict monad: defer interpretation through the Trampoline for stack safety.
-          Free<F, A> innerFree = innerFreeRef[0];
-          yield Trampoline.defer(() -> interpretFreeNatural(innerFree, transform, monad));
-        } else {
-          // Lazy monad: the monad's own laziness provides stack safety via flatMap.
-          yield Trampoline.done(
-              monad.flatMap(
-                  innerFree -> interpretFreeNatural(innerFree, transform, monad).run(),
-                  transformed));
-        }
-      }
-
-      case FlatMapped<F, ?, A> flatMapped -> {
-        // Handle FlatMapped by deferring the interpretation
-        @SuppressWarnings("unchecked")
-        FlatMapped<F, Object, A> fm = (FlatMapped<F, Object, A>) flatMapped;
-
-        yield Trampoline.defer(
-            () ->
-                interpretFreeNatural(fm.sub(), transform, monad)
-                    .map(
-                        kindOfX ->
-                            monad.flatMap(
-                                x -> {
-                                  Free<F, A> next = fm.continuation().apply(x);
-                                  return interpretFreeNatural(next, transform, monad).run();
-                                },
-                                kindOfX)));
-      }
-
-      case HandleError<F, ?, A> he ->
-          interpretHandleError(he, f -> interpretFreeNatural(f, transform, monad), monad);
-
-      case Ap<F, A> ap -> interpretApNatural(ap, transform, monad);
-    };
-  }
-
-  /**
-   * Interprets a HandleError node. If the monad is a MonadError, wraps the inner program's
-   * interpretation with error recovery. Otherwise, the handler is ignored and the inner program is
-   * interpreted normally.
-   */
-  @SuppressWarnings("unchecked")
-  private static <
-          F extends WitnessArity<TypeArity.Unary>, M extends WitnessArity<TypeArity.Unary>, A>
-      Trampoline<Kind<M, A>> interpretHandleError(
-          HandleError<F, ?, A> he,
-          Function<Free<F, A>, Trampoline<Kind<M, A>>> interpret,
-          Monad<M> monad) {
-    var rawHe = (HandleError<F, Object, A>) he;
-    if (monad instanceof MonadError<?, ?> me) {
-      // The monad supports error handling — wrap with recovery
-      var monadError = (MonadError<M, Object>) me;
-      return interpret
-          .apply(rawHe.program())
-          .map(
-              result ->
-                  monadError.handleErrorWith(
-                      result,
-                      error -> {
-                        if (rawHe.errorType().isInstance(error)) {
-                          Free<F, A> recovery = rawHe.handler().apply(error);
-                          return interpret.apply(recovery).run();
-                        }
-                        // Error type doesn't match — re-raise
-                        return monadError.raiseError(error);
-                      }));
-    } else {
-      // The monad does not support error handling — interpret the inner program, ignore handler
-      return interpret.apply(rawHe.program());
-    }
-  }
-
-  /**
-   * Interprets an Ap node using a Natural transformation and the monad as an Applicative.
-   *
-   * <p>The Natural transformation is polymorphic, so it handles both {@code Kind<F, Free<F, A>>}
-   * (used by Suspend) and {@code Kind<F, A>} (used by FreeAp.Lift). The Ap record constrains F to
-   * {@code WitnessArity<TypeArity.Unary>}, satisfying FreeAp.foldMap's requirement.
-   */
-  @SuppressWarnings("unchecked")
-  private static <
-          F extends WitnessArity<TypeArity.Unary>, M extends WitnessArity<TypeArity.Unary>, A>
-      Trampoline<Kind<M, A>> interpretApNatural(
-          Ap<F, A> ap, Natural<F, M> transform, Monad<M> monad) {
-    Kind<M, A> result = ap.applicative().foldMap(transform, monad);
-    return Trampoline.done(result);
   }
 }

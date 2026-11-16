@@ -14,11 +14,14 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -532,20 +535,25 @@ final class BeanPropertyAnalyser {
     return adder.flatMap(
         write ->
             getter.flatMap(
-                read ->
-                    Optional.ofNullable(
-                            ProcessorUtils.supertypeOf(
-                                types,
-                                getterType(accessors.message(), read),
-                                env.getElementUtils().getTypeElement(kind.getterType())))
-                        .map(
-                            type ->
-                                new WireShape.BeanProperty(
-                                    fieldName(suffix),
-                                    type,
-                                    Optional.of(read.getSimpleName().toString()),
-                                    Optional.of(new WireShape.WriteSite.Setter(write)),
-                                    Optional.of(field)))));
+                read -> {
+                  TypeMirror answered = getterType(accessors.message(), read);
+                  return Optional.ofNullable(
+                          ProcessorUtils.supertypeOf(
+                              types,
+                              answered,
+                              env.getElementUtils().getTypeElement(kind.getterType())))
+                      .map(
+                          type ->
+                              new WireShape.BeanProperty(
+                                  fieldName(suffix),
+                                  type,
+                                  Optional.of(read.getSimpleName().toString()),
+                                  Optional.of(new WireShape.WriteSite.Setter(write)),
+                                  Optional.of(
+                                      types.isSameType(answered, type)
+                                          ? field
+                                          : field.asWidened())));
+                }));
   }
 
   /**
@@ -1671,6 +1679,79 @@ final class BeanPropertyAnalyser {
    */
   private static String declaredOn(TypeElement bean, ExecutableElement getter) {
     return declaredOn(inheritedFrom(bean, getter));
+  }
+
+  /** The Lombok annotations on a field that have Lombok write its setter. */
+  private static final Set<String> LOMBOK_FIELD_WRITERS = Set.of("lombok.Setter");
+
+  /** The Lombok annotations on a class that have Lombok write its setters or builder setters. */
+  private static final Set<String> LOMBOK_TYPE_WRITERS =
+      Set.of("lombok.Data", "lombok.Setter", "lombok.Builder", "lombok.experimental.SuperBuilder");
+
+  /**
+   * The field Lombok writes {@code writer}, {@code property}'s setter or builder setter, from,
+   * where it does: Lombok wrote the writer ({@link #writtenByLombok}), and the field, or the class
+   * declaring it, carries an annotation that has Lombok write one. Lombok writes no setter a class
+   * declares itself, so a hand-written one names no field, whatever the field carries. The field is
+   * looked for in {@code owner} and then up its superclasses, where a {@code @SuperBuilder}'s
+   * parent declares it. A diagnostic names the field as the place to change a Lombok writer's
+   * declaration, which the bean's source never shows.
+   *
+   * @param writer the setter or builder setter
+   * @param owner the class the writer belongs to: the bean, or the class a builder builds
+   * @param property the property the writer writes
+   * @return the field, if Lombok writes from it
+   */
+  static Optional<VariableElement> lombokSourceField(
+      ExecutableElement writer, TypeElement owner, String property) {
+    if (!writtenByLombok(writer)) {
+      return Optional.empty();
+    }
+    for (TypeElement type = owner; type != null; type = superclassOf(type)) {
+      TypeElement declaring = type;
+      Optional<VariableElement> field =
+          ElementFilter.fieldsIn(declaring.getEnclosedElements()).stream()
+              .filter(candidate -> candidate.getSimpleName().contentEquals(property))
+              .findFirst();
+      if (field.isPresent()) {
+        return field.filter(
+            found ->
+                annotatedWithAny(found, LOMBOK_FIELD_WRITERS)
+                    || annotatedWithAny(declaring, LOMBOK_TYPE_WRITERS));
+      }
+    }
+    return Optional.empty();
+  }
+
+  /**
+   * Whether Lombok wrote {@code method}, by the marks it puts on each method it writes: {@code
+   * lombok.Generated}, by default since Lombok 1.18.34, and {@code @SuppressWarnings("all")}, the
+   * only one before then. A {@code lombok.config} that turns both off leaves none to read, and its
+   * writers read as hand-written.
+   */
+  private static boolean writtenByLombok(ExecutableElement method) {
+    return annotatedWithAny(method, Set.of("lombok.Generated"))
+        || method.getAnnotationMirrors().stream()
+            .filter(mirror -> qualifiedName(mirror).equals("java.lang.SuppressWarnings"))
+            .flatMap(mirror -> mirror.getElementValues().values().stream())
+            .flatMap(names -> ((List<?>) names.getValue()).stream())
+            .anyMatch(name -> "all".equals(((AnnotationValue) name).getValue()));
+  }
+
+  /** A class's superclass, or null for {@code Object} and a type with none. */
+  private static TypeElement superclassOf(TypeElement type) {
+    return type.getSuperclass() instanceof DeclaredType superclass
+        ? (TypeElement) superclass.asElement()
+        : null;
+  }
+
+  private static boolean annotatedWithAny(Element element, Set<String> names) {
+    return element.getAnnotationMirrors().stream()
+        .anyMatch(mirror -> names.contains(qualifiedName(mirror)));
+  }
+
+  private static String qualifiedName(AnnotationMirror mirror) {
+    return ((TypeElement) mirror.getAnnotationType().asElement()).getQualifiedName().toString();
   }
 
   /**

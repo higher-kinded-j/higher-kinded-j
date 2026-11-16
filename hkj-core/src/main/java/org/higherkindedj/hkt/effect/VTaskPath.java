@@ -147,7 +147,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<VTaskPath<?
    * Executes this VTaskPath asynchronously on a virtual thread.
    *
    * <p>The computation starts immediately on a virtual thread. The returned future can be used to
-   * wait for the result or combine with other asynchronous operations.
+   * wait for the result or combine with other asynchronous operations. Cancelling it with {@code
+   * cancel(true)} interrupts the task, and {@code cancel(false)} leaves it running, as {@link
+   * VTask#runAsync()} describes.
    *
    * @return a CompletableFuture that will complete with the result
    */

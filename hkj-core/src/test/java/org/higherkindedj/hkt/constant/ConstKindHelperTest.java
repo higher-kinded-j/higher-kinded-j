@@ -53,19 +53,6 @@ class ConstKindHelperTest {
           .withMessageContaining("Const")
           .withMessageContaining("widen");
     }
-
-    @Test
-    @DisplayName("widen2() works with null constant value")
-    @SuppressWarnings("DataFlowIssue") // a Const may legitimately hold a null constant value
-    void widen2WorksWithNullConstantValue() {
-      Const<String, Integer> const_ = new Const<>(null);
-
-      Kind2<ConstKind2.Witness, String, Integer> kind = CONST.widen2(const_);
-
-      assertThat(kind).isNotNull();
-      Const<String, Integer> unwrapped = CONST.narrow2(kind);
-      assertThat(unwrapped.value()).isNull();
-    }
   }
 
   @Nested
@@ -150,19 +137,6 @@ class ConstKindHelperTest {
           .isThrownBy(() -> CONST.widen(null))
           .withMessageContaining("Const")
           .withMessageContaining("widen");
-    }
-
-    @Test
-    @DisplayName("widen() works with null constant value")
-    @SuppressWarnings("DataFlowIssue") // a Const may legitimately hold a null constant value
-    void widenWorksWithNullConstantValue() {
-      Const<String, Integer> const_ = new Const<>(null);
-
-      Kind<ConstKind.Witness<String>, Integer> kind = CONST.widen(const_);
-
-      assertThat(kind).isNotNull();
-      Const<String, Integer> unwrapped = CONST.narrow(kind);
-      assertThat(unwrapped.value()).isNull();
     }
   }
 

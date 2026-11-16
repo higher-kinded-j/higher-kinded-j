@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -370,6 +371,144 @@ class VTaskTest {
       assertThatThrownBy(future::join)
           .isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(RuntimeException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Cancelling the future from runAsync()")
+  class RunAsyncCancellation {
+
+    /** A task that waits until the test releases it, and notes whether it was interrupted. */
+    private static final class Gate {
+      private final CountDownLatch started = new CountDownLatch(1);
+      private final CountDownLatch released = new CountDownLatch(1);
+      private final CountDownLatch finished = new CountDownLatch(1);
+      private final AtomicBoolean interrupted = new AtomicBoolean(false);
+
+      VTask<String> task() {
+        return VTask.of(
+            () -> {
+              started.countDown();
+              try {
+                if (!released.await(5, TimeUnit.SECONDS)) {
+                  throw new IllegalStateException(
+                      "the test did not release this task in 5 seconds");
+                }
+              } catch (InterruptedException e) {
+                interrupted.set(true);
+              }
+              finished.countDown();
+              return "finished";
+            });
+      }
+    }
+
+    @Test
+    @DisplayName("cancel(true) interrupts the running task")
+    void cancelTrueInterruptsTheTask() throws Exception {
+      Gate gate = new Gate();
+      CompletableFuture<String> future = gate.task().runAsync();
+      assertThat(gate.started.await(5, TimeUnit.SECONDS)).isTrue();
+
+      assertThat(future.cancel(true)).isTrue();
+
+      assertThat(gate.finished.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(gate.interrupted).isTrue();
+      assertThat(future).isCancelled();
+    }
+
+    @Test
+    @DisplayName("cancel(false) leaves the task running, uninterrupted")
+    void cancelFalseLeavesTheTaskRunning() throws Exception {
+      Gate gate = new Gate();
+      CompletableFuture<String> future = gate.task().runAsync();
+      assertThat(gate.started.await(5, TimeUnit.SECONDS)).isTrue();
+
+      assertThat(future.cancel(false)).isTrue();
+      gate.released.countDown();
+
+      assertThat(gate.finished.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(gate.interrupted).isFalse();
+      assertThat(future).isCancelled();
+    }
+
+    @Test
+    @DisplayName("cancel(true) on a finished future changes nothing")
+    void cancelAfterTheTaskFinishedChangesNothing() {
+      CompletableFuture<Integer> future = VTask.succeed(TEST_VALUE).runAsync();
+      assertThat(future.join()).isEqualTo(TEST_VALUE);
+
+      assertThat(future.cancel(true)).isFalse();
+
+      assertThat(future).isNotCancelled();
+      assertThat(future.join()).isEqualTo(TEST_VALUE);
+    }
+
+    @Test
+    @DisplayName("cancel(true) never interrupts a callback the task's thread runs for the future")
+    void cancelNeverInterruptsACallbackOnTheTasksThread() throws Exception {
+      CountDownLatch taskMayReturn = new CountDownLatch(1);
+      CountDownLatch inLaterCallback = new CountDownLatch(1);
+      CountDownLatch laterCallbackMayFinish = new CountDownLatch(1);
+      CountDownLatch laterCallbackDone = new CountDownLatch(1);
+      AtomicBoolean laterCallbackOnVirtualThread = new AtomicBoolean(false);
+      AtomicBoolean laterCallbackInterrupted = new AtomicBoolean(false);
+      CompletableFuture<String> future =
+          VTask.of(
+                  () -> {
+                    if (!taskMayReturn.await(5, TimeUnit.SECONDS)) {
+                      throw new IllegalStateException("the test did not let this task return");
+                    }
+                    return "returned";
+                  })
+              .runAsync();
+      // Attached first, so it runs last: the task's thread runs it once the task has returned.
+      future.whenComplete(
+          (value, failure) -> {
+            laterCallbackOnVirtualThread.set(Thread.currentThread().isVirtual());
+            inLaterCallback.countDown();
+            try {
+              if (!laterCallbackMayFinish.await(5, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("the test did not let this callback finish");
+              }
+            } catch (InterruptedException e) {
+              laterCallbackInterrupted.set(true);
+            }
+            laterCallbackDone.countDown();
+          });
+      // Attached second, so cancel runs it first, on this thread: it lets the task return, then
+      // holds cancel until the task's thread is inside the later callback.
+      future.whenComplete(
+          (value, failure) -> {
+            taskMayReturn.countDown();
+            try {
+              inLaterCallback.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+          });
+
+      assertThat(future.cancel(true)).isTrue();
+      laterCallbackMayFinish.countDown();
+
+      assertThat(laterCallbackDone.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(laterCallbackOnVirtualThread).isTrue();
+      assertThat(laterCallbackInterrupted).isFalse();
+    }
+
+    @Test
+    @DisplayName("cancelling a stage built on the future does not reach the task")
+    void cancellingADependentStageLeavesTheTaskRunning() throws Exception {
+      Gate gate = new Gate();
+      CompletableFuture<String> future = gate.task().runAsync();
+      CompletableFuture<Integer> stage = future.thenApply(String::length);
+      assertThat(gate.started.await(5, TimeUnit.SECONDS)).isTrue();
+
+      assertThat(stage.cancel(true)).isTrue();
+      gate.released.countDown();
+
+      assertThat(future.get(5, TimeUnit.SECONDS)).isEqualTo("finished");
+      assertThat(gate.interrupted).isFalse();
     }
   }
 

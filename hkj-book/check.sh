@@ -11,6 +11,7 @@ status=0
 node .github/scripts/book-heading-html-check.cjs || status=1
 node .github/scripts/book-anchor-check.cjs || status=1
 node .github/scripts/announcement-check.cjs || status=1
+node .github/scripts/book-diagram-check.cjs || status=1
 
 mermaid_check=.github/scripts/mermaid-check
 if .github/scripts/fetch_mermaid.sh; then

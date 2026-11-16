@@ -28,8 +28,8 @@ import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Targeted coverage test for the {@link HttpHeaderCarrier} integration line added to {@link
- * VTaskPathReturnValueHandler#writeFailureResponse}. There are no general unit tests for this
- * handler in the suite, so this file focuses narrowly on the new branch.
+ * VTaskPathReturnValueHandler#writeFailureResponse}. The handler's other tests are in {@link
+ * VTaskPathReturnValueHandlerTest}.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("VTaskPathReturnValueHandler header-carrier coverage")

@@ -103,7 +103,7 @@ The quotes arrive in whatever order the courier answers, so the example sorts th
 | Reads the source on | The thread that pulls | A virtual thread of its own |
 | Tasks see the caller's `ScopedValue` bindings | Yes | No |
 
-`parEvalMapUnordered` starts the next element's task each time you take a result. If you stop reading part-way without closing the stream, its thread is left waiting, so close it; `take` and the other operations that stop early close it for you.
+`parEvalMapUnordered` starts the next element's task each time you take a result. If you stop reading part-way, close the tail you hold, or the run's thread is left waiting. `take` and the other operations that stop early close it for you.
 
 `parEvalFlatMap(stream, concurrency, f)` builds the stream `f` gives for each element, up to `concurrency` at once through `parEvalMap`, then reads those streams one after another, in order. Closing it closes each stream it built but never reached, so their finalisers run when a `take` stops early or a failure ends the stream first.
 
@@ -121,7 +121,7 @@ A task that fails makes its element a failure in its place, as a failed `mapTask
 
 Without a `recover`, the stream fails with the courier's own exception when it reaches Edsger's quote. A `recover` after the parallel operation gives a value in its place, and the stream goes on with the next quote. `parEvalMapUnordered` hands on a task's failure as the task completes, as it does a result. In `parEvalFlatMap`, a call of `f` that fails is a failed task, so `recover` gives one value in place of the stream that call would have built.
 
-Two failures still end the stream. A function that throws, rather than returning a task that fails, ends it as it would `mapTask`, so do the work inside the task, as `VTask.of` does. A task that fails with an `InterruptedException` ends it at once: the tasks still running are cancelled, and `parEvalMap` hands on none of that batch's results. A `recover` after it gives one value, then ends the stream.
+Two failures still end the stream. A function that throws, rather than returning a task that fails, ends it as it would `mapTask`, so do the work inside the task, as `VTask.of` does. A task that fails with an `InterruptedException` ends it at once: the tasks still running are cancelled, and `parEvalMap` hands on none of that batch's results. A `recover` after it lets the interrupt through, as [Running a stream](vstream.md#running-a-stream) says, so the run fails with it.
 
 A failed element from further up is handed on in the same way. When a `mapTask` task fails before the parallel operation, its element passes through as a failure, so a `recover` after the parallel operation gives a value in its place and the stream goes on. `parEvalMap`, `parEvalMapUnordered` and `parEvalFlatMap` all do this, while a merge of several streams ends there. Any other failure further up, such as a `map` that throws, ends the stream, after the elements read before it.
 

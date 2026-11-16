@@ -31,6 +31,8 @@ Use `Resource` for files, connections, and locks. Use `Saga` for multi-step busi
 
 ```mermaid
 flowchart LR
+    accTitle: A saga compensating after a failed step
+    accDescr: Charge Payment completes with pay-123, and Reserve Stock completes with res-456. Schedule Shipping then fails, so the completed steps are compensated, newest first. First res-456 is released, then pay-123 is refunded.
     C["Charge Payment<br/>result: pay-123"] --> R["Reserve Stock<br/>result: res-456"] --> S["Schedule Shipping"]
     S -->|"fails: compensate completed<br/>steps, newest first"| U1["1. Release res-456"]
     U1 --> U2["2. Refund pay-123"]

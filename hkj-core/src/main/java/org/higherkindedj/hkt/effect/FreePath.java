@@ -131,8 +131,8 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
   /**
    * Interprets this FreePath into a target monad using a natural transformation.
    *
-   * <p>The natural transformation converts each instruction in F to the target monad G. This is
-   * stack-safe and uses trampolining internally.
+   * <p>The natural transformation converts each instruction in F to the target monad G. It
+   * interprets as {@link Free#foldMap(Natural, Monad)} does.
    *
    * @param interpreter natural transformation from F to G; must not be null
    * @param targetMonad the target monad instance; must not be null

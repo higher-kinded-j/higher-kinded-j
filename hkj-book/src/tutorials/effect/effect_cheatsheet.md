@@ -190,24 +190,16 @@ return step2(intermediate).runIO().unsafeRun(); // runs the IO twice
 
 ## Where this lands in [One Line, Six Layers](../../hkts/one_line_six_layers.md)
 
-The Effect API is the layer that lets us write the One Line, Six Layers expression at all:
+The Effect API is the layer that lets us write the One Line, Six Layers expression at all. This journey practises most of its Path steps:
 
-```
-   repo.find(id)              .toEitherPath()      .focus().attributes().at(key)
-   └── Effect Path ───────────┤                    └── Optic ─ via Focus DSL ───┐
-       MaybePath, EitherPath, │                                                 │
-       TryPath, IOPath, ...   │                                                 │
-                              │                                                 │
-                              └── Tutorial 01: every Path conversion lives in   │
-                                  this one method shape                         │
-                                                                                │
-   .modify(spec::validateAndCoerce)             .flatMap(repo::save);           │
-   └── map (under the optic) ────┐              └── via / flatMap ──────────────┘
-       Tutorial 01 (map)         │                  Tutorial 01 (via)
-                                │
-                                └── ForPath / Contexts (Tutorial 02) flatten
-                                    multi-step versions of this shape
-```
+| Step of the line | What it does | Tutorial |
+|---|---|---|
+| `orders.find(id)` | Returns a `MaybePath<Order>`; `MaybePath`, `EitherPath`, `TryPath`, `IOPath` and the rest share its method shape | 01 |
+| `.toEitherPath(OrderError.notFound(id))` | Converts one Path into another, giving the empty case a reason | Foundations Tutorial 00 |
+| `.map(order -> ...)` | Changes the value with a step that cannot fail | 01 |
+| `.via(orders::save)` | Runs a step that can fail, on the value before it | 01 |
+
+Tutorial 02's `ForPath` spells a longer chain of the same steps as a comprehension, naming each value.
 
 ---
 

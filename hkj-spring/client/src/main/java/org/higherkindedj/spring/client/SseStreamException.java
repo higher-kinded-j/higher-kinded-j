@@ -19,6 +19,7 @@ public class SseStreamException extends RuntimeException {
   private static final int MAX_MESSAGE_CHARS = 512;
   private static final String NO_DETAIL = "Unknown SSE stream error";
 
+  /** The error detail from the stream, or {@code null} when it carried none. */
   private final @Nullable String detail;
 
   /**

@@ -205,6 +205,12 @@ public interface Monoids {
   /**
    * Returns a {@code Monoid} for double addition. Combination is `+`, identity is `0.0`.
    *
+   * <p>Addition on a {@code double} rounds, so grouping can change a sum: {@code (0.1 + 0.2) + 0.3}
+   * is {@code 0.6000000000000001}, and {@code 0.1 + (0.2 + 0.3)} is {@code 0.6}. Adding {@code 0.0}
+   * to {@code -0.0}, on either side, gives {@code 0.0}, which {@link Double#equals} holds different
+   * from {@code -0.0}. So associativity holds only within rounding, and the identity laws only up
+   * to the sign of zero. To total money, use {@link #bigDecimalAddition()}.
+   *
    * @return a Monoid for double addition
    */
   static Monoid<Double> doubleAddition() {
@@ -223,6 +229,10 @@ public interface Monoids {
 
   /**
    * Returns a {@code Monoid} for double multiplication. Combination is `*`, identity is `1.0`.
+   *
+   * <p>Multiplication on a {@code double} rounds, so grouping can change a product: {@code (0.1 *
+   * 0.2) * 0.3} is {@code 0.006000000000000001}, and {@code 0.1 * (0.2 * 0.3)} is {@code 0.006}. So
+   * associativity holds only within rounding.
    *
    * @return a Monoid for double multiplication
    */

@@ -25,6 +25,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "hkj.client")
 public class HkjClientProperties {
 
+  /** Creates properties with no mappings configured. */
+  public HkjClientProperties() {}
+
   /** Global HTTP status code → error type (fully-qualified class name) mapping. */
   private Map<Integer, String> statusErrorMappings = new LinkedHashMap<>();
 

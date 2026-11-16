@@ -13,7 +13,7 @@ import org.higherkindedj.hkt.effect.Path;
 
 /**
  * An {@link OrderRepository} held in memory, for the chapter's examples and their tests. It is not
- * thread-safe: the examples run on one thread.
+ * thread-safe: use it from one thread at a time, as the examples do.
  */
 public final class InMemoryOrderRepository implements OrderRepository {
 

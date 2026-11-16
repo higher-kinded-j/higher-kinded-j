@@ -3,7 +3,6 @@
 package org.higherkindedj.hkt.effect;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -136,11 +135,12 @@ public final class ValidationPath<E, A>
    *
    * @param supplier provides the default value; must not be null
    * @return the success value or the supplier's result
-   * @throws NullPointerException if supplier is null
+   * @throws NullPointerException if supplier is null, or if it is called and returns null
    */
   public A getOrElseGet(Supplier<? extends A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return value.fold(_ -> supplier.get(), a -> a);
+    return value.fold(
+        _ -> Objects.requireNonNull(supplier.get(), "supplier must not return null"), a -> a);
   }
 
   /**
@@ -148,11 +148,12 @@ public final class ValidationPath<E, A>
    *
    * @param invalidMapper the function to apply if invalid; must not be null
    * @param validMapper the function to apply if valid; must not be null
-   * @param <B> the result type
+   * @param <B> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of applying the appropriate function
    * @throws NullPointerException if either mapper is null
    */
-  public <B> B fold(
+  public <B extends @Nullable Object> B fold(
       Function<? super E, ? extends B> invalidMapper,
       Function<? super A, ? extends B> validMapper) {
     Objects.requireNonNull(invalidMapper, "invalidMapper must not be null");
@@ -224,8 +225,7 @@ public final class ValidationPath<E, A>
    * @return an OptionalPath containing the value if Valid, or empty if Invalid
    */
   public OptionalPath<A> toOptionalPath() {
-    return value.fold(
-        _ -> new OptionalPath<>(Optional.empty()), a -> new OptionalPath<>(Optional.of(a)));
+    return new OptionalPath<>(value.toOptional());
   }
 
   // ===== Composable implementation =====

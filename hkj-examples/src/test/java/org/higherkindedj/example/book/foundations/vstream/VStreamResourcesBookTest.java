@@ -107,6 +107,22 @@ class VStreamResourcesBookTest {
       assertThat(Collections.frequency(log, "feed opened")).isEqualTo(2);
       assertThat(Collections.frequency(log, "feed closed")).isEqualTo(2);
     }
+
+    @Test
+    @DisplayName("take(0) on one thread leaves another thread's connection to the same stream open")
+    void takeZeroLeavesAnotherRunOpen() throws InterruptedException {
+      VStream<Order> orders = ordersOver(feed());
+      AtomicReference<VStream.Step<Order>> otherRun = new AtomicReference<>();
+      Thread other = Thread.ofVirtual().start(() -> otherRun.set(orders.pull().run()));
+      other.join();
+
+      List<Order> none = orders.take(0).toList().run();
+
+      assertThat(none).isEmpty();
+      assertThat(log).containsExactly("feed opened", "page 1");
+      tail(otherRun.get()).close().run();
+      assertThat(log).endsWith("feed closed");
+    }
   }
 
   @Nested
@@ -386,6 +402,20 @@ class VStreamResourcesBookTest {
     }
 
     @Test
+    @DisplayName(
+        "a stream the run never reaches is left as it is, unless the finaliser is after it")
+    void unreachedStreamLeftAlone() {
+      List<String> ran = new CopyOnWriteArrayList<>();
+      VStream<Integer> second = VStream.of(2).onFinalize(VTask.exec(() -> ran.add("second")));
+
+      VStream.of(1).concat(second).headOption().run();
+      second.prepend(0).headOption().run();
+      second.prepend(0).onFinalize(VTask.exec(() -> ran.add("after prepend"))).headOption().run();
+
+      assertThat(ran).containsExactly("after prepend");
+    }
+
+    @Test
     @DisplayName("closing a stream that was never pulled runs its finalisers")
     void closingUnpulledRunsFinalisers() {
       customers(orders(new PagedFeed(ORDERS))).close().run();
@@ -430,14 +460,17 @@ class VStreamResourcesBookTest {
     }
 
     @Test
-    @DisplayName("closing the stream that was pulled closes the connection too")
-    void theHeadClosesTheConnection() {
+    @DisplayName(
+        "closing the stream that was pulled closes no run's connection, and the tail closes it")
+    void theHeadClosesNoConnection() {
       VStream<Order> orders = ordersOver(feed());
 
-      orders.pull().run();
+      VStream.Step<Order> first = orders.pull().run();
       orders.close().run();
 
-      assertThat(log).containsExactly("feed opened", "page 1", "feed closed");
+      assertThat(log).containsExactly("feed opened", "page 1");
+      tail(first).close().run();
+      assertThat(log).endsWith("feed closed");
     }
 
     @Test
@@ -519,14 +552,14 @@ class VStreamResourcesBookTest {
     }
 
     @Test
-    @DisplayName("running a pulled task twice opens twice, and closing the head closes the latest")
+    @DisplayName("running a pulled task twice opens twice, and each run's tail closes its own")
     void runningAPullTwice() {
       VStream<Order> orders = ordersOver(feed());
       VTask<VStream.Step<Order>> pull = orders.pull();
 
       VStream.Step<Order> firstRun = pull.run();
-      pull.run();
-      orders.close().run();
+      VStream.Step<Order> secondRun = pull.run();
+      tail(secondRun).close().run();
 
       assertThat(Collections.frequency(log, "feed opened")).isEqualTo(2);
       assertThat(Collections.frequency(log, "feed closed")).isEqualTo(1);

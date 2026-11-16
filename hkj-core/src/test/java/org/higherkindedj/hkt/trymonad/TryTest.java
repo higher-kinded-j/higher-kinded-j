@@ -569,6 +569,27 @@ class TryTest extends TryTestBase {
   }
 
   // ============================================================================
+  // toOptional()
+  // ============================================================================
+
+  @Nested
+  @DisplayName("toOptional()")
+  class ToOptionalTests {
+
+    @Test
+    @DisplayName("toOptional() on a Success is present with the value")
+    void toOptionalOnSuccessIsPresentWithValue() {
+      assertThat(successInstance.toOptional()).contains(successValue);
+    }
+
+    @Test
+    @DisplayName("toOptional() on a Failure is empty")
+    void toOptionalOnFailureIsEmpty() {
+      assertThat(failureInstance.toOptional()).isEmpty();
+    }
+  }
+
+  // ============================================================================
   // map()
   // ============================================================================
 

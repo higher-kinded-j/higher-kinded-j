@@ -44,9 +44,12 @@ dependencies {
     testImplementation(libs.bundles.jqwik)
 
     // The TraversableGenerator SPI (BaseTraversableGenerator, Cardinality) that hkj-optics'
-    // container-types page documents. It is wired above as `annotationProcessor`, which puts it on
-    // the PROCESSOR path, not the compile classpath, so the gate could not compile a snippet that
-    // implements the SPI. javac is given an explicit -processorpath, so classpath discovery stays off.
+    // container-types page documents, which hkj-processor-plugins brings from hkj-processor.
+    // hkj-processor-plugins is wired above as `annotationProcessor`, which puts it on the PROCESSOR
+    // path, not the compile classpath, so the gate could not compile a snippet that implements the
+    // SPI. javac is given an explicit -processorpath, so classpath discovery stays off. Do not narrow
+    // this to hkj-processor: the processor path's loader asks this classpath first, so the processor
+    // is loaded from here, and it finds generators only where it was loaded from.
     testImplementation(project(":hkj-processor-plugins"))
 
     testImplementation(project(":hkj-spring:client"))
@@ -188,6 +191,14 @@ val bookVerify = tasks.register<Test>("bookVerify") {
     // The output-comment gate reads these sources: a comment is not compiled, so the only way to
     // hold `// Valid(...)` to what the example prints is to run it and compare.
     systemProperty("hkj.examples.dir", exampleSources.asFile.absolutePath)
+    // The Example Index test walks these sources to find each basic example, so an edit to them
+    // re-runs it, even one that leaves the compiled classes as they were.
+    val basicExampleSources = layout.projectDirectory.dir("src/main/java/org/higherkindedj/example/basic")
+    inputs
+        .files(basicExampleSources.asFileTree)
+        .withPropertyName("basicExampleSources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("hkj.basic.examples.dir", basicExampleSources.asFile.absolutePath)
     inputs
         .files(layout.projectDirectory.dir("src/test/java/org/higherkindedj/example/book").asFileTree)
         .withPropertyName("bookExampleTestSources")

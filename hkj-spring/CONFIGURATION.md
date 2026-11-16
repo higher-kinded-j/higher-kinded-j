@@ -487,7 +487,7 @@ Default timeout for `CompletableFuturePath` responses in milliseconds.
 
 - **Type:** `long`
 - **Default:** `30000` (30 seconds)
-- **Effect:** Maximum time to wait for the future to complete before the `DeferredResult` times out (HTTP 504)
+- **Effect:** Maximum time to wait for the future to complete before the `DeferredResult` times out (HTTP 504). The starter then cancels the future, which interrupts the work only when the path wraps a future that can be interrupted, as `Path.future(task.runAsync())` does, `withTimeout` included. A `map` or `via` makes a new future, which breaks the chain.
 
 **Example:**
 ```yaml
@@ -506,7 +506,7 @@ Default timeout for VTaskPath responses in milliseconds.
 
 - **Type:** `long`
 - **Default:** `30000` (30 seconds)
-- **Effect:** Maximum time to wait for VTask completion before timing out the DeferredResult
+- **Effect:** Maximum time to wait for VTask completion before timing out the DeferredResult (HTTP 504). The starter then interrupts the task, without waiting for it: a sleep, a wait or a blocking socket read in the task fails, though a task that catches the interrupt and carries on keeps running.
 
 **Example:**
 ```yaml

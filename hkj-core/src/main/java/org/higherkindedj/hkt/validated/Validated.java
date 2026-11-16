@@ -6,6 +6,7 @@ import static java.util.Objects.requireNonNull;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -14,6 +15,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.util.validation.Validation;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a value that is either Valid (correct) or Invalid (erroneous). This is a sealed
@@ -244,11 +246,12 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    *
    * @param invalidMapper The non-null function to apply if this is an {@link Invalid}.
    * @param validMapper The non-null function to apply if this is a {@link Valid}.
-   * @param <T> The target type to which both paths will be mapped.
+   * @param <T> The target type to which both paths will be mapped. It may be {@code @Nullable}:
+   *     name it as a type argument, as in {@code <@Nullable String>fold}.
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code invalidMapper} or {@code validMapper} is null.
    */
-  default <T> T fold(
+  default <T extends @Nullable Object> T fold(
       Function<? super E, ? extends T> invalidMapper,
       Function<? super A, ? extends T> validMapper) {
     Validation.function().require(invalidMapper, "invalidMapper", FOLD);
@@ -270,6 +273,21 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    */
   default Either<E, A> toEither() {
     return fold(Either::left, Either::right);
+  }
+
+  /**
+   * Converts this {@code Validated} to an {@link Optional}, keeping a {@link Valid}'s value and
+   * dropping an {@link Invalid}'s error.
+   *
+   * <p>An {@link Invalid} gives {@link Optional#empty()}, so its error is lost; {@link
+   * #fold(Function, Function)} keeps it. A {@link Valid} never holds {@code null}, so its value is
+   * never lost.
+   *
+   * @return An {@code Optional} holding the {@link Valid} value, or {@link Optional#empty()} if
+   *     this is an {@link Invalid}. Never {@code null}.
+   */
+  default Optional<A> toOptional() {
+    return fold(_ -> Optional.empty(), Optional::of);
   }
 
   /**

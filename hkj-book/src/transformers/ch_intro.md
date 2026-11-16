@@ -30,7 +30,7 @@ Higher-Kinded-J provides six transformers, each adding a specific capability to 
 ## The Stacking Concept
 
 <pre class="hkj-ascii-diagram">
-<span style="color:#F44336">    ┌─────────────────────────────────────────────────────────────┐
+<span class="hkj-rail-err">    ┌─────────────────────────────────────────────────────────────┐
     │  WITHOUT TRANSFORMER                                        │
     │                                                             │
     │    CompletableFuture&lt;Either&lt;Error, Result&gt;&gt;                 │
@@ -41,7 +41,7 @@ Higher-Kinded-J provides six transformers, each adding a specific capability to 
     │                ...)))   // Nesting grows unboundedly        │
     └─────────────────────────────────────────────────────────────┘</span>
 
-<span style="color:#4CAF50">    ┌─────────────────────────────────────────────────────────────┐
+<span class="hkj-rail-ok">    ┌─────────────────────────────────────────────────────────────┐
     │  WITH TRANSFORMER                                           │
     │                                                             │
     │    EitherT&lt;FutureWitness, Error, Result&gt;                    │

@@ -3,18 +3,19 @@
 package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
-import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.NullAwayCompiler.compile;
+import static org.higherkindedj.optics.processing.NullAwayCompiler.source;
 
 import com.google.testing.compile.Compilation;
-import com.google.testing.compile.JavaFileObjects;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 import javax.annotation.processing.Processor;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.processing.NullAwayCompiler.Configuration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedClass;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Optics instantiated at a nullable type pass a JSpecify nullness checker, both where a consumer
@@ -26,26 +27,28 @@ import org.junit.jupiter.api.Test;
  * Lens<Config, @Nullable String>} is legal only because the optic declares {@code A
  * extends @Nullable Object}. Nothing else in the build runs a nullness checker, so a declaration
  * that rejects a nullable type argument fails only here.
+ *
+ * <p>Every fixture runs twice: in JSpecify mode alone, and with the two options the book tells a
+ * consumer to add, since an optic that passes one and fails the other breaks a build that follows
+ * the book.
  */
 @DisplayName("A nullness checker accepts optics at a nullable type")
+@ParameterizedClass(name = "{0}")
+@EnumSource(Configuration.class)
 class NullableFocusNullnessTest {
 
-  private static final JavaFileObject NULL_MARKED_PACKAGE =
-      JavaFileObjects.forSourceString(
-          "com.example.package-info",
-          """
-          @NullMarked
-          package com.example;
+  private final Configuration configuration;
 
-          import org.jspecify.annotations.NullMarked;
-          """);
-
-  /** What a consumer checking every source file, generated ones included, would see. */
-  private static Compilation compileChecked(List<Processor> processors, JavaFileObject... sources) {
-    return compile(processors, List.of(), sources);
+  NullableFocusNullnessTest(Configuration configuration) {
+    this.configuration = configuration;
   }
 
-  private static Compilation compileChecked(JavaFileObject... sources) {
+  /** What a consumer checking every source file, generated ones included, would see. */
+  private Compilation compileChecked(List<Processor> processors, JavaFileObject... sources) {
+    return compile(configuration, processors, List.of(), sources);
+  }
+
+  private Compilation compileChecked(JavaFileObject... sources) {
     return compileChecked(List.of(), sources);
   }
 
@@ -54,43 +57,14 @@ class NullableFocusNullnessTest {
    * unchecked, as a consumer who excludes generated code has them. Their signatures are still read
    * as annotated, so a use site is held to the types they declare.
    */
-  private static Compilation compileCheckedOutsideGenerated(
+  private Compilation compileCheckedOutsideGenerated(
       List<Processor> processors, JavaFileObject... sources) {
     return compile(
+        configuration,
         processors,
         List.of(
             "-XepOpt:NullAway:ExcludedClassAnnotations=org.higherkindedj.optics.annotations.Generated"),
         sources);
-  }
-
-  private static Compilation compile(
-      List<Processor> processors, List<String> extraErrorProneFlags, JavaFileObject... sources) {
-    String errorProne =
-        String.join(
-            " ",
-            Stream.concat(
-                    Stream.of(
-                        "-Xplugin:ErrorProne",
-                        "-XepDisableAllChecks",
-                        "-Xep:NullAway:ERROR",
-                        "-XepOpt:NullAway:OnlyNullMarked=true",
-                        "-XepOpt:NullAway:JSpecifyMode=true"),
-                    extraErrorProneFlags.stream())
-                .toList());
-    return javac()
-        .withProcessors(processors)
-        .withOptions(
-            // Error Prone looks for a plugin checker such as NullAway on the processor path only.
-            "--processor-path",
-            System.getProperty("java.class.path"),
-            "-XDcompilePolicy=simple",
-            "--should-stop=ifError=FLOW",
-            errorProne)
-        .compile(Stream.concat(Stream.of(NULL_MARKED_PACKAGE), Arrays.stream(sources)).toList());
-  }
-
-  private static JavaFileObject source(String qualifiedName, String body) {
-    return JavaFileObjects.forSourceString(qualifiedName, body);
   }
 
   @Nested
@@ -1271,6 +1245,46 @@ class NullableFocusNullnessTest {
 
       assertThat(compilation).succeeded();
     }
+
+    @Test
+    @DisplayName("a factory whose function may return null takes one that never does")
+    void aMayReturnNullFactoryTakesANeverNullFunction() {
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.MayReturnNull",
+                  """
+                  package com.example;
+
+                  import java.util.function.Function;
+                  import java.util.function.Supplier;
+                  import org.higherkindedj.hkt.effect.context.JavaOptionalContext;
+                  import org.higherkindedj.hkt.effect.context.OptionalContext;
+                  import org.higherkindedj.optics.focus.AffinePath;
+                  import org.jspecify.annotations.Nullable;
+
+                  class MayReturnNull {
+                    record Box(@Nullable String s) {}
+
+                    static void pass(
+                        Supplier<String> never,
+                        Supplier<@Nullable String> maybe,
+                        Function<Box, String> neverGet,
+                        Function<Box, @Nullable String> maybeGet) {
+                      OptionalContext.io(never);
+                      OptionalContext.io(maybe);
+                      OptionalContext.io(() -> "x");
+                      JavaOptionalContext.io(never);
+                      JavaOptionalContext.io(maybe);
+                      AffinePath.ofNullable(neverGet, (box, s) -> new Box(s));
+                      AffinePath.ofNullable(maybeGet, (box, s) -> new Box(s));
+                      AffinePath.ofNullable(Box::s, (box, s) -> new Box(s));
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
   }
 
   @Nested
@@ -1716,6 +1730,110 @@ class NullableFocusNullnessTest {
                       AffinePath<Crate, String> note = CrateFocus.note();
                       AffinePath<Crate, String> memo = CrateFocus.memo();
                       List<Leaf> all = bag.getAll(crate);
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
+  }
+
+  @Nested
+  @DisplayName("an exit from a core type")
+  class Exits {
+
+    @Test
+    @DisplayName("a fold or foldFailureFirst takes a nullable result type, and can return null")
+    void aFoldTakesANullableResultType() {
+      // A fold holds nothing, so its result type is the caller's. NullAway does not infer a
+      // nullable one from a function that returns null, so each call names it.
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.Exits",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.WitnessArity;
+                  import org.higherkindedj.hkt.effect.EitherOrBothPath;
+                  import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.higherkindedj.hkt.effect.TryPath;
+                  import org.higherkindedj.hkt.effect.ValidationPath;
+                  import org.higherkindedj.hkt.either.Either;
+                  import org.higherkindedj.hkt.eitherf.EitherF;
+                  import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
+                  import org.higherkindedj.hkt.trymonad.Try;
+                  import org.higherkindedj.hkt.validated.Validated;
+                  import org.jspecify.annotations.Nullable;
+
+                  class Exits {
+                    static @Nullable Integer either(Either<String, Integer> e) {
+                      return e.<@Nullable Integer>fold(_ -> null, v -> v);
+                    }
+
+                    static @Nullable Integer validated(Validated<String, Integer> v) {
+                      return v.<@Nullable Integer>fold(_ -> null, a -> a);
+                    }
+
+                    static @Nullable Integer eitherOrBoth(EitherOrBoth<String, Integer> b) {
+                      return b.<@Nullable Integer>fold(_ -> null, v -> v, (_, v) -> v);
+                    }
+
+                    static <F extends WitnessArity<?>, G extends WitnessArity<?>>
+                        @Nullable String eitherF(EitherF<F, G, String> e) {
+                      return e.<@Nullable String>fold(_ -> null, _ -> "right");
+                    }
+
+                    static @Nullable Integer attempt(Try<Integer> t) {
+                      return t.<@Nullable Integer>foldFailureFirst(_ -> null, v -> v);
+                    }
+
+                    static @Nullable Integer attemptFold(Try<Integer> t) {
+                      return t.<@Nullable Integer>fold(_ -> null, v -> v);
+                    }
+
+                    static @Nullable Integer eitherPath(EitherPath<String, Integer> p) {
+                      return p.<@Nullable Integer>fold(_ -> null, v -> v);
+                    }
+
+                    static @Nullable Integer validationPath(ValidationPath<String, Integer> p) {
+                      return p.<@Nullable Integer>fold(_ -> null, v -> v);
+                    }
+
+                    static @Nullable Integer eitherOrBothPath(EitherOrBothPath<String, Integer> p) {
+                      return p.<@Nullable Integer>fold(_ -> null, v -> v, (_, v) -> v);
+                    }
+
+                    static @Nullable Integer tryPath(TryPath<Integer> p) {
+                      return p.<@Nullable Integer>foldFailureFirst(_ -> null, v -> v);
+                    }
+
+                    static @Nullable Integer tryPathFold(TryPath<Integer> p) {
+                      return p.<@Nullable Integer>fold(_ -> null, v -> v);
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("a fold to a non-null type still needs no null check")
+    void aFoldToANonNullTypeStaysNonNull() {
+      Compilation compilation =
+          compileChecked(
+              source(
+                  "com.example.NonNull",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.either.Either;
+                  import org.higherkindedj.hkt.trymonad.Try;
+
+                  class NonNull {
+                    static int length(Either<String, String> e, Try<String> t) {
+                      String folded = e.fold(l -> l, r -> r);
+                      return folded.length() + t.fold(_ -> "", v -> v).length();
                     }
                   }
                   """));

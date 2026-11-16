@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.higherkindedj.hkt.validated.Validated;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents an <em>inclusive</em>-or: a value that is a {@link Left}, a {@link Right}, <b>or
@@ -125,11 +126,12 @@ public sealed interface EitherOrBoth<L, R> extends EitherOrBothKind<L, R>, Eithe
    * @param onLeft applied to the left value if this is a {@link Left}; must not be null
    * @param onRight applied to the right value if this is a {@link Right}; must not be null
    * @param onBoth applied to both values if this is a {@link Both}; must not be null
-   * @param <T> the result type
+   * @param <T> the result type, which may be {@code @Nullable}: name it as a type argument, as in
+   *     {@code <@Nullable String>fold}.
    * @return the result of the matching function
    * @throws NullPointerException if any function is null
    */
-  default <T> T fold(
+  default <T extends @Nullable Object> T fold(
       Function<? super L, ? extends T> onLeft,
       Function<? super R, ? extends T> onRight,
       BiFunction<? super L, ? super R, ? extends T> onBoth) {

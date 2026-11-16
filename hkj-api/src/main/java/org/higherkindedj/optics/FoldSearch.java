@@ -5,6 +5,7 @@ package org.higherkindedj.optics;
 import java.io.Serial;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Unit;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -23,16 +24,16 @@ final class FoldSearch extends RuntimeException {
   @Serial private static final long serialVersionUID = 1L;
 
   /** Combines nothing: a search keeps its answer in itself, not in the fold's result. */
-  private static final Monoid<Void> NOTHING =
+  private static final Monoid<Unit> NOTHING =
       new Monoid<>() {
         @Override
-        public Void empty() {
-          return null;
+        public Unit empty() {
+          return Unit.INSTANCE;
         }
 
         @Override
-        public Void combine(Void a, Void b) {
-          return null;
+        public Unit combine(Unit a, Unit b) {
+          return Unit.INSTANCE;
         }
       };
 
@@ -67,7 +68,7 @@ final class FoldSearch extends RuntimeException {
               search.focus = a;
               throw search;
             }
-            return null;
+            return Unit.INSTANCE;
           },
           source);
     } catch (FoldSearch thrown) {

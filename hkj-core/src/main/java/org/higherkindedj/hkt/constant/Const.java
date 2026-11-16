@@ -46,11 +46,26 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * {@code Kind2<ConstKind2.Witness, C, A>}). Widening via {@link ConstKindHelper} is therefore a
  * cast-free, allocation-free upcast (no wrapper object).
  *
+ * <p>A {@code Const} always holds a value: a null value, including one returned by a {@code
+ * mapFirst} or {@code bimap} function, throws {@link NullPointerException}. A fold built on {@code
+ * Const}, such as a traversal's {@code foldMap}, therefore fails at the element whose function
+ * returned null, rather than passing the null to its monoid.
+ *
  * @param <C> The type of the constant value.
  * @param <A> The phantom type parameter (not stored).
- * @param value The constant value held by this instance.
+ * @param value The constant value held by this instance. Must not be null.
  */
 public record Const<C, A>(C value) implements ConstKind<C, A>, ConstKind2<C, A> {
+
+  /**
+   * Creates a {@code Const} holding the given value.
+   *
+   * @param value The constant value. Must not be null.
+   * @throws NullPointerException if {@code value} is null
+   */
+  public Const {
+    Validation.coreType().requireValue(value, Const.class, CONSTRUCTION);
+  }
 
   /**
    * Transforms both the constant value and the phantom type parameter.
@@ -80,7 +95,8 @@ public record Const<C, A>(C value) implements ConstKind<C, A>, ConstKind2<C, A> 
    * @param <B> The phantom type parameter in the resulting {@code Const}.
    * @return A new {@code Const<D, B>} with the constant value transformed. The returned instance
    *     will be non-null.
-   * @throws NullPointerException if either {@code firstMapper} or {@code secondMapper} is null.
+   * @throws NullPointerException if either {@code firstMapper} or {@code secondMapper} is null, or
+   *     if {@code firstMapper} returns null.
    */
   public <D, B> Const<D, B> bimap(
       Function<? super C, ? extends D> firstMapper, Function<? super A, ? extends B> secondMapper) {
@@ -112,7 +128,7 @@ public record Const<C, A>(C value) implements ConstKind<C, A>, ConstKind2<C, A> 
    * @param <D> The type of the constant value in the resulting {@code Const}.
    * @return A new {@code Const<D, A>} with the constant value transformed. The returned instance
    *     will be non-null.
-   * @throws NullPointerException if {@code firstMapper} is null.
+   * @throws NullPointerException if {@code firstMapper} is null, or returns null.
    */
   public <D> Const<D, A> mapFirst(Function<? super C, ? extends D> firstMapper) {
     Validation.function().require(firstMapper, "firstMapper", MAP_FIRST);

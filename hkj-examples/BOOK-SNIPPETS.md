@@ -357,6 +357,11 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `glossary/type-sy
   `CustomTable`. `optics/focus_containers.md`'s `TraversableGenerator` registers itself with
   Avaje's `@ServiceProvider`, which `hkj-processor-plugins` takes compile-only, so the gate does
   not carry it; the sketch also leaves the `generateModifyF` body to the reader.
+  `tooling/generator_plugins.md`'s step-by-step generator registers itself the same way, and
+  `GeneratorPluginGuideTest`, in hkj-processor, gates it instead: it compiles the generator and its
+  `module-info.java` against hkj-processor's published API and Avaje alone, as a plugin author's
+  build does, and checks the step 3 build block names nothing else. It finds each block by the bold
+  step line above it, so keep those lines as they are.
 - **A class in the reader's own package.** `optics/kind_field_support.md`'s `@TraverseField`
   examples name `com.example.TreeTraverse`, a witness's `Traverse` the reader writes. The
   processor emits the string verbatim, and a snippet compiles in one package of its own, so it

@@ -267,7 +267,7 @@ Real projects mix collection libraries: JDK collections for ordinary code, Eclip
 
 ## The fine print: registering your own container type
 
-A library can teach the processor about its own container by implementing `TraversableGenerator`. The interface is small: say which types you handle, what cardinality they have, which type argument is the focus, what optic expression to emit, and (the one method with no default) how to emit `modifyF`. Leave the optic expression out and the generator serves `@GenerateTraversals` and `@ImportOptics` only: under `@GenerateFocus`, the path stops at the container, as if no generator supported it.
+A library can teach the processor about its own container by implementing `TraversableGenerator`. The interface is small: say which types you handle, what cardinality they have, which type argument is the focus, what optic expression to emit, and how to emit `modifyF`. Only the first and the last have no default. Leave the optic expression out and the generator serves `@GenerateTraversals` and `@ImportOptics` only: under `@GenerateFocus`, the path stops at the container, as if no generator supported it.
 
 ```java
 @ServiceProvider(TraversableGenerator.class)
@@ -309,7 +309,7 @@ public final class ResultGenerator extends BaseTraversableGenerator {
 }
 ```
 
-`generateModifyF` is the only member without a default, so a generator that omits it will not compile: `BaseTraversableGenerator` supplies the generic-type and constructor-argument helpers, not this.
+`supports` and `generateModifyF` are the only members without a default, so a generator that omits either will not compile: `BaseTraversableGenerator` supplies the generic-type and constructor-argument helpers, not these.
 
 `@ServiceProvider` (from Avaje) writes the `META-INF/services` entry and checks the `module-info.java` `provides` clause for you. Once the generator is on the annotation processor path, any `@GenerateFocus` record with a `Result<E, A>` field generates an `AffinePath` that calls `.some(ResultAffines.success())`.
 
@@ -324,7 +324,7 @@ public final class ResultGenerator extends BaseTraversableGenerator {
 * **`Optional`, `Maybe`, `List`, `Set` and `Collection` are built in.** Everything else, including `Map` and arrays, arrives through the `TraversableGenerator` SPI.
 * **`widenCollections = true` removes the asymmetry, and `widenFields` removes it for chosen fields.** Without either, an SPI `ZERO_OR_MORE` container stops at the container, in static Focus methods and navigator methods alike, whatever its element.
 * **Third-party collections need no extra HKJ module.** One generic `fromIterableCollecting` factory covers Eclipse Collections, Guava, Vavr, Apache Commons and PCollections, on top of the ecosystem dependency you already declare to name the type. A sorted container goes through `fromIterableRebuilding` or `mapValuesEachRebuilding`, which keep its comparator.
-* **The SPI is open.** Implement `supports`, `getCardinality`, `getFocusTypeArgumentIndex`, `generateOpticExpression` and the one method with no default, `generateModifyF`, plus `getOrderedTypeArgumentIndex` for a sorted container; register with `@ServiceProvider`, and your container becomes a first-class Focus field.
+* **The SPI is open.** Implement `supports` and `generateModifyF`, the two methods with no default, and override the others your container needs, such as `getCardinality`, `generateOpticExpression`, or `getOrderedTypeArgumentIndex` for a sorted container. Register with `@ServiceProvider`, and your container becomes a first-class Focus field.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

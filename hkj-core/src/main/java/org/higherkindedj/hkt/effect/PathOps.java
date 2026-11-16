@@ -1620,12 +1620,11 @@ public final class PathOps {
    * <p>This is a terminal operation that produces a VTaskPath containing the collected list.
    * Elements in the result are in the same order as the source stream.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link
-   * VStreamPath#take(long)} first.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example. Use {@link VStreamPath#take(long)} first.
    *
    * @param stream the VStreamPath to collect; must not be null
-   * @param batchSize the number of elements to read between checks for an interrupt; must be
-   *     positive
+   * @param batchSize the number of elements in each batch; must be positive
    * @param <A> the element type
    * @return a VTaskPath that produces the list of all elements
    * @throws NullPointerException if stream is null
@@ -1634,10 +1633,7 @@ public final class PathOps {
    *     so this runs nothing in parallel. Use {@link VStreamPath#toList()}, which gives the same
    *     list. To run each element's work in parallel, do the work inside the task that the function
    *     you give {@link VStreamPath#parEvalMap} or {@link VStreamPath#parEvalMapUnordered} returns,
-   *     as in {@code n -> VTask.of(() -> work(n))}, and collect with {@code toList()}. Unlike this
-   *     method, {@code toList()} does not stop for an interrupt between pulls, so bound an endless
-   *     stream whose pulls never block, with {@link VStreamPath#take(long)}, before you time it
-   *     out.
+   *     as in {@code n -> VTask.of(() -> work(n))}, and collect with {@code toList()}.
    */
   @Deprecated(since = "0.6.0", forRemoval = true)
   @SuppressWarnings("removal") // delegates to the deprecated method until its removal

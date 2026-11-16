@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.coyoneda.CoyonedaKindHelper.COYONEDA;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Natural;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -20,8 +21,11 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <h2>Key Property</h2>
  *
  * <p>Unlike most Functor instances that require the underlying type to support mapping, {@code
- * CoyonedaFunctor<F>} works for <em>any</em> type constructor F because mapping simply composes
- * functions without actually performing any mapping on F.
+ * CoyonedaFunctor<F>} works for <em>any</em> type constructor F because mapping only holds the
+ * function, without performing any mapping on F.
+ *
+ * <p>So it can be the Functor of a {@code Free} program over an instruction set that has none of
+ * its own. Run such a program with {@link Coyoneda#interpreter(Natural, Functor)}.
  *
  * <h2>Map Fusion</h2>
  *
@@ -35,7 +39,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *     x -> Integer.toString(x * 2),
  *     functor.map(x -> x + 1, coyo)
  * );
- * // The two functions are composed internally - only ONE actual map when lowered
+ * // The two functions are held, and applied in ONE actual map when lowered
  * }</pre>
  *
  * <h2>Functor Laws</h2>
@@ -43,13 +47,14 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <p>This implementation satisfies the Functor laws by construction:
  *
  * <ul>
- *   <li><b>Identity:</b> {@code map(x -> x, fa) ≡ fa} - mapping with identity just composes with
- *       identity
- *   <li><b>Composition:</b> {@code map(g, map(f, fa)) ≡ map(g.compose(f), fa)} - functions are
- *       composed
+ *   <li><b>Identity:</b> {@code map(x -> x, fa) ≡ fa} - mapping with identity holds one more
+ *       function that changes nothing
+ *   <li><b>Composition:</b> {@code map(g, map(f, fa)) ≡ map(g.compose(f), fa)} - both give f then
+ *       g, applied in one map
  * </ul>
  *
  * @param <F> The underlying type constructor (not required to be a Functor)
+ * @see Coyoneda#interpreter(Natural, Functor)
  */
 public class CoyonedaFunctor<F extends WitnessArity<TypeArity.Unary>>
     implements Functor<CoyonedaKind.Witness<F>> {

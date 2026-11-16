@@ -33,6 +33,8 @@ Which line of defence answers depends on the mistake:
 
 ```mermaid
 flowchart TD
+    accTitle: Which line of defence answers a transformer mistake
+    accDescr: If javac does not reject the stack, nothing says a word, as in section 3, where an unconstrained L silently becomes Object. If javac rejects it and an HKJ check runs beside it, javac's error comes with an actionable HKJ message, as in sections 1 and 4. If no HKJ check runs, javac's error comes alone, as in sections 2 and 5.
     C["Your transformer stack"]
     J{"Does javac<br/>reject it?"}
     N["Nothing says a word<br/>§3, L becomes Object"]

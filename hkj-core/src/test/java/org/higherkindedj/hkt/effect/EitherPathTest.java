@@ -158,6 +158,16 @@ class EitherPathTest {
     }
 
     @Test
+    @DisplayName("getOrElseGet() refuses a supplier that returns null for Left")
+    void getOrElseGetRefusesNullFromSupplierForLeft() {
+      EitherPath<String, Integer> path = Path.left(TEST_ERROR);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.getOrElseGet(() -> null))
+          .withMessage("supplier must not return null");
+    }
+
+    @Test
     @DisplayName("fold() applies appropriate function")
     void foldAppliesAppropriateFunction() {
       EitherPath<String, Integer> rightPath = Path.right(TEST_INT);

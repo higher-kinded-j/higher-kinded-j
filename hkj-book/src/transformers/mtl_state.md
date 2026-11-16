@@ -167,7 +167,7 @@ Kind<StateTKind.Witness<Cart, IdKind.Witness>, BigDecimal> result =
 
 ---
 
-## The MonadState Laws
+## The MonadState Laws {#the-monadstate-laws}
 
 Every `MonadState` implementation must satisfy four laws. These guarantee that state behaves the way a mutable variable would: reads reflect the most recent write, redundant writes collapse, and `modify` is just a read-then-write.
 

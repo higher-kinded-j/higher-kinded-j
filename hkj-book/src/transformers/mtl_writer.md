@@ -165,7 +165,7 @@ var result = audit.listens(List::size, computation);
 
 ---
 
-## The MonadWriter Laws
+## The MonadWriter Laws {#the-monadwriter-laws}
 
 Every `MonadWriter` implementation must satisfy three laws. These guarantee that output accumulation is predictable and that `tell` behaves like appending to a log.
 

@@ -150,6 +150,16 @@ class OptionalPathTest {
     }
 
     @Test
+    @DisplayName("getOrElseGet() refuses a supplier that returns null for absent")
+    void getOrElseGetRefusesNullFromSupplierForAbsent() {
+      OptionalPath<String> path = Path.absent();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.getOrElseGet(() -> null))
+          .withMessage("supplier must not return null");
+    }
+
+    @Test
     @DisplayName("isPresent() returns true for present")
     void isPresentReturnsTrueForPresent() {
       OptionalPath<String> path = Path.present(TEST_VALUE);

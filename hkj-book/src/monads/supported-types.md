@@ -1,159 +1,36 @@
+<!-- description: Find the Higher-Kinded-J type for the Java you write today, such as Maybe for a method that may return null, and see which type classes each type supports. -->
+
 # Supported Types
 
-~~~admonish info title="What You'll Learn"
-- The complete catalogue of **29 supported types** with HKT simulation, grouped by purpose
-- Which typeclass instances (Functor, Monad, Traverse, etc.) each type provides
-- How to choose the right type for your use case
-- The unified pattern that every type follows: Kind interface, Witness type, Helper class
-~~~
+_Find the type for the code you write today, and see which type classes each type supports._
 
-~~~admonish title="Hands On Practice"
-[Tutorial06_ConcreteTypes.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java)
-~~~
+## Choosing a Type {#choosing-a-type}
 
-![monads_everywhere.webp](../images/monads_everywhere.webp)
+Find the code you write today, or the Java type it already gives you, in the first column. Application code holds the type beside it through the [Effect Path](../effect/ch_intro.md) in the last column, where it has one.
 
-## Choosing a Type
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-triage.md.golden:triage}}
 
-Not sure which type you need? Start here:
+Each type's page opens with a card that names a neighbouring type for when that type does not fit.
 
-```text
-What does your computation do?
-  |
-  +-- Might be absent or fail?
-  |     +-- Absent (no error info)       --> Maybe / Optional
-  |     +-- Fail with typed error         --> Either
-  |     +-- Fail with exception           --> Try
-  |     +-- Collect ALL errors at once    --> Validated
-  |     +-- Just a plain value            --> Id
-  |
-  +-- Has a side effect?
-  |     +-- Deferred I/O                  --> IO
-  |     +-- Async / concurrent            --> CompletableFuture / VTask
-  |     +-- Reads shared config           --> Reader / Context
-  |     +-- Threads mutable state         --> State
-  |     +-- Accumulates a log             --> Writer
-  |     +-- Expensive, compute-once       --> Lazy
-  |
-  +-- Produces multiple values?
-  |     +-- Finite, in-memory             --> List
-  |     +-- Lazy / potentially infinite   --> Stream / VStream
-  |
-  +-- Needs stack-safe recursion?         --> Trampoline
-  +-- Building a DSL / interpreter?       --> Free / FreeAp
-  +-- Combining two monadic effects?      --> MaybeT / EitherT / OptionalT / ReaderT / StateT / WriterT
-```
+An Effect Path can hold two effects at once: [`VResultPath`](../effect/path_vresult.md), for one, is a deferred task that fails with a typed error. Where no Path holds the pair you need, a monad transformer adds one effect to another, as [Other types with instances](#other-types-with-instances) shows.
 
-## All Supported Types at a Glance
+## What each type supports {#what-each-type-supports}
 
-The diagram below shows every type grouped by category, with its highest typeclass instance annotated. The typeclass hierarchy is: **Functor &larr; Applicative &larr; Monad &larr; MonadError**, so a type tagged `<<Monad>>` also provides Functor and Applicative. Additional capabilities like Selective, Traverse, Bifunctor, and Alternative are shown where available.
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:matrix}}
 
-![supported_types.svg](../images/puml/supported_types.svg)
+A type class, such as `Functor` or `Traverse`, names operations that work on any type with an instance of it, so a row tells you which generic code accepts that type. [Type Classes](../functional/ch_intro.md) says what each one lets you call. Every row lists the classes in the same order, and includes each class a listed one extends, as [the hierarchy](../functional/ch_intro.md#the-hierarchy) shows. `MonadError<…>` names the error its instance raises and recovers from: the type's own `L` or `E`, a `Throwable`, or `Unit`, the bare absence of `Maybe` and `Optional`.
 
-## The Unified Pattern
+Two rows that match can still behave differently, because behaviour belongs to the instance: `Either`'s `ap` stops at the first error, and `Validated`'s keeps every one. A test reads the table from the library's classes, so it lists exactly the instances of these type classes the library has. [`Semigroup` and `Monoid`](../functional/semigroup_and_monoid.md), which take a plain type rather than a container, are left out. Some instances take arguments. `Validated`'s and `EitherOrBoth`'s take a `Semigroup` to join two errors, `Writer`'s and `Const`'s a `Monoid` to join two logs or two values, and `EitherF`'s a `Functor` for each side.
 
-Every type follows the same HKT simulation structure:
+## Other types with instances {#other-types-with-instances}
 
-| Piece | Purpose |
-|-------|---------|
-| `XxxKind<A>` | HKT marker interface extending `Kind<XxxKind.Witness, A>` |
-| `XxxKind.Witness` | Phantom type that uniquely identifies the type constructor |
-| `XxxKindHelper` | Bridge utilities: `widen()` (concrete to Kind), `narrow()` (Kind to concrete) |
-| Type class instances | `Functor`, `Applicative`, `Monad`, etc. parameterised by the Witness type |
+A monad transformer, such as `EitherT`, adds one effect to a monad you choose, so its instance takes that monad's own, and `WriterT`'s a `Monoid` as well. `ReaderT`'s `MonadReader<…>`, `StateT`'s `MonadState<…>` and `WriterT`'s `MonadWriter<…>` name the environment, state or output each gives access to, and [MTL Capabilities](../transformers/mtl_capabilities.md) shows code written against them. `Tuple2` is a pair whose two sides [Bifunctor](../functional/bifunctor.md) maps, and `Function` a function whose input and output [Profunctor](../functional/profunctor.md) adapts. None of them has a Core Types page, so each row links the page that shows it.
 
-**Most library-defined types** (Maybe, Either, IO, etc.) directly implement their Kind interface, so `widen`/`narrow` are zero-cost casts. **`Lazy` and the external Java types** (Optional, List, Stream, CompletableFuture) use an internal holder record.
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:others}}
 
----
+Java has no higher-kinded types, so generic code reaches every type on this page through the same encoding, which [How the Encoding Works](../hkts/core-concepts.md#the-pieces-each-type-provides) shows.
 
-## Type Details by Category
-
-### Value & Error Types
-
-Six ways to model "this computation might not produce a value."
-
-**[`Id<A>`](./identity.md)**: The "do nothing" wrapper. No effects, no surprises. Sounds pointless, but it is the neutral element that makes monad transformers and generic code work. When you need a `Monad<F>` but have no effect to model, `Id` is your answer.
-
-**[`Maybe<A>`](./maybe_monad.md)**: `Just(value)` or `Nothing`. The library's own optional type, with the same type class instances as `Optional`. Pick this over `Optional` in code you control: it is its own `Kind`, so widening allocates nothing, and `toEither` gives its absence a reason.
-
-**[`Optional<A>`](./optional_monad.md)**: HKT bridge to `java.util.Optional`. Same semantics as Maybe, but wraps the JDK type directly. Use this when your codebase already passes `Optional` values around and you want to lift them into generic HKT code without conversion.
-
-**[`Either<L, R>`](./either_monad.md)**: `Right(value)` or `Left(error)`. Right-biased. Unlike Maybe/Optional which only say "absent", Either carries a typed error `L` that explains *why* the computation failed. Also provides Bifunctor for mapping both sides.
-
-**[`Try<A>`](./try_monad.md)**: `Success(value)` or `Failure(throwable)`. Either specialised for exceptions. Wrap risky code with `Try.of(() -> ...)` and it catches the exception for you. Reach for this when your error is always a `Throwable`.
-
-**[`Validated<E, A>`](./validated_monad.md)**: `Valid(value)` or `Invalid(error)`. Looks like Either, but its killer feature is error *accumulation*: use applicative `ap` with a `Semigroup<E>` to collect ALL errors from independent validations, not just the first one. The go-to for form validation and input checking.
-
-**[`EitherOrBoth<L, R>`](./either_or_both_monad.md)**: `Left(error)`, `Right(value)`, or `Both(warnings, value)`. The *inclusive*-or (`Ior`/`These`): unlike Either/Validated, it models a success that also carries non-fatal warnings. Right-biased with total accessors; `flatMap` short-circuits on `Left` and accumulates a `Both`'s warnings via a `Semigroup`. Reach for it when a result can be both a value and a list of problems.
-
-### Effect & Computation Types
-
-Eight ways to model "this computation does something beyond returning a value."
-
-**[`IO<A>`](./io_monad.md)**: Describes a side effect without running it. Nothing happens until you call `unsafeRunSync()`. File reads, API calls, database writes: anything that touches the outside world belongs in `IO`. Think of it as a recipe for a side effect.
-
-**[`Lazy<A>`](./lazy_monad.md)**: Describes a *pure* computation without running it. Like `IO`, nothing happens until you call `force()`, but unlike `IO`, the result is memoised. Second call returns the cached value instantly. Perfect for expensive computations you may never need.
-
-**[`CompletableFuture<A>`](./cf_monad.md)**: HKT bridge to `java.util.concurrent.CompletableFuture`. Asynchronous computation that is already running. Provides MonadError so you can `flatMap` over futures and handle failures through the typeclass hierarchy.
-
-**[`VTask<A>`](./vtask_monad.md)**: A deferred task that may block or throw a checked exception. Unlike a CompletableFuture, it waits until you run it. `run()` uses the calling thread; `runAsync()`, `Par` and [`Scope`](./vtask_scope.md) use virtual threads. `Scope` manages their lifecycles and cancellation, and [`Resource`](./vtask_resource.md) their cleanup.
-
-**[`Reader<R, A>`](./reader_monad.md)**: A function `R -> A` wrapped in a monad. Pass a shared environment (config, database pool, feature flags) to an entire computation graph without threading it through every parameter list. Dependency injection, functional style.
-
-**[`Context<R, A>`](./context_scoped.md)**: Like Reader, but built on JDK 21+ `ScopedValue`. Use when your environment is scoped to a thread or task rather than passed explicitly. Integrates with virtual-thread structured concurrency.
-
-**[`State<S, A>`](./state_monad.md)**: A function `S -> (S, A)`. Threads mutable state through a computation without actual mutation. Each step receives the current state and returns a new state alongside its result. Stateful algorithms, purely.
-
-**[`Writer<W, A>`](./writer_monad.md)**: Pairs every result with an accumulated log. Each `flatMap` step produces a log entry; the `Monoid<W>` combines them automatically. Extract the final value with `run()`, the complete log with `exec()`, or both with `runWriter()`. Audit trails, calculation receipts, metrics.
-
-### Collection Types
-
-Three ways to model "this computation produces multiple values."
-
-**[`List<A>`](./list_monad.md)**: HKT bridge to `java.util.List`. As a monad, `flatMap` models non-deterministic computation: map over each element, concatenate the results. Supports Selective, Traverse, and Alternative for rich collection operations in generic code.
-
-**[`Stream<A>`](./stream_monad.md)**: HKT bridge to `java.util.stream.Stream`. Lazy and potentially infinite, but **single-use**: consuming a stream exhausts it. Use for large or generated sequences where you don't want everything in memory at once.
-
-**[`VStream<A>`](./vstream.md)**: A lazy, pull-based stream whose elements come from tasks. The consumer sets the pace, an element's failure can be recovered, and parallel operations fan out across virtual threads. Think of it as a `Stream` for pipelines whose elements block or fail.
-
-### Recursion & DSL Types
-
-Four abstractions for when standard monads aren't enough.
-
-**[`Trampoline<A>`](./trampoline_monad.md)**: Turns recursive algorithms into stack-safe iterative ones. Instead of making a recursive call (which grows the stack), you return a data structure describing the call. A flat loop processes it. Handles 1,000,000+ iterations where naive recursion dies at 5,000.
-
-**[`Free<F, A>`](./free_monad.md)**: Turns any instruction set into a monad. Build your program as a data structure, then interpret it however you like: real execution, testing, logging, optimisation. One program, many interpreters. The foundation for embedded DSLs.
-
-**[`FreeAp<F, A>`](./free_applicative.md)**: Like Free, but for *independent* operations. Because steps don't depend on each other, an interpreter can batch them, run them in parallel, or analyse all operations upfront before executing any.
-
-**[`Coyoneda<F, A>`](./coyoneda.md)**: Gives any type constructor a Functor instance for free, via the Yoneda lemma. Also enables map fusion: consecutive `.map(f).map(g).map(h)` calls collapse into a single `.map(f.andThen(g).andThen(h))` at interpretation time.
-
-### Structural Types
-
-Three building blocks for generic programming, optics, and categorical abstractions.
-
-**[`Const<C, A>`](./const_type.md)**: Holds a constant value `C` while `A` is a phantom type that exists only in the signature. Sounds abstract, but it powers lens getters and fold operations across the optics library. Provides Applicative when `C` has a `Monoid`.
-
-**`Tuple2<A, B>`**: A simple pair with Bifunctor support. `bimap` transforms both elements; `first` and `second` transform one side. Used internally by State, Writer, and various optics operations.
-
-**[`Function<A, B>`](../functional/profunctor.md)**: HKT wrapper around `java.util.function.Function` with Profunctor support. `dimap` transforms both input and output; `lmap` pre-processes the input; `rmap` post-processes the output. The theoretical backbone of optic composition.
-
-### Monad Transformers
-
-Six transformers that layer one monad's effects on top of another. "I need `IO` *and* `Either`" becomes `EitherT<IOKind.Witness, MyError, A>`.
-
-**[`MaybeT<F, A>`](../transformers/maybet_transformer.md)**: Adds presence/absence to any monad `F`. The inner computation is `Kind<F, Maybe<A>>`. Use when your `IO` or `CompletableFuture` might legitimately produce "no result."
-
-**[`EitherT<F, L, R>`](../transformers/eithert_transformer.md)**: Adds typed errors to any monad `F`. The inner computation is `Kind<F, Either<L, R>>`. The workhorse transformer: `IO` + error handling, `CompletableFuture` + typed failures, etc.
-
-**[`OptionalT<F, A>`](../transformers/optionalt_transformer.md)**: Like MaybeT but wraps `java.util.Optional`. Use when your stack already uses `Optional` and you want JDK interop without conversion.
-
-**[`ReaderT<F, R, A>`](../transformers/readert_transformer.md)**: Adds environment reading to any monad `F`. The inner computation is `R -> Kind<F, A>`. Thread configuration through an effectful computation without parameter pollution.
-
-**[`StateT<S, F, A>`](../transformers/statet_transformer.md)**: Adds state threading to any monad `F`. The inner computation is `S -> Kind<F, (S, A)>`. Stateful algorithms that also need IO, error handling, or other effects.
-
-**[`WriterT<F, W, A>`](../transformers/writert_transformer.md)**: Adds output accumulation, such as logs or audit trails, to any monad `F`. The inner computation is `Kind<F, Pair<A, W>>`: a value paired with the output accumulated so far. Useful when a computation that also needs IO, error handling, or other effects must record what it did along the way.
-
----
+![Two cartoon toys, one sweeping an arm towards the horizon while the other looks on, worried, captioned "Monads, monads, monads everywhere"](../images/monads_everywhere.webp)
 
 ~~~admonish info title="Hands-On Learning"
 Practise with concrete types in [Tutorial 06: Concrete Types](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java) (7 exercises).

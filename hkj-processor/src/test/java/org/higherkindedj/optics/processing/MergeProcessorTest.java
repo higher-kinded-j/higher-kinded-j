@@ -1897,8 +1897,10 @@ class MergeProcessorTest {
       Compilation compilation = compile(records, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.BagAssemblyImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(source.tags())))")
-          .contains(".field(\"scores\", hkj$valuesPresent(hkj$copyOf(source.scores())))");
+          .contains("var hkj$tags = hkj$copyOf(source.tags());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))")
+          .contains("var hkj$scores = hkj$copyOf(source.scores());")
+          .contains(".field(\"scores\", hkj$valuesPresent(hkj$scores))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.BagAssemblyImpl");
@@ -1960,14 +1962,16 @@ class MergeProcessorTest {
       Compilation compilation = compile(records, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CrewAssemblyImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(source.tags())))")
-          .contains(".field(\"codes\", hkj$allPresent(hkj$copyOf(source.codes())))")
+          .contains("var hkj$tags = hkj$copyOf(source.tags());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))")
+          .contains("var hkj$codes = hkj$copyOrNull(source.codes(), e -> e.clone());")
+          .contains(".field(\"codes\", hkj$allPresent(hkj$codes))")
           // a primitive array has no element that could be null, but is copied like any array
-          .contains(
-              ".field(\"ranks\", hkj$ifPresent(hkj$copyOf(source.ranks()), Validated::validNel))")
+          .contains("var hkj$ranks = hkj$copyOrNull(source.ranks(), e -> e.clone());")
+          .contains(".field(\"ranks\", hkj$ifPresent(hkj$ranks, Validated::validNel))")
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
-          .contains("E[] values");
+          .contains("E @Nullable [] values");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.CrewAssemblyImpl");
@@ -2033,10 +2037,12 @@ class MergeProcessorTest {
       Compilation compilation = compileLinted(records, spec);
       assertThat(compilation).succeededWithoutWarnings();
       Assertions.assertThat(generatedSource(compilation, "com.example.RawBagAssemblyImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf((List<?>) source.tags())))")
-          .contains(".field(\"codes\", hkj$allPresent(hkj$copyOf((Set<?>) source.codes())))")
-          .contains(
-              ".field(\"scores\", hkj$valuesPresent(hkj$copyOf((Map<?, ?>) source.scores())))");
+          .contains("var hkj$tags = hkj$copyOf((List<?>) source.tags());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))")
+          .contains("var hkj$codes = hkj$copyOf((Set<?>) source.codes());")
+          .contains(".field(\"codes\", hkj$allPresent(hkj$codes))")
+          .contains("var hkj$scores = hkj$copyOf((Map<?, ?>) source.scores());")
+          .contains(".field(\"scores\", hkj$valuesPresent(hkj$scores))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.RawBagAssemblyImpl");

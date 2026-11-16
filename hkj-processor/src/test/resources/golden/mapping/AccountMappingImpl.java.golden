@@ -4,6 +4,7 @@ package com.example.fallible;
 import java.lang.Object;
 import java.lang.Override;
 import java.lang.String;
+import java.lang.SuppressWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -19,6 +20,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated bidirectional mapping for {@link AccountMapping}: total {@code build} and accumulating, located {@code parse}.
@@ -29,15 +31,15 @@ public final class AccountMappingImpl implements AccountMapping {
 
   private final ValidatedPrism<AccountDto, Account> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$cc;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$cc;
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$lead;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$lead;
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$contacts;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$contacts;
 
-  private volatile Getter<Account, String> hkj$leaf$display;
+  private volatile @Nullable Getter<Account, String> hkj$leaf$display;
 
   private AccountMappingImpl() {
   }
@@ -49,13 +51,14 @@ public final class AccountMappingImpl implements AccountMapping {
 
   public Validated<NonEmptyList<FieldError>, Account> parse(AccountDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
+    var hkj$tags = hkj$copyOf(wire.tags());
     return hkj$construct(
         Validated.fields()
             .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
             .field("email", hkj$ifPresent(wire.email(), email()::parse))
             .field("cc", hkj$ifPresent(wire.cc(), cc()::parseAll))
-            .field("tags", hkj$allPresent(hkj$copyOf(wire.tags())))
-            .field("lead", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))))
+            .field("tags", hkj$allPresent(hkj$tags))
+            .field("lead", hkj$ifPresent(wire.lead(), o -> hkj$parsePresent(o.orElse(null), v -> lead().parse(v).map(Optional::of))))
             .field("contacts", hkj$ifPresent(wire.contacts(), contacts()::parseValues))
             .field("address", hkj$ifPresent(wire.address(), AddressMappingImpl.INSTANCE.asValidatedPrism()::parse))
             .apply((name, email, cc, tags, lead, contacts, address) -> () -> new Account(name, email, cc, tags, lead, contacts, address)),
@@ -147,16 +150,25 @@ public final class AccountMappingImpl implements AccountMapping {
   /**
    * Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the value is parsed.
    */
-  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(S value,
+  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
       Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
+  }
+
+  /**
+   * Parses a nullable read to an {@code Optional}: a null is valid emptiness, otherwise the value is parsed.
+   */
+  private static <S, A> Validated<NonEmptyList<FieldError>, Optional<A>> hkj$parsePresent(
+      @Nullable S value,
+      Function<? super S, Validated<NonEmptyList<FieldError>, Optional<A>>> parse) {
+    return value == null ? Validated.validNel(Optional.empty()) : parse.apply(value);
   }
 
   /**
    * Guards an identity-copied collection: a null element is a located invalid at its position, accumulating, or, in a set, which has no positions, the unlocated {@code must not contain a null element}.
    */
   private static <C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(
-      C values) {
+      @Nullable C values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
@@ -194,7 +206,12 @@ public final class AccountMappingImpl implements AccountMapping {
   /**
    * Copies a same-typed list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
    */
-  private static <E> List<E> hkj$copyOf(List<? extends E> values) {
-    return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
+  private static <E extends @Nullable Object, C extends @Nullable List<E>> C hkj$copyOf(C values) {
+    if (values == null) {
+      return values;
+    }
+    @SuppressWarnings("unchecked") // C is the copied container itself: a read typed as a subtype is cast up
+    C copy = (C) Collections.unmodifiableList(new ArrayList<>(values));
+    return copy;
   }
 }

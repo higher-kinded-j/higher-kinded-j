@@ -3,6 +3,7 @@
 package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -131,6 +132,40 @@ class ConstForFoldTest {
 
       assertThat(narrowed).isSameAs(original);
       assertThat(narrowed.value()).isEqualTo("test");
+    }
+  }
+
+  @Nested
+  @DisplayName("A value is never null")
+  class NeverNull {
+
+    @Test
+    @DisplayName("a null value is refused, naming the fold's function and monoid")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void refusesNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> new ConstForFold<String, Integer>(null))
+          .withMessage("a fold's function and monoid must not give null");
+    }
+
+    @Test
+    @DisplayName("of refuses a monoid whose empty value is null")
+    @SuppressWarnings("DataFlowIssue") // a monoid that breaks the rule, to show the fold refuses it
+    void refusesNullEmpty() {
+      Monoid<String> nullEmpty =
+          new Monoid<>() {
+            @Override
+            public String empty() {
+              return null;
+            }
+
+            @Override
+            public String combine(String a, String b) {
+              return a + b;
+            }
+          };
+
+      assertThatNullPointerException().isThrownBy(() -> ConstForFold.applicative(nullEmpty).of(1));
     }
   }
 }

@@ -36,10 +36,10 @@ import org.higherkindedj.hkt.maybe.Maybe;
  * including side effects, run again for each terminal operation. A supplier passed to {@link
  * #fromSupplier(Supplier)} must return a fresh, unused stream each time.
  *
- * <p>Some operations materialise their input: {@code zipWith}, {@code foldRight}, {@code sorted}
- * and {@code toNonDetPath}. They use memory proportional to the input and cannot finish on an
- * infinite source. Use them only with finite streams, even when the source came from a lazy
- * factory.
+ * <p>Some operations materialise their input: {@code zipWith}, {@code foldRight}, {@code sorted},
+ * {@code toNonDetPath} and {@code toListPath}. They use memory proportional to the input and cannot
+ * finish on an infinite source. Use them only with finite streams, even when the source came from a
+ * lazy factory.
  *
  * <p>The factory determines when source elements are read: {@link #of(Stream)} reads its entire
  * source when called. For very large or infinite sources, use {@link #iterate(Object,
@@ -559,6 +559,15 @@ public final class StreamPath<A> implements Chainable<StreamPath<?>, A>, Deferre
    */
   public NonDetPath<A> toNonDetPath() {
     return NonDetPath.of(toList());
+  }
+
+  /**
+   * Converts to ListPath (materialises the stream).
+   *
+   * @return a ListPath containing the same elements
+   */
+  public ListPath<A> toListPath() {
+    return ListPath.of(toList());
   }
 
   /**

@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.maybe;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.util.validation.Validation;
@@ -53,7 +54,7 @@ final class Nothing<T> implements Maybe<T> {
   @Override
   public T orElseGet(Supplier<? extends T> other) {
     Validation.function().require(other, "otherSupplier", OR_ELSE_GET);
-    return other.get(); // Supplier must return NonNull T
+    return Objects.requireNonNull(other.get(), "otherSupplier must not return null");
   }
 
   @Override

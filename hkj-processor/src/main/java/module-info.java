@@ -8,7 +8,10 @@ module org.higherkindedj.processor {
   requires org.higherkindedj.annotations;
   requires org.higherkindedj.api;
 
-  // Requires build tools for annotation processing and code generation
+  // Requires build tools for annotation processing and code generation. javapoet is in the SPI's
+  // signatures, and the build declares it as api, so a plugin's compile classpath has it; it is not
+  // required transitively, since javapoet is an automatic module and javac warns on that, which
+  // -Werror fails.
   requires java.compiler;
   requires com.palantir.javapoet;
   // @AutoService is read only while this module compiles, so a module path need not carry it.
@@ -40,10 +43,12 @@ module org.higherkindedj.processor {
       org.higherkindedj.optics.processing.effect.PathProcessor,
       org.higherkindedj.optics.processing.effect.PathSourceProcessor;
 
-  // It exports the SPI so the plugins module can implement it, and the shared processor
-  // helpers so that a plugin names a type the same way the generators that call it do.
+  // It exports what a generator plugin compiles against: the SPI it implements, the base class it
+  // may extend, and the shared processor helpers, so that a plugin names a type the same way the
+  // generators that call it do.
   exports org.higherkindedj.optics.processing.spi;
   exports org.higherkindedj.optics.processing.util;
+  exports org.higherkindedj.optics.processing.generator;
 
   // Export Effect Path processor package
   exports org.higherkindedj.optics.processing.effect;

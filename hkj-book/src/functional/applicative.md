@@ -227,7 +227,7 @@ Where this lives: [What each instance does](#what-each-instance-does).
 
 ### Where `Validated` bends a rule {#where-validated-bends-a-rule}
 
-A `Monad`'s `ap` should agree with its `flatMap`: `ap(ff, fa)` should equal `flatMap(f -> map(f, fa), ff)`. `Validated`'s instance breaks this on purpose, as its javadoc says, so that `map2` to `map5` can combine the errors of every input. `hkj-test`'s `MonadLaws` checks the three monad laws, not this one. [Validated](../monads/validated_monad.md) says when you want each behaviour.
+A `Monad`'s `ap` should agree with its `flatMap`: `ap(ff, fa)` should equal `flatMap(f -> map(f, fa), ff)`. `Validated`'s instance breaks this on purpose, as its javadoc says, so that `map2` to `map5` can combine the errors of every input. `hkj-test`'s `MonadLaws` checks the three monad laws, not this one. [Validated](../monads/validated_monad.md) says when you want each behaviour. [Laws and Where HKJ Bends Them](../hkts/laws.md) lists the other instances that bend a law.
 
 ### What builds on `Applicative` {#what-builds-on-applicative}
 

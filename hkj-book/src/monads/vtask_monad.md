@@ -104,7 +104,7 @@ import org.higherkindedj.hkt.either.Either;
 
 ## Running a task {#running-a-task}
 
-`VTaskPath.run()` hands you the `VTask` inside, without running it. That `VTask` runs in one of three ways. Its `run()` runs it on the calling thread and waits. `runSafe()` does the same, and holds a failure in a [Try](try_monad.md); prefer it in code that handles failures as values. `runAsync()` starts it on a new virtual thread and returns a `CompletableFuture`. Running a task does not move it to a virtual thread: `main` runs on a platform thread, an ordinary thread the operating system schedules, and `run()` keeps the task there. Only `runAsync()`, `timeout`, `Par` and `Scope` move work to a virtual thread. These are the extra imports:
+`VTaskPath.run()` hands you the `VTask` inside, without running it. That `VTask` runs in one of three ways. Its `run()` runs it on the calling thread and waits. `runSafe()` does the same, and holds a failure in a [Try](try_monad.md); prefer it in code that handles failures as values. `runAsync()` starts it on a new virtual thread and returns a `CompletableFuture`, whose `cancel(true)` interrupts the task. Running a task does not move it to a virtual thread: `main` runs on a platform thread, an ordinary thread the operating system schedules, and `run()` keeps the task there. Only `runAsync()`, `timeout`, `Par` and `Scope` move work to a virtual thread. These are the extra imports:
 
 <!-- verify -->
 ```java
@@ -160,7 +160,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vtask/VTaskBook.java:values}}
 ```
 
-So `VTask.of(() -> { work(); return null; })`, typed `VTask<Void>`, fails when it runs. Use `VTask.exec`, or return `Unit.INSTANCE`. `VTask` is itself a functional interface, so you can write a task as a lambda; `run()`, `runSafe()` and `runAsync()` refuse a null from one of those too.
+So `VTask.of(() -> { work(); return null; })`, typed `VTask<Void>`, fails when it runs. Use `VTask.exec`, or return `Unit.INSTANCE`. NullAway flags that lambda only with the options in [What a nullness checker sees](../hkts/core-concepts.md#what-a-nullness-checker-sees). `VTask` is itself a functional interface, so you can write a task as a lambda, which NullAway checks with no options set; `run()`, `runSafe()` and `runAsync()` refuse a null from one of those too.
 
 The factories and functions of every lazy type follow the same rule: `IO`, `VStream`, `State`, `Reader`, `Writer`, `Lazy`, `Trampoline`, `Free` and `Context`, and every Effect Path over one. A stream refuses a null element. A nullness checker flags a hand-written `IO` or `Reader` lambda that returns null, and an `IOPath` refuses one when it runs. Only [`Id`](identity.md) holds a null, since every optic's `modify` runs through it. A `CompletableFuture` outside a Path keeps the JDK's null too.
 

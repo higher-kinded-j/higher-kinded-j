@@ -108,7 +108,7 @@ A `switch` over the two cases reads the result, and the compiler checks that bot
 
 ## Creating instances {#creating-instances}
 
-`Try.success(value)` and `Try.failure(throwable)` build either case directly. A `Success` always holds a value, so `Try.success(null)` throws `NullPointerException`. A function given to `Try.of`, `map` or `recover` that returns `null` gives a `Failure` holding a `NullPointerException`. A `flatMap` or `recoverWith` function that returns `null` in place of a `Try` throws `KindUnwrapException`. [Values, never null](../hkts/core-concepts.md#values-never-null) has the rule for every type.
+`Try.success(value)` and `Try.failure(throwable)` build either case directly. A `Success` always holds a value, so `Try.success(null)` throws `NullPointerException`. A function given to `Try.of`, `map` or `recover` that returns `null` gives a `Failure` holding a `NullPointerException`. NullAway flags one given to `Try.of` only with the options in [What a nullness checker sees](../hkts/core-concepts.md#what-a-nullness-checker-sees). A `flatMap` or `recoverWith` function that returns `null` in place of a `Try` throws `KindUnwrapException`. [Values, never null](../hkts/core-concepts.md#values-never-null) has the rule for every type.
 
 ## Methods {#methods}
 
@@ -127,6 +127,7 @@ A `switch` over the two cases reads the result, and the compiler checks that bot
 | `orElse(other)`, `orElseGet(supplier)` | Return the value, or a fallback |
 | `get()` | Returns the value, or throws the exception it holds |
 | `toEither(f)` | Gives an `Either` whose `Left` is `f` applied to the exception |
+| `toOptional()` | Gives a `Success`'s value as an `Optional`, or an empty one for a `Failure` |
 
 Releases before 0.5.0 had a `fold` that took the success function first. A call written for it compiles against this one wherever both functions accept either argument, and runs them the wrong way round. Before you move such code here, run `MigrateDeprecationsTo0_5_0` on it while it still compiles against 0.4.x, as [To 0.6.0](../release-history/upgrading.md#to-060) explains. `foldFailureFirst`, the same method under its 0.5.0 name, is deprecated for removal in 0.7.0.
 

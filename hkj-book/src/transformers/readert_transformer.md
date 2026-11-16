@@ -109,12 +109,12 @@ The `AppConfig` is threaded implicitly through `flatMap`. Each operation declare
 ## The Railway View
 
 <pre class="hkj-railway-diagram">
-    <span style="color:#4CAF50"><b>Value</b>     ═══●═══════════●═══════════●═══▶  ProcessedData (in F)</span>
-    <span style="color:#4CAF50">              fetchData    process       map</span>
-    <span style="color:#4CAF50">              (flatMap)    (flatMap)</span>
+    <span class="hkj-rail-ok"><b>Value</b>     ═══●═══════════●═══════════●═══▶  ProcessedData (in F)</span>
+    <span class="hkj-rail-ok">              fetchData    process       map</span>
+    <span class="hkj-rail-ok">              (flatMap)    (flatMap)</span>
                  ▲           ▲           ▲    <i>config read at each step</i>
-    <span style="color:#2196F3"><b>AppConfig</b> ═══╧═══════════╧═══════════╧═══▶  read-only, never modified</span>
-    <span style="color:#2196F3">              apiKey       serviceUrl    executor</span>
+    <span class="hkj-rail-info"><b>AppConfig</b> ═══╧═══════════╧═══════════╧═══▶  read-only, never modified</span>
+    <span class="hkj-rail-info">              apiKey       serviceUrl    executor</span>
 
                                               │
                                          <i>run(prodConfig)</i>  provide the environment once at the edge

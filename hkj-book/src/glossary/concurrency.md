@@ -72,7 +72,7 @@ VTask<Result> result = connResource.use(conn ->
 
 ## Circuit Breaker
 
-**Definition:** A resilience pattern that remembers recent failures and stops calling a dependency that is clearly down, so a system does not waste effort on doomed requests whilst a service recovers. It is a state machine across three states: **closed** (calls flow), **open** (calls are rejected immediately once failures cross a threshold), and **half-open** (after a timeout, a single probe is allowed; success closes the breaker, failure re-opens it). Applied as `withCircuitBreaker` in the resilience vocabulary.
+**Definition:** A resilience pattern that remembers recent failures and stops calling a dependency that is clearly down, so a system does not waste effort on doomed requests whilst a service recovers. It is a state machine across three states: **closed** (calls flow), **open** (calls are rejected immediately once failures cross a threshold), and **half-open** (after a timeout, a few probes are let through, one by default, and other calls are still rejected). Enough probe successes close the breaker, and a failure re-opens it. Applied as `withCircuitBreaker` in the resilience vocabulary.
 
 **Related:** [Circuit Breaker](../resilience/circuit_breaker.md), [Resilience Combinators](#resilience-combinators), [Bulkhead](#bulkhead)
 

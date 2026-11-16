@@ -32,8 +32,8 @@ import org.jspecify.annotations.NullMarked;
  *   <li>{@link #foldMap} - Must consume the stream to compute the folded result
  * </ul>
  *
- * <p><b>Warning:</b> These operations are only safe for finite streams. Using them on infinite
- * streams will not terminate.
+ * <p><b>Warning:</b> These operations are only safe for finite streams. On an infinite stream, they
+ * do not end until the thread is interrupted.
  *
  * <p>The {@link #traverse} operation materialises the stream to a list first, then uses an
  * iterative loop with {@code applicative.map2()} for stack-safe processing.

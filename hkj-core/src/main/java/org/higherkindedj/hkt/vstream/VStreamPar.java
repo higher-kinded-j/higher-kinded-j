@@ -196,11 +196,12 @@ public final class VStreamPar {
    * function fails, the tasks still running are cancelled, the source is closed where the reading
    * got to, and the stream fails with that failure, so a {@code recover} after it ends there. If a
    * pull from the source fails, the tasks already running finish, and their results come before the
-   * failure; an interrupt cancels them at once. A function that closes the stream gets what closing
-   * the source throws. Closing the stream part-way, as {@link VStream#take} does once it has its
-   * elements, cancels the tasks still running and closes the source. A run that is neither read to
-   * its end nor closed leaves its thread waiting, so close the stream you stop reading. Closing, or
-   * an interrupted task, interrupts the thread reading the source, so a source finaliser that runs
+   * failure; an interrupt cancels them at once. A function that closes a tail of its own run gets
+   * what closing the source throws. Closing the tail a run holds part-way, as {@link VStream#take}
+   * does once it has its elements, cancels the tasks still running and closes the source. A run
+   * that is neither read to its end nor closed leaves its thread waiting, so close the tail you
+   * stop reading at. Closing the returned stream itself stops no run. Closing a run, or an
+   * interrupted task, interrupts the thread reading the source, so a source finaliser that runs
    * inside a pull, as one does at the source's end, can be cut short, as with {@link #merge}.
    *
    * <p>The source is read, and the tasks run, on threads this stream starts, which do not see the
@@ -223,7 +224,9 @@ public final class VStreamPar {
     if (concurrency <= 0) {
       throw new IllegalArgumentException("concurrency must be positive, got: " + concurrency);
     }
-    return new CompletionOrderStream<>(stream, concurrency, f);
+    // Each run starts a window of its own, which only the run's own tails reach
+    return DeferredStream.opening(
+        VTask.delay(() -> CompletionOrderStream.started(stream, concurrency, f)), stream);
   }
 
   /**
@@ -264,12 +267,14 @@ public final class VStreamPar {
     }
 
     // Create sub-streams concurrently, then concatenate lazily without materialising
-    return orderedMap(
+    VStream<VStream<B>> subStreams =
+        orderedMap(
             stream,
             concurrency,
             a -> VTask.of(() -> Objects.requireNonNull(f.apply(a), "f must not return null")),
-            subStream -> subStream)
-        .flatMap(Function.identity());
+            subStream -> subStream);
+    // The batch built each sub-stream, so closing closes one it has not reached too
+    return new FlatMapStream<>(subStreams, Function.identity(), true);
   }
 
   /**
@@ -286,10 +291,12 @@ public final class VStreamPar {
    * of several streams therefore ends the stream there, even after a failed {@link VStream#mapTask}
    * task; a merge of one stream is that stream.
    *
-   * <p>Each run of the pulled {@code VTask} starts its own producer. Closing the merge, or a source
-   * failing, interrupts any source still being pulled, then closes each source that did not finish,
-   * on a thread that nothing interrupts, so their finalisers run in full. A source finaliser that
-   * fails while the merge closes is dropped, since the merge has already stopped.
+   * <p>Each run of the pulled {@code VTask} starts its own producer, which only that run's tails
+   * reach. Closing the tail a run holds, or a source failing, interrupts any source still being
+   * pulled, then closes each source that did not finish, on a thread that nothing interrupts, so
+   * their finalisers run in full. A source finaliser that fails while the run closes is dropped,
+   * since the run has already stopped. Closing the merged stream itself stops no run's producer,
+   * since several runs may read it at once; before any run, it closes the sources.
    *
    * <p>With more than one source, the sources are read on threads the merge starts, which do not
    * see the caller's {@code ScopedValue} bindings, and each is read as fast as it gives elements,
@@ -318,9 +325,8 @@ public final class VStreamPar {
     int sourceCount = streams.size();
 
     // Each run of the pulled VTask starts its own producer, so producer threads are not started
-    // until the first pull runs. Closing the merge before then closes every source; closing it
-    // after closes the latest run.
-    return new RememberingStream<>(
+    // until the first pull runs. Only the run's own tails reach its producer.
+    return DeferredStream.opening(
         VTask.delay(
             () -> {
               LinkedBlockingQueue<MergeSignal<A>> queue = new LinkedBlockingQueue<>();
@@ -485,7 +491,7 @@ public final class VStreamPar {
             signal = queue.take();
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new RuntimeException("Merge interrupted", e);
+            throw e;
           }
           return switch (signal) {
             case MergeSignal.Element<A> e ->
@@ -552,18 +558,17 @@ public final class VStreamPar {
 
   /**
    * Collects all elements from a stream, giving the list {@link VStream#toList()} gives. The
-   * elements are read one at a time, a batch of {@code batchSize} between checks for an interrupt.
+   * elements are read one at a time, in batches of {@code batchSize}.
    *
    * <p>This is a terminal operation that produces a {@link VTask} containing the collected list.
    * Elements in the result list are in the same order as in the source stream.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link
-   * VStream#take(long)} to limit the stream first.
+   * <p><b>Warning:</b> For infinite streams, this does not end until its thread is interrupted, by
+   * a timeout for example. Use {@link VStream#take(long)} to limit the stream first.
    *
    * @param <A> The type of elements in the stream.
    * @param stream The source stream. Must not be null.
-   * @param batchSize The number of elements to read between checks for an interrupt. Must be
-   *     positive.
+   * @param batchSize The number of elements in each batch. Must be positive.
    * @return A {@link VTask} that produces a list of all elements.
    * @throws NullPointerException if stream is null.
    * @throws IllegalArgumentException if batchSize is not positive.
@@ -572,9 +577,7 @@ public final class VStreamPar {
    *     runs nothing in parallel. Use {@link VStream#toList()}, which gives the same list. To run
    *     each element's work in parallel, do the work inside the task that the function you give
    *     {@link #parEvalMap} or {@link #parEvalMapUnordered} returns, as in {@code n -> VTask.of(()
-   *     -> work(n))}, and collect with {@code toList()}. Unlike this method, {@code toList()} does
-   *     not stop for an interrupt between pulls, so bound an endless stream whose pulls never
-   *     block, with {@link VStream#take(long)}, before you time it out.
+   *     -> work(n))}, and collect with {@code toList()}.
    */
   @Deprecated(since = "0.6.0", forRemoval = true)
   public static <A> VTask<List<A>> parCollect(VStream<A> stream, int batchSize) {
@@ -720,8 +723,8 @@ public final class VStreamPar {
       int count,
       Function<VStream<A>, VStream<B>> next)
       throws Throwable {
+    VStream.Step<A> step = Executing.executed(tailHolder.get().pull());
     while (true) {
-      VStream.Step<A> step = Executing.executed(tailHolder.get().pull());
       switch (step) {
         case VStream.Step.Emit<A> e -> {
           batch.add(e.value());
@@ -739,6 +742,8 @@ public final class VStreamPar {
           return VStream.empty();
         }
       }
+      // Between pulls, so a stop here closes only what this run has reached
+      step = Executing.pulledUnlessInterrupted(tailHolder.get());
     }
   }
 

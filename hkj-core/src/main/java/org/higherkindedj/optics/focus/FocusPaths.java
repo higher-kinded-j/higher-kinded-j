@@ -4,7 +4,6 @@ package org.higherkindedj.optics.focus;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,6 +13,7 @@ import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.indexed.Pair;
+import org.higherkindedj.optics.internal.MapEntries;
 import org.higherkindedj.optics.util.Affines;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
@@ -303,8 +303,10 @@ public final class FocusPaths {
   /**
    * Creates a traversal over all values in a map.
    *
-   * <p>Values are visited in the map's iteration order, and the rebuilt map keeps that order. It
-   * delegates to {@link Traversals#forMapValues()}.
+   * <p>Values are visited in the map's iteration order, and the rebuilt map keeps that order. The
+   * traversal keeps every key of the source, and throws an {@link IllegalArgumentException} for a
+   * source it cannot, as {@link Traversals#traverseMapValues} describes. It delegates to {@link
+   * Traversals#forMapValues()}.
    *
    * @param <K> the key type
    * @param <V> the value type
@@ -319,7 +321,11 @@ public final class FocusPaths {
    *
    * <p>The affine will return empty if the key is not present. Setting a value will add or update
    * the key. The new map is in the source's iteration order: an updated key keeps its place, and a
-   * new key goes at the end.
+   * new key goes at the end. The optic keeps every key of the source, and throws an {@link
+   * IllegalArgumentException} for a source it cannot, as {@link Traversals#traverseMapValues}
+   * describes. An {@link java.util.IdentityHashMap} comes back an {@code IdentityHashMap}: an
+   * updated key keeps its place, but adding or removing one may reorder the rest, and a subclass of
+   * one comes back a plain one in that map's own order.
    *
    * @param key the key to focus on
    * @param <K> the key type
@@ -330,12 +336,12 @@ public final class FocusPaths {
     return Affine.of(
         map -> Optional.ofNullable(map.get(key)),
         (map, value) -> {
-          Map<K, V> result = new LinkedHashMap<>(map);
+          Map<K, V> result = MapEntries.mutableCopy(map);
           result.put(key, value);
           return result;
         },
         map -> {
-          Map<K, V> result = new LinkedHashMap<>(map);
+          Map<K, V> result = MapEntries.mutableCopy(map);
           result.remove(key);
           return result;
         });

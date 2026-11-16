@@ -113,6 +113,13 @@ class EitherOrBothPathTest {
     }
 
     @Test
+    void getOrElseGetRefusesANullFromTheSupplier() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> left().getOrElseGet(() -> null))
+          .withMessage("supplier must not return null");
+    }
+
+    @Test
     void foldThreeWays() {
       assertThat(left().<String>fold(l -> "L" + l, r -> "R" + r, (l, r) -> "B" + l + r))
           .isEqualTo("Le");

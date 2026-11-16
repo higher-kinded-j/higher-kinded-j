@@ -144,6 +144,8 @@ public class HkjWebMvcAutoConfiguration {
    *
    * @param properties The HKJ configuration properties
    * @param jsonMapper The Jackson 3.x JsonMapper bean for JSON serialisation
+   * @param applicationContext The application context
+   * @param errorStatusCodeStrategy The strategy that maps an error value to an HTTP status code
    * @param metricsService The metrics service for recording handler invocations (may be null)
    * @return WebMvcRegistrations that customise the handler adapter
    */

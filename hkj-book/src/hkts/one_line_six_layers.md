@@ -92,6 +92,10 @@ The compiler rejects the `via`: `EitherPath<OrderError,Order> cannot be converte
 
 The Ship pages that follow take the type-class layers in order. They start beneath them, with how `Kind<F, A>` stands for a container, in [How the Encoding Works](core-concepts.md).
 
+~~~admonish info title="Hands-On Learning"
+Write this line one layer at a time in [Tutorial 00: One Line, Six Layers](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial00_OneLineSixLayers.java) (9 exercises), then grow it into a checkout step in the [Capstone: One Line, Six Layers Grows Up](../tutorials/capstone/capstone_journey.md) (7 exercises).
+~~~
+
 ---
 
 **Previous:** [Foundations](foundations_intro.md)

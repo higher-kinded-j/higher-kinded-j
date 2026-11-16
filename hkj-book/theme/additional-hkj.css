@@ -876,3 +876,30 @@ html.mocha body.chapter-intro main > h1:first-of-type     { color: #dad126 !impo
 /* Slightly looser line-height for railway-track diagrams, where the rows
    carry labels above and below the track and need breathing room. */
 .hkj-railway-diagram { line-height: 1.5; }
+
+/* Railway tracks, coloured by what each carries: ok, the success track; err,
+   the failure track; warn, what accumulates beside the value (a log, an audit
+   trail, warnings); info, what every step reads or threads on (a state, an
+   environment). Each is the theme's own Catppuccin accent, darkened on Latte
+   so the text keeps 4.5:1 against both the page and a code block. A track
+   also carries a label word (Success, Failure, Log), so its meaning survives
+   without colour. */
+.hkj-rail-ok   { color: #2b7419; } /* Latte Green, darkened */
+.hkj-rail-err  { color: #c11132; } /* Latte Red, darkened */
+.hkj-rail-warn { color: #8f5a00; } /* Latte Yellow, darkened */
+.hkj-rail-info { color: #1756c8; } /* Latte Blue, darkened */
+
+html.frappe .hkj-rail-ok      { color: #a6d189; } /* Green */
+html.frappe .hkj-rail-err     { color: #e78284; } /* Red */
+html.frappe .hkj-rail-warn    { color: #e5c890; } /* Yellow */
+html.frappe .hkj-rail-info    { color: #8caaee; } /* Blue */
+
+html.macchiato .hkj-rail-ok   { color: #a6da95; } /* Green */
+html.macchiato .hkj-rail-err  { color: #ed8796; } /* Red */
+html.macchiato .hkj-rail-warn { color: #eed49f; } /* Yellow */
+html.macchiato .hkj-rail-info { color: #8aadf4; } /* Blue */
+
+html.mocha .hkj-rail-ok       { color: #a6e3a1; } /* Green */
+html.mocha .hkj-rail-err      { color: #f38ba8; } /* Red */
+html.mocha .hkj-rail-warn     { color: #f9e2af; } /* Yellow */
+html.mocha .hkj-rail-info     { color: #89b4fa; } /* Blue */

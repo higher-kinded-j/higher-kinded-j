@@ -86,7 +86,8 @@ public final class JavaOptionalContext<F extends WitnessArity<TypeArity.Unary>, 
    * @return a new JavaOptionalContext wrapping the computation
    * @throws NullPointerException if supplier is null
    */
-  public static <A> JavaOptionalContext<IOKind.Witness, A> io(Supplier<@Nullable A> supplier) {
+  public static <A> JavaOptionalContext<IOKind.Witness, A> io(
+      Supplier<? extends @Nullable A> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
 
     IO<Optional<A>> io = IO.delay(() -> Optional.ofNullable(supplier.get()));

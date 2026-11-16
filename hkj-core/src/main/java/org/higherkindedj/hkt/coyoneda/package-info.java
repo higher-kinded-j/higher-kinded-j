@@ -23,7 +23,8 @@
  *       implementation
  *   <li><b>Map fusion:</b> Multiple map operations are fused into a single traversal
  *   <li><b>Deferred execution:</b> Actual mapping only happens when lowering
- *   <li><b>DSL simplification:</b> Combined with Free monad, instructions don't need to be Functors
+ *   <li><b>DSL simplification:</b> Combined with Free monad, instructions don't need to be
+ *       Functors: {@link org.higherkindedj.hkt.coyoneda.Coyoneda#interpreter} runs such a program
  * </ul>
  *
  * <h2>Example Usage</h2>

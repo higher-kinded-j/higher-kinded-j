@@ -395,7 +395,7 @@ class FreeMonadTest extends FreeTestBase {
   }
 
   // ==========================================================================
-  // Audit Issue #8: Free.interpretFree Suspend case bypasses trampolining
+  // Audit Issue #8: a deep chain of Suspend nodes must not deepen the stack
   // ==========================================================================
 
   @Nested
@@ -417,8 +417,8 @@ class FreeMonadTest extends FreeTestBase {
         program = Free.suspend(suspended);
       }
 
-      // interpretFree recurses inside the target monad's flatMap for Suspend case,
-      // which means 20k deep recursion if the target monad isn't stack-safe
+      // Identity hands each Suspend's next program over at once, so the interpreter's
+      // loop carries on without recursing
       Integer result = runFree(program);
       assertThat(result).isEqualTo(0);
     }
@@ -437,15 +437,15 @@ class FreeMonadTest extends FreeTestBase {
   }
 
   // ==========================================================================
-  // Lazy monad interpretation tests (IO monad exercises the lazy branch
-  // in interpretFree/interpretFreeNatural where eager[0] stays false)
+  // Lazy monad interpretation tests (IO defers its map, so the rest of the
+  // program runs inside its flatMap)
   // ==========================================================================
 
   @Nested
   @DisplayName("Lazy Monad Interpretation (IO)")
   class LazyMonadInterpretationTests {
 
-    /** Interprets a Free program into IO using Function-based foldMap (interpretFree). */
+    /** Interprets a Free program into IO using the Function-based foldMap. */
     private <A> A runFreeViaIO(Free<IdentityKind.Witness, A> free) {
       Function<Kind<IdentityKind.Witness, ?>, Kind<IOKind.Witness, ?>> transform =
           kind -> {
@@ -456,7 +456,7 @@ class FreeMonadTest extends FreeTestBase {
       return IO_OP.narrow(result).unsafeRunSync();
     }
 
-    /** Interprets a Free program into IO using Natural-based foldMap (interpretFreeNatural). */
+    /** Interprets a Free program into IO using the Natural-based foldMap. */
     private <A> A runFreeViaIONatural(Free<IdentityKind.Witness, A> free) {
       Natural<IdentityKind.Witness, IOKind.Witness> transform =
           new Natural<>() {
@@ -471,9 +471,9 @@ class FreeMonadTest extends FreeTestBase {
     }
 
     @Test
-    @DisplayName("interpretFree lazy branch: Suspend via IO monad (Function-based)")
+    @DisplayName("lazy target: Suspend via IO monad (Function-based)")
     @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
-    void interpretFreeLazyBranchWithSuspend() {
+    void functionFoldMapIntoIoWithSuspend() {
       // Suspend wraps a value in Identity, which the transform converts to IO
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(42)));
@@ -484,9 +484,9 @@ class FreeMonadTest extends FreeTestBase {
     }
 
     @Test
-    @DisplayName("interpretFreeNatural lazy branch: Suspend via IO monad (Natural-based)")
+    @DisplayName("lazy target: Suspend via IO monad (Natural-based)")
     @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
-    void interpretFreeNaturalLazyBranchWithSuspend() {
+    void naturalFoldMapIntoIoWithSuspend() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(42)));
       Free<IdentityKind.Witness, Integer> program = Free.suspend(suspended);
@@ -496,9 +496,9 @@ class FreeMonadTest extends FreeTestBase {
     }
 
     @Test
-    @DisplayName("interpretFree lazy branch: FlatMapped with Suspend via IO monad")
+    @DisplayName("lazy target: FlatMapped with Suspend via IO monad (Function-based)")
     @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
-    void interpretFreeLazyBranchWithFlatMappedSuspend() {
+    void functionFoldMapIntoIoWithFlatMappedSuspend() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(10)));
       Free<IdentityKind.Witness, Integer> program =
@@ -509,9 +509,9 @@ class FreeMonadTest extends FreeTestBase {
     }
 
     @Test
-    @DisplayName("interpretFreeNatural lazy branch: FlatMapped with Suspend via IO monad")
+    @DisplayName("lazy target: FlatMapped with Suspend via IO monad (Natural-based)")
     @SuppressWarnings("migration-nudge") // exercises the Free/Inject primitives directly
-    void interpretFreeNaturalLazyBranchWithFlatMappedSuspend() {
+    void naturalFoldMapIntoIoWithFlatMappedSuspend() {
       Kind<IdentityKind.Witness, Free<IdentityKind.Witness, Integer>> suspended =
           IDENTITY.widen(new Identity<>(Free.pure(10)));
       Free<IdentityKind.Witness, Integer> program =

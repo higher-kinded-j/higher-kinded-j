@@ -164,7 +164,7 @@ The other operators are lazy in the same way:
 | `chunk(size)` | Batches of up to `size` elements, as [Parallel Operations](vstream_parallel.md#chunking-operations) shows |
 
 ~~~admonish warning title="An endless stream needs a limit"
-`iterate`, `generate` and `repeat` never end, so `toList`, `fold` and `count` on one never return. Limit it first with `take` or `takeWhile`. `exists` and `find` stop at the first match, so they end on an endless stream too, provided a match comes.
+`iterate`, `generate` and `repeat` never end, so `toList`, `fold` and `count` on one run until an interrupt stops them, as [Running a stream](#running-a-stream) says. Limit it first with `take` or `takeWhile`. `exists` and `find` stop at the first match, so they end on an endless stream too, provided a match comes.
 ~~~
 
 ## Running a stream {#running-a-stream}
@@ -186,6 +186,8 @@ The pulls run on the thread that runs the terminal operation's task. `runAsync()
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamBook.java:threads}}
 ```
+
+A terminal operation stops at an interrupt. Before it starts and between pulls, it checks the thread's interrupt status. Once that is set, it fails with an `InterruptedException` and closes what it has read, so the finalisers there run. That lets a [timeout](../effect/path_vtask.md#timeouts) stop `drain()` on an endless stream, even one whose pulls never block. The `TimeoutException` arrives once the stream is closed. A run on a thread that is already interrupted fails before its first pull, and closes nothing, since it has read nothing. An interrupt is a stop, not a failure, so `recover`, `recoverWith`, `mapError` and `onError` let it through. To give a value when a run is stopped, recover outside what stops it, as in `toList().timeout(d).recover(e -> List.of())`. A `recover` inside the timeout gives a value the timeout discards.
 
 `VStreamPar` runs the tasks for several elements at the same time, each on a virtual thread, as [Parallel Operations](vstream_parallel.md) shows.
 
@@ -217,7 +219,7 @@ When the source itself fails, there is nothing to carry on with. A feed that goe
 | `mapError(f)` | Fails with the exception `f` gives instead |
 | `onError(action)` | Runs `action`, then fails as before |
 
-Each acts on a failure at whichever element it happens, not only the first. `recoverWith`, and `recover` when it ends the stream, close the stream they stop reading, so a finaliser upstream runs.
+Each acts on a failure at whichever element it happens, not only the first. An interrupt is not a failure, as [Running a stream](#running-a-stream) says. `recoverWith`, and `recover` when it ends the stream, close the stream they stop reading, so a finaliser upstream runs.
 
 ~~~admonish note title="Operators between mapTask and recover"
 When `recover` carries on after a failed `mapTask` task, the operators between the two apply to the elements after it as well. The failed element keeps its place in the stream. In `mapTask(quote).filter(cheap).take(3).recover(f)`, the `filter` tests the quotes after it, and `take` counts it as one of its three.

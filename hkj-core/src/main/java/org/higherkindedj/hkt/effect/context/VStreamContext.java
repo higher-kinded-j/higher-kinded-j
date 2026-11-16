@@ -353,8 +353,9 @@ public final class VStreamContext<A> {
   /**
    * Collects all elements into a list. Blocks until the stream is fully consumed.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate. Use {@link #take(long)}
-   * first.
+   * <p><b>Warning:</b> For infinite streams, this blocks until the calling thread is interrupted,
+   * then throws a {@link org.higherkindedj.hkt.vtask.VTaskExecutionException} wrapping the {@link
+   * InterruptedException}. Use {@link #take(long)} first.
    *
    * @return the list of all elements
    */
@@ -375,7 +376,9 @@ public final class VStreamContext<A> {
   /**
    * Counts the number of elements. Blocks until the stream is fully consumed.
    *
-   * <p><b>Warning:</b> For infinite streams, this will not terminate.
+   * <p><b>Warning:</b> For infinite streams, this blocks until the calling thread is interrupted,
+   * then throws a {@link org.higherkindedj.hkt.vtask.VTaskExecutionException} wrapping the {@link
+   * InterruptedException}.
    *
    * @return the element count
    */

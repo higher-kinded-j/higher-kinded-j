@@ -1,377 +1,151 @@
-# The Const Type: Constant Functors with Phantom Types
+<!-- description: Read with code written to build, in Java with Const: one traversal of an order's lines rebuilds them in Id and adds them up in Const. -->
+
+# Const: The Value That Map Leaves Alone
+
+_A `Const<C, A>` holds a `C` and no `A`, so code written to build an `A` reads a `C` instead._
+
+<!-- source: Verbal Kint, The Usual Suspects (1995), directed by Bryan Singer, screenplay by Christopher McQuarrie; wording checked against Wikiquote's The Usual Suspects page -->
+> _"The greatest trick the Devil ever pulled was convincing the world he didn't exist."_
+>
+> — Verbal Kint, *The Usual Suspects*
+
+Verbal Kint is talking about Keyser Söze, a name that runs through every story he tells. The `A` in `Const<C, A>` is that kind of name: it is in every signature, and no object holds it.
+
+~~~admonish abstract title="Const at a glance"
+| | |
+|---|---|
+| **Models** | A value of type `C`, carried through code that expects an `A` it never holds |
+| **Replaces** | A second loop written beside a traversal, to sum, count or collect what it visits |
+| **Effect Path** | None |
+{{#include ../../../hkj-examples/src/test/resources/golden/foundations-capabilities.md.golden:const_type}}
+| **Choose it when** | Code written for any `Applicative`, such as a traversal or a [Free Applicative](free_applicative.md) program, should read rather than build; otherwise [Id](identity.md), which rebuilds, or compare every type in [Choosing a Type](supported-types.md#choosing-a-type) |
+~~~
 
 ~~~admonish info title="What You'll Learn"
-- Understanding phantom types and how Const ignores its second type parameter
-- Using Const for efficient fold implementations and data extraction
-- Leveraging Const with bifunctor operations to transform constant values
-- Applying Const in lens and traversal patterns for compositional getters
-- Real-world use cases in validation, accumulation, and data mining
-- How Const relates to Scala's Const and van Laarhoven lenses
+- Hold a value whose second type is only a type, which every map leaves alone
+- Run one traversal two ways: in `Id` to rebuild an order's lines, and in `Const` to add them up
+- Explain why `Const`'s `Applicative` needs a `Monoid`, and what it combines
+- Recognise `Const` behind a traversal's `foldMap`, a lens's read and a Free Applicative program's analysis
 ~~~
 
-~~~admonish example title="See Example Code:"
-[ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
+~~~admonish example title="See Example Code"
+**The code on this page is [ConstBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/constant/ConstBook.java)**: the page includes it, so the build compiles and runs it. [ConstBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/foundations/constant/ConstBookTest.java) holds what the page says each method does.
 ~~~
 
-The `Const` type is a constant functor that holds a value of type `C` whilst treating `A` as a **phantom type parameter**: a type that exists only in the type signature but has no runtime representation. This seemingly simple property unlocks powerful patterns for accumulating values, implementing efficient folds, and building compositional getters in the style of van Laarhoven lenses.
-
-~~~admonish note
-New to phantom types? See the [Glossary](../glossary/type-system.md#phantom-type) for a detailed explanation with Java-focused examples, or continue reading for practical demonstrations.
+~~~admonish tip title="Where Const fits"
+You rarely build a `Const` yourself. A traversal's `foldMap`, `getAll` and `exists` run the traversal in a `Const` of their own, and `FreeApAnalyzer.analyseWith` runs a program in this one. This page shows the idea they share, for when you write code over any `Applicative` and want it to read.
 ~~~
 
 ---
 
-## What is Const?
+## A value, and a type that holds nothing {#a-value-and-a-type-that-holds-nothing}
 
-A `Const<C, A>` is a container that holds a single value of type `C`. The type parameter `A` is phantom: it influences the type signature for composition and type safety but doesn't correspond to any stored data. This asymmetry is the key to Const's utility.
-
-<!-- verify -->
-```java
-// Create a Const holding a String, with Integer as the phantom type
-Const<String, Integer> stringConst = new Const<>("Hello");
-
-// The constant value is always accessible
-String value = stringConst.value(); // "Hello"
-
-// Create a Const holding a count, with Person as the phantom type
-Const<Integer, Person> countConst = new Const<>(42);
-int count = countConst.value(); // 42
-```
-
-### Key Characteristics
-
-* **Constant value**: Holds a value of type `C` that can be retrieved via `value()`
-* **Phantom type**: The type parameter `A` exists only for type-level composition
-* **Bifunctor instance**: Implements `Bifunctor<ConstKind2.Witness>` where:
-  * `first(f, const)` transforms the constant value
-  * `second(g, const)` changes only the phantom type, leaving the constant value unchanged
-  * `bimap(f, g, const)` combines both transformations (but only `f` affects the constant)
-
----
-
-## Core Components
-
-**The Const Type**
-
-```java
-public record Const<C, A>(C value) {
-  public <D> Const<D, A> mapFirst(Function<? super C, ? extends D> firstMapper);
-  public <B> Const<C, B> mapSecond(Function<? super A, ? extends B> secondMapper);
-  public <D, B> Const<D, B> bimap(
-      Function<? super C, ? extends D> firstMapper,
-      Function<? super A, ? extends B> secondMapper);
-}
-```
-
-**The HKT Bridge for Const**
-
-* **`ConstKind2<C, A>`**: The HKT marker interface extending `Kind2<ConstKind2.Witness, C, A>`
-* **`ConstKind2.Witness`**: The phantom type witness for Const in the Kind2 system
-* **`ConstKindHelper`**: Utility providing `widen2` and `narrow2` for Kind2 conversions
-
-**Type Classes for Const**
-
-* **`ConstBifunctor`**: The singleton bifunctor instance implementing `Bifunctor<ConstKind2.Witness>`
-
----
-
-## The Phantom Type Property
-
-The defining characteristic of `Const` is that mapping over the second type parameter has **no effect** on the constant value. This property is enforced both conceptually and at runtime.
-
-~~~admonish example title="Example: Phantom Type Transformations"
-
-[ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
+A `Const<C, A>` holds one value, of type `C`. Its `A` is a [phantom type](../glossary/type-system.md#phantom-type): it appears in the type and is stored nowhere. Mapping the `A` therefore has nothing to change. The code on this page uses these imports:
 
 <!-- verify -->
 ```java
 import static org.higherkindedj.hkt.constant.ConstKindHelper.CONST;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.id;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
-Bifunctor<ConstKind2.Witness> bifunctor = ConstBifunctor.INSTANCE;
-
-// Start with a Const holding an integer count
-Const<Integer, String> original = new Const<>(42);
-System.out.println("Original value: " + original.value());
-// Output: 42
-
-// Use second() to change the phantom type from String to Double
-Kind2<ConstKind2.Witness, Integer, Double> transformed =
-    bifunctor.second(
-        s -> s.length() * 2.0, // Function defines phantom type transformation
-        CONST.widen2(original));
-
-Const<Integer, Double> result = CONST.narrow2(transformed);
-System.out.println("After second(): " + result.value());
-// Output: 42 (UNCHANGED!)
-
-// The phantom type changed (String -> Double), but the constant value stayed 42
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Kind2;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
+import org.higherkindedj.hkt.constant.Const;
+import org.higherkindedj.hkt.constant.ConstApplicative;
+import org.higherkindedj.hkt.constant.ConstBifunctor;
+import org.higherkindedj.hkt.constant.ConstKind;
+import org.higherkindedj.hkt.constant.ConstKind2;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListTraverse;
 ```
 
-**Note:** Whilst the mapper function in `second()` is never applied to actual data (since `A` is phantom), it is still validated and applied to `null` for exception propagation. This maintains consistency with bifunctor exception semantics.
-~~~
-
----
-
-## Const as a Bifunctor
-
-`Const` naturally implements the `Bifunctor` type class, providing three fundamental operations:
-
-### 1. `first()` - Transform the Constant Value
-
-The `first` operation transforms the **constant value** from type `C` to type `D`, leaving the phantom type unchanged.
-
-<!-- verify -->
 ```java
-Const<String, Integer> stringConst = new Const<>("hello");
-
-// Transform the constant value from String to Integer
-Kind2<ConstKind2.Witness, Integer, Integer> lengthConst =
-    bifunctor.first(String::length, CONST.widen2(stringConst));
-
-Const<Integer, Integer> result = CONST.narrow2(lengthConst);
-System.out.println(result.value()); // Output: 5
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/constant/ConstBook.java:held}}
 ```
 
-### 2. `second()` - Transform Only the Phantom Type
+`mapSecond` never calls its function, and the `Functor`'s `map` leaves the value as it is too.
 
-The `second` operation changes the **phantom type** from `A` to `B` without affecting the constant value.
+## One traversal, two jobs {#one-traversal-two-jobs}
 
-<!-- verify -->
+[Foldable and Traverse](../functional/foldable_and_traverse.md) wrote a traversal once and ran it with `Validated` and with `Either`. `eachLine` is written the same way, for any `Applicative`: it visits every line, and rebuilds the list inside `F`:
+
 ```java
-Const<String, Integer> stringConst = new Const<>("constant");
-
-// Change the phantom type from Integer to Boolean
-Kind2<ConstKind2.Witness, String, Boolean> boolConst =
-    bifunctor.second(i -> i > 10, CONST.widen2(stringConst));
-
-Const<String, Boolean> result = CONST.narrow2(boolConst);
-System.out.println(result.value()); // Output: "constant" (unchanged)
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/constant/ConstBook.java:each_line}}
 ```
 
-### 3. `bimap()` - Transform Both Simultaneously
+Run in [`Id`](identity.md), it rebuilds the lines. The basket holds a lamp at 40.00 and four bulbs at 2.50 each, and `VAT` is 1.20:
 
-The `bimap` operation combines both transformations, but remember: only the first function affects the constant value.
-
-<!-- verify -->
 ```java
-Const<String, Integer> original = new Const<>("hello");
-
-Kind2<ConstKind2.Witness, Integer, String> transformed =
-    bifunctor.bimap(
-        String::length,          // Transforms constant: "hello" -> 5
-        i -> "Number: " + i,     // Phantom type transformation only
-        CONST.widen2(original));
-
-Const<Integer, String> result = CONST.narrow2(transformed);
-System.out.println(result.value()); // Output: 5
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/constant/ConstBook.java:rebuild}}
 ```
 
----
+Run in `Const`, the same traversal builds nothing, as a `reduce` over the same loop would. Each visit gives a `Const` holding the line's total before VAT, and the `Applicative` adds the totals with `Monoids.bigDecimalAddition()`, a [Monoid](../functional/semigroup_and_monoid.md) that sums money exactly: 40.00 + 4 × 2.50. The list it would have rebuilt is only a type:
 
-## Use Case 1: Efficient Fold Implementations
-
-One of the most practical applications of `Const` is implementing folds that accumulate a single value whilst traversing a data structure. The phantom type represents the "shape" being traversed, whilst the constant value accumulates the result.
-
-~~~admonish example title="Example: Folding with Const"
-
-[ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
-
-<!-- verify -->
 ```java
-// Count elements in a list using Const
-List<String> items = List.of("apple", "banana", "cherry", "date");
-
-Const<Integer, String> count = items.stream()
-    .reduce(
-        new Const<>(0),                                           // Initial count
-        (acc, item) -> new Const<Integer, String>(acc.value() + 1), // Increment
-        (c1, c2) -> new Const<>(c1.value() + c2.value()));        // Combine
-
-System.out.println("Count: " + count.value());
-// Output: 4
-
-// Accumulate total length of all strings
-Const<Integer, String> totalLength = items.stream()
-    .reduce(
-        new Const<>(0),
-        (acc, item) -> new Const<Integer, String>(acc.value() + item.length()),
-        (c1, c2) -> new Const<>(c1.value() + c2.value()));
-
-System.out.println("Total length: " + totalLength.value());
-// Output: 23
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/constant/ConstBook.java:fold}}
 ```
 
-In this pattern, the phantom type (`String`) represents the type of elements we're folding over, whilst the constant value (`Integer`) accumulates the result. This mirrors the implementation of folds in libraries like [Cats](https://typelevel.org/cats/datatypes/const.html) and [Scalaz](https://github.com/scalaz/scalaz) in Scala.
-~~~
+## Why the Applicative needs a Monoid {#why-the-applicative-needs-a-monoid}
 
----
+An `Applicative`'s `of` must give a value with nothing in it, and its `ap` must combine two. A `Const` has only its `C` to do that with, so `ConstApplicative` takes a `Monoid<C>`. `of` gives the monoid's empty value, so an empty basket comes to zero. `ap` combines the two sides' values, the left one first, so a list monoid collects what each line gives in the order of the lines. There is no `flatMap`: a next step would need the `A`, and there is none.
 
-## Use Case 2: Getters and Van Laarhoven Lenses
+## Const behind folds, reads and analyses {#const-behind-folds-reads-and-analyses}
 
-`Const` is fundamental to the lens pattern pioneered by Edward Kmett and popularised in Scala libraries like [Monocle](https://www.optics.dev/Monocle/). A lens is an abstraction for focusing on a part of a data structure, and `Const` enables the "getter" half of this abstraction.
+The library uses the same idea in two places:
 
-### The Getter Pattern
+- A [traversal's `foldMap`](../optics/folds.md#step-4-aggregation-with-foldmap-and-monoids), and the `getAll` and `exists` built on it, run the traversal in a constant functor. A Focus path's `foldMap` uses this `Const`; a plain `Traversal`'s fold uses the optics module's own copy of it, which behaves the same.
+- [Free Applicative](free_applicative.md#reading-a-program-before-it-runs) analyses a program the same way, with an interpreter that gives each instruction's SKU in a `Const`.
 
-A getter extracts a field from a structure without transforming it. Using `Const`, we represent this as a function that produces a `Const` where the phantom type tracks the source structure.
+The idea also explains a lens. A lens written once for any `Functor`, in the van Laarhoven style, reads its focus when it runs in `Const`, and sets it when it runs in `Id`. A lens's `modifyF` run in `Const` gives the focus and rebuilds nothing.
 
-~~~admonish example title="Example: Compositional Getters"
+## A Const always holds a value {#a-const-always-holds-a-value}
 
-[ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
+`new Const<>(null)` throws `NullPointerException`, and so do `mapFirst` and `bimap` when their function returns `null`. A traversal's fold therefore fails at the element whose function returned `null`, rather than passing the `null` to its monoid. [Values, never null](../hkts/core-concepts.md#values-never-null) sets out the rule.
 
-<!-- verify -->
+## Creating instances {#creating-instances}
+
+`new Const<>(value)` holds a value, and an applicative's `of(anything)` gives one holding the monoid's empty value. `new ConstApplicative<>(monoid)` builds the `Applicative` for a `Monoid<C>`, since `Const` has no `Instances` entry: its instance depends on the monoid you choose.
+
+## Methods {#methods}
+
+| Method | What it does |
+|---|---|
+| `constant.value()` | Get the value held |
+| `mapFirst(f)` | Change the value |
+| `mapSecond(g)` | Change only the phantom type; `g` is never called |
+| `bimap(f, g)` | Both at once; only `f` touches the value |
+| `new ConstApplicative<>(monoid)` | The `Applicative` that combines values with the monoid |
+| `ConstBifunctor.INSTANCE` | The `Bifunctor`, over `ConstKind2` |
+
+## Working with Kind {#working-with-kind}
+
+A `Const` is already its own `Kind` twice over. As a `Kind<ConstKind.Witness<C>, A>`, with the value's type fixed, it takes `ConstApplicative`; `CONST.widen` and `CONST.narrow` are casts. As a `Kind2<ConstKind2.Witness, C, A>` it takes `ConstBifunctor`, through `CONST.widen2` and `CONST.narrow2`:
+
 ```java
-record Person(String name, int age, String city) {}
-record Company(String name, Person ceo) {}
-
-Person alice = new Person("Alice", 30, "London");
-Company acmeCorp = new Company("ACME Corp", alice);
-
-// Define a getter using Const
-Function<Person, Const<String, Person>> nameGetter =
-    person -> new Const<>(person.name());
-
-// Extract the name
-Const<String, Person> nameConst = nameGetter.apply(alice);
-System.out.println("CEO name: " + nameConst.value());
-// Output: Alice
-
-// Define a getter for the CEO from a Company
-Function<Company, Const<Person, Company>> ceoGetter =
-    company -> new Const<>(company.ceo());
-
-// Compose getters: get CEO name from Company using mapFirst
-Function<Company, Const<String, Company>> ceoNameGetter = company ->
-    ceoGetter.apply(company)
-        .mapFirst(person -> nameGetter.apply(person).value());
-
-Const<String, Company> result = ceoNameGetter.apply(acmeCorp);
-System.out.println("Company CEO name: " + result.value());
-// Output: Alice
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/constant/ConstBook.java:kind}}
 ```
 
-This pattern is the foundation of van Laarhoven lenses, where `Const` is used with `Functor` or `Applicative` to implement compositional getters. For a deeper dive, see [Van Laarhoven Lenses](https://www.twanvl.nl/blog/haskell/cps-functional-references) and [Scala Monocle](https://www.optics.dev/Monocle/docs/focus).
-~~~
+## When to use `Const` {#when-to-use-const}
 
----
-
-## Use Case 3: Data Extraction from Validation Results
-
-When traversing validation results, you often want to extract accumulated errors or valid data without transforming the individual results. `Const` provides a clean way to express this pattern.
-
-~~~admonish example title="Example: Validation Data Mining"
-
-[ConstExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/constant/ConstExample.java)
-
-<!-- verify -->
-```java
-record ValidationResult(boolean isValid, List<String> errors, Object data) {}
-
-List<ValidationResult> results = List.of(
-    new ValidationResult(true, List.of(), "Valid data 1"),
-    new ValidationResult(false, List.of("AppError A", "AppError B"), null),
-    new ValidationResult(true, List.of(), "Valid data 2"),
-    new ValidationResult(false, List.of("AppError C"), null)
-);
-
-// Extract all errors using Const
-List<String> allErrors = new ArrayList<>();
-
-for (ValidationResult result : results) {
-    // Use Const to extract errors, phantom type represents ValidationResult
-    Const<List<String>, ValidationResult> errorConst = new Const<>(result.errors());
-    allErrors.addAll(errorConst.value());
-}
-
-System.out.println("All errors: " + allErrors);
-// Output: [AppError A, AppError B, AppError C]
-
-// Count valid results
-Const<Integer, ValidationResult> validCount = results.stream()
-    .reduce(
-        new Const<>(0),
-        (acc, result) -> new Const<Integer, ValidationResult>(
-            result.isValid() ? acc.value() + 1 : acc.value()),
-        (c1, c2) -> new Const<>(c1.value() + c2.value()));
-
-System.out.println("Valid results: " + validCount.value());
-// Output: 2
-```
-
-The phantom type maintains the "context" of what we're extracting from (ValidationResult), whilst the constant value accumulates the data we care about (errors or counts).
-~~~
-
----
-
-## Const vs Other Types
-
-Understanding how `Const` relates to similar types clarifies its unique role:
-
-| Type | First Parameter | Second Parameter | Primary Use |
-|------|----------------|------------------|-------------|
-| `Const<C, A>` | Constant value (stored) | Phantom (not stored) | Folds, getters, extraction |
-| `Tuple2<A, B>` | First element (stored) | Second element (stored) | Pairing related values |
-| `Identity<A>` | Value (stored) | N/A (single parameter) | Pure computation wrapper |
-| `Either<L, R>` | Error (sum type) | Success (sum type) | Error handling |
-
-**Use Const when:**
-- You need to accumulate a single value during traversal
-- You're implementing getters or read-only lenses
-- You want to extract data without transformation
-- The phantom type provides useful type-level information for composition
-
-**Use Tuple2 when:**
-- You need to store and work with both values
-- Both parameters represent actual data
-
-**Use Identity when:**
-- You need a minimal monad wrapper with no additional effects
-
----
-
-## Exception Propagation Note
-
-Although `mapSecond` doesn't transform the constant value, the mapper function is still applied to `null` to ensure exception propagation. This maintains consistency with bifunctor semantics.
-
-<!-- verify -->
-```java
-Const<String, Integer> const_ = new Const<>("value");
-
-// This will throw NullPointerException from the mapper
-Const<String, Double> result = const_.mapSecond(i -> {
-    if (i == null) throw new NullPointerException("Expected non-null");
-    return i * 2.0;
-});
-```
-
-This behaviour ensures that invalid mappers are detected, even though the mapper's result isn't used. For null-safe mappers, simply avoid dereferencing the parameter:
-
-<!-- verify -->
-```java
-// Null-safe phantom type transformation
-Const<String, Double> safe = const_.mapSecond(i -> 3.14);
-```
-
----
-
-## Summary
-
-* **Const<C, A>** holds a constant value of type `C` with a phantom type parameter `A`
-* **Phantom types** exist only in type signatures, enabling type-safe composition without runtime overhead
-* **Bifunctor operations**:
-  * `first` transforms the constant value
-  * `second` changes only the phantom type
-  * `bimap` combines both (but only affects the constant via the first function)
-* **Use cases**:
-  * Efficient fold implementations that accumulate a single value
-  * Compositional getters in lens and traversal patterns
-  * Data extraction from complex structures without transformation
-* **Scala heritage**: Mirrors `Const` in Cats, Scalaz, and Monocle
-* **External resources**:
-  * [Cats Const Documentation](https://typelevel.org/cats/datatypes/const.html)
-  * [Monocle Getter Optics](https://www.optics.dev/Monocle/docs/optics/getter)
-  * [Van Laarhoven Lenses](https://www.twanvl.nl/blog/haskell/cps-functional-references)
-
-Understanding `Const` empowers you to write efficient, compositional code for data extraction and accumulation, leveraging patterns battle-tested in the Scala functional programming ecosystem.
+| You need | Use |
+|---|---|
+| To sum, count or collect what code written for any `Applicative` visits | `Const` with the matching monoid |
+| To read through a traversal or a Focus path | Its `foldMap`, `getAll` or `exists`, which use `Const` for you |
+| To read a Free Applicative program before it runs | `FreeApAnalyzer.analyseWith` |
+| Two values that both hold data | A record |
+| One value with no effect | [Id](identity.md) |
 
 ---
 

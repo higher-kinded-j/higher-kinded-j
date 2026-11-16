@@ -161,10 +161,16 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * reads {@code null} when it is unset, as an unset bean property does, so the rules for a
      * {@code null} read apply to it: a domain {@code Optional} reads it as empty, and any other
      * component as missing. The read of a primitive one is then of its boxed type, while {@link
-     * #type} stays the type its accessor declares.
+     * #type} stays the type its accessor declares. A message field whose getter answers a subtype
+     * of its type is read as its type ({@link MessageField#widened}).
      */
     CodeBlock readFrom(String receiver) {
-      CodeBlock read = CodeBlock.of("$L.$L()", receiver, accessor.orElseThrow());
+      CodeBlock call = CodeBlock.of("$L.$L()", receiver, accessor.orElseThrow());
+      // A getter answering a subtype is read as the type the field is, which a copy hands back.
+      CodeBlock read =
+          field.filter(MessageField::widened).isPresent()
+              ? CodeBlock.of("(($T) $L)", ProcessorUtils.typeNameOf(type), call)
+              : call;
       return presence()
           .map(has -> CodeBlock.of("($L.$L() ? $L : null)", receiver, has, read))
           .orElse(read);
@@ -486,16 +492,38 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * DISPLAY_NAME_FIELD_NUMBER}, by which a message that carries its descriptor names the field
    * exactly.
    *
+   * <p>{@code widened} says the getter answers a subtype of the type the field is read as: a
+   * repeated string field's {@code getXList()} answers a {@code ProtocolStringList}, and the field
+   * is read as the {@code List<String>} that is. A read is cast up to that type, so that a copy,
+   * which is typed by what it is handed, hands back the field's own type.
+   *
    * @param presence the {@code hasX()} method, for a field that tracks its presence
    * @param oneof the oneof the field is a member of, if any
    * @param protoName the field's name in its {@code .proto} file, as its Java names tell it
    * @param number the constant holding the field's number, where protoc wrote one
+   * @param widened whether the getter answers a subtype of the type the field is read as
    */
   record MessageField(
       Optional<String> presence,
       Optional<OneofMember> oneof,
       String protoName,
-      Optional<String> number) {}
+      Optional<String> number,
+      boolean widened) {
+
+    /** A field whose getter answers the type it is read as. */
+    MessageField(
+        Optional<String> presence,
+        Optional<OneofMember> oneof,
+        String protoName,
+        Optional<String> number) {
+      this(presence, oneof, protoName, number, false);
+    }
+
+    /** This field, read as a supertype of the type its getter answers. */
+    MessageField asWidened() {
+      return new MessageField(presence, oneof, protoName, number, true);
+    }
+  }
 
   /**
    * A field's membership of a oneof, as the oneof's case getter tells it: the oneof's name, its

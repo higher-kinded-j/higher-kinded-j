@@ -19,7 +19,7 @@ whose reader needs it.
 |---|---|---|
 | Ship | `foundations_intro`, `one_line_six_layers`, `core-concepts`, `usage-guide`, `instances_facade`, `functor`, `applicative`, `monad`, `monad_error`, `for_comprehension` (which absorbed `for_par` and `for_traverse`), `self_check` | Reads in order, then writes one method that works for any container. |
 | On demand | Three groups, each led by a group introduction: Higher-Kinded Types (`hkts/ch_intro`), Type Classes (`functional/ch_intro`) and Core Types (`monads/ch_intro`) | Reads one page when a task needs it, often arriving from a search for one type. |
-| Look it up | `supported-types`, `quick_reference`, `functional_api`, `faq`, `hkt_basic_examples` | Arrives holding a question. |
+| Look it up | `supported-types`, `quick_reference`, `faq`, `hkt_basic_examples` | Arrives holding a question. |
 
 `SUMMARY.md` holds the order, and the chapter introduction's Chapter Contents lists the lanes. A
 group's pages are nested under its introduction in `SUMMARY.md`, so the sidebar shows the lane first.
@@ -84,8 +84,14 @@ glance", a two-column table in this shape:
 - **Effect Path:** the Path application code uses, linked, or "none".
 - **Instances:** the type's row from `BookCapabilityMatrixTest`'s golden file, included with the
   page's file name as its anchor, as above. Never type it.
-- **Choose it when:** one clause, naming the neighbouring type to choose otherwise, then a link to
-  Choosing a Type.
+- **Choose it when:** one clause, then "; otherwise" and the neighbouring type, then a link to
+  Choosing a Type. A JDK type's first clause names the code the reader holds, since it fills the
+  table's "Your code today" cell.
+
+**The cards build Choosing a Type.** `BookTypeTriageTest` writes the table on Supported Types from
+every card: the Replaces row, or, for a JDK type, the Choose it when row up to "; otherwise", and the
+Effect Path row. After you change one of those rows, `bookVerify` fails and prints the table to paste
+into its golden file.
 
 After the card, a Core Types page runs in this order:
 
@@ -102,14 +108,19 @@ After the card, a Core Types page runs in this order:
 8. One line naming its benchmark, where one measures the type, and linking
    [Benchmarks](../hkj-book/src/benchmarks.md), in place of a Benchmarks admonition.
 
-The full matrix is on the [Core Types introduction](../hkj-book/src/monads/ch_intro.md), and a page
-never redraws it.
+The full matrix is on [Supported Types](../hkj-book/src/monads/supported-types.md), and a page never
+redraws it.
 
 ## Reference Pages
 
 The Look it up pages follow the Style Guide's [Reference Pages](STYLE-GUIDE.md#reference-pages)
 shape: no epigraph, no "What You'll Learn" and no "Key Takeaways". Each opens with the thing its
 reader came for.
+
+The FAQ is the one exception to "no epigraph": it keeps Laplace's, bridged to the missing feature
+most of its answers turn on. [Laws and Where HKJ Bends Them](../hkj-book/src/hkts/laws.md) is the
+one list of the instances that bend a law. A page that explains its own type's bend links that list
+rather than repeating the others, and the list's table of the laws `hkj-test` checks is generated.
 
 ## Examples
 
@@ -142,6 +153,10 @@ diagrams, the `step` class (`fill:#8caaee,stroke:#1e66f5,color:#232634`) marks t
 encoding, a type class, a call), and the `domain` class (`fill:#a6d189,stroke:#40a02b,color:#232634`)
 marks a type a reader holds (a core type, an Effect Path). Errors and decisions take the Style Guide's
 `error` and `decision` classes.
+
+The chapter is held to the Style Guide's [Diagram Law](STYLE-GUIDE.md#the-diagram-law), so
+`hkj-book/check.sh` fails an SVG, line art outside an accessible `<pre>`, and a flowchart or state
+node whose class sets no fill or no text colour.
 
 The type class hierarchy is drawn once, on the
 [Type Classes introduction](../hkj-book/src/functional/ch_intro.md), where

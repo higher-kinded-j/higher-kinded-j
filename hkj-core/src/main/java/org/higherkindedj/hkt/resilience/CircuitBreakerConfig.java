@@ -25,7 +25,9 @@ import java.util.function.Predicate;
  * }</pre>
  *
  * @param failureThreshold failures in the closed state before the circuit opens
- * @param successThreshold successes in the half-open state before the circuit closes
+ * @param successThreshold successes in the half-open state before the circuit closes, and the
+ *     number of probe places while it is half-open: a call runs as a probe only while fewer probes
+ *     than this are running or have succeeded
  * @param openDuration how long the circuit stays open before transitioning to half-open
  * @param callTimeout timeout applied to each protected call via {@code VTask.timeout()}: a call
  *     slower than this is interrupted, and fails with a {@code TimeoutException} once it has
@@ -106,7 +108,9 @@ public record CircuitBreakerConfig(
     }
 
     /**
-     * Sets the number of successes in half-open state before the circuit closes.
+     * Sets the number of successes in half-open state before the circuit closes. While half-open,
+     * it is also the number of probe places: a call runs as a probe only while fewer probes than
+     * this are running or have succeeded, and a probe that is cancelled frees its place.
      *
      * @param threshold the success threshold (must be at least 1)
      * @return this builder

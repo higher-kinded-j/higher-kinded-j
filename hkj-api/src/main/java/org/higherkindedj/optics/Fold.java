@@ -150,16 +150,16 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
   default List<A> getAll(S source) {
     // Use mutable accumulator for O(k) performance instead of O(k²) from list copying
     final List<A> result = new ArrayList<>();
-    Monoid<Void> accumulatorMonoid =
+    Monoid<Unit> accumulatorMonoid =
         new Monoid<>() {
           @Override
-          public Void empty() {
-            return null;
+          public Unit empty() {
+            return Unit.INSTANCE;
           }
 
           @Override
-          public Void combine(Void a, Void b) {
-            return null;
+          public Unit combine(Unit a, Unit b) {
+            return Unit.INSTANCE;
           }
         };
 
@@ -167,7 +167,7 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
         accumulatorMonoid,
         a -> {
           result.add(a);
-          return null;
+          return Unit.INSTANCE;
         },
         source);
     return result;

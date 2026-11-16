@@ -71,6 +71,8 @@ public abstract class PCollectionsBaseSingleIterableTraversableGenerator
   protected final ClassName constructedType;
 
   /**
+   * Creates a generator for one persistent type.
+   *
    * @param supportedType the persistent collection interface this generator recognises
    * @param constructedType the concrete factory class whose {@code from(Collection)} reconstructs
    *     instances of {@code supportedType}

@@ -792,7 +792,8 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
 
   /**
    * Returns an IOPath that executes through the circuit breaker: failures trip the circuit, and
-   * while it is open the computation is rejected immediately with {@link CircuitOpenException}.
+   * while it is open, or half-open with every probe place taken, the computation is rejected
+   * immediately with {@link CircuitOpenException}.
    *
    * <p>The breaker is shareable - protect several paths with one breaker to give them a common
    * failure budget. The breaker also applies its configured per-call budget ({@code

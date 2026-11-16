@@ -4,17 +4,31 @@ package org.higherkindedj.tutorial.solutions.coretypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
+import static org.higherkindedj.hkt.instances.Witnesses.either;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.function.Function;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Currency;
+import java.util.List;
+import java.util.UUID;
+import org.higherkindedj.example.book.foundations.InMemoryOrderRepository;
+import org.higherkindedj.example.book.foundations.OrderError;
+import org.higherkindedj.example.book.foundations.OrderRepository;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monad;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.either.Either;
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.hkt.either.EitherKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -22,309 +36,346 @@ import org.junit.jupiter.api.Test;
  * Solution for Tutorial 00: One Line, Six Layers.
  *
  * <p>This file is the "teaching solution" template: each exercise gets the working answer plus a
- * short note on <em>why</em> it is idiomatic, one alternative shape that also works, and one common
- * wrong attempt and its symptoms.
+ * short note on <em>why</em> it is idiomatic, one alternative shape, and one common wrong attempt
+ * and its symptom.
  */
 @DisplayName("Tutorial 00 Solution: One Line, Six Layers")
 public class Tutorial00_OneLineSixLayers_Solution {
 
-  // ─── Domain (mirrors the tutorial) ────────────────────────────────────────
+  // ─── The order service (mirrors the tutorial) ─────────────────────────────
 
-  record Item(String id, Map<String, String> attributes) {}
+  static final UUID PLACED = UUID.fromString("00000000-0000-0000-0000-000000000001");
+  static final UUID SHIPPED = UUID.fromString("00000000-0000-0000-0000-000000000002");
+  static final UUID UNKNOWN = UUID.fromString("00000000-0000-0000-0000-000000000009");
+  static final String NEW_EMAIL = "ada@example.org";
 
-  enum RepoError {
-    NOT_FOUND,
-    INVALID
+  static Order order(UUID id, OrderStatus status) {
+    return new Order(
+        id,
+        new Customer("Ada", new EmailAddress("ada@example.com")),
+        List.of(new LineItem("LAMP", 1, new BigDecimal("40.00"))),
+        Instant.parse("2026-10-01T09:00:00Z"),
+        Currency.getInstance("GBP"),
+        status);
   }
 
-  static final Lens<Item, Map<String, String>> attributesLens =
-      Lens.of(Item::attributes, (item, attrs) -> new Item(item.id(), attrs));
-
-  static Function<Map<String, String>, Map<String, String>> addEntry(String key, String value) {
-    return original -> {
-      Map<String, String> copy = new LinkedHashMap<>(original);
-      copy.put(key, value);
-      return copy;
-    };
+  static OrderRepository orders() {
+    return InMemoryOrderRepository.of(
+        order(PLACED, OrderStatus.NEW), order(SHIPPED, OrderStatus.SHIPPED));
   }
 
-  private static Item makeUser1() {
-    Map<String, String> attrs = new HashMap<>();
-    attrs.put("name", "Alice");
-    attrs.put("country", "US");
-    return new Item("user-1", Map.copyOf(attrs));
-  }
-
-  static MaybePath<Item> find(String id) {
-    if ("user-1".equals(id)) {
-      return Path.just(makeUser1());
-    }
-    return Path.nothing();
-  }
-
-  static EitherPath<RepoError, Item> save(Item item) {
-    if (item.id() == null || item.id().isBlank()) {
-      return Path.left(RepoError.INVALID);
-    }
-    return Path.right(item);
+  static String storedEmail(OrderRepository orders, UUID id) {
+    return orders.find(id).map(order -> order.customer().email().value()).getOrElse("absent");
   }
 
   // ─── Exercise 0 ────────────────────────────────────────────────────────────
 
+  /**
+   * A setup check with nothing to write: if it compiles and passes, the Effect Path API, the
+   * generated {@code OrderFocus}, and the test runtime are all on the classpath.
+   */
   @Test
-  @DisplayName("Exercise 0: setup check")
+  @DisplayName("Exercise 0: Setup check")
   void exercise0_setupCheck() {
     MaybePath<Integer> sanity = Path.just(42);
     assertThat(sanity.getOrElse(-1)).isEqualTo(42);
+    assertThat(OrderFocus.customer().email().value().get(order(PLACED, OrderStatus.NEW)))
+        .isEqualTo("ada@example.com");
   }
 
   // ─── Exercise 1 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code getOrElse} expresses intent — "give me the value, or this default
-   * if absent" — without ever exposing a {@code null} or forcing a downstream {@code if}.
+   * Why this is idiomatic: {@code getOrElse} says "the value, or this stand-in when it is absent"
+   * without ever exposing a {@code null} or forcing an {@code if} on the caller.
    *
-   * <p>Alternative: {@code path.run().getOrElse(...)} (calling through the underlying Maybe). Same
-   * answer; the {@code MaybePath} method is just sugar.
+   * <p>Alternative: {@code path.run().orElse(...)}, through the {@code Maybe} underneath. Same
+   * answer; the {@code MaybePath} method saves a step.
    *
-   * <p>Common wrong attempt: {@code path.run().get()}. Calling {@code get()} on a {@code Nothing}
-   * throws — and silently masks the absent case, which is exactly the problem we are trying to fix.
+   * <p>Common wrong attempt: {@code path.run().get()}. On an empty path, {@code get()} throws
+   * {@code NoSuchElementException}, and the absent case we set out to handle comes back as an
+   * exception.
    */
   @Test
-  @DisplayName("Exercise 1: Layer 1 (Effect)")
+  @DisplayName("Exercise 1: Layer 1, the effect type")
   void exercise1_effectType() {
-    MaybePath<Item> path = find("user-1");
+    MaybePath<Order> path = orders().find(PLACED);
 
-    Item item = path.getOrElse(new Item("missing", Map.of()));
+    // SOLUTION: take the order out, with a stand-in for the empty case
+    Order order = path.getOrElse(order(UNKNOWN, OrderStatus.NEW));
 
-    assertThat(item.id()).isEqualTo("user-1");
-    assertThat(item.attributes()).containsEntry("name", "Alice");
+    assertThat(order.id()).isEqualTo(PLACED);
+    assertThat(order.customer().email().value()).isEqualTo("ada@example.com");
   }
 
   // ─── Exercise 2 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code toEitherPath(error)} is the natural transformation between {@link
-   * MaybePath} and {@link EitherPath}. Lifting the absence into a typed error at this point means
-   * every downstream step has the error type available; we never have to "remember" to convert
-   * later.
+   * Why this is idiomatic: {@code toEitherPath(error)} is the natural transformation from {@code
+   * MaybePath} to {@code EitherPath}. It names the reason for the empty case once, where the order
+   * is looked up, and leaves a present order untouched.
    *
-   * <p>Alternative: pattern-match on {@code path.run()} and rebuild an {@code EitherPath}
-   * ourselves. Strictly more code, no benefit.
+   * <p>Alternative: {@code toEitherPath(() -> OrderError.notFound(id))}, which builds the error
+   * only when the path is empty. Worth it when the error is costly to build; here it is a small
+   * record.
    *
-   * <p>Common wrong attempt: deferring the lift until after the chain is built. Then the downstream
-   * {@code map} / {@code via} calls have to operate on {@code Maybe} and we cannot carry a domain
-   * error.
+   * <p>Common wrong attempt: {@code toEitherPath(new OrderError.NotFound(id))} in the middle of a
+   * chain. With no target type there, the chain's error type becomes {@code NotFound} rather than
+   * {@code OrderError}, and a later {@code .via(orders::save)}, which can fail with {@code
+   * AlreadyShipped}, does not compile. The factory {@code OrderError.notFound(id)} returns the
+   * sealed type.
    */
   @Test
-  @DisplayName("Exercise 2: Layer 2 (Natural transformation)")
+  @DisplayName("Exercise 2: Layer 2, the natural transformation")
   void exercise2_naturalTransformation() {
-    MaybePath<Item> presentMaybe = find("user-1");
-    MaybePath<Item> absentMaybe = find("user-missing");
+    OrderRepository orders = orders();
 
-    EitherPath<RepoError, Item> presentEither = presentMaybe.toEitherPath(RepoError.NOT_FOUND);
-    EitherPath<RepoError, Item> absentEither = absentMaybe.toEitherPath(RepoError.NOT_FOUND);
+    // SOLUTION: the same natural transformation, for an order that exists and one that does not
+    EitherPath<OrderError, Order> present =
+        orders.find(PLACED).toEitherPath(OrderError.notFound(PLACED));
+    EitherPath<OrderError, Order> absent =
+        orders.find(UNKNOWN).toEitherPath(OrderError.notFound(UNKNOWN));
 
-    assertThatEither(presentEither.run()).isRight();
-    assertThatEither(absentEither.run()).isLeft().hasLeft(RepoError.NOT_FOUND);
+    assertThatEither(present.run())
+        .isRight()
+        .hasRightSatisfying(order -> assertThat(order.id()).isEqualTo(PLACED));
+    assertThatEither(absent.run()).isLeft().hasLeft(OrderError.notFound(UNKNOWN));
   }
 
   // ─── Exercise 3 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code lens.modify(transform, source)} captures "apply this function to
-   * exactly that field" without any visible copy-construction. The original is never mutated.
+   * Why this is idiomatic: the optic rebuilds {@code Order}, {@code Customer} and {@code
+   * EmailAddress} on the way back up, so we write none of the copies, and the original order is
+   * left as it was.
    *
-   * <p>Alternative: {@code lens.set(transform.apply(lens.get(source)), source)}. Strictly more
-   * code; {@code modify} is the standard composition.
+   * <p>Alternative: {@code OrderFocus.customer().email().value().modify(old -> NEW_EMAIL,
+   * original)}. {@code modify} takes a function of the old value; {@code set} is the shorter form
+   * when the new value does not depend on it.
    *
-   * <p>Common wrong attempt: mutating the map returned by {@code item.attributes()} in place. If
-   * the source map is immutable (here it is, via {@code Map.copyOf}) we get {@code
-   * UnsupportedOperationException}; if it is mutable we accidentally break sharing.
+   * <p>Common wrong attempt: building {@code new Order(...)} by hand with a new {@code Customer}.
+   * It works until {@code Order} gains a component, and then every hand-written copy must change.
    */
   @Test
-  @DisplayName("Exercise 3: Layer 3 (Optic)")
-  void exercise3_opticModify() {
-    Item original = makeUser1();
+  @DisplayName("Exercise 3: Layer 3, the optic")
+  void exercise3_opticSet() {
+    Order original = order(PLACED, OrderStatus.NEW);
 
-    Item updated = attributesLens.modify(addEntry("country", "GB"), original);
+    // SOLUTION: set the email three records deep
+    Order changed = OrderFocus.customer().email().value().set(NEW_EMAIL, original);
 
-    assertThat(updated.id()).isEqualTo("user-1");
-    assertThat(updated.attributes()).containsEntry("country", "GB");
-    assertThat(original.attributes()).containsEntry("country", "US");
+    assertThat(changed.customer().email().value()).isEqualTo(NEW_EMAIL);
+    assertThat(changed.customer().name()).isEqualTo("Ada");
+    assertThat(original.customer().email().value()).isEqualTo("ada@example.com");
   }
 
   // ─── Exercise 4 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code map} preserves the {@code EitherPath} structure. If the path is
-   * already a {@code Left}, the function does not run; if it is a {@code Right}, it runs and the
-   * result is re-wrapped in a {@code Right}.
+   * Why this is idiomatic: {@code map} applies a step that cannot fail without unwrapping the path,
+   * and does nothing on a {@code Left}. The optic's {@code set} is exactly such a step.
    *
-   * <p>Alternative: {@code .via(item -> Path.right(attributesLens.modify(...)))}. Works, but
-   * misuses {@code via} (the Monad capability) for a step that does not need a new effect.
+   * <p>Alternative: name the step, {@code UnaryOperator<Order> changeEmail = order -> ...}, and
+   * pass {@code found.map(changeEmail)}. Useful when the same change appears in several chains.
    *
-   * <p>Common wrong attempt: {@code .via(item -> attributesLens.modify(...))}. Compile error: the
-   * function returns an {@code Item}, not an {@code EitherPath}; {@code via} expects the latter.
-   * Use {@code map} when the function returns a plain value.
+   * <p>Common wrong attempt: {@code found.via(order -> Path.right(...set(...)))}. It compiles and
+   * gives the same answer, but {@code via} is for a step that can fail; wrapping a step that cannot
+   * in {@code Path.right} hides which kind of step it is.
    */
   @Test
-  @DisplayName("Exercise 4: Layer 4 (Functor)")
+  @DisplayName("Exercise 4: Layer 4, Functor's map")
   void exercise4_functorMap() {
-    EitherPath<RepoError, Item> wrapped = find("user-1").toEitherPath(RepoError.NOT_FOUND);
+    EitherPath<OrderError, Order> found =
+        orders().find(PLACED).toEitherPath(OrderError.notFound(PLACED));
 
-    EitherPath<RepoError, Item> updated =
-        wrapped.map(item -> attributesLens.modify(addEntry("country", "GB"), item));
+    // SOLUTION: map the optic's set through the path
+    EitherPath<OrderError, Order> changed =
+        found.map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order));
 
-    Either<RepoError, Item> result = updated.run();
-    assertThatEither(result)
+    assertThatEither(changed.run())
         .isRight()
-        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
+        .hasRightSatisfying(
+            order -> assertThat(order.customer().email().value()).isEqualTo(NEW_EMAIL));
   }
 
   // ─── Exercise 5 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code via} (a.k.a. {@code flatMap}) expresses dependency. The next step
-   * ({@code save}) decides whether the chain continues with a new {@code Right} or short-circuits
-   * with a new {@code Left}.
+   * Why this is idiomatic: {@code via} runs a step that needs the order and can fail for a reason
+   * of its own. When {@code save} refuses a shipped order, its {@code Left} ends the chain, and no
+   * {@code try}/{@code catch} is needed.
    *
-   * <p>Alternative: {@code wrapped.via(Tutorial00_OneLineSixLayers_Solution::save)} — a method
-   * reference reads cleaner and is the form used in the One Line, Six Layers anchor.
+   * <p>Alternative: {@code changed.via(order -> orders.save(order))}, the lambda the method
+   * reference stands for. Same answer.
    *
-   * <p>Common wrong attempt: {@code wrapped.map(this::save)}. The function returns an {@code
-   * EitherPath}, so {@code map} produces an {@code EitherPath<RepoError, EitherPath<...>>} — nested
-   * effects we now need to flatten. {@code via} flattens for us; that is its whole job.
+   * <p>Common wrong attempt: {@code changed.map(orders::save)}. It gives an {@code
+   * EitherPath<OrderError, EitherPath<OrderError, Order>>}, a path inside a path, so it does not
+   * fit the {@code EitherPath<OrderError, Order>} variable; and even unassigned, the refusal stays
+   * inside the inner path and never reaches the outer {@code Left}.
    */
   @Test
-  @DisplayName("Exercise 5: Layer 5 (Monad)")
+  @DisplayName("Exercise 5: Layer 5, Monad's via")
   void exercise5_monadVia() {
-    EitherPath<RepoError, Item> wrapped =
-        find("user-1")
-            .toEitherPath(RepoError.NOT_FOUND)
-            .map(item -> attributesLens.modify(addEntry("country", "GB"), item));
+    OrderRepository orders = orders();
+    EitherPath<OrderError, Order> changed =
+        orders
+            .find(PLACED)
+            .toEitherPath(OrderError.notFound(PLACED))
+            .map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order));
+    EitherPath<OrderError, Order> changedShipped =
+        orders
+            .find(SHIPPED)
+            .toEitherPath(OrderError.notFound(SHIPPED))
+            .map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order));
 
-    EitherPath<RepoError, Item> saved = wrapped.via(Tutorial00_OneLineSixLayers_Solution::save);
+    // SOLUTION: chain the save, which may refuse
+    EitherPath<OrderError, Order> saved = changed.via(orders::save);
+    EitherPath<OrderError, Order> refused = changedShipped.via(orders::save);
 
-    Either<RepoError, Item> result = saved.run();
-    assertThatEither(result)
+    assertThatEither(saved.run())
         .isRight()
-        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
+        .hasRightSatisfying(
+            order -> assertThat(order.customer().email().value()).isEqualTo(NEW_EMAIL));
+    assertThatEither(refused.run()).isLeft().hasLeft(OrderError.alreadyShipped(SHIPPED));
+    assertThat(storedEmail(orders, PLACED)).isEqualTo(NEW_EMAIL);
   }
 
   // ─── Exercise 6 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: {@code run()} is the only impure operation in the chain. Up to that
-   * point the entire pipeline is data — a description of what to do — and we can pass it around,
-   * cache it, log it, or rewrite it.
+   * Why this is idiomatic: {@code Functor}'s {@code map} and {@code Monad}'s {@code flatMap} are
+   * the same operations as the Path's {@code map} and {@code via}, written once for any container
+   * {@code F}. The instance is a value we pass, from {@code Instances.monad(either())}; nothing
+   * chooses it for us.
    *
-   * <p>Alternative: in tests, {@code .run().getRight()} or {@code .run().getLeft()} after asserting
-   * which side the result is on; in production code, prefer {@code fold} or pattern matching to
-   * stay total.
+   * <p>Alternative: the change step on its own can be written once for any container, as a method
+   * that takes a {@code Functor<F>} and a {@code Kind<F, Order>} and returns {@code
+   * functor.map(order -> ...set(NEW_EMAIL, order), orders)}. The save cannot, because it is {@code
+   * Either}'s own; Tutorial 01 onwards builds methods of the first kind.
    *
-   * <p>Common wrong attempt: calling {@code .run()} after every step. Each {@code run()} unwraps
-   * the description into a value; doing it eagerly means every subsequent step has to wrap-and-run
-   * again, defeating the point.
+   * <p>Common wrong attempt: {@code monad.flatMap(order -> orders.save(order), changed)}. It does
+   * not compile: {@code save} returns an {@code EitherPath}, not a {@code Kind}. {@code run()}
+   * gives its {@code Either}, and {@code EITHER.widen} the {@code Kind}.
    */
   @Test
-  @DisplayName("Exercise 6: Layer 6 (Dispatch)")
-  void exercise6_dispatch() {
-    EitherPath<RepoError, Item> saved =
-        find("user-1")
-            .toEitherPath(RepoError.NOT_FOUND)
-            .map(item -> attributesLens.modify(addEntry("country", "GB"), item))
-            .via(Tutorial00_OneLineSixLayers_Solution::save);
+  @DisplayName("Exercise 6: Layer 6, the algebra")
+  void exercise6_theAlgebra() {
+    OrderRepository orders = orders();
+    Monad<EitherKind.Witness<OrderError>> monad = Instances.monad(either());
+    Kind<EitherKind.Witness<OrderError>, Order> found =
+        EITHER.widen(orders.find(PLACED).toEitherPath(OrderError.notFound(PLACED)).run());
+    Kind<EitherKind.Witness<OrderError>, Order> foundShipped =
+        EITHER.widen(orders.find(SHIPPED).toEitherPath(OrderError.notFound(SHIPPED)).run());
 
-    Either<RepoError, Item> either = saved.run();
+    // SOLUTION: the change with map, then the save with flatMap, on the Monad
+    Kind<EitherKind.Witness<OrderError>, Order> saved =
+        monad.flatMap(
+            order -> EITHER.widen(orders.save(order).run()),
+            monad.map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order), found));
+    Kind<EitherKind.Witness<OrderError>, Order> refused =
+        monad.flatMap(
+            order -> EITHER.widen(orders.save(order).run()),
+            monad.map(
+                order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order),
+                foundShipped));
 
-    assertThatEither(either)
-        .isRight()
-        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
+    OrderRepository pathOrders = orders();
+    Either<OrderError, Order> viaPath =
+        pathOrders
+            .find(PLACED)
+            .toEitherPath(OrderError.notFound(PLACED))
+            .map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order))
+            .via(pathOrders::save)
+            .run();
+    assertThat(EITHER.narrow(saved)).isEqualTo(viaPath);
+    assertThat(EITHER.narrow(refused)).isEqualTo(Either.left(OrderError.alreadyShipped(SHIPPED)));
+    assertThat(storedEmail(orders, PLACED)).isEqualTo(NEW_EMAIL);
   }
 
   // ─── Exercise 7 ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: the entire workflow reads top-to-bottom, mirrors the imperative
-   * pseudocode at the top of the tutorial, and never mentions a single null check, try/catch, or
-   * defensive copy. Errors at any step short-circuit cleanly to a typed {@code Left}.
+   * Why this is idiomatic: the line reads in the order things happen, and every failure is part of
+   * its type, a value the caller can see, not an exception it has to know about. {@code run()} at
+   * the end gives the {@code Either}.
    *
-   * <p>Alternative: extract intermediate steps into named local variables for debugging. Equivalent
-   * at runtime; sometimes clearer in a code review.
+   * <p>Alternative: return the {@code EitherPath} from a service method, as the book's {@code
+   * changeEmail} does, and call {@code run()} where the result is used.
    *
-   * <p>Common wrong attempt: building the same chain with raw {@code Either} and {@code Maybe} and
-   * a stack of nested {@code flatMap} calls. Works, but loses the unifying Path API and the future
-   * ability to swap in {@code VTaskPath} for an async repository.
+   * <p>Common wrong attempt: calling {@code run()} after every step and rebuilding a path from the
+   * {@code Either}. Each step then has to unwrap and rewrap, which is the work the path does for
+   * us.
    */
   @Test
-  @DisplayName("Exercise 7: assemble the full expression")
+  @DisplayName("Exercise 7: The whole line")
   void exercise7_oneLineSixLayers() {
-    String idToUpdate = "user-1";
-    String key = "country";
-    String newValue = "GB";
+    OrderRepository orders = orders();
 
-    Either<RepoError, Item> result =
-        find(idToUpdate)
-            .toEitherPath(RepoError.NOT_FOUND)
-            .map(item -> attributesLens.modify(addEntry(key, newValue), item))
-            .via(Tutorial00_OneLineSixLayers_Solution::save)
+    // SOLUTION: the whole line, once for each id
+    Either<OrderError, Order> changed =
+        orders
+            .find(PLACED)
+            .toEitherPath(OrderError.notFound(PLACED))
+            .map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order))
+            .via(orders::save)
+            .run();
+    Either<OrderError, Order> missing =
+        orders
+            .find(UNKNOWN)
+            .toEitherPath(OrderError.notFound(UNKNOWN))
+            .map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order))
+            .via(orders::save)
+            .run();
+    Either<OrderError, Order> refused =
+        orders
+            .find(SHIPPED)
+            .toEitherPath(OrderError.notFound(SHIPPED))
+            .map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order))
+            .via(orders::save)
             .run();
 
-    assertThatEither(result)
+    assertThatEither(changed)
         .isRight()
         .hasRightSatisfying(
-            item -> {
-              assertThat(item.id()).isEqualTo(idToUpdate);
-              assertThat(item.attributes()).containsEntry(key, newValue);
+            order -> {
+              assertThat(order.id()).isEqualTo(PLACED);
+              assertThat(order.customer().email().value()).isEqualTo(NEW_EMAIL);
             });
-
-    String missingId = "user-missing";
-    Either<RepoError, Item> missing =
-        find(missingId)
-            .toEitherPath(RepoError.NOT_FOUND)
-            .map(item -> attributesLens.modify(addEntry(key, newValue), item))
-            .via(Tutorial00_OneLineSixLayers_Solution::save)
-            .run();
-
-    assertThatEither(missing).isLeft().hasLeft(RepoError.NOT_FOUND);
+    assertThatEither(missing).isLeft().hasLeft(OrderError.notFound(UNKNOWN));
+    assertThatEither(refused).isLeft().hasLeft(OrderError.alreadyShipped(SHIPPED));
+    assertThat(storedEmail(orders, PLACED)).isEqualTo(NEW_EMAIL);
   }
 
   // ─── Diagnostic ────────────────────────────────────────────────────────────
 
   /**
-   * Why this is idiomatic: when we want to keep the outer record (the {@code Item}) so we can save
-   * it later, we apply the optic <em>inside</em> a {@code .map}. {@code lens.modify(...)} returns a
-   * new {@code Item}; the {@code EitherPath} stays {@code EitherPath<RepoError, Item>}.
+   * Why this is idiomatic: {@code set} inside {@code map} changes the email and keeps the {@code
+   * Order}, which is what {@code save} needs. {@code focus} on the path narrows to the focused
+   * value, which is right only when the narrowed value is all we want.
    *
-   * <p>Alternative: build a function {@code Item -> Item} via {@code attributesLens::modify} and
-   * pass it to {@code .map}. Same shape, slightly more concise.
+   * <p>Alternative: {@code found.map(order -> OrderFocus.customer().email().value().modify(old ->
+   * NEW_EMAIL, order))}. Same shape; {@code modify} when the new value depends on the old.
    *
-   * <p>Common wrong attempt: calling {@code .focus(FocusPath.of(attributesLens))} on the {@code
-   * EitherPath}. That call is correct in its own right — it returns an {@code EitherPath<RepoError,
-   * Map>} narrowed to the focused field — but it loses the surrounding {@code Item}, which means we
-   * cannot chain {@code .via(this::save)} afterwards. Use {@code .focus(...)} when narrowing
-   * <em>is</em> the goal; use {@code .map} + {@code lens.modify} when we want to update an inner
-   * field <em>and</em> keep going.
+   * <p>Common wrong attempt: {@code found.focus(OrderFocus.customer().email())}. The path now
+   * carries an {@code EmailAddress}, and {@code .via(orders::save)} does not compile.
    */
   @Test
-  @DisplayName("Diagnostic: focus narrows; modify inside map preserves the outer record")
-  void diagnostic_focusVsModify() {
-    EitherPath<RepoError, Item> wrapped = find("user-1").toEitherPath(RepoError.NOT_FOUND);
+  @DisplayName("Diagnostic: focus narrows, set inside map keeps the order")
+  void diagnostic_focusVsSet() {
+    OrderRepository orders = orders();
+    EitherPath<OrderError, Order> found =
+        orders.find(PLACED).toEitherPath(OrderError.notFound(PLACED));
 
-    EitherPath<RepoError, Item> updated =
-        wrapped.map(item -> attributesLens.modify(addEntry("country", "GB"), item));
+    // SOLUTION: set inside map, so the path still carries an Order
+    EitherPath<OrderError, Order> changed =
+        found.map(order -> OrderFocus.customer().email().value().set(NEW_EMAIL, order));
 
-    Either<RepoError, Item> result = updated.via(Tutorial00_OneLineSixLayers_Solution::save).run();
-    assertThatEither(result)
+    assertThatEither(changed.via(orders::save).run())
         .isRight()
-        .hasRightSatisfying(item -> assertThat(item.attributes()).containsEntry("country", "GB"));
+        .hasRightSatisfying(
+            order -> assertThat(order.customer().email().value()).isEqualTo(NEW_EMAIL));
 
-    FocusPath<Item, Map<String, String>> attributesPath = FocusPath.of(attributesLens);
-    EitherPath<RepoError, Map<String, String>> narrowed =
-        wrapped.focus(attributesPath).map(addEntry("country", "GB"));
-    assertThatEither(narrowed.run())
-        .isRight()
-        .hasRightSatisfying(attrs -> assertThat(attrs).containsEntry("country", "GB"));
+    EitherPath<OrderError, String> email = found.focus(OrderFocus.customer().email().value());
+    assertThatEither(email.run()).isRight().hasRight("ada@example.com");
   }
 }

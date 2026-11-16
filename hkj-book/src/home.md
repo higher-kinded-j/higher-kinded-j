@@ -133,6 +133,8 @@ What makes Higher-Kinded-J unique is that **Effect Paths** and the **Focus DSL**
 
 ```mermaid
 flowchart TB
+    accTitle: The bridge between Effect Paths and Focus Paths
+    accDescr: Effect Paths, such as MaybePath and EitherPath, reach the bridge with focus, which navigates the data inside an effect. Focus Paths, which are FocusPath, AffinePath and TraversalPath, reach it with toEitherPath or toMaybePath, which lift the optic into an effect. Past the bridge is one composition that alternates the two. It fetches the user with an effect, focuses on the address with an optic, validates it with an effect, focuses on the city with an optic, and maps it to upper case with an effect.
     subgraph effects["Effects: Effect Paths"]
         direction TB
         E1["MaybePath"] ~~~ E2["EitherPath"] ~~~ E3["TryPath"] ~~~ E4["ValidationPath"]

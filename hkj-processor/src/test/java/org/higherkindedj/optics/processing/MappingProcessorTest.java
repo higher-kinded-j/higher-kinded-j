@@ -694,7 +694,7 @@ class MappingProcessorTest {
           .contains("domain.lead().map(lead()::build)")
           .contains(".field(\"members\", hkj$ifPresent(wire.members(), members()::parseAll))")
           .contains(
-              ".field(\"lead\", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of))")
+              ".field(\"lead\", hkj$ifPresent(wire.lead(), o -> hkj$parsePresent(o.orElse(null), v -> lead().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
     }
 
@@ -811,7 +811,8 @@ class MappingProcessorTest {
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.LabelsMappingImpl"))
-          .contains(".field(\"names\", hkj$allPresent(hkj$copyOf(wire.names())))")
+          .contains("var hkj$names = hkj$copyOf(wire.names());")
+          .contains(".field(\"names\", hkj$allPresent(hkj$names))")
           // the one collection helper, which tells a set by what the value is at run time
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
@@ -906,8 +907,8 @@ class MappingProcessorTest {
                   + " EmailAddress[]::new)))")
           // A primitive array has no element that could be null, so it carries no element
           // scan - but the component is still a reference, so the read stays null-guarded.
-          .contains(
-              ".field(\"scores\", hkj$ifPresent(hkj$copyOf(wire.scores()), Validated::validNel))")
+          .contains("var hkj$scores = hkj$copyOrNull(wire.scores(), e -> e.clone());")
+          .contains(".field(\"scores\", hkj$ifPresent(hkj$scores, Validated::validNel))")
           .doesNotContain("hkj$allPresent");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -962,11 +963,14 @@ class MappingProcessorTest {
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CodesMappingImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.tags())))")
-          .contains("Validated<NonEmptyList<FieldError>, E[]> hkj$allPresent(E[] values)")
+          .contains("var hkj$tags = hkj$copyOrNull(wire.tags(), e -> e.clone());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))")
+          .containsPattern(
+              "Validated<NonEmptyList<FieldError>, E\\[\\]> hkj\\$allPresent\\(\\s+E @Nullable \\[\\]"
+                  + " values\\)")
           // a primitive array cannot hold a null element, so it takes the plain identity leg
-          .contains(
-              ".field(\"counts\", hkj$ifPresent(hkj$copyOf(wire.counts()), Validated::validNel))");
+          .contains("var hkj$counts = hkj$copyOrNull(wire.counts(), e -> e.clone());")
+          .contains(".field(\"counts\", hkj$ifPresent(hkj$counts, Validated::validNel))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.CodesMappingImpl");
@@ -1226,8 +1230,8 @@ class MappingProcessorTest {
       // The array is copied; the lists in it are handed over as they are, since the array's
       // runtime type may not hold a copy of one.
       Assertions.assertThat(generatedSource(leafless, "com.example.PlainMappingImpl"))
-          .contains(
-              ".field(\"sections\", hkj$allPresent(hkj$copyOf(wire.sections()), e -> hkj$allPresent(e)))");
+          .contains("var hkj$sections = hkj$copyOrNull(wire.sections(), e -> e.clone());")
+          .contains(".field(\"sections\", hkj$allPresent(hkj$sections, e -> hkj$allPresent(e)))");
     }
 
     @Test
@@ -2443,7 +2447,7 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("domain.owner().map(CustomerMappingImpl.INSTANCE.asValidatedPrism()::build)")
           .contains(
-              "hkj$ifPresent(wire.owner(), o -> o.map(v ->"
+              "hkj$ifPresent(wire.owner(), o -> hkj$parsePresent(o.orElse(null), v ->"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism().parse(v)");
     }
 
@@ -2490,7 +2494,8 @@ class MappingProcessorTest {
           .contains("new LabelsDto(hkj$copyOf(domain.tags()))")
           // identity maps are copied, and parse scans the copy's values: a null value is a
           // located invalid under its key, and the guard does not cost the Iso tier
-          .contains(".field(\"tags\", hkj$valuesPresent(hkj$copyOf(wire.tags())))")
+          .contains("var hkj$tags = hkj$copyOf(wire.tags());")
+          .contains(".field(\"tags\", hkj$valuesPresent(hkj$tags))")
           .contains("public Iso<Labels, LabelsDto> asIso()")
           .doesNotContain("parseValues")
           .doesNotContain("buildValues");
@@ -4544,7 +4549,7 @@ class MappingProcessorTest {
       Assertions.assertThat(generatedSource(compilation, "com.example.CrewPatchMappingImpl"))
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
-          .contains("E[] values");
+          .contains("E @Nullable [] values");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.CrewPatchMappingImpl");
@@ -5285,7 +5290,7 @@ class MappingProcessorTest {
       Assertions.assertThat(generated)
           .contains("domain.alias().map(alias()::build)")
           .contains(
-              ".field(\"alias\", hkj$ifPresent(wire.alias(), o -> o.map(v -> alias().parse(v).map(Optional::of))")
+              ".field(\"alias\", hkj$ifPresent(wire.alias(), o -> hkj$parsePresent(o.orElse(null), v -> alias().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -7589,7 +7594,8 @@ class MappingProcessorTest {
           .contains("public Validated<NonEmptyList<FieldError>, Page<T>> parse(PageDto<T> wire)")
           // identity elements are handed over as a copy, then null-scanned; the primitive
           // stays bare
-          .contains(".field(\"items\", hkj$allPresent(hkj$copyOf(wire.items())))")
+          .contains("var hkj$items = hkj$copyOf(wire.items());")
+          .contains(".field(\"items\", hkj$allPresent(hkj$items))")
           .contains(".field(\"total\", Validated.validNel(wire.total()))")
           // a lossless threaded mapping keeps the Iso tier, threaded
           .contains("public Iso<Page<T>, PageDto<T>> asIso()");
@@ -10912,7 +10918,8 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       // The scan is a guard, not fallibility: the identity mapping keeps its Iso tier.
       Assertions.assertThat(generatedSource(compilation, "com.example.BasketMappingImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.tags())))")
+          .contains("var hkj$tags = hkj$copyOf(wire.tags());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))")
           .contains("public Iso<Basket, BasketDto> asIso()");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -11082,8 +11089,10 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.Profile2MappingImpl"))
           .contains("public Validated<NonEmptyList<FieldError>, Profile2> patch(")
-          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.tags())))")
-          .contains(".field(\"scores\", hkj$valuesPresent(hkj$copyOf(wire.scores())))");
+          .contains("var hkj$tags = hkj$copyOf(wire.tags());")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$tags))")
+          .contains("var hkj$scores = hkj$copyOf(wire.scores());")
+          .contains(".field(\"scores\", hkj$valuesPresent(hkj$scores))");
     }
 
     @SuppressWarnings("unchecked")
@@ -11735,7 +11744,8 @@ class MappingProcessorTest {
           .contains(
               ".field(\"byKey\", hkj$ifPresent(wire.byKey(),"
                   + " UserMappingImpl.INSTANCE.asValidatedPrism()::parseValues))")
-          .contains(".field(\"head\", hkj$ifPresent(wire.head(), o -> o.map(v ->")
+          .contains(
+              ".field(\"head\", hkj$ifPresent(wire.head(), o -> hkj$parsePresent(o.orElse(null), v ->")
           .contains(".field(\"n\", Validated.validNel(wire.n()))");
     }
 
@@ -13283,7 +13293,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.SubscriberMappingImpl"))
           .contains("domain.email().map(email()::build).orElse(null)")
-          .contains("Optional.ofNullable(wire.email())");
+          .contains("hkj$parsePresent(wire.email(), v ->");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.SubscriberMappingImpl");
@@ -13641,7 +13651,7 @@ class MappingProcessorTest {
               "domain.contact().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::build)"
                   + ".orElse(null)")
           .contains(
-              ".field(\"contact\", Optional.ofNullable(wire.contact()).map(v ->"
+              ".field(\"contact\", hkj$parsePresent(wire.contact(), v ->"
                   + " ContactMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of))");
 
       // Absent and present round trips are law-checked in GeneratedMappingLawsTest; what is pinned
@@ -14427,7 +14437,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.BoxMappingImpl"))
           .contains("domain.item().map(item()::build).orElse(null)")
-          .contains("Optional.ofNullable(wire.item())");
+          .contains("hkj$parsePresent(wire.item(), v ->");
     }
 
     @Test
@@ -14935,7 +14945,8 @@ class MappingProcessorTest {
       // patch tier it selects carries no guarded read to emit a helper for
       Assertions.assertThat(generatedSource(compilation, "com.example.CustomerAliasMappingImpl"))
           .contains("public Validated<NonEmptyList<FieldError>, Customer> patch(")
-          .doesNotContain("hkj$ifPresent");
+          .doesNotContain("hkj$ifPresent")
+          .doesNotContain("hkj$parsePresent");
     }
 
     @Test
@@ -15046,7 +15057,7 @@ class MappingProcessorTest {
               "domain.contacts().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildAll)"
                   + ".orElse(null)")
           .contains(
-              ".field(\"contacts\", Optional.ofNullable(wire.contacts()).map(v ->"
+              ".field(\"contacts\", hkj$parsePresent(wire.contacts(), v ->"
                   + " ContactMappingImpl.INSTANCE.asValidatedPrism().parseAll(v)"
                   + ".map(Optional::of))");
 

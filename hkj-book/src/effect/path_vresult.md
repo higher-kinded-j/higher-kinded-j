@@ -115,6 +115,7 @@ Because the path is lazy, protection wraps the *computation*: apply the combinat
 <!-- verify -->
 ``` java
 VTask<Either<E, A>> carrier = path.run();                 // the boundary type
+Either<E, A>        result  = path.unsafeRun();           // blocking: a typed failure is a Left
 EitherPath<E, A>   decided = path.toEitherPath();         // blocking: runs the task
 VTaskPath<A>       collapsed = path.toVTaskPath(e -> new DomainException(e)); // typed error -> failure channel
 VTask<B>           folded  = path.fold(this::onError, this::onValue);

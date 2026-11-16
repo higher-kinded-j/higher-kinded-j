@@ -153,6 +153,16 @@ class MaybePathTest {
       assertThat(result).isEqualTo("default");
       assertThat(called).isTrue();
     }
+
+    @Test
+    @DisplayName("getOrElseGet() refuses a supplier that returns null for Nothing")
+    void getOrElseGetRefusesNullFromSupplierForNothing() {
+      MaybePath<String> path = Path.nothing();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.getOrElseGet(() -> null))
+          .withMessage("supplier must not return null");
+    }
   }
 
   @Nested

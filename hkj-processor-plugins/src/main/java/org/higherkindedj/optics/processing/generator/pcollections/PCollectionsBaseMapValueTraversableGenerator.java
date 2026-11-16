@@ -51,6 +51,8 @@ public abstract class PCollectionsBaseMapValueTraversableGenerator
   protected final ClassName constructedType;
 
   /**
+   * Creates a generator for one persistent type.
+   *
    * @param supportedType the persistent map interface this generator recognises
    * @param constructedType the concrete factory whose {@code from(Map)} reconstructs instances of
    *     {@code supportedType}

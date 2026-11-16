@@ -41,7 +41,11 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
     this(null);
   }
 
-  /** Creates a deserialiser bound to a resolved element type. */
+  /**
+   * Creates a deserialiser bound to a resolved element type.
+   *
+   * @param elementType the resolved element type, or {@code null} for a raw read
+   */
   @SuppressWarnings("unchecked")
   public NonEmptyListDeserializer(JavaType elementType) {
     super((Class<NonEmptyList<?>>) (Class<?>) NonEmptyList.class);

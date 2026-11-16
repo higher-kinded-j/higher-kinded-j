@@ -5,12 +5,16 @@ package org.higherkindedj.hkt.coyoneda;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.coyoneda.CoyonedaKindHelper.COYONEDA;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.MaybeFunctor;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.junit.jupiter.api.DisplayName;
@@ -434,17 +438,56 @@ class CoyonedaTest {
     }
 
     @Test
-    @DisplayName("many chained maps work correctly")
-    void manyChainedMapsWork() {
-      Kind<MaybeKind.Witness, Integer> just = MAYBE.just(0);
-
-      Coyoneda<MaybeKind.Witness, Integer> coyo = Coyoneda.lift(just);
-      for (int i = 0; i < 1000; i++) {
+    @DisplayName("a chain of a hundred thousand maps lowers without overflowing the stack")
+    void longChainOfMapsLowers() {
+      Coyoneda<MaybeKind.Witness, Integer> coyo = Coyoneda.lift(MAYBE.just(0));
+      for (int i = 0; i < 100_000; i++) {
         coyo = coyo.map(x -> x + 1);
       }
 
-      Kind<MaybeKind.Witness, Integer> result = coyo.lower(MAYBE_FUNCTOR);
-      assertThat(MAYBE.narrow(result).get()).isEqualTo(1000);
+      assertThat(MAYBE.narrow(coyo.lower(MAYBE_FUNCTOR)).get()).isEqualTo(100_000);
+    }
+
+    @Test
+    @DisplayName("a long chain lowered over a list applies every step to every element")
+    void longChainOverAList() {
+      Coyoneda<ListKind.Witness, Integer> held = Coyoneda.lift(LIST.widen(List.of(0, 1, 2)));
+      for (int i = 0; i < 100_000; i++) {
+        held = held.map(n -> n + 1);
+      }
+
+      assertThat(LIST.narrow(held.lower(ListMonad.INSTANCE)))
+          .containsExactly(100_000, 100_001, 100_002);
+    }
+
+    @Test
+    @DisplayName("the held transform, called directly, applies every step in order")
+    void heldTransformAppliesEveryStep() {
+      Coyoneda<MaybeKind.Witness, Integer> held =
+          Coyoneda.lift(MAYBE.just(1)).map(n -> n + 1).map(n -> n * 10);
+
+      int applied =
+          switch (held) {
+            case Coyoneda.Impl<MaybeKind.Witness, ?, Integer> impl -> applyHeld(impl);
+          };
+
+      assertThat(applied).isEqualTo(20);
+    }
+
+    private static <X> Integer applyHeld(Coyoneda.Impl<MaybeKind.Witness, X, Integer> impl) {
+      return impl.transform().apply(MAYBE.narrow(impl.fx()).get());
+    }
+
+    @Test
+    @DisplayName("a Coyoneda mapped two ways from one parent keeps each branch, and the parent")
+    void branchesAreIndependent() {
+      Coyoneda<MaybeKind.Witness, Integer> doubled = Coyoneda.lift(MAYBE.just(5)).map(n -> n * 2);
+      Coyoneda<MaybeKind.Witness, String> plusOne = doubled.map(n -> "+1 " + (n + 1));
+      Coyoneda<MaybeKind.Witness, String> minusOne = doubled.map(n -> "-1 " + (n - 1));
+
+      assertThat(MAYBE.narrow(plusOne.lower(MAYBE_FUNCTOR)).get()).isEqualTo("+1 11");
+      assertThat(MAYBE.narrow(minusOne.lower(MAYBE_FUNCTOR)).get()).isEqualTo("-1 9");
+      assertThat(MAYBE.narrow(doubled.lower(MAYBE_FUNCTOR)).get()).isEqualTo(10);
     }
   }
 }

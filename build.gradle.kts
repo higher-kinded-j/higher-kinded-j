@@ -117,6 +117,13 @@ subprojects {
         (options as StandardJavadocDocletOptions).addStringOption("source", "25")
     }
 
+    // Central does not require snapshots to be signed. A disabled Sign task drops its .asc files
+    // and their checksums from the publication, halving the PUTs that trip the snapshots
+    // repository's 429 rate limit. Releases are still signed.
+    tasks.withType<Sign>().configureEach {
+        enabled = !rootProject.version.toString().endsWith("-SNAPSHOT")
+    }
+
     // Apply Spotless configuration to all java sources in subprojects
     spotless {
         lineEndings = com.diffplug.spotless.LineEnding.UNIX

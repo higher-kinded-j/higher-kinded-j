@@ -22,7 +22,7 @@ import org.jspecify.annotations.NullMarked;
  * reconstructs a VStream from the result via {@link VStream#fromList}.
  *
  * <p><b>Materialisation Warning:</b> The VStream is fully consumed during traversal. This is only
- * safe for finite streams. Using this traversal on infinite streams will not terminate.
+ * safe for finite streams. On an infinite stream, it does not end until the thread is interrupted.
  *
  * <h2>Usage Example</h2>
  *

@@ -33,8 +33,9 @@ import org.jspecify.annotations.Nullable;
  * <p>Converts a {@link Flow.Publisher} to a VStream. Each run of the stream subscribes to the
  * publisher at its first pull, and buffers the incoming elements in a bounded queue. The VStream's
  * {@code pull()} reads from this queue, providing pull-based access to the push-based source, and
- * each element taken asks the publisher for one more. Closing the VStream cancels the run's
- * subscription.
+ * each element taken asks the publisher for one more. Closing the tail a run holds cancels that
+ * run's subscription; closing the VStream itself cancels none, since several runs may read it at
+ * once.
  *
  * <h2>Usage Example</h2>
  *
@@ -74,8 +75,7 @@ public final class VStreamReactive {
    * <p>When a subscriber cancels, or the stream fails, what is left of the stream is closed, so its
    * finalisers run, as {@link VStream#close()} describes. A cancel interrupts a pull that is
    * waiting on a quiet stream, and nothing that pull returns is delivered. A subscriber that
-   * cancels before it has requested anything closes nothing, so it does not end another
-   * subscriber's reading of a shared stream.
+   * cancels before it has requested anything closes nothing, since it has read nothing.
    *
    * @param stream the VStream to convert; must not be null
    * @param <A> the element type
@@ -105,11 +105,13 @@ public final class VStreamReactive {
    * publisher is asked for one more. So a publisher that keeps to its demand never sends more than
    * the queue holds, and never waits for the stream to make room.
    *
-   * <p>Closing the VStream cancels the subscription of its latest run, so a stream that stops
-   * early, through {@link VStream#take(long)} or {@link VStream#headOption()} for example, stops
-   * the publisher, and a pull waiting for an element gives {@code Done}. A tail's pulled {@code
-   * VTask} gives the same step each time it runs; running the head's again starts another run,
-   * which subscribes again. Holding the stream holds nothing a run has read.
+   * <p>Closing the tail a run holds cancels that run's subscription, so a run that stops early,
+   * through {@link VStream#take(long)} or {@link VStream#headOption()} for example, stops the
+   * publisher, and a pull waiting for an element gives {@code Done}. A run whose first pull fails
+   * cancels its subscription itself. Closing the VStream itself cancels no run's subscription,
+   * since several runs may read it at once. A tail's pulled {@code VTask} gives the same step each
+   * time it runs; running the head's again starts another run, which subscribes again. Holding the
+   * stream holds nothing a run has read.
    *
    * <p>The Flow rules forbid a null element. If the publisher sends one, the subscription is
    * cancelled, the stream fails with a {@link NullPointerException} when it is pulled that far, and
@@ -127,9 +129,8 @@ public final class VStreamReactive {
     if (bufferSize <= 0) {
       throw new IllegalArgumentException("bufferSize must be positive, got: " + bufferSize);
     }
-    // Each run subscribes at its first pull, and closing the head after a pull cancels that run's
-    // subscription
-    return new RememberingStream<>(VTask.delay(() -> subscribed(publisher, bufferSize)));
+    // Each run subscribes at its first pull, and only the run's own tails reach its subscription
+    return DeferredStream.opening(VTask.delay(() -> subscribed(publisher, bufferSize)));
   }
 
   /** Subscribes to the publisher for one run, and gives the stream that reads what it sends. */
@@ -469,7 +470,7 @@ public final class VStreamReactive {
 
     /**
      * Closes what is left of the stream, once no drain is reading it, so its finalisers run. Closes
-     * nothing if this subscription never pulled the stream, which may be shared.
+     * nothing if this subscription never pulled the stream, since it has read nothing.
      */
     private VTask<Unit> closeRemaining() {
       return () -> {

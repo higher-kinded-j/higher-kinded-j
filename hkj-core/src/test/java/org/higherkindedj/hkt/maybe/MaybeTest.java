@@ -186,6 +186,14 @@ class MaybeTest extends MaybeTestBase {
     }
 
     @Test
+    @DisplayName("orElseGet() refuses a supplier that returns null for Nothing")
+    void orElseGetRefusesNullFromSupplierForNothing() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> nothingInstance.orElseGet(() -> null))
+          .withMessage("otherSupplier must not return null");
+    }
+
+    @Test
     @DisplayName("orElseGet() validates null supplier using ValidationTestBuilder")
     void orElseGetValidatesNullSupplier() {
       ValidationTestBuilder.create()

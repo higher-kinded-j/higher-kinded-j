@@ -4,6 +4,7 @@ package org.higherkindedj.example.book.foundations.vstream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.higherkindedj.example.book.foundations.vstream.VStreamAdvancedBook.LINES;
 import static org.higherkindedj.example.book.foundations.vstream.VStreamAdvancedBook.PRICES;
 import static org.higherkindedj.example.book.foundations.vstream.VStreamAdvancedBook.STATUSES;
@@ -16,6 +17,7 @@ import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -59,6 +61,9 @@ import org.junit.jupiter.api.Test;
 /** Holds the claims the Advanced Features page makes. */
 @DisplayName("VStream advanced features: optics, publishers, conversions and contexts")
 class VStreamAdvancedBookTest {
+
+  private static final Duration POLL = Duration.ofMillis(5);
+  private static final Duration PATIENCE = Duration.ofSeconds(30);
 
   @Nested
   @DisplayName("a StreamTraversal")
@@ -233,16 +238,17 @@ class VStreamAdvancedBookTest {
         VStream<Integer> events = VStreamReactive.fromPublisher(hot, 4);
         CompletableFuture<List<Integer>> run =
             CompletableFuture.supplyAsync(() -> events.take(3).toList().run());
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-        while (hot.getNumberOfSubscribers() == 0 && System.nanoTime() < deadline) {
-          Thread.onSpinWait();
-        }
+        await().pollInterval(POLL).atMost(PATIENCE).until(() -> hot.getNumberOfSubscribers() == 1);
         for (int i = 1; i <= 10; i++) {
           hot.submit(i);
         }
 
         assertThat(run.get(30, TimeUnit.SECONDS)).containsExactly(1, 2, 3);
-        assertThat(hot.getNumberOfSubscribers()).isZero();
+        // A cancel only marks the subscription; the publisher's executor closes it a moment later
+        await()
+            .pollInterval(POLL)
+            .atMost(PATIENCE)
+            .untilAsserted(() -> assertThat(hot.getNumberOfSubscribers()).isZero());
       }
     }
 

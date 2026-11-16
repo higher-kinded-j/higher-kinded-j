@@ -160,6 +160,7 @@ Two of a `ValidationPath`'s methods for joining Paths stop at the first error: `
 | `ifValid(action)`, `ifInvalid(action)` | Run an action for the case it holds |
 | `asUnit()` | Replaces a valid value with `Unit`, and keeps an error |
 | `toEither()` | Gives an `Either` holding the same value or error |
+| `toOptional()` | Gives a `Valid` value as an `Optional`, or an empty one for an `Invalid` |
 
 ## Working with Kind {#working-with-kind}
 

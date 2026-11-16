@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.trymonad;
 import static org.higherkindedj.hkt.util.validation.Operation.*;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -274,12 +275,13 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    *
    * @param failureMapper The non-null function to apply if this is a {@link Failure}.
    * @param successMapper The non-null function to apply if this is a {@link Success}.
-   * @param <U> The target type to which both outcomes are mapped.
+   * @param <U> The target type to which both outcomes are mapped. It may be {@code @Nullable}: name
+   *     it as a type argument, as in {@code <@Nullable String>fold}.
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code failureMapper} or {@code successMapper} is null.
    * @since 0.6.0
    */
-  default <U> U fold(
+  default <U extends @Nullable Object> U fold(
       Function<? super Throwable, ? extends U> failureMapper,
       Function<? super T, ? extends U> successMapper) {
 
@@ -298,7 +300,8 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    *
    * @param failureMapper The non-null function to apply if this is a {@link Failure}.
    * @param successMapper The non-null function to apply if this is a {@link Success}.
-   * @param <U> The target type to which both outcomes are mapped.
+   * @param <U> The target type to which both outcomes are mapped. It may be {@code @Nullable}: name
+   *     it as a type argument, as in {@code <@Nullable String>foldFailureFirst}.
    * @return The result of applying the appropriate mapping function.
    * @throws NullPointerException if either {@code failureMapper} or {@code successMapper} is null.
    * @since 0.4.6
@@ -307,7 +310,7 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
    */
   @Deprecated(since = "0.6.0", forRemoval = true)
   @SuppressWarnings("removal") // names the deprecated constant until its removal
-  default <U> U foldFailureFirst(
+  default <U extends @Nullable Object> U foldFailureFirst(
       Function<? super Throwable, ? extends U> failureMapper,
       Function<? super T, ? extends U> successMapper) {
 
@@ -337,6 +340,24 @@ public sealed interface Try<T> extends TryKind<T> permits Try.Success, Try.Failu
           Either.left(
               Objects.requireNonNull(
                   failureToLeftMapper.apply(cause), "failureToLeftMapper must not return null"));
+    };
+  }
+
+  /**
+   * Converts this {@code Try} to an {@link Optional}, keeping a {@link Success}'s value and
+   * dropping a {@link Failure}'s exception.
+   *
+   * <p>A {@link Failure} gives {@link Optional#empty()}, so its exception is lost; {@link
+   * #fold(Function, Function)} keeps it. A {@link Success} never holds {@code null}, so its value
+   * is never lost.
+   *
+   * @return An {@code Optional} holding the {@link Success} value, or {@link Optional#empty()} if
+   *     this is a {@link Failure}. Never {@code null}.
+   */
+  default Optional<T> toOptional() {
+    return switch (this) {
+      case Success<T>(var value) -> Optional.of(value);
+      case Failure<T> _ -> Optional.empty();
     };
   }
 

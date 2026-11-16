@@ -220,6 +220,16 @@ class ValidationPathTest {
       assertThat(result).isEqualTo("default");
       assertThat(called).isTrue();
     }
+
+    @Test
+    @DisplayName("getOrElseGet() refuses a supplier that returns null for Invalid")
+    void getOrElseGetRefusesNullFromSupplierForInvalid() {
+      ValidationPath<String, String> path = Path.invalid(TEST_ERROR, STRING_SEMIGROUP);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.getOrElseGet(() -> null))
+          .withMessage("supplier must not return null");
+    }
   }
 
   @Nested

@@ -2,16 +2,20 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ArrayTypeName;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.ParameterSpec;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -22,8 +26,10 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.IntersectionType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -197,14 +203,108 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    */
   private static boolean passesThrough(
       TypeElement declaration, Shape shape, Types types, Elements elements) {
-    return argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape)
-        instanceof TypeVariable;
+    return elementArgument(declaration, shape, types, elements) instanceof TypeVariable;
+  }
+
+  /**
+   * The element a container class names for {@code shape}, in terms of its own type parameters:
+   * {@code E} for {@code ArrayList<E>}, {@code String} for a class that fixes it, and null for one
+   * that extends the container raw.
+   */
+  private static TypeMirror elementArgument(
+      TypeElement declaration, Shape shape, Types types, Elements elements) {
+    return argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape);
   }
 
   /** The type as the given container, under the arguments it is reached by, or null. */
   private static DeclaredType view(DeclaredType type, Shape shape, Types types, Elements elements) {
     return (DeclaredType)
         ProcessorUtils.supertypeOf(types, type, elements.getTypeElement(shape.container));
+  }
+
+  /**
+   * The type this level's elements are written as inside {@code written}, the type the level scans
+   * as a declaration writes it. The scan reads {@link #element} through capture and supertype
+   * views, which keep no type annotation, so a {@code TYPE_USE} annotation on an element type, as
+   * in {@code List<@Nullable String>}, is read here instead. That is an array's component type, or
+   * the element the container class names, with the type's own arguments put in for its type
+   * variables, as {@code ArrayList<E>} names {@code E} and {@code ArrayList<List<E>>} names {@code
+   * List<E>}, read through its bound where it is a wildcard. Where the class names no element, or
+   * the type is used raw or written another way, such as a type variable, it is {@link #element},
+   * which is null for a raw container. So is a wildcard with no upper bound, whose elements its
+   * type does not describe.
+   *
+   * @param written the type this level scans, as a declaration writes it
+   * @param types the round's type utilities
+   * @param elements the round's element utilities
+   * @return the type this level's elements are written as
+   */
+  TypeMirror writtenElement(TypeMirror written, Types types, Elements elements) {
+    return switch (written.getKind()) {
+      case ARRAY -> ((ArrayType) written).getComponentType();
+      case DECLARED -> writtenArgument((DeclaredType) written, types, elements);
+      default -> element;
+    };
+  }
+
+  /**
+   * The element {@code written}'s class names for this level, with {@code written}'s own arguments
+   * put in for the class's type variables.
+   */
+  private TypeMirror writtenArgument(DeclaredType written, Types types, Elements elements) {
+    TypeElement declaration = (TypeElement) written.asElement();
+    TypeMirror named = elementArgument(declaration, shape, types, elements);
+    List<? extends TypeMirror> arguments = written.getTypeArguments();
+    // A class that extends its container raw names no element, and a raw use binds no variable.
+    if (named == null || arguments.size() != declaration.getTypeParameters().size()) {
+      return element;
+    }
+    Map<Element, TypeMirror> bound = new HashMap<>();
+    for (int i = 0; i < arguments.size(); i++) {
+      bound.put(declaration.getTypeParameters().get(i), arguments.get(i));
+    }
+    return Objects.requireNonNullElse(
+        ProcessorUtils.resolveWildcard(substituted(named, bound, types)), element);
+  }
+
+  /**
+   * {@code type} with the arguments {@code bound} gives put in for its type variables, at every
+   * depth. javac's own substitution keeps no type annotation, so the type is rebuilt here, which
+   * keeps the arguments' own: {@code List<E>} under {@code E = @Nullable String} becomes {@code
+   * List<@Nullable String>}. A type with no arguments, and a member type of another, which names
+   * its enclosing type too, are kept as they are written.
+   */
+  private static TypeMirror substituted(
+      TypeMirror type, Map<Element, TypeMirror> bound, Types types) {
+    return switch (type.getKind()) {
+      case TYPEVAR -> bound.getOrDefault(((TypeVariable) type).asElement(), type);
+      case DECLARED -> {
+        DeclaredType declared = (DeclaredType) type;
+        yield declared.getTypeArguments().isEmpty()
+                || declared.getEnclosingType().getKind() != TypeKind.NONE
+            ? declared
+            : types.getDeclaredType(
+                (TypeElement) declared.asElement(),
+                declared.getTypeArguments().stream()
+                    .map(argument -> substituted(argument, bound, types))
+                    .toArray(TypeMirror[]::new));
+      }
+      case ARRAY ->
+          types.getArrayType(substituted(((ArrayType) type).getComponentType(), bound, types));
+      case WILDCARD -> {
+        WildcardType wildcard = (WildcardType) type;
+        yield types.getWildcardType(
+            substitutedBound(wildcard.getExtendsBound(), bound, types),
+            substitutedBound(wildcard.getSuperBound(), bound, types));
+      }
+      default -> type;
+    };
+  }
+
+  /** A wildcard's bound with {@code bound}'s arguments put in, or null where it has none. */
+  private static TypeMirror substitutedBound(
+      TypeMirror wildcardBound, Map<Element, TypeMirror> bound, Types types) {
+    return wildcardBound == null ? null : substituted(wildcardBound, bound, types);
   }
 
   /**
@@ -266,28 +366,34 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   /**
    * The helpers the given scans call, each once, in one fixed order so that every Impl declares
    * them alike.
+   *
+   * @param scans the scans an Impl's legs make
+   * @param marks the nullness annotations the helpers are written with
+   * @return the helper methods to declare
    */
-  static List<MethodSpec> helpers(Stream<NullScan> scans) {
+  static List<MethodSpec> helpers(Stream<NullScan> scans, NullnessMarks marks) {
     Set<Form> used = scans.flatMap(NullScan::forms).collect(Collectors.toSet());
     return Stream.of(Shape.values())
         .flatMap(shape -> Stream.of(new Form(shape, false), new Form(shape, true)))
         .filter(used::contains)
-        .map(NullScan::helper)
+        .map(form -> helper(form, marks))
         .toList();
   }
 
-  private static MethodSpec helper(Form form) {
+  private static MethodSpec helper(Form form, NullnessMarks marks) {
     return switch (form.shape()) {
-      case COLLECTION -> form.nested() ? nestedCollectionHelper() : collectionHelper();
-      case ARRAY -> form.nested() ? nestedArrayHelper() : arrayHelper();
-      case MAP -> form.nested() ? nestedMapHelper() : mapHelper();
+      case COLLECTION -> form.nested() ? nestedCollectionHelper(marks) : collectionHelper(marks);
+      case ARRAY -> form.nested() ? nestedArrayHelper(marks) : arrayHelper(marks);
+      case MAP -> form.nested() ? nestedMapHelper(marks) : mapHelper(marks);
       // An Optional is a level only when its value is one, so it only ever takes the lambda.
-      case OPTIONAL -> optionalHelper();
+      case OPTIONAL -> optionalHelper(marks);
     };
   }
 
   // The helper bodies. Each is total over a null argument ("must not be null", labelled by the
-  // caller) and accumulates its failures in encounter order, as ValidatedParse's bulk forms do.
+  // caller), so it takes one declared @Nullable, and accumulates its failures in encounter order,
+  // as ValidatedParse's bulk forms do. An element type may be nullable, since a null element is
+  // what the scan reports.
 
   private static MethodSpec.Builder helperBuilder(
       String name, TypeName returned, String javadoc, TypeVariableName... variables) {
@@ -369,7 +475,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         NEL);
   }
 
-  private static MethodSpec collectionHelper() {
+  private static MethodSpec collectionHelper(NullnessMarks marks) {
     TypeVariableName c = TypeVariableName.get("C", ParameterizedTypeName.get(COLLECTION, ANY));
     return helperBuilder(
             Shape.COLLECTION.helper,
@@ -378,7 +484,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " position, accumulating, or, in a set, which has no positions, the unlocated"
                 + " {@code must not contain a null element}.\n",
             c)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addCode(nullGuard("values"))
         .addStatement("boolean set = values instanceof $T", SET)
         .addStatement("$L", declareFailures())
@@ -396,8 +502,8 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec nestedCollectionHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
+  private static MethodSpec nestedCollectionHelper(NullnessMarks marks) {
+    TypeVariableName e = marks.nullableBounded("E");
     TypeVariableName c =
         TypeVariableName.get(
             "C", ParameterizedTypeName.get(COLLECTION, WildcardTypeName.subtypeOf(e)));
@@ -410,7 +516,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " under its position, or, in a set, under its rendering.\n",
             c,
             e)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("values"))
         .addStatement("boolean set = values instanceof $T", SET)
@@ -430,15 +536,15 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec arrayHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
+  private static MethodSpec arrayHelper(NullnessMarks marks) {
+    TypeVariableName e = marks.nullableBounded("E");
     return helperBuilder(
             Shape.ARRAY.helper,
             ArrayTypeName.of(e),
             "Guards an identity-copied array: a null element is a located invalid at its index,"
                 + " accumulating.\n",
             e)
-        .addParameter(ArrayTypeName.of(e), "values")
+        .addParameter(marks.nullable(ArrayTypeName.of(e)), "values")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
         .beginControlFlow("for (int i = 0; i < values.length; i++)")
@@ -451,8 +557,8 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec nestedArrayHelper() {
-    TypeVariableName e = TypeVariableName.get("E");
+  private static MethodSpec nestedArrayHelper(NullnessMarks marks) {
+    TypeVariableName e = marks.nullableBounded("E");
     return helperBuilder(
             Shape.ARRAY.helper,
             ArrayTypeName.of(e),
@@ -460,16 +566,18 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " its index, and a present element passes its own scan, located under its"
                 + " index.\n",
             e)
-        .addParameter(ArrayTypeName.of(e), "values")
+        .addParameter(marks.nullable(ArrayTypeName.of(e)), "values")
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
         .beginControlFlow("for (int i = 0; i < values.length; i++)")
+        // Read once, so the null check covers the read the scan is handed.
+        .addStatement("$T element = values[i]", e)
         .addStatement("$T located", FAILURES)
-        .beginControlFlow("if (values[i] == null)")
+        .beginControlFlow("if (element == null)")
         .addStatement("located = $L", nullAt("String.valueOf(i)"))
         .nextControlFlow("else")
-        .addCode(scannedElement("values[i]", "String.valueOf(i)"))
+        .addCode(scannedElement("element", "String.valueOf(i)"))
         .endControlFlow()
         .addStatement("$L", accumulate())
         .endControlFlow()
@@ -477,7 +585,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec mapHelper() {
+  private static MethodSpec mapHelper(NullnessMarks marks) {
     TypeVariableName c = TypeVariableName.get("C", ParameterizedTypeName.get(MAP, ANY, ANY));
     return helperBuilder(
             Shape.MAP.helper,
@@ -485,7 +593,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
             "Guards an identity-copied map: a null value is a located invalid under its key,"
                 + " accumulating; a null key is the caller's NullPointerException.\n",
             c)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
         .beginControlFlow(
@@ -501,8 +609,8 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec nestedMapHelper() {
-    TypeVariableName v = TypeVariableName.get("V");
+  private static MethodSpec nestedMapHelper(NullnessMarks marks) {
+    TypeVariableName v = marks.nullableBounded("V");
     TypeVariableName c =
         TypeVariableName.get(
             "C", ParameterizedTypeName.get(MAP, ANY, WildcardTypeName.subtypeOf(v)));
@@ -514,7 +622,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " null key is the caller's NullPointerException.\n",
             c,
             v)
-        .addParameter(c, "values")
+        .addParameter(marks.nullable(c), "values")
         .addParameter(elementScan(v), "each")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
@@ -538,7 +646,24 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
-  private static MethodSpec optionalHelper() {
+  /**
+   * The {@code Optional} the guard takes, declared {@code @Nullable} like every guarded read, since
+   * a JSON binding leaves a missing {@code Optional} component {@code null}. Error Prone's {@code
+   * NullableOptional} check, which most builds run, warns at such a declaration, so it is
+   * suppressed on this parameter alone.
+   */
+  private static ParameterSpec optionalGuarded(TypeVariableName optional, NullnessMarks marks) {
+    ParameterSpec.Builder parameter = ParameterSpec.builder(marks.nullable(optional), "value");
+    if (marks.present()) {
+      parameter.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "$S", "NullableOptional")
+              .build());
+    }
+    return parameter.build();
+  }
+
+  private static MethodSpec optionalHelper(NullnessMarks marks) {
     TypeVariableName e = TypeVariableName.get("E");
     TypeVariableName o =
         TypeVariableName.get(
@@ -551,7 +676,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
                 + " holds only the one value.\n",
             o,
             e)
-        .addParameter(o, "value")
+        .addParameter(optionalGuarded(o, marks))
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("value"))
         .beginControlFlow("if (value.isEmpty())")

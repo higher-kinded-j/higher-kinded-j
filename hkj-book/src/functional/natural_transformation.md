@@ -148,7 +148,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 A [Free](../monads/free_monad.md) program holds its steps, its instructions, as data. An interpreter runs it by turning each instruction into a real effect, and that turning is a `Natural`.
 
 - **A Free program's interpreter is a `Natural`.** `program.foldMap(interpreter, monad)` runs a program by converting each instruction with a `Natural<F, M>`, and a `FreeAp` program's `foldMap` does the same with an applicative. A test interpreter is another `Natural` for the same program, and `FreePath.foldMap` takes one too.
-- **`Free.translate(program, nat, functor)` moves a program from one instruction set to another.** [EitherF](../monads/eitherf.md#freetranslate-lifting-between-effect-types) shows it.
+- **`Free.translate(program, nat, functor)` moves a program from one instruction set to another.** [EitherF](../monads/eitherf.md#moving-a-program-into-the-pair) shows it.
 - **`Interpreters.combine` joins two interpreters into one.** A program over two instruction sets needs it, as [EitherF](../monads/eitherf.md) shows.
 - **`EffectBoundary.of` takes the interpreter to `IO` that runs a program at the edge.**
 - **A transformer's `mapT` takes `nat::apply`.** `EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT` and `WriterT` each have one. It changes the outer container, for example from `IO` to `VTask`, and leaves the inner value alone.
