@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout 'higher-kinded-j' repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Fetch all history for version detection
 
@@ -140,7 +140,7 @@ jobs:
           .github/scripts/fetch_mermaid.sh
 
       - name: Set up Node for the mermaid parse check and the announcement check
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
 
@@ -156,7 +156,7 @@ jobs:
         run: node .github/scripts/announcement-check.cjs
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.x'
 
@@ -248,7 +248,7 @@ jobs:
           MDBOOK_SITE_URL: "https://higher-kinded-j.github.io/${{ steps.version.outputs.deploy_path }}/"
 
       - name: Checkout target repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: higher-kinded-j/higher-kinded-j.github.io
           path: gh-pages-repo

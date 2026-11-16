@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout requested ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0  # need full history + tags for baseline resolution
@@ -90,7 +90,7 @@ jobs:
         run: mdbook build
 
       - name: Upload preview artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: change-tracking-preview
           path: ${{ env.BOOK_ROOT_DIR }}/book
