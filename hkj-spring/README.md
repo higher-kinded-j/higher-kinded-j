@@ -413,6 +413,7 @@ The handler:
 3. Wraps result in a Spring `DeferredResult` with configurable timeout
 4. On success: writes JSON with HTTP 200
 5. On failure: writes error JSON with configured status code
+6. On timeout: writes HTTP 504 and interrupts the task, without waiting for it to stop
 
 ### Virtual Thread SSE Streaming with VStreamPath
 

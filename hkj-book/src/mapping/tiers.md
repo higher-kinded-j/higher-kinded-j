@@ -70,11 +70,12 @@ A two-way mapping's methods turn on two independent questions: does the wire car
 | **The wire carries fewer** (a *projection*) | `build`, `asLens()` | `build`, `patch(domain, wire)`: the *validated patch* |
 
 - **A plain copy carries a value across unchanged.** A rename alone, or a flattened group, still copies. A leaf does not, and nor does a nested spec, lifted over a container or not. Neither does an `@OptionalBridge` component, or a reference property on a bean wire, which can be left unset.
+- **Nor is a record component that the wire declares `@Nullable` and the domain declares non-null**, since an optic would copy in the `null` that `parse` refuses: [Where a `@Nullable` record component lands](rules.md#where-a-nullable-record-component-lands).
 - **A derived field is not a plain copy either.** On the bottom row the processor refuses it, since the write-back could never honour a component that `build` recomputes. A flattened group on the bottom row is not supported yet.
 - **A [read-only](beans.md#read-only-properties) bean property crosses one way.** `parse` reads it and `build` leaves it out, so `parse` cannot read back what `build` wrote. The Impl has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`, and no `asIso()`. So does a mapping that [nests such a spec](rules.md#nesting-two-halves) where it builds and parses.
 - **A sealed pair dispatches to each subtype's own spec.** It gets `build`, `parse` and `asValidatedPrism()`, or [two halves](rules.md#nesting-two-halves) in its place when a subtype's spec has them, and never `asIso()`: [Sealed hierarchies](structure.md#sealed-hierarchies).
 
-`asValidatedPrism()` is the whole mapping as a leaf, so it nests in another spec and lifts over containers. [Where a bean or a bridged component lands](rules.md#where-a-bean-or-bridged-component-lands) has the precise rules. The same methods, as a table to search:
+`asValidatedPrism()` is the whole mapping as a leaf, so it nests in another spec and lifts over containers. [Where a bean or a bridged component lands](rules.md#where-a-bean-or-bridged-component-lands) and [Where a `@Nullable` record component lands](rules.md#where-a-nullable-record-component-lands) have the precise rules. The same methods, as a table to search:
 
 | Method | You get it when |
 |---|---|
@@ -98,7 +99,7 @@ A lossless `parse` is guarded. A `null` becomes a located error, and a value the
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TiersBookTest.java:reverse_get_null}}
 ```
 
-`reverseGet` is for round trips of values `build` produced, so give a freshly bound request to `parse`. A projection has no `parse`, and its [validated `patch`](#leaf-carrying-projections-the-validated-patch) carries both guards. A projection whose components are all plain copies gets `asLens()` instead, and its `set` builds through the same constructor with neither guard. Check such a request yourself before `set`, or give a component that needs checking a leaf: the projection then takes `patch`.
+Where the wire declares a component `@Nullable` and the domain declares it non-null, the mapping has no `reverseGet` at all, as [Where a `@Nullable` record component lands](rules.md#where-a-nullable-record-component-lands) says. A `null` in any other component goes in unchecked. `reverseGet` is for round trips of values `build` produced, so give a freshly bound request to `parse`. A projection has no `parse`, and its [validated `patch`](#leaf-carrying-projections-the-validated-patch) carries both guards. A projection whose components are all plain copies gets `asLens()` instead, and its `set` builds through the same constructor with neither guard. Check such a request yourself before `set`, or give a component that needs checking a leaf: the projection then takes `patch`.
 ~~~
 
 ## Law-checked, in the repo and in your tests {#law-checked-in-the-repo-and-in-your-tests}

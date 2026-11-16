@@ -21,12 +21,15 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * exposed optics - one {@code assertMappingLaws} overload per emission tier.
  *
  * <p>Flat {@code assert...} helpers in the same style as the other optic-law classes; comparison is
- * by {@code equals}, which is right for records with one exception. A same-typed array crosses a
- * mapping as a clone, and a record compares an array component by reference, so a record with an
- * array component and no {@code equals} of its own is never equal to its own round trip: give it an
- * {@code equals} that uses {@code Arrays.equals}, or assert its round trip elementwise. The same
- * holds for a {@code Collection} component holding neither a {@code List} nor a {@code Set}, which
- * crosses as a list. Pick the overload matching the surface the generator emitted:
+ * by {@code equals}, which is right for records but for the components below. A same-typed array
+ * crosses a mapping as a clone, and a record compares an array component by reference, so a record
+ * with an array component and no {@code equals} of its own is never equal to its own round trip:
+ * give it an {@code equals} that uses {@code Arrays.equals}, or assert its round trip elementwise.
+ * The same holds for a {@code Collection} component holding neither a {@code List} nor a {@code
+ * Set}, which crosses as a list, and for a {@code Map} component holding an {@code IdentityHashMap}
+ * whose values a copy or a leaf replaces: an {@code IdentityHashMap} compares its values by
+ * reference too, so assert such a component's entries one by one. Pick the overload matching the
+ * surface the generator emitted:
  *
  * <ul>
  *   <li>lossless tier ({@code asIso()} present): pass the iso and the prism from {@code
@@ -136,7 +139,10 @@ public final class MappingLaws {
    * constructor accepts: a null-carrying wire parses to a located {@code Invalid} while {@code
    * reverseGet} copies the null as it is, and a value the constructor refuses parses to an {@code
    * Invalid} while {@code reverseGet} throws, so coherence deliberately extends to neither. Feed
-   * such wires to {@code parse} directly and assert the accumulation instead.
+   * such wires to {@code parse} directly and assert the accumulation instead. A mapping whose wire
+   * declares that a component, or an element inside it, may be null where the domain declares it
+   * may not offers no {@code asIso()} to check; any other null-carrying wire stays outside the
+   * scope, whatever its type declares.
    */
   public static <D, W> void assertParseAgreesWithIso(
       Iso<D, W> iso, ValidatedPrism<W, D> mapping, W wireSample) {

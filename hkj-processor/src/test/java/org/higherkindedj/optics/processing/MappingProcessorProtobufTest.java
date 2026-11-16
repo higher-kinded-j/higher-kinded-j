@@ -212,9 +212,10 @@ class MappingProcessorProtobufTest {
                   interface MaskMapping extends MappingSpec<Mask, FieldMask> {}
                   """));
       Assertions.assertThat(generated(result.compilation(), "MaskMappingImpl"))
-          // Both directions copy, so neither side holds the other's list.
+          // Both directions copy, so neither side holds the other's list. The getter answers a
+          // ProtocolStringList, read as the List<String> the field is, so the copy is one too.
           .contains("b.addAllPaths(hkj$copyOf(domain.paths()));")
-          .contains("hkj$copyOf(wire.getPathsList())");
+          .contains("hkj$copyOf(((List<String>) wire.getPathsList()))");
       Object impl = result.instance("com.example.MaskMappingImpl");
       Object mask = record(result, "Mask", List.of("user.name", "user.email"));
       FieldMask wire = FieldMask.newBuilder().addPaths("user.name").addPaths("user.email").build();
@@ -404,8 +405,10 @@ class MappingProcessorProtobufTest {
                   interface ConstantMapping
                       extends MappingSpec<Constant, DescriptorProtos.EnumValueDescriptorProto> {}
                   """));
+      // Written only when present, a field takes the Optional's value whole, with no null to unbox.
       Assertions.assertThat(generated(result.compilation(), "ConstantMappingImpl"))
           .contains("if (domain.number().isPresent())")
+          .contains("b.setNumber(domain.number().orElseThrow())")
           .contains("wire.hasNumber() ? wire.getNumber() : null");
       Object impl = result.instance("com.example.ConstantMappingImpl");
       Object empty =
@@ -426,6 +429,61 @@ class MappingProcessorProtobufTest {
       Assertions.assertThat(set.hasOptions()).isTrue();
       ValidatedPrismLaws.assertParseBuild(prism(impl), empty);
       ValidatedPrismLaws.assertParseBuild(prism(impl), zero);
+      ValidatedPrismLaws.assertBuildParse(prism(impl), unset);
+      ValidatedPrismLaws.assertBuildParse(prism(impl), set);
+    }
+
+    @Test
+    @DisplayName("a leaf over a field with hasX() builds and parses only a present value")
+    void leafOverPresence() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Labels",
+                  """
+                  import org.higherkindedj.hkt.validated.FieldError;
+                  import org.higherkindedj.hkt.validated.Validated;
+                  import org.higherkindedj.optics.validated.ValidatedPrism;
+
+                  record Label(String text) {}
+
+                  record Constant(
+                      Optional<Label> name,
+                      int number,
+                      Optional<DescriptorProtos.EnumValueOptions> options) {}
+
+                  @GenerateMapping
+                  interface ConstantMapping
+                      extends MappingSpec<Constant, DescriptorProtos.EnumValueDescriptorProto> {
+                    default ValidatedPrism<String, Label> name() {
+                      return ValidatedPrism.of(
+                          raw ->
+                              raw.isBlank()
+                                  ? Validated.invalidNel(FieldError.of("blank"))
+                                  : Validated.validNel(new Label(raw)),
+                          Label::text);
+                    }
+                  }
+                  """));
+      Assertions.assertThat(generated(result.compilation(), "ConstantMappingImpl"))
+          .contains("if (domain.name().isPresent())")
+          .contains("b.setName(name().build(domain.name().orElseThrow()))")
+          .contains(
+              "hkj$parsePresent((wire.hasName() ? wire.getName() : null), v -> name().parse(v)");
+      Object impl = result.instance("com.example.ConstantMappingImpl");
+      Object unnamed = record(result, "Constant", Optional.empty(), 1, Optional.empty());
+      Object named =
+          record(
+              result, "Constant", Optional.of(record(result, "Label", "A")), 2, Optional.empty());
+      EnumValueDescriptorProto unset = (EnumValueDescriptorProto) invoke(impl, "build", unnamed);
+      Assertions.assertThat(unset.hasName()).isFalse();
+      EnumValueDescriptorProto set = (EnumValueDescriptorProto) invoke(impl, "build", named);
+      Assertions.assertThat(set.getName()).isEqualTo("A");
+      assertThatValidated(
+              parse(impl, EnumValueDescriptorProto.newBuilder().setName(" ").setNumber(3).build()))
+          .isInvalid();
+      ValidatedPrismLaws.assertParseBuild(prism(impl), unnamed);
+      ValidatedPrismLaws.assertParseBuild(prism(impl), named);
       ValidatedPrismLaws.assertBuildParse(prism(impl), unset);
       ValidatedPrismLaws.assertBuildParse(prism(impl), set);
     }
@@ -1457,7 +1515,7 @@ class MappingProcessorProtobufTest {
                   + " Type.getDescriptor().findFieldByNumber(Type.SOURCE_CONTEXT_FIELD_NUMBER).getName();")
           .contains("all || paths.contains(hkj$path$sourceContext) ? wire : null")
           // The domain takes a copy of what the message holds, as parse does.
-          .contains("hkj$copyOf(wire.getOneofsList())")
+          .contains("hkj$copyOf(((List<String>) wire.getOneofsList()))")
           .contains("Map.ofEntries()");
       Object impl = result.instance("com.example.TypePatchImpl");
       Object current =

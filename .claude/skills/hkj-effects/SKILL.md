@@ -228,7 +228,7 @@ var boundary = EffectBoundary.of(
 String result       = boundary.run(program);           // Synchronous, may throw
 Try<String> safe    = boundary.runSafe(program);       // Synchronous, safe
 IOPath<String> io   = boundary.runIO(program);         // Deferred IO (for Spring controllers)
-CompletableFuture<String> async = boundary.runAsync(program); // Virtual thread async
+CompletableFuture<String> async = boundary.runAsync(program); // Virtual thread; cancel(true) interrupts it
 
 // Lift raw IO actions into the effect algebra for composition
 var lifted = boundary.embed(IO.delay(() -> "value"));

@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated projection mapping for {@link WideProfileMapping}: total {@code build} and a validated {@code patch} write-back. No {@code parse} is emitted, since the dropped components cannot be reconstructed, and no {@code asLens()}, since a write-back that can fail has no lawful total {@code set} (truthful types).
@@ -20,7 +21,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 public final class WideProfileMappingImpl implements WideProfileMapping {
   public static final WideProfileMappingImpl INSTANCE = new WideProfileMappingImpl();
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private WideProfileMappingImpl() {
   }
@@ -88,7 +89,7 @@ public final class WideProfileMappingImpl implements WideProfileMapping {
   /**
    * Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the value is parsed.
    */
-  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(S value,
+  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
       Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
   }

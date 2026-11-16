@@ -46,7 +46,7 @@ stateDiagram-v2
 
 A call counts towards the state it was admitted in. One still running when the circuit opens, or when `reset()` closes it, finishes without moving it, though the metrics still count it. So a slow success from before an outage cannot close the circuit while it is half-open. A half-open rejection's `retryAfter()` is the call timeout, and an open one's is the time left before the circuit half-opens.
 
-Protect a call with one breaker once. A breaker that protects a call it already protects counts each outcome twice. While half-open, the inner call takes a second probe place if one is free, so one request can supply two of the successes that close the circuit. When none is free, the inner call is rejected.
+A call counts each attempt once, at the guard nearest the dependency. A repository and the service that calls it may each guard one dependency with the same breaker, as in `io.withCircuitBreaker(b).withRetry(p).withCircuitBreaker(b)`. The inner guard, reached on the call's thread or a thread the call starts, checks the circuit, times the attempt and counts it. So a retry's later attempts are turned away once the circuit opens, and a fallback between the guards cannot hide a failure: put the fallback outside the outer guard. The outer guard counts nothing, and while the circuit stays in the state it admitted the call in, its probe place goes to the first inner attempt. A guard reached after the call has finished is a call of its own. A thread an executor starts during the call belongs to the call while it runs.
 
 ## Configuration
 
@@ -232,7 +232,7 @@ VTask<String> resilient = Retry.retryTask(
         .retryIf(ex -> !(ex instanceof CircuitOpenException)));
 ```
 
-Note the retry predicate: `CircuitOpenException` should *not* be retried, because the circuit breaker has already determined the service is unhealthy. [Combined Patterns](combined.md) introduces `ResilienceBuilder`, which applies this ordering for you without manual wiring.
+Note the retry predicate: `CircuitOpenException` should *not* be retried, because the circuit breaker has already determined the service is unhealthy. A service may guard such a call again with the same breaker; the inner guard still counts each attempt, as [The State Machine](#the-state-machine) describes. [Combined Patterns](combined.md) introduces `ResilienceBuilder`, which applies this ordering for you without manual wiring.
 
 ~~~admonish info title="Key Takeaways"
 * **Three states**: CLOSED counts consecutive failures and opens at `failureThreshold`; OPEN rejects instantly for `openDuration`

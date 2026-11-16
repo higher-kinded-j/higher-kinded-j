@@ -74,7 +74,9 @@ final class LeafCache {
    * picks exactly one member however many overloads share it. An abstract leaf is already a field
    * of an element-mapped Impl. The override writes the leaf's type out, which it always can: a
    * called leaf converts a pair the Impl maps, and {@link Reachability} has refused any type in
-   * that pair the Impl could not name before generation starts.
+   * that pair the Impl could not name before generation starts. The field that keeps it is {@code
+   * null} until the first call, and is declared {@code @Nullable} where the spec's module can read
+   * JSpecify ({@link NullnessMarks}), so a nullness checker reads the override as it runs.
    *
    * @param env the processing environment
    * @param implBuilder the Impl being built, which implements the spec
@@ -92,6 +94,7 @@ final class LeafCache {
     if (leaves == null) {
       return;
     }
+    NullnessMarks marks = NullnessMarks.of(env.getElementUtils(), spec);
     for (ExecutableElement method : members) {
       if (!leaves.contains(method.getSimpleName().toString())
           || !method.getParameters().isEmpty()
@@ -113,7 +116,8 @@ final class LeafCache {
       List<AnnotationSpec> suppression = ProcessorUtils.rawTypesSuppression(List.of(leafType));
       implBuilder
           .addField(
-              FieldSpec.builder(typeName, field, Modifier.PRIVATE, Modifier.VOLATILE)
+              FieldSpec.builder(
+                      marks.nullable(typeName), field, Modifier.PRIVATE, Modifier.VOLATILE)
                   .addAnnotations(suppression)
                   .build())
           .addMethod(

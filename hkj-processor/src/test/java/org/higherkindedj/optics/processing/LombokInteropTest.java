@@ -38,7 +38,8 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Lombok interop")
 class LombokInteropTest {
 
-  private static Processor lombok() {
+  /** Lombok's annotation processor, which tests run ahead of HKJ's, as a build does. */
+  static Processor lombok() {
     try {
       return (Processor)
           Class.forName("lombok.launch.AnnotationProcessorHider$AnnotationProcessor")

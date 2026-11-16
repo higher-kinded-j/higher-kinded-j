@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated bidirectional mapping for {@link CustomerMapping}: total {@code build} and accumulating, located {@code parse}.
@@ -24,7 +25,7 @@ public final class CustomerMappingImpl implements CustomerMapping {
 
   private final ValidatedPrism<CustomerDto, Customer> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
 
-  private volatile ValidatedPrism<String, Nickname> hkj$leaf$nickname;
+  private volatile @Nullable ValidatedPrism<String, Nickname> hkj$leaf$nickname;
 
   private CustomerMappingImpl() {
   }
@@ -40,9 +41,9 @@ public final class CustomerMappingImpl implements CustomerMapping {
         Validated.fields()
             .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
             .field("alias", Validated.validNel(Optional.ofNullable(wire.alias())))
-            .field("nickname", Optional.ofNullable(wire.nickname()).map(v -> nickname().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
-            .field("referrer", Optional.ofNullable(wire.referrer()).map(v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
-            .field("referees", Optional.ofNullable(wire.referees()).map(v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parseAll(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
+            .field("nickname", hkj$parsePresent(wire.nickname(), v -> nickname().parse(v).map(Optional::of)))
+            .field("referrer", hkj$parsePresent(wire.referrer(), v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of)))
+            .field("referees", hkj$parsePresent(wire.referees(), v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parseAll(v).map(Optional::of)))
             .apply((name, alias, nickname, referrer, referees) -> () -> new Customer(name, alias, nickname, referrer, referees)),
         "not a valid Customer");
   }
@@ -96,9 +97,18 @@ public final class CustomerMappingImpl implements CustomerMapping {
   /**
    * Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the value is parsed.
    */
-  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(S value,
+  private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
       Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
+  }
+
+  /**
+   * Parses a nullable read to an {@code Optional}: a null is valid emptiness, otherwise the value is parsed.
+   */
+  private static <S, A> Validated<NonEmptyList<FieldError>, Optional<A>> hkj$parsePresent(
+      @Nullable S value,
+      Function<? super S, Validated<NonEmptyList<FieldError>, Optional<A>>> parse) {
+    return value == null ? Validated.validNel(Optional.empty()) : parse.apply(value);
   }
 
   /**

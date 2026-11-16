@@ -104,7 +104,7 @@ import org.higherkindedj.hkt.either.Either;
 
 ## Running a task {#running-a-task}
 
-`VTaskPath.run()` hands you the `VTask` inside, without running it. That `VTask` runs in one of three ways. Its `run()` runs it on the calling thread and waits. `runSafe()` does the same, and holds a failure in a [Try](try_monad.md); prefer it in code that handles failures as values. `runAsync()` starts it on a new virtual thread and returns a `CompletableFuture`. Running a task does not move it to a virtual thread: `main` runs on a platform thread, an ordinary thread the operating system schedules, and `run()` keeps the task there. Only `runAsync()`, `timeout`, `Par` and `Scope` move work to a virtual thread. These are the extra imports:
+`VTaskPath.run()` hands you the `VTask` inside, without running it. That `VTask` runs in one of three ways. Its `run()` runs it on the calling thread and waits. `runSafe()` does the same, and holds a failure in a [Try](try_monad.md); prefer it in code that handles failures as values. `runAsync()` starts it on a new virtual thread and returns a `CompletableFuture`, whose `cancel(true)` interrupts the task. Running a task does not move it to a virtual thread: `main` runs on a platform thread, an ordinary thread the operating system schedules, and `run()` keeps the task there. Only `runAsync()`, `timeout`, `Par` and `Scope` move work to a virtual thread. These are the extra imports:
 
 <!-- verify -->
 ```java

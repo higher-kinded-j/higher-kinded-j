@@ -1778,6 +1778,9 @@ public interface VStream<A> extends VStreamKind<A> {
   /**
    * Collects all elements to a list asynchronously on a virtual thread.
    *
+   * <p>Cancelling the returned future with {@code cancel(true)} interrupts the thread collecting
+   * the stream, and {@code cancel(false)} leaves it running, as {@link VTask#runAsync()} describes.
+   *
    * @return A {@link java.util.concurrent.CompletableFuture} of the element list. Never null.
    */
   default CompletableFuture<List<A>> runAsync() {

@@ -9,7 +9,10 @@ import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
@@ -21,6 +24,7 @@ import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.free.Free;
 import org.higherkindedj.hkt.io.IO;
 import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -271,6 +275,55 @@ class EffectBoundaryTest {
           .isInstanceOf(ExecutionException.class)
           .hasCauseInstanceOf(RuntimeException.class)
           .hasRootCauseMessage("async-boom");
+    }
+
+    @Test
+    @DisplayName("Should interrupt the running program on cancel(true)")
+    @SuppressWarnings("migration-nudge") // lifts an IO instruction directly, to block in it
+    void cancelTrueInterruptsTheProgram() throws Exception {
+      CountDownLatch started = new CountDownLatch(1);
+      CountDownLatch interrupted = new CountDownLatch(1);
+      Free<IOKind.Witness, String> program =
+          Free.liftF(
+              IO_OP.widen(
+                  IO.delay(
+                      () -> {
+                        started.countDown();
+                        try {
+                          Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                          interrupted.countDown();
+                        }
+                        return "slept";
+                      })),
+              IOMonad.INSTANCE);
+      CompletableFuture<String> future =
+          EffectBoundary.of(Natural.<IOKind.Witness>identity()).runAsync(program);
+      assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
+
+      assertThat(future.cancel(true)).isTrue();
+
+      assertThat(interrupted.await(5, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should fail with a CompletionException the program throws, wrapped once")
+    @SuppressWarnings("migration-nudge") // lifts an IO instruction directly, to throw from it
+    void keepsACompletionExceptionTheProgramThrows() {
+      IllegalStateException inner = new IllegalStateException("inner");
+      Free<IOKind.Witness, String> program =
+          Free.liftF(
+              IO_OP.widen(
+                  IO.<String>delay(
+                      () -> {
+                        throw new CompletionException(inner);
+                      })),
+              IOMonad.INSTANCE);
+
+      CompletableFuture<String> future =
+          EffectBoundary.of(Natural.<IOKind.Witness>identity()).runAsync(program);
+
+      assertThatThrownBy(future::get).isInstanceOf(ExecutionException.class).hasCause(inner);
     }
 
     @Test

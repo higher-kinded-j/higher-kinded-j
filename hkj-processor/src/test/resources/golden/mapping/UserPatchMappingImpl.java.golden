@@ -10,6 +10,7 @@ import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.edit.Edit;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Generated sparse PATCH write-back for {@link UserPatchMapping}: folds the present wire fields into an {@code Edits.Accumulated<Domain>}.
@@ -18,7 +19,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 public final class UserPatchMappingImpl implements UserPatchMapping {
   public static final UserPatchMappingImpl INSTANCE = new UserPatchMappingImpl();
 
-  private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;
+  private volatile @Nullable ValidatedPrism<String, EmailAddress> hkj$leaf$email;
 
   private UserPatchMappingImpl() {
   }

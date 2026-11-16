@@ -795,6 +795,23 @@ class ValidatedTest extends ValidatedTestBase {
   }
 
   @Nested
+  @DisplayName("toOptional Conversion Tests")
+  class ToOptionalConversionTests {
+
+    @Test
+    @DisplayName("toOptional() on a Valid is present with the value")
+    void toOptionalOnValidIsPresentWithValue() {
+      assertThat(validInstance.toOptional()).contains(DEFAULT_VALID_VALUE);
+    }
+
+    @Test
+    @DisplayName("toOptional() on an Invalid is empty")
+    void toOptionalOnInvalidIsEmpty() {
+      assertThat(invalidInstance.toOptional()).isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("AsUnit Method Tests")
   class AsUnitMethodTests {
 

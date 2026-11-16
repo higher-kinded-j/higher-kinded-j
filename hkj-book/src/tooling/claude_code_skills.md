@@ -3,6 +3,7 @@
 ~~~admonish info title="What You'll Learn"
 - What Claude Code skills are and how they help with HKJ development
 - How to install skills into your project with one command
+- How to tell which release your installed skills describe
 - What each of the eight HKJ skills covers
 - How skills trigger automatically and how to invoke them directly
 ~~~
@@ -75,7 +76,7 @@ The HKJ Gradle plugin bundles all eight skills. Install them with a single task:
 ./gradlew hkjInstallSkills
 ```
 
-This copies skill files from the plugin's classpath resources into your project's `.claude/skills/` directory.
+This copies the skill files from the plugin into `.claude/skills/` at the root of your build, the directory holding the settings file (`settings.gradle` or `settings.gradle.kts`). Every project that applies the plugin has its own `hkjInstallSkills` task, and each installs into that same directory. An install writes only the files that differ, so a multi-project build holds one copy: the first install brings it up to date, and the rest find nothing to do. An included build is a build of its own, so it installs into its own root.
 
 To install automatically during every build, enable the `skills` property in the extension DSL:
 
@@ -85,7 +86,7 @@ hkj {
 }
 ```
 
-When `skills` is `true`, the `hkjInstallSkills` task runs as part of the `classes` lifecycle, ensuring skills stay up to date when you upgrade the plugin.
+When `skills` is `true` in a project, its install runs before its `classes` task, so the skills stay up to date when you upgrade the plugin. The install logs a line only when it changes something.
 
 ### Maven
 
@@ -95,7 +96,9 @@ The HKJ Maven plugin provides an equivalent goal:
 mvn hkj:install-skills
 ```
 
-To install them during every build instead, set `skills` in the plugin's `<configuration>`. A multi-module build installs them once: into the reactor's root when the root sets `skills`, and otherwise into the first project that does.
+It installs into `.claude/skills/` at the root of the build, once however many modules the build has. Maven takes the root to be the directory holding `.mvn`, or else the directory of the POM it starts from. So give a multi-module project a `.mvn` directory: without one, a build started from a module's directory installs into that module, whether it runs the goal or `<skills>true</skills>` runs it. A root POM that does not apply the plugin needs it in its `<pluginManagement>`, or Maven cannot find the goal there.
+
+To install them during every build instead, set `skills` in the plugin's `<configuration>`:
 
 ```xml
 <configuration>
@@ -117,11 +120,13 @@ rm -rf /tmp/hkj-skills
 
 ### Verifying Installation
 
+From the root of your build:
+
 ```bash
 ls .claude/skills/hkj-*/SKILL.md
 ```
 
-This should list eight `SKILL.md` files. You can also run the diagnostics task (`./gradlew hkjDiagnostics` or `mvn hkj:diagnostics`) which reports skills status.
+This should list eight `SKILL.md` files. `.claude/skills/.hkj-skills-version` names the Higher-Kinded-J release they describe. The diagnostics task (`./gradlew hkjDiagnostics` or `mvn hkj:diagnostics`) reports whether `skills` is on.
 
 ---
 
@@ -172,9 +177,25 @@ Each skill provides condensed reference material optimised for Claude to use whe
 
 ---
 
-## Updating Skills
+## Updating Skills {#updating-skills}
 
-Skills are versioned with the build plugin. When you upgrade the HKJ plugin version, re-run the install task to get updated skills:
+Skills are versioned with the build plugin. Each install writes a stamp, `.claude/skills/.hkj-skills-version`, naming the release the skills describe:
+
+```properties
+# The Higher-Kinded-J release the hkj-* skills in this directory describe.
+# The HKJ build plugin writes this file each time it installs them.
+version=0.6.0
+```
+
+With `skills = true` in the Gradle extension, each build that runs a project's `classes` task, as `build` and `test` do, also installs whatever differs from the plugin's skills. With `<skills>true</skills>` in the Maven plugin's configuration, each build that compiles does. At the end of each build, the plugin reads the stamp and tells you when the skills are out of step: Gradle before its `BUILD SUCCESSFUL` line, Maven after its build summary. A build whose own install brought them up to date has nothing to say.
+
+| The plugin finds | It says |
+|------------------|---------|
+| Skills stamped with its own release | Nothing |
+| Skills stamped with another release, older or newer | A warning naming both releases and the task to run |
+| HKJ skills with no stamp | One line suggesting a reinstall |
+
+Skills installed by hand, or by an older plugin, carry no stamp. Re-run the install to bring them up to date:
 
 ```bash
 # Gradle
@@ -184,7 +205,17 @@ Skills are versioned with the build plugin. When you upgrade the HKJ plugin vers
 mvn hkj:install-skills
 ```
 
-With `skills = true` in the Gradle extension, or `<skills>true</skills>` in the Maven plugin's configuration, skills update automatically on the next build.
+The skills describe the plugin's own release, which is the library's too unless the build sets `version` in the `hkj` block, or in the Maven plugin's `<configuration>`, to another. The stamp then matches the plugin and says nothing, so keep the plugin and the library on one release.
+
+### Removing Copies in Modules {#copies-in-modules}
+
+The plugins install only at the root of the build, and never delete a copy anywhere else. An older plugin installed a copy into each module, and nothing updates those copies, so they drift from the release you build with. Claude Code reads a module's own skills while it works in that module, so a stale copy can mislead it. Each build names every copy stamped with another release or none, in any module an older plugin could have installed into. Gradle checks each module that applies the plugin. Maven checks every module of the reactor, since an older `mvn hkj:install-skills`, run over a reactor, ran in each. Install the skills at the root first, if it holds none, then list the copies from the root of your project:
+
+```bash
+find . -path ./.claude -prune -o -path '*/.claude/skills/hkj-*' -prune -print
+```
+
+It also lists an included build's own copy, and any directory an install task writes to on purpose: keep those. Remove the rest, with `git rm -r` if you commit your skills.
 
 ---
 
@@ -199,10 +230,11 @@ Add to `.gitignore` only if your team prefers not to commit generated files. In 
 ~~~admonish info title="Key Takeaways"
 * **Skills are project-level knowledge files** that teach Claude Code about HKJ's API and patterns
 * **Eight skills** cover the library's major domains, from basic Path selection to architecture guidance
-* **One command** installs all skills: `./gradlew hkjInstallSkills` or `mvn hkj:install-skills`
+* **One command** installs all skills, once, at the root of the build: `./gradlew hkjInstallSkills` or `mvn hkj:install-skills`
 * **Skills trigger automatically** when your question matches a skill's domain keywords
 * **Direct invocation** via `/hkj-guide` etc. is available when you know which domain you need
 * **Skills update with the plugin** version, keeping guidance in sync with the library
+* **A stamp names the release** the installed skills describe, and the plugin warns when it differs from its own
 ~~~
 
 ~~~admonish tip title="See Also"

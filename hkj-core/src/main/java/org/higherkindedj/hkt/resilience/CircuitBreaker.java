@@ -6,10 +6,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A circuit breaker that protects {@link VTask} operations from repeatedly calling a failing
@@ -118,6 +122,93 @@ public final class CircuitBreaker {
     CANCELLED
   }
 
+  /**
+   * One admission's ticket, shared by the call admitted on it and a guard nested in it that borrows
+   * it. It is settled exactly once: by the first of them to finish with an outcome that counts, or,
+   * when neither does, freed by the last of them to finish, as a cancelled call frees its probe
+   * place. A settled ticket cannot be borrowed, so a guard that finds one is admitted on its own.
+   */
+  private static final class Ticket {
+    /** The holder count of a settled ticket. */
+    private static final int SETTLED = 0;
+
+    /** The generation the admission was made under. */
+    private final long generation;
+
+    /** How many guards run on the ticket and have not finished, or {@link #SETTLED}. */
+    private final AtomicInteger holders = new AtomicInteger(1);
+
+    private Ticket(long generation) {
+      this.generation = generation;
+    }
+
+    /** Joins the ticket if it is not settled, and whether it could. */
+    private boolean join() {
+      return holders.getAndUpdate(held -> held == SETTLED ? SETTLED : held + 1) != SETTLED;
+    }
+
+    /** Settles the ticket with an outcome, and whether this holder was the first to. */
+    private boolean claim() {
+      return holders.getAndUpdate(_ -> SETTLED) != SETTLED;
+    }
+
+    /** Leaves the ticket without an outcome, and whether that left it to be freed. */
+    private boolean leave() {
+      return holders.getAndUpdate(held -> held == SETTLED ? SETTLED : held - 1) == 1;
+    }
+  }
+
+  /**
+   * A call a breaker protects, as the guards nested in it see it.
+   *
+   * <p>It is mutable, unlike the breaker's {@link InternalState}, because the guards nested in a
+   * call, on whatever threads the call starts, tell it what they did: one runs on the call's
+   * admission, and one counted an outcome, so the call counts nothing of its own.
+   */
+  private static final class Enclosing {
+    /** The breaker's identity: not the breaker, which a thread the call leaves would keep alive. */
+    private final Object owner;
+
+    /** The admission the call runs on, its own or one it borrowed. */
+    private final Ticket admission;
+
+    /** The nearest call this one is nested in that was running when it began, or null. */
+    private final @Nullable Enclosing outer;
+
+    /** The call whose admission this one borrowed, or null when it was admitted on its own. */
+    private final @Nullable Enclosing lender;
+
+    /** Whether the call is running: a guard reached after it has finished is a call of its own. */
+    private final AtomicBoolean running = new AtomicBoolean(true);
+
+    /** Whether a nested guard runs on the call's admission: one at a time borrows it. */
+    private final AtomicBoolean lent = new AtomicBoolean();
+
+    /** Whether a nested guard counted an outcome, or was turned away, so the call adds nothing. */
+    private final AtomicBoolean counted = new AtomicBoolean();
+
+    private Enclosing(
+        Object owner, Ticket admission, @Nullable Enclosing outer, @Nullable Enclosing lender) {
+      this.owner = owner;
+      this.admission = admission;
+      this.outer = outer;
+      this.lender = lender;
+    }
+  }
+
+  /**
+   * The protected calls the current thread is inside, innermost first: set on the thread that runs
+   * a protected task, and inherited by every thread the task starts. One field serves every
+   * breaker, so a thread holds one entry however many breakers it calls. It is inherited rather
+   * than a {@code ScopedValue}, because {@code VTask.timeout} and {@code detachOnCancel} run a task
+   * on a thread of their own, which a {@code ScopedValue} binding does not reach. A long-lived
+   * thread started during a call, such as an executor's, keeps that call's small node, and the
+   * nodes of the calls it is nested in, for as long as the thread lives.
+   */
+  private static final InheritableThreadLocal<@Nullable Enclosing> ENCLOSING =
+      new InheritableThreadLocal<>();
+
+  private final Object identity = new Object();
   private final CircuitBreakerConfig config;
   private final AtomicReference<InternalState> stateRef;
 
@@ -188,11 +279,22 @@ public final class CircuitBreaker {
    * probe, holds its place until it stops; with a success threshold of one, the circuit then turns
    * every other call away meanwhile.
    *
-   * <p>Protect a call with one breaker once. A call that a breaker protects twice, as {@code
-   * io.withCircuitBreaker(b).map(f).withCircuitBreaker(b)} does, counts each outcome twice. While
-   * the circuit is half-open, the inner call takes a second probe place if one is free, so one
-   * request can supply two of the successes that close the circuit; when none is free, the inner
-   * call is rejected.
+   * <p>A call this breaker already protects counts each attempt once, at the guard nearest the
+   * dependency. A repository and the service that calls it may each guard one dependency with this
+   * breaker, as in {@code io.withCircuitBreaker(b).withRetry(p).withCircuitBreaker(b)}. A {@code
+   * protect} reached while such a call runs, on its thread or on a thread it starts, checks the
+   * circuit, applies the call timeout and counts its outcome, as a lone guard does; the outer guard
+   * then counts nothing. The first nested guard runs on the outer call's admission while the
+   * circuit is in the state the call was admitted in, so it takes no second probe place and is not
+   * counted again; a later one, such as a retry's next attempt, is admitted afresh, and an open
+   * circuit turns it away. A nested guard that is cancelled, as by the outer call's timeout, counts
+   * nothing, and the outer call then counts its own outcome unless another nested guard has counted
+   * already. Of a call and a nested guard that outlives it, as a guard inside {@code
+   * detachOnCancel()} does, the first to finish with an outcome counts it, so the outer call's
+   * timeout counts when its time runs out. A guard reached after the call has finished is a call of
+   * its own. A thread an executor starts during the call belongs to the call while it runs, so work
+   * it runs meanwhile for another caller counts as part of this call; an executor thread started
+   * before the call does not.
    *
    * <p>A call cancelled by an interrupt counts as neither a success nor a failure, whatever {@link
    * CircuitBreakerConfig#recordFailure()} says, since it tells nothing about the protected service.
@@ -206,23 +308,122 @@ public final class CircuitBreaker {
   public <A> VTask<A> protect(VTask<A> task) {
     Objects.requireNonNull(task, "task must not be null");
     return () -> {
-      totalCalls.incrementAndGet();
-      long generation = admit();
+      @Nullable Enclosing chain = ENCLOSING.get();
+      @Nullable Enclosing enclosing = enclosingCall(chain);
+      @Nullable Enclosing lender = borrowAdmission(enclosing);
+      Ticket admission = lender != null ? lender.admission : new Ticket(admitWithin(enclosing));
+      Enclosing call = new Enclosing(identity, admission, running(chain), lender);
+      // Threads the task runs on, and the threads they start, find the call through this chain
+      VTask<A> marked =
+          () -> {
+            ENCLOSING.set(call);
+            try {
+              return task.execute();
+            } finally {
+              ENCLOSING.set(chain);
+            }
+          };
       A result;
       // Execute the task with timeout (using execute() to preserve original exception types)
       try {
-        result = task.timeout(config.callTimeout()).execute();
+        result = marked.timeout(config.callTimeout()).execute();
       } catch (InterruptedException cancelled) {
         // A cancelled call says nothing about the service; a probe gives up its place
-        settle(generation, Outcome.CANCELLED);
+        end(call, enclosing, () -> Outcome.CANCELLED);
         throw cancelled;
       } catch (Throwable t) {
-        settle(generation, outcomeOf(t));
+        end(call, enclosing, () -> outcomeOf(t));
         throw t;
       }
-      settle(generation, Outcome.SUCCESS);
+      end(call, enclosing, () -> Outcome.SUCCESS);
       return result;
     };
+  }
+
+  /**
+   * The nearest call that {@code chain} holds and that is still running, of any breaker, or null: a
+   * new call links to it, so a chain never holds the calls a thread outlived.
+   */
+  private static @Nullable Enclosing running(@Nullable Enclosing chain) {
+    Enclosing call = chain;
+    while (call != null && !call.running.get()) {
+      call = call.outer;
+    }
+    return call;
+  }
+
+  /** The nearest running call of this breaker that {@code chain} holds, or null. */
+  private @Nullable Enclosing enclosingCall(@Nullable Enclosing chain) {
+    for (Enclosing call = chain; call != null; call = call.outer) {
+      if (call.owner == identity && call.running.get()) {
+        return call;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Borrows {@code enclosing}'s admission, if no other nested guard holds it, nobody has settled
+   * it, and the circuit is in the state it was admitted in, and returns the call it was borrowed
+   * from, or null when it cannot be.
+   */
+  private @Nullable Enclosing borrowAdmission(@Nullable Enclosing enclosing) {
+    return enclosing != null
+            && enclosing.admission.generation == stateRef.get().generation()
+            && enclosing.lent.compareAndSet(false, true)
+            && enclosing.admission.join()
+        ? enclosing
+        : null;
+  }
+
+  /**
+   * Admits a call on its own, counting it, and tells the call it is nested in, if any, when it is
+   * turned away, since the rejection is counted. A guard that borrows an admission is not counted
+   * again: the call it borrowed from was counted when it was admitted.
+   */
+  private long admitWithin(@Nullable Enclosing enclosing) {
+    totalCalls.incrementAndGet();
+    try {
+      return admit();
+    } catch (CircuitOpenException rejected) {
+      markCounted(enclosing);
+      throw rejected;
+    }
+  }
+
+  /**
+   * Ends {@code call}: counts its outcome on its admission, unless a guard nested in it counted one
+   * or another guard on the admission finished first with one, and tells the call it is nested in.
+   * A borrowed admission goes back to its lender, and the last guard to leave an admission that
+   * nobody counted frees it.
+   */
+  private void end(Enclosing call, @Nullable Enclosing enclosing, Supplier<Outcome> outcome) {
+    call.running.set(false);
+    Ticket admission = call.admission;
+    // A guard nearer the dependency counted the call, or turned it away; this one adds nothing
+    boolean countsItsOwn = !call.counted.get();
+    Outcome ended = countsItsOwn ? outcome.get() : Outcome.CANCELLED;
+    boolean settledHere = ended != Outcome.CANCELLED && admission.claim();
+    if (settledHere) {
+      settle(admission.generation, ended);
+    } else if (admission.leave()) {
+      // Nobody counted the admission: free its probe place, as a cancelled call does
+      settle(admission.generation, Outcome.CANCELLED);
+    }
+    Enclosing lender = call.lender;
+    if (lender != null) {
+      // The lender's next nested guard may borrow again; a settled ticket refuses it
+      lender.lent.set(false);
+    }
+    if (settledHere || !countsItsOwn) {
+      markCounted(enclosing);
+    }
+  }
+
+  private static void markCounted(@Nullable Enclosing enclosing) {
+    if (enclosing != null) {
+      enclosing.counted.set(true);
+    }
   }
 
   /**

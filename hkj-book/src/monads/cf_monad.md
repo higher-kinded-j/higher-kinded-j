@@ -67,7 +67,7 @@ import org.higherkindedj.hkt.effect.Path;
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/future/CompletableFutureBook.java:path_outcome}}
 ```
 
-A `CompletableFuturePath` also times out with `withTimeout`, which fails the Path but leaves the work behind the future running, since a future cannot interrupt it. `toEitherPath()` waits for the future, then holds a failure as a `Left`. A future that has failed stays failed, so to try failed work again, start it with `CompletableFuturePath.supplyAsyncWithRetry(supplier, attempts, delay)`, which runs the supplier again. A future that completes with `null` fails the Path, which catches every `CompletableFuture<Void>` from `runAsync` or `allOf`: map one to `Unit` first, with `thenApply(_ -> Unit.INSTANCE)`.
+A `CompletableFuturePath` also times out with `withTimeout`, which fails the Path but leaves the work behind the future running, since the timeout fails the future without cancelling it. Cancelling the Path's own future does reach the work when it wraps a future that can be interrupted, such as one from `VTask.runAsync()`; a `map` or `via` makes a new future, which breaks that chain. `toEitherPath()` waits for the future, then holds a failure as a `Left`. A future that has failed stays failed, so to try failed work again, start it with `CompletableFuturePath.supplyAsyncWithRetry(supplier, attempts, delay)`, which runs the supplier again. A future that completes with `null` fails the Path, which catches every `CompletableFuture<Void>` from `runAsync` or `allOf`: map one to `Unit` first, with `thenApply(_ -> Unit.INSTANCE)`.
 
 ## Methods {#methods}
 

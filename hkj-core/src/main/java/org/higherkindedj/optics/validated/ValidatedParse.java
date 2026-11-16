@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.effect.ValidationPath;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.internal.MapEntries;
 
 /**
  * The parse half of a {@link ValidatedPrism}: a fallible, accumulating conversion from a source
@@ -181,6 +182,17 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * field(label, ...)} call composes to dotted paths such as {@code attributes.en.email}. Entry
    * order is preserved.
    *
+   * <p>The parsed map holds one entry for each entry of the source, under the source's own key. An
+   * {@code IdentityHashMap} comes back an {@code IdentityHashMap} of its own, in the source's order
+   * (a subclass is copied into a plain one first, in that copy's order), so keys that are equal but
+   * not the same object stay apart. It is not wrapped unmodifiable, since a view of it would not be
+   * an {@code IdentityHashMap}, and it compares as one does, by the same key and value objects. Any
+   * other map comes back an unmodifiable map that looks keys up by {@code equals}. A source holding
+   * two keys that {@code equals} cannot tell apart, such as a {@code TreeMap} whose comparator is
+   * finer than {@code equals}, would lose an entry, so it is refused, whether or not its values
+   * parse: like a null key, it is a structurally broken map, not a wrong value. A null key is
+   * refused first.
+   *
    * <p>Keys are located via {@code toString()}. In the RENDERED {@code pathString} a key containing
    * a dot is therefore indistinguishable from deeper nesting ({@code attributes.en.gb} could be key
    * {@code en.gb} or key {@code en} nesting {@code gb}); the structured {@link FieldError#path()}
@@ -191,34 +203,44 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    *     <em>value</em> is a located {@code must not be null} under its key, never an exception,
    *     completing the null doctrine inside containers
    * @param <K> the key type, carried through unchanged
-   * @return {@code Valid(map)} or every located failure from every entry, in entry order (non-null,
-   *     immutable)
+   * @return {@code Valid(map)} or every located failure from every entry, in entry order (non-null;
+   *     the map is unmodifiable unless it is an {@code IdentityHashMap})
    * @throws NullPointerException if {@code sources} or one of its keys is null (a null key is a
    *     structurally broken map, not a wrong value)
+   * @throws IllegalArgumentException if {@code sources} holds two keys that {@code equals} cannot
+   *     tell apart; the message names both
    */
   default <K> Validated<NonEmptyList<FieldError>, Map<K, A>> parseValues(
       Map<K, ? extends S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
-    Map<K, A> values = LinkedHashMap.newLinkedHashMap(sources.size());
+    MapEntries<K, ? extends S> entries =
+        MapEntries.of(
+            sources,
+            new MapEntries.Refusal(
+                "parseValues cannot parse", "pass an IdentityHashMap copy of it"));
+    List<A> values = new ArrayList<>(entries.keys().size());
     List<FieldError> failures = new ArrayList<>();
-    for (Map.Entry<K, ? extends S> entry : sources.entrySet()) {
-      K key = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
-      S source = entry.getValue();
+    for (int index = 0; index < entries.keys().size(); index++) {
+      K key =
+          Objects.requireNonNull(entries.keys().get(index), "sources must not contain a null key");
+      S source = entries.values().get(index);
       if (source == null) {
         failures.add(FieldError.of("must not be null").at(key.toString()));
       } else {
         Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
         if (parsed.isValid()) {
-          values.put(key, parsed.get());
+          values.add(parsed.get());
         } else {
           addLocated(failures, parsed.getError(), key.toString());
         }
       }
     }
-    // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
-    return failures.isEmpty()
-        ? Validated.valid(Collections.unmodifiableMap(values))
-        : failed(failures);
+    if (failures.isEmpty()) {
+      return Validated.valid(entries.rebuildToHandBack(values));
+    }
+    // No map is built, but a source no map could hold is still refused, not hidden behind these.
+    entries.requireDistinctKeys();
+    return failed(failures);
   }
 
   /**

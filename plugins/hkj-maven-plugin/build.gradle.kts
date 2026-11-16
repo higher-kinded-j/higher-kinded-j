@@ -10,6 +10,8 @@ dependencies {
     compileOnly(libs.maven.core)
     compileOnly(libs.maven.plugin.annotations)
     compileOnly(libs.javax.inject)
+    // Maven exports SLF4J to plugins and extensions, so the plugin bundles none
+    compileOnly(libs.slf4j.api)
 
     // Test dependencies
     testImplementation(platform(libs.junit.bom))

@@ -49,11 +49,12 @@ import java.lang.annotation.Target;
  *
  * <p>The marker is stubbed out by the generated Impl, like a rename, and its return type must be
  * the component's record type, so a spec that drifts from its domain fails to compile rather than
- * spreading whatever the component has become. A group whose inner components all copy by identity
- * keeps the mapping lossless, so {@code asIso()} survives; one carrying a leaf or a nested spec is
- * fallible, as it would be at the top level. A mapping carrying a group is nested by other specs
- * like any other, in the same compilation or from a dependency; the marker is retained in the class
- * file so that a dependent compilation can tell such a spec maps both ways, and so nests.
+ * spreading whatever the component has become. A group whose inner components all copy by identity,
+ * and declare no {@code null} the domain rules out, keeps the mapping lossless, so {@code asIso()}
+ * survives; one carrying a leaf or a nested spec is fallible, as it would be at the top level. A
+ * mapping carrying a group is nested by other specs like any other, in the same compilation or from
+ * a dependency; the marker is retained in the class file so that a dependent compilation can tell
+ * such a spec maps both ways, and so nests.
  *
  * <p>Not supported yet: a flattened component on a bean-shaped wire, on a generic spec, on a
  * projection (a wire with fewer components) or on a sparse {@link UpdateSpec} (see below); a group

@@ -397,6 +397,65 @@ class HKJPluginTest {
   }
 
   @Nested
+  @DisplayName("skills in a multi-project build")
+  class MultiProjectSkills {
+
+    private Project root;
+    private Project app;
+    private Project lib;
+
+    @BeforeEach
+    void setUp(@TempDir Path dir) {
+      root = ProjectBuilder.builder().withProjectDir(dir.toFile()).withName("root").build();
+      app = ProjectBuilder.builder().withParent(root).withName("app").build();
+      lib = ProjectBuilder.builder().withParent(root).withName("lib").build();
+      app.getPluginManager().apply("io.github.higher-kinded-j.hkj");
+      lib.getPluginManager().apply("io.github.higher-kinded-j.hkj");
+    }
+
+    private Directory rootSkills() {
+      return root.getLayout().getProjectDirectory().dir(".claude/skills");
+    }
+
+    @Test
+    @DisplayName("every project that applies the plugin installs, at the root of the build")
+    void everyProjectInstalls_atTheRoot() {
+      for (Project module : List.of(app, lib)) {
+        assertThat(module.getTasks().getByName("hkjInstallSkills"))
+            .isInstanceOfSatisfying(
+                HKJInstallSkillsTask.class,
+                install -> assertThat(install.getOutputDir().get()).isEqualTo(rootSkills()));
+      }
+    }
+
+    @Test
+    @DisplayName("skills = true in a project runs its own install before its classes")
+    void skillsInAProject_runItsInstallBeforeItsClasses() {
+      lib.getExtensions().getByType(HKJExtension.class).getSkills().set(true);
+      ((ProjectInternal) app).evaluate();
+      ((ProjectInternal) lib).evaluate();
+
+      assertThat(dependenciesOf(lib.getTasks().getByName("classes")))
+          .contains(lib.getTasks().getByName("hkjInstallSkills"));
+      assertThat(dependenciesOf(app.getTasks().getByName("classes")))
+          .doesNotContain(app.getTasks().getByName("hkjInstallSkills"));
+    }
+
+    private static Set<Task> dependenciesOf(Task task) {
+      return Set.copyOf(task.getTaskDependencies().getDependencies(task));
+    }
+
+    @Test
+    @DisplayName("an install task the build registers in a project defaults to the root too")
+    void buildRegisteredTask_defaultsToTheRoot() {
+      HKJInstallSkillsTask own =
+          lib.getTasks().register("installOwn", HKJInstallSkillsTask.class).get();
+
+      assertThat(own.getOutputDir().get()).isEqualTo(rootSkills());
+    }
+  }
+
+  @Nested
   @DisplayName("custom source sets")
   class CustomSourceSets {
 

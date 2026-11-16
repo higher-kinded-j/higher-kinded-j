@@ -1107,7 +1107,7 @@ public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullab
    * @return an AffinePath that handles null safely
    */
   static <S extends @Nullable Object, A> AffinePath<S, A> ofNullable(
-      Function<S, @Nullable A> getter, BiFunction<S, A, S> setter) {
+      Function<? super S, ? extends @Nullable A> getter, BiFunction<S, A, S> setter) {
     return of(Affine.of(s -> Optional.ofNullable(getter.apply(s)), (s, a) -> setter.apply(s, a)));
   }
 }
