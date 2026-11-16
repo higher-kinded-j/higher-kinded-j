@@ -13233,13 +13233,15 @@ public class MappingProcessor extends AbstractProcessor {
       return true;
     }
     for (NullScan level = scan; level != null; level = level.inner()) {
-      // A map's keys are read at its own level, before the sides move on to its values. A copy's
-      // two sides are one type but for annotations, so where the wire names a key, so does the
-      // domain.
+      // A map's keys are read at its own level, before the sides move on to its values. javac
+      // takes Map<?, V> and Map<? extends Object, V> for one type, so one side may name a key
+      // the other does not: a key a side does not name says nothing either way.
       Written wireKey = wireSide.key(level, written, types, elements);
+      Written domainKey = domainSide.key(level, written, types, elements);
       if (wireKey != null
+          && domainKey != null
           && wireKey.nullable()
-          && domainSide.key(level, written, types, elements).nonNull(written)) {
+          && domainKey.nonNull(written)) {
         return true;
       }
       wireSide = wireSide.element(level, written, types, elements);
@@ -13259,11 +13261,12 @@ public class MappingProcessor extends AbstractProcessor {
    * A type as a record declares it and as it is instantiated, read together, with the scopes the
    * declaration is read in. A type variable with no nullness annotation of its own, as {@code T} in
    * {@code record Page<T extends @Nullable Object>(T item)}, stands for its type argument ({@link
-   * #deferred}): the instantiated form counts then, read where that argument is written, and so do
-   * the levels below it, which the argument wrote too, unless the variable's own bound rules a null
-   * out. Any other declaration counts as it is written, {@code @Nullable T} and {@code @NonNull T}
-   * among them, read in its own scope. A variable javac made by capturing a wildcard declares
-   * nothing of its own, so it is read as it is written, and says nothing.
+   * #deferred}): the instantiated form counts then, read where that argument is written, unless the
+   * variable's own bound rules a null out. Any other declaration counts as it is written,
+   * {@code @Nullable T} and {@code @NonNull T} among them, read in its own scope. Below any
+   * declared type variable, annotated or not, the levels are the argument's ({@link
+   * #namesNoLevels}), so they are read where it is written. A variable javac made by capturing a
+   * wildcard declares nothing of its own, so it is read as it is written, and says nothing.
    */
   private record Written(TypeMirror declared, TypeMirror instantiated, List<Element> scopes) {
 
@@ -13278,30 +13281,44 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     /**
+     * Whether the declaration is a type variable, which names no level of its own, whatever its
+     * annotation: an {@code @NonNull M} says the value is present, and its argument, as {@code
+     * Map<String, @Nullable String>}, says what it holds.
+     */
+    boolean namesNoLevels() {
+      return NullableAnnotations.declaredVariable(declared);
+    }
+
+    /**
      * Both forms' element types at {@code level}, as {@link NullScan#writtenElement} reads them;
-     * below a deferred declaration, the argument's alone, read where it is {@code written}.
+     * below a type variable ({@link #namesNoLevels}), the argument's alone, read where it is {@code
+     * written}.
      */
     Written element(NullScan level, List<Element> written, Types types, Elements elements) {
       TypeMirror inner = level.writtenElement(instantiated, types, elements);
-      return deferred()
+      return namesNoLevels()
           ? new Written(inner, inner, written)
           : new Written(level.writtenElement(declared, types, elements), inner, scopes);
     }
 
     /**
-     * Both forms' key types at a map {@code level}, as {@link NullScan#writtenKey} reads them: the
-     * declared form's key, read in its own scope, or, where the declaration names none, as a type
-     * variable does, the argument's, read where it is {@code written}, as {@link #element} reads a
-     * deferred declaration's levels. Null where the instantiated form names no key, which says
-     * nothing either way.
+     * Both forms' key types at a map {@code level}, as {@link NullScan#writtenKey} reads them, as
+     * {@link #element} reads the elements; null where the instantiated form names no key, which
+     * says nothing either way. A declaration that is no type variable differs from its
+     * instantiation only in the variables it names, so it names a key wherever that does; the
+     * fallback to the instantiated key is defensive.
      */
     Written key(NullScan level, List<Element> written, Types types, Elements elements) {
       TypeMirror inner = level.writtenKey(instantiated, types, elements);
       if (inner == null) {
         return null;
       }
-      TypeMirror outer = deferred() ? null : level.writtenKey(declared, types, elements);
-      return outer == null ? new Written(inner, inner, written) : new Written(outer, inner, scopes);
+      return namesNoLevels()
+          ? new Written(inner, inner, written)
+          : new Written(
+              Objects.requireNonNullElse(level.writtenKey(declared, types, elements), inner),
+              inner,
+              scopes);
     }
 
     /** Whether the form that counts is declared nullable. */

@@ -338,6 +338,18 @@ class NullableReadIntoNonNullTest {
             public interface PinnedKeysMapping
                 extends MappingSpec<Keyed, PinnedKeys<Map<@Nullable String, String>>> {}
 
+            public record PinnedValues<M extends Map<String, @Nullable String>>(@NonNull M labels) {}
+
+            @GenerateMapping
+            public interface PinnedValuesMapping
+                extends MappingSpec<Labels, PinnedValues<Map<String, @Nullable String>>> {}
+
+            public record PinnedTags<L extends List<@Nullable String>>(@NonNull L codes) {}
+
+            @GenerateMapping
+            public interface PinnedTagsMapping
+                extends MappingSpec<Codes, PinnedTags<List<@Nullable String>>> {}
+
             // Nullness a generic record leaves to its type argument, which the spec supplies.
             public record Form<T extends @Nullable Object>(T title) {}
 
@@ -550,6 +562,21 @@ class NullableReadIntoNonNullTest {
             public interface HoldingMapping<M extends Map<String, String>>
                 extends MappingSpec<Holding<M>, HoldingDto<M>> {}
 
+            // javac takes ? and ? extends Object for one argument: a key unnamed says nothing.
+            public record AnyKeys(Map<?, String> byKey) {}
+
+            public record ObjectKeys(Map<? extends @Nullable Object, String> byKey) {}
+
+            @GenerateMapping
+            public interface AnyKeysMapping extends MappingSpec<AnyKeys, ObjectKeys> {}
+
+            public record AnyKeyRows(List<Map<?, String>> rows) {}
+
+            public record ObjectKeyRows(List<Map<? extends @Nullable Object, String>> rows) {}
+
+            @GenerateMapping
+            public interface AnyKeyRowsMapping extends MappingSpec<AnyKeyRows, ObjectKeyRows> {}
+
             public record HoledOptional(Optional<@Nullable List<String>> maybe) {}
 
             @GenerateMapping
@@ -680,7 +707,9 @@ class NullableReadIntoNonNullTest {
         "HoledWildKeysMapping",
         "KeyedByMapping",
         "SlotMapping",
-        "PinnedKeysMapping");
+        "PinnedKeysMapping",
+        "PinnedValuesMapping",
+        "PinnedTagsMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -711,6 +740,8 @@ class NullableReadIntoNonNullTest {
         "HoledSuperKeysMapping",
         "RawKeysMapping",
         "HoldingMapping",
+        "AnyKeysMapping",
+        "AnyKeyRowsMapping",
         "HoledOptionalMapping",
         "RawMapping",
         "RosterMapping",
@@ -763,7 +794,9 @@ class NullableReadIntoNonNullTest {
   }
 
   @Test
-  @DisplayName("parse and the patch locate the null the optics would have handed over")
+  @DisplayName(
+      "parse and the patch report the null the optics would have handed over, a map's key"
+          + " included")
   void parseAndThePatchLocateTheNull() throws ReflectiveOperationException {
     Object customers = compiled.instance(implOf("CustomerMapping"));
     Object empty =
@@ -789,33 +822,46 @@ class NullableReadIntoNonNullTest {
     assertThatValidated(validated(invoke(accounts, "patch", account, renamed)))
         .isValid()
         .hasValue(compiled.newInstance(PKG + ".Wires$Account", "a1", "Bo"));
+
+    Object keyless = wire("HoledKeys", Map.class, nullKeyed());
+    assertThatValidated(
+            validated(invoke(compiled.instance(implOf("HoledKeysMapping")), "parse", keyless)))
+        .isInvalid()
+        .hasFieldErrors("byKey: must not contain a null key");
+    Object shelf =
+        compiled
+            .loadClass(PKG + ".Wires$Shelf")
+            .getDeclaredConstructor(String.class, Map.class)
+            .newInstance("s1", Map.of("a", "b"));
+    assertThatValidated(
+            validated(
+                invoke(compiled.instance(implOf("HoledKeysViewMapping")), "patch", shelf, keyless)))
+        .isInvalid()
+        .hasFieldErrors("byKey: must not contain a null key");
   }
 
   @Test
   @DisplayName(
-      "parse reports a null key the optic would have handed over, and one the domain may hold,"
-          + " whose optic stays and copies it")
-  void parseReportsANullKey() throws ReflectiveOperationException {
-    Map<String, String> keyless = new HashMap<>();
-    keyless.put(null, "v");
-    Object holed = wire("HoledKeys", Map.class, keyless);
-    Object keys = compiled.instance(implOf("HoledKeysMapping"));
-    assertThatValidated(validated(invoke(keys, "parse", holed)))
-        .isInvalid()
-        .hasFieldErrors("byKey: must not contain a null key");
-    Object rows = compiled.instance(implOf("HoledKeyRowsMapping"));
-    assertThatValidated(
-            validated(invoke(rows, "parse", wire("HoledKeyRows", List.class, List.of(keyless)))))
-        .isInvalid()
-        .hasFieldErrors("rows.0: must not contain a null key");
-
+      "a mapping whose domain may hold a null key keeps asIso(), which copies the key that parse"
+          + " reports")
+  void aDomainThatHoldsANullKeyKeepsItsIso() throws ReflectiveOperationException {
+    Map<String, String> keys = nullKeyed();
+    Object holed = wire("HoledKeys", Map.class, keys);
     Object agreeing = compiled.instance(implOf("NullableKeysMapping"));
     assertThatValidated(validated(invoke(agreeing, "parse", holed)))
         .isInvalid()
         .hasFieldErrors("byKey: must not contain a null key");
     @SuppressWarnings("unchecked")
     Iso<Object, Object> iso = (Iso<Object, Object>) invoke(agreeing, "asIso");
-    Assertions.assertThat(invoke(iso.reverseGet(holed), "byKey")).isEqualTo(keyless);
+    Assertions.assertThat(invoke(iso.reverseGet(holed), "byKey")).isEqualTo(keys);
+  }
+
+  /** A map holding a null key, beside a present one. */
+  private static Map<String, String> nullKeyed() {
+    Map<String, String> keys = new HashMap<>();
+    keys.put(null, "v");
+    keys.put("k", "w");
+    return keys;
   }
 
   /** A wire of the given simple name, made by its one-component constructor. */
