@@ -11,11 +11,14 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Iso;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,15 +31,17 @@ import org.junit.jupiter.params.provider.MethodSource;
  * total optic can hand it over. Such a full mapping offers no {@code asIso()}, and such a
  * projection maps as the validated {@code patch}, with no {@code asLens()}, as a bean's guarded
  * read does. The same holds where the {@code null} sits inside the value, at any level the copy
- * reaches: a list's element, a map's value, an array's element, or one inside an {@code Optional}.
+ * reaches: a list's element, a map's value or key, an array's element, or one inside an {@code
+ * Optional}. A map's key is read at its level, and {@code parse} reports a {@code null} one, though
+ * it does not look inside a key.
  *
  * <p>A type is read as the record declares it and as it is instantiated. A type variable with no
  * nullness of its own stands for its type argument, read where that argument is written and in the
  * Impl's package, and an unannotated one in a {@code @NullMarked} scope may not hold a {@code
  * null}; an annotated use decides alone. A wildcard is read through its bound. A pair whose sides
  * agree, or where either side says nothing about {@code null}, keeps the optic it has always had,
- * as do a domain whose canonical constructor takes the {@code null}, a primitive, a map's keys,
- * which {@code parse} does not scan, and an {@code Optional}, which cannot hold a {@code null}
+ * as do a domain whose canonical constructor takes the {@code null}, a primitive, a key read
+ * through {@code ? super} or a raw map, and an {@code Optional}, which cannot hold a {@code null}
  * itself.
  *
  * <p>Every spec shares one javac run, under every lint but the processing one, as errors, and is
@@ -275,6 +280,64 @@ class NullableReadIntoNonNullTest {
             @GenerateMapping
             public interface HoledLookupMapping extends MappingSpec<Lookup, HoledLookup> {}
 
+            // A map's key, at any level the copy reaches.
+            public record Keyed(Map<String, String> byKey) {}
+
+            public record HoledKeys(Map<@Nullable String, String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledKeysMapping extends MappingSpec<Keyed, HoledKeys> {}
+
+            public record HoledKeyLookup(Inverted<String, @Nullable String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledKeyLookupMapping extends MappingSpec<Lookup, HoledKeyLookup> {}
+
+            public record KeyRows(List<Map<String, String>> rows) {}
+
+            public record HoledKeyRows(List<Map<@Nullable String, String>> rows) {}
+
+            @GenerateMapping
+            public interface HoledKeyRowsMapping extends MappingSpec<KeyRows, HoledKeyRows> {}
+
+            public record MaybeKeys(Optional<Map<String, String>> byKey) {}
+
+            public record HoledMaybeKeys(Optional<Map<@Nullable String, String>> byKey) {}
+
+            @GenerateMapping
+            public interface HoledMaybeKeysMapping extends MappingSpec<MaybeKeys, HoledMaybeKeys> {}
+
+            public record WildKeys(Map<? extends String, String> byKey) {}
+
+            public record HoledWildKeys(Map<? extends @Nullable String, String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledWildKeysMapping extends MappingSpec<WildKeys, HoledWildKeys> {}
+
+            public record Shelf(String id, Map<String, String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledKeysViewMapping extends MappingSpec<Shelf, HoledKeys> {}
+
+            // A key a type variable leaves to its argument, which the spec supplies.
+            public record KeyedBy<K extends @Nullable Object>(Map<K, String> byKey) {}
+
+            @GenerateMapping
+            public interface KeyedByMapping extends MappingSpec<Keyed, KeyedBy<@Nullable String>> {}
+
+            public record Slot<T extends @Nullable Object>(T byKey) {}
+
+            @GenerateMapping
+            public interface SlotMapping
+                extends MappingSpec<Keyed, Slot<Map<@Nullable String, String>>> {}
+
+            // An annotated type variable names no key of its own, so its argument's is read.
+            public record PinnedKeys<M extends Map<@Nullable String, String>>(@NonNull M byKey) {}
+
+            @GenerateMapping
+            public interface PinnedKeysMapping
+                extends MappingSpec<Keyed, PinnedKeys<Map<@Nullable String, String>>> {}
+
             // Nullness a generic record leaves to its type argument, which the spec supplies.
             public record Form<T extends @Nullable Object>(T title) {}
 
@@ -457,17 +520,35 @@ class NullableReadIntoNonNullTest {
             @GenerateMapping
             public interface HolesMapping extends MappingSpec<Holes, HoledList> {}
 
-            public record Keyed(Map<String, String> byKey) {}
-
-            public record HoledKeys(Map<@Nullable String, String> byKey) {}
-
-            @GenerateMapping
-            public interface HoledKeysMapping extends MappingSpec<Keyed, HoledKeys> {}
-
-            public record HoledKeyLookup(Inverted<String, @Nullable String> byKey) {}
+            // Keys whose sides agree, or that say nothing.
+            public record NullableKeys(Map<@Nullable String, String> byKey) {}
 
             @GenerateMapping
-            public interface HoledKeyLookupMapping extends MappingSpec<Lookup, HoledKeyLookup> {}
+            public interface NullableKeysMapping extends MappingSpec<NullableKeys, HoledKeys> {}
+
+            public record SuperKeys(Map<? super String, String> byKey) {}
+
+            public record HoledSuperKeys(Map<? super @Nullable String, String> byKey) {}
+
+            @GenerateMapping
+            public interface HoledSuperKeysMapping extends MappingSpec<SuperKeys, HoledSuperKeys> {}
+
+            @SuppressWarnings("rawtypes")
+            public record RawKeys(Map byKey) {}
+
+            @SuppressWarnings("rawtypes")
+            public record RawKeysDto(Map byKey) {}
+
+            @GenerateMapping
+            public interface RawKeysMapping extends MappingSpec<RawKeys, RawKeysDto> {}
+
+            public record Holding<M extends Map<String, String>>(M byKey) {}
+
+            public record HoldingDto<M extends Map<String, String>>(M byKey) {}
+
+            @GenerateMapping
+            public interface HoldingMapping<M extends Map<String, String>>
+                extends MappingSpec<Holding<M>, HoldingDto<M>> {}
 
             public record HoledOptional(Optional<@Nullable List<String>> maybe) {}
 
@@ -591,7 +672,15 @@ class NullableReadIntoNonNullTest {
         "LabelledMapping",
         "NestedMapping",
         "ArrayRowsMapping",
-        "WildRowsMapping");
+        "WildRowsMapping",
+        "HoledKeysMapping",
+        "HoledKeyLookupMapping",
+        "HoledKeyRowsMapping",
+        "HoledMaybeKeysMapping",
+        "HoledWildKeysMapping",
+        "KeyedByMapping",
+        "SlotMapping",
+        "PinnedKeysMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -618,8 +707,10 @@ class NullableReadIntoNonNullTest {
         "DefaultedMapping",
         "LooseCodesMapping",
         "HolesMapping",
-        "HoledKeysMapping",
-        "HoledKeyLookupMapping",
+        "NullableKeysMapping",
+        "HoledSuperKeysMapping",
+        "RawKeysMapping",
+        "HoldingMapping",
         "HoledOptionalMapping",
         "RawMapping",
         "RosterMapping",
@@ -645,7 +736,7 @@ class NullableReadIntoNonNullTest {
   }
 
   static Stream<String> aProjectionMapsAsThePatch() {
-    return Stream.of("AccountViewMapping", "HoledTagsMapping");
+    return Stream.of("AccountViewMapping", "HoledTagsMapping", "HoledKeysViewMapping");
   }
 
   @Test
@@ -698,6 +789,42 @@ class NullableReadIntoNonNullTest {
     assertThatValidated(validated(invoke(accounts, "patch", account, renamed)))
         .isValid()
         .hasValue(compiled.newInstance(PKG + ".Wires$Account", "a1", "Bo"));
+  }
+
+  @Test
+  @DisplayName(
+      "parse reports a null key the optic would have handed over, and one the domain may hold,"
+          + " whose optic stays and copies it")
+  void parseReportsANullKey() throws ReflectiveOperationException {
+    Map<String, String> keyless = new HashMap<>();
+    keyless.put(null, "v");
+    Object holed = wire("HoledKeys", Map.class, keyless);
+    Object keys = compiled.instance(implOf("HoledKeysMapping"));
+    assertThatValidated(validated(invoke(keys, "parse", holed)))
+        .isInvalid()
+        .hasFieldErrors("byKey: must not contain a null key");
+    Object rows = compiled.instance(implOf("HoledKeyRowsMapping"));
+    assertThatValidated(
+            validated(invoke(rows, "parse", wire("HoledKeyRows", List.class, List.of(keyless)))))
+        .isInvalid()
+        .hasFieldErrors("rows.0: must not contain a null key");
+
+    Object agreeing = compiled.instance(implOf("NullableKeysMapping"));
+    assertThatValidated(validated(invoke(agreeing, "parse", holed)))
+        .isInvalid()
+        .hasFieldErrors("byKey: must not contain a null key");
+    @SuppressWarnings("unchecked")
+    Iso<Object, Object> iso = (Iso<Object, Object>) invoke(agreeing, "asIso");
+    Assertions.assertThat(invoke(iso.reverseGet(holed), "byKey")).isEqualTo(keyless);
+  }
+
+  /** A wire of the given simple name, made by its one-component constructor. */
+  private static Object wire(String name, Class<?> component, Object value)
+      throws ReflectiveOperationException {
+    return compiled
+        .loadClass(PKG + ".Wires$" + name)
+        .getDeclaredConstructor(component)
+        .newInstance(value);
   }
 
   @Test

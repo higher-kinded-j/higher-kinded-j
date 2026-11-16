@@ -166,13 +166,17 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseValues(null))
           .withMessage("sources must not be null");
-      Map<String, String> nullKey = new HashMap<>();
-      nullKey.put(null, "a@b");
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseValues(nullKey))
-          .withMessage("sources must not contain a null key");
-      // A null value is a located invalid under its key, never an exception; a null
-      // key stays the caller's error — a structurally broken map, not a wrong value.
+      // A null key has no rendering to locate by, and a map holds at most one: it is one
+      // unlocated failure, as a set's null element is, and the value under it is not parsed.
+      Map<String, String> nullKey = new LinkedHashMap<>();
+      nullKey.put("home", "nope");
+      nullKey.put(null, "nope");
+      nullKey.put("work", "a@b");
+      assertThat(EMAIL.parseValues(nullKey).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("home"), "not an email address"),
+              FieldError.of("must not contain a null key"));
+      // A null value is a located invalid under its key, never an exception.
       Map<String, String> nullValue = new HashMap<>();
       nullValue.put("work", null);
       Validated<NonEmptyList<FieldError>, Map<String, Email>> locatedNull =
@@ -408,11 +412,14 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseKeys(null))
           .withMessage("sources must not be null");
-      Map<String, Integer> nullKey = new HashMap<>();
-      nullKey.put(null, 1);
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseKeys(nullKey))
-          .withMessage("sources must not contain a null key");
+      // A null key is one unlocated failure, and the value under it is not looked at.
+      Map<String, Integer> nullKey = new LinkedHashMap<>();
+      nullKey.put(null, null);
+      nullKey.put("nope", 1);
+      assertThat(EMAIL.parseKeys(nullKey).getError().toJavaList())
+          .containsExactly(
+              FieldError.of("must not contain a null key"),
+              new FieldError(List.of("nope"), "not an email address"));
     }
 
     @Test
@@ -503,11 +510,14 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseEntries(Map.of("a@b", "x@y"), null))
           .withMessage("valueParse must not be null");
-      Map<String, String> nullKey = new HashMap<>();
-      nullKey.put(null, "x@y");
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseEntries(nullKey, EMAIL))
-          .withMessage("sources must not contain a null key");
+      // A null key is one unlocated failure, and the value under it is not parsed.
+      Map<String, String> nullKey = new LinkedHashMap<>();
+      nullKey.put("a@b", "nope");
+      nullKey.put(null, "nope");
+      assertThat(EMAIL.parseEntries(nullKey, EMAIL).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("a@b"), "not an email address"),
+              FieldError.of("must not contain a null key"));
     }
 
     @Test

@@ -59,9 +59,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * itself, not as an unmodifiable view, since a view of one is not an {@code IdentityHashMap}, and
  * it compares as one does, by the same key and value objects. A map holding two keys that {@code
  * equals} cannot tell apart would lose an entry there, so the copy throws an {@code
- * IllegalArgumentException} naming both, on {@code parse} as on {@code build}: like a null key, it
- * is a structurally broken map rather than a wrong value. Map keys are structural, and never copied
- * inside.
+ * IllegalArgumentException} naming both, on {@code parse} as on {@code build}: it is a structurally
+ * broken map rather than a wrong value. Map keys are structural, and never copied inside.
  *
  * <p>An array copies by {@code clone()}, which keeps its runtime component type, and that can be
  * narrower than the declared one (an {@code ArrayList[]} behind a {@code List<String>[]}), so only

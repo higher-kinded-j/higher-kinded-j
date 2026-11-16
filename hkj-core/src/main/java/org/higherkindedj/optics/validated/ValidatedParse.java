@@ -190,8 +190,11 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * other map comes back an unmodifiable map that looks keys up by {@code equals}. A source holding
    * two keys that {@code equals} cannot tell apart, such as a {@code TreeMap} whose comparator is
    * finer than {@code equals}, would lose an entry, so it is refused, whether or not its values
-   * parse: like a null key, it is a structurally broken map, not a wrong value. A null key is
-   * refused first.
+   * parse: it is a structurally broken map, not a wrong value.
+   *
+   * <p>A {@code null} key has no rendering to locate by, and a map holds at most one, so its entry
+   * is an <em>unlocated</em> {@code must not contain a null key} under the component's own label,
+   * as a set's {@code null} element is, and the value under it is not parsed.
    *
    * <p>Keys are located via {@code toString()}. In the RENDERED {@code pathString} a key containing
    * a dot is therefore indistinguishable from deeper nesting ({@code attributes.en.gb} could be key
@@ -199,14 +202,14 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * list stays exact, with the whole key as one segment. Distinct keys whose {@code toString()}
    * collide share a rendered location, but every error is still reported.
    *
-   * @param sources the wire values by key; neither the map nor its keys may be null — a null
-   *     <em>value</em> is a located {@code must not be null} under its key, never an exception,
-   *     completing the null doctrine inside containers
+   * @param sources the wire values by key; the map itself must not be null — a null <em>value</em>
+   *     is a located {@code must not be null} under its key, and a null key the unlocated {@code
+   *     must not contain a null key}, never an exception, completing the null doctrine inside
+   *     containers
    * @param <K> the key type, carried through unchanged
-   * @return {@code Valid(map)} or every located failure from every entry, in entry order (non-null;
-   *     the map is unmodifiable unless it is an {@code IdentityHashMap})
-   * @throws NullPointerException if {@code sources} or one of its keys is null (a null key is a
-   *     structurally broken map, not a wrong value)
+   * @return {@code Valid(map)} or every failure from every entry, in entry order (non-null; the map
+   *     is unmodifiable unless it is an {@code IdentityHashMap})
+   * @throws NullPointerException if {@code sources} is null
    * @throws IllegalArgumentException if {@code sources} holds two keys that {@code equals} cannot
    *     tell apart; the message names both
    */
@@ -221,10 +224,11 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     List<A> values = new ArrayList<>(entries.keys().size());
     List<FieldError> failures = new ArrayList<>();
     for (int index = 0; index < entries.keys().size(); index++) {
-      K key =
-          Objects.requireNonNull(entries.keys().get(index), "sources must not contain a null key");
+      K key = entries.keys().get(index);
       S source = entries.values().get(index);
-      if (source == null) {
+      if (key == null) {
+        failures.add(nullKey());
+      } else if (source == null) {
         failures.add(FieldError.of("must not be null").at(key.toString()));
       } else {
         Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
@@ -259,13 +263,13 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    *
    * <p>Values pass through, but a {@code null} one is still a located {@code must not be null}
    * under its source key — the null doctrine reaches inside a container whether that container's
-   * contents convert or are copied.
+   * contents convert or are copied. A {@code null} source key is the unlocated {@code must not
+   * contain a null key}, as {@link #parseValues(Map)} reports it, and its value is not looked at.
    *
-   * @param sources the wire values by key; neither the map nor its keys may be null
+   * @param sources the wire values by key; the map itself must not be null
    * @param <V> the value type, carried through unchanged
-   * @return {@code Valid(map)} or every located failure, in entry order (non-null, immutable)
-   * @throws NullPointerException if {@code sources} or one of its keys is null (a null key is a
-   *     structurally broken map, not a wrong value)
+   * @return {@code Valid(map)} or every failure, in entry order (non-null, immutable)
+   * @throws NullPointerException if {@code sources} is null
    */
   default <V> Validated<NonEmptyList<FieldError>, Map<A, V>> parseKeys(
       Map<? extends S, V> sources) {
@@ -274,7 +278,11 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
     List<FieldError> failures = new ArrayList<>();
     for (Map.Entry<? extends S, V> entry : sources.entrySet()) {
-      S source = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
+      S source = entry.getKey();
+      if (source == null) {
+        failures.add(nullKey());
+        continue;
+      }
       V value = entry.getValue();
       Validated<NonEmptyList<FieldError>, A> parsedKey = parse(source);
       int reported = failures.size();
@@ -304,15 +312,16 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    *
    * <p>Both a failing key and a failing value locate under the <em>source</em> key ({@code
    * attributes.en_GB}), so an entry that is wrong on both sides reports both reasons at that one
-   * location. A {@code null} value is a located {@code must not be null}, and colliding domain keys
-   * are a located failure, exactly as in {@link #parseKeys(Map)}. Entry order is preserved.
+   * location. A {@code null} value is a located {@code must not be null}, a {@code null} key the
+   * unlocated {@code must not contain a null key}, whose value is not parsed, and colliding domain
+   * keys are a located failure, exactly as in {@link #parseKeys(Map)}. Entry order is preserved.
    *
-   * @param sources the wire entries; neither the map nor its keys may be null
+   * @param sources the wire entries; the map itself must not be null
    * @param valueParse the parse converting the values; must not be null
    * @param <SV> the wire value type
    * @param <V> the domain value type
-   * @return {@code Valid(map)} or every located failure, in entry order (non-null, immutable)
-   * @throws NullPointerException if {@code sources}, one of its keys, or {@code valueParse} is null
+   * @return {@code Valid(map)} or every failure, in entry order (non-null, immutable)
+   * @throws NullPointerException if {@code sources} or {@code valueParse} is null
    */
   default <SV, V> Validated<NonEmptyList<FieldError>, Map<A, V>> parseEntries(
       Map<? extends S, ? extends SV> sources, ValidatedParse<SV, V> valueParse) {
@@ -322,7 +331,11 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
     List<FieldError> failures = new ArrayList<>();
     for (Map.Entry<? extends S, ? extends SV> entry : sources.entrySet()) {
-      S source = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
+      S source = entry.getKey();
+      if (source == null) {
+        failures.add(nullKey());
+        continue;
+      }
       SV rawValue = entry.getValue();
       Validated<NonEmptyList<FieldError>, A> parsedKey = parse(source);
       Validated<NonEmptyList<FieldError>, V> parsedValue =
@@ -345,6 +358,14 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     return failures.isEmpty()
         ? Validated.valid(Collections.unmodifiableMap(values))
         : failed(failures);
+  }
+
+  /**
+   * The failure for a map's {@code null} key: unlocated, since a {@code null} has no rendering to
+   * locate by, and a map holds at most one, as a set's {@code null} element is.
+   */
+  private static FieldError nullKey() {
+    return FieldError.of("must not contain a null key");
   }
 
   /**

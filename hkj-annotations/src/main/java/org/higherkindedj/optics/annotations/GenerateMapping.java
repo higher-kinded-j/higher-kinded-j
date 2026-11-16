@@ -86,13 +86,14 @@ import java.lang.annotation.Target;
  *       (bean-shaped wires and {@code UpdateSpec} mappings stay concrete); raw uses and wildcards
  *       are diagnosed, array arguments are concrete and unify structurally.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError}
- *       (inside containers too: a null element or map value locates by index or key, identity
- *       copies included, at every depth and however the container is declared), on both wire
- *       shapes: an unset bean property is null, and a JSON binder leaves a missing record component
- *       null just the same. A bean's guarded reads make {@code asIso()} truthful only for an
- *       all-primitive bean; a lossless record mapping keeps {@code asIso()}, its guards covering
- *       hostile bindings only, unless its wire declares {@code @Nullable} a component, or an
- *       element inside it, that the domain declares non-null.
+ *       (inside containers too: a null element or map value locates by index or key, and a null map
+ *       key reports under its map, identity copies included, at every depth and however the
+ *       container is declared), on both wire shapes: an unset bean property is null, and a JSON
+ *       binder leaves a missing record component null just the same. A bean's guarded reads make
+ *       {@code asIso()} truthful only for an all-primitive bean; a lossless record mapping keeps
+ *       {@code asIso()}, its guards covering hostile bindings only, unless its wire declares
+ *       {@code @Nullable} a component, or an element or map key inside it, that the domain declares
+ *       non-null.
  *   <li>A component with the same container type on both sides and no leaf of its own crosses as a
  *       copy in both directions, not as the container that was read: an unmodifiable copy in the
  *       source's order, a set as a set and a null element carried, with every level inside copied

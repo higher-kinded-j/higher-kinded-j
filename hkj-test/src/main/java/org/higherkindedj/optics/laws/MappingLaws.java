@@ -39,13 +39,13 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *   <li>fallible tier ({@code asValidatedPrism()} only): pass a parsing and a non-parsing wire
  *       value - both validated round-trip laws plus the no-parse sanity check;
  *   <li>total-parse mappings (no well-formed wire value can fail, e.g. derived wire fields over
- *       identity components; a null reference component - or a null element inside an identity
- *       container - is a located invalid, so "total" is scoped to wires whose reference components
- *       and container elements are non-null, and whose values the domain's constructor accepts):
- *       pass a domain sample whose reference components and identity-container elements are
- *       themselves non-null ({@code build} copies identity containers element for element, so a
- *       null element in the sample produces exactly the excluded wire and the law fails) - the
- *       round trip through {@code build}.
+ *       identity components; a null reference component - or a null element or map key inside an
+ *       identity container - is a located invalid, so "total" is scoped to wires whose reference
+ *       components, container elements and map keys are non-null, and whose values the domain's
+ *       constructor accepts): pass a domain sample whose reference components, identity-container
+ *       elements and map keys are themselves non-null ({@code build} copies identity containers
+ *       element for element, so a null element in the sample produces exactly the excluded wire and
+ *       the law fails) - the round trip through {@code build}.
  *   <li>sparse-update tier ({@code updateFrom()} only, from an {@code UpdateSpec}): pass the {@code
  *       updateFrom} method reference, a domain sample, and an all-absent, a valid and an invalid
  *       wire - the identity, idempotence and validation laws.
@@ -140,9 +140,9 @@ public final class MappingLaws {
    * reverseGet} copies the null as it is, and a value the constructor refuses parses to an {@code
    * Invalid} while {@code reverseGet} throws, so coherence deliberately extends to neither. Feed
    * such wires to {@code parse} directly and assert the accumulation instead. A mapping whose wire
-   * declares that a component, or an element inside it, may be null where the domain declares it
-   * may not offers no {@code asIso()} to check; any other null-carrying wire stays outside the
-   * scope, whatever its type declares.
+   * declares that a component, or an element or map key inside it, may be null where the domain
+   * declares it may not offers no {@code asIso()} to check; any other null-carrying wire stays
+   * outside the scope, whatever its type declares.
    */
   public static <D, W> void assertParseAgreesWithIso(
       Iso<D, W> iso, ValidatedPrism<W, D> mapping, W wireSample) {
@@ -182,14 +182,15 @@ public final class MappingLaws {
    * The round-trip law of a total-parse mapping (identity components, infallible leaves or derived
    * wire fields): exactly {@code parse(build(domainSample)) == Valid(domainSample)}, and nothing
    * else. No well-formed non-parsing wire value exists for such a mapping (a null reference
-   * component, or a null element inside an identity container, is a located invalid, so "total" is
-   * scoped to wires whose reference components and container elements are non-null, and whose
-   * values the domain's constructor accepts), so there is no no-parse check. The scoping is the
-   * caller's fixture contract: {@code build} copies identity containers element for element, so
-   * {@code domainSample} must not carry a null reference component or a null identity-container
-   * element, or the round trip lands on exactly the excluded wire and this law (correctly) fails.
-   * And the section law on {@code build(domainSample)} would be checking {@code build(a) ==
-   * build(a)} once the round trip holds, so it is deliberately not asserted.
+   * component, or a null element or map key inside an identity container, is a located invalid, so
+   * "total" is scoped to wires whose reference components, container elements and map keys are
+   * non-null, and whose values the domain's constructor accepts), so there is no no-parse check.
+   * The scoping is the caller's fixture contract: {@code build} copies identity containers element
+   * for element, so {@code domainSample} must not carry a null reference component, or a null
+   * identity-container element or map key, or the round trip lands on exactly the excluded wire and
+   * this law (correctly) fails. And the section law on {@code build(domainSample)} would be
+   * checking {@code build(a) == build(a)} once the round trip holds, so it is deliberately not
+   * asserted.
    *
    * <p>This is the strongest guarantee a derived-field mapping offers: only NON-derived components
    * round-trip, and {@code build(domainSample)} is a wire value whose derived components are

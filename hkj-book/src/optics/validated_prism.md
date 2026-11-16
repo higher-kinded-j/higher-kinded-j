@@ -157,7 +157,7 @@ One prism lifts over whole containers, accumulating **every** failure and locati
 | `parseKeys(Map<? extends S, V>)` | the keys; values pass through | the **source** key, naming what the caller sent |
 | `parseEntries(Map, ValidatedParse)` | both sides; the receiver parses the **keys** | the source key, so an entry wrong on both sides reports both reasons there |
 
-The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside all of them: a `null` element or map value is a located, accumulating `must not be null`, never an exception, while a `null` container or map key stays the caller's error. A `null` set element is the unlocated `must not contain a null element`, a set holding at most one. Every build direction (`buildAll`, `buildValues`, `buildKeys`, `buildEntries`) is total like `build` and rejects nulls outright.
+The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside all of them: a `null` element or map value is a located, accumulating `must not be null`, never an exception, while a `null` container stays the caller's error. A `null` set element is the unlocated `must not contain a null element`, a set holding at most one, and a `null` map key the unlocated `must not contain a null key`, its value left unparsed. Every build direction (`buildAll`, `buildValues`, `buildKeys`, `buildEntries`) is total like `build` and rejects nulls outright.
 
 Mapping is not injective, so a container can **collapse**: a prism mapping both `"1"` and `"01"` to one domain value leaves a smaller set, and the source spellings cannot be recovered. A set drops the duplicate **silently** - the domain values that remain are equal to the ones dropped, so the set still holds every distinct value it was given. Two map keys parsing to one domain key are a located `duplicates an earlier key` instead: there the dropped entry takes its own value with it, and that value need not be equal to anything. Either way the prism doing it already breaks the [section law](#laws), which is what stops a lawful mapping collapsing at all.
 
@@ -173,7 +173,7 @@ Mapping is not injective, so a container can **collapse**: a prism mapping both 
 | any other map, its keys distinct by `equals` | an unmodifiable map that looks keys up by `equals` |
 | any other map holding two keys that `equals` cannot tell apart, such as a `TreeMap` whose comparator is finer than `equals` | `IllegalArgumentException` naming both keys; `parseValues` throws it whether or not the values parse |
 
-A [map optic](common_data_structure_traversals.md#the-solution-formapvalues-traversal) keeps keys by the same rule. Like a `null` key, a map whose keys `equals` would merge is the caller's error rather than a wrong value: pass an `IdentityHashMap` copy of it. An `IdentityHashMap` result compares by the same key and value objects, so two parses of one wire need not be equal.
+A [map optic](common_data_structure_traversals.md#the-solution-formapvalues-traversal) keeps keys by the same rule. A map whose keys `equals` would merge is the caller's error rather than a wrong value: pass an `IdentityHashMap` copy of it. An `IdentityHashMap` result compares by the same key and value objects, so two parses of one wire need not be equal.
 
 ---
 

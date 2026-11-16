@@ -116,15 +116,16 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * binder leaves a missing record component null just the same — so a component-level null is a
  * located, accumulated invalid, never an exception. The doctrine reaches inside containers too,
  * identity-copied ones included: a null <em>element</em> or map <em>value</em> locates by its index
- * or key ({@code emails.1: must not be null}). What stays the caller-contract {@code
- * requireNonNull}: a null wire itself, and a null map <em>key</em> (a structurally broken map, not
- * a wrong value). What stays bean-only is the <em>absence</em> contract: only a bean property is
- * legitimately unset, so only bean guards cost the Iso tier — {@code asIso()} is truthful for an
- * all-primitive bean, while a lossless record mapping keeps it with the parse-iso coherence law
- * scoped to wires whose reference components are non-null and whose values the domain accepts. A
- * record wire whose declaration says a component, or an element its copy scans, may be null, where
- * the domain's says it may not, is the exception: {@code parse} refuses that null, so the mapping
- * offers no total optic that would hand it over ({@link #readsNullableIntoNonNull}).
+ * or key ({@code emails.1: must not be null}), and a null map <em>key</em>, which has nothing to
+ * locate by, is the unlocated {@code must not contain a null key}. What stays the caller-contract
+ * {@code requireNonNull}: a null wire itself. What stays bean-only is the <em>absence</em>
+ * contract: only a bean property is legitimately unset, so only bean guards cost the Iso tier —
+ * {@code asIso()} is truthful for an all-primitive bean, while a lossless record mapping keeps it
+ * with the parse-iso coherence law scoped to wires whose reference components are non-null and
+ * whose values the domain accepts. A record wire whose declaration says a component, or an element
+ * or map key its copy scans, may be null, where the domain's says it may not, is the exception:
+ * {@code parse} refuses that null, so the mapping offers no total optic that would hand it over
+ * ({@link #readsNullableIntoNonNull}).
  *
  * <p>Once every component has parsed, the domain's canonical constructor runs inside a {@link
  * GuardedConstruction guard}: a {@code RuntimeException} it throws (the record's own invariant)
@@ -13184,9 +13185,10 @@ public class MappingProcessor extends AbstractProcessor {
    * #reportedNullableIntoNonNull} reads the domain's for {@code build}, where the domain's is
    * declared non-null, read as that check reads its write site ({@link #nonNullComponent}). Or an
    * element, at a level the copy's null scan reaches ({@link NullScan}), may be declared nullable
-   * where the domain's element at that level rules a null out. An {@code Optional} cannot hold a
-   * null, so its own level counts for nothing, and a side that says nothing either way rules
-   * nothing out.
+   * where the domain's element at that level rules a null out, and so may a map's key at its level,
+   * which {@code parse} reports too, though the scan does not look inside it. An {@code Optional}
+   * cannot hold a null, so its own level counts for nothing, and a side that says nothing either
+   * way rules nothing out.
    *
    * <p>Each type is read as the record declares it and as it is instantiated ({@link Written}):
    * {@code wireType} and {@code domainType} are the instantiated components, {@code scan} is the
@@ -13231,6 +13233,15 @@ public class MappingProcessor extends AbstractProcessor {
       return true;
     }
     for (NullScan level = scan; level != null; level = level.inner()) {
+      // A map's keys are read at its own level, before the sides move on to its values. A copy's
+      // two sides are one type but for annotations, so where the wire names a key, so does the
+      // domain.
+      Written wireKey = wireSide.key(level, written, types, elements);
+      if (wireKey != null
+          && wireKey.nullable()
+          && domainSide.key(level, written, types, elements).nonNull(written)) {
+        return true;
+      }
       wireSide = wireSide.element(level, written, types, elements);
       domainSide = domainSide.element(level, written, types, elements);
       // A raw container names no element type, so it says nothing either way.
@@ -13275,6 +13286,22 @@ public class MappingProcessor extends AbstractProcessor {
       return deferred()
           ? new Written(inner, inner, written)
           : new Written(level.writtenElement(declared, types, elements), inner, scopes);
+    }
+
+    /**
+     * Both forms' key types at a map {@code level}, as {@link NullScan#writtenKey} reads them: the
+     * declared form's key, read in its own scope, or, where the declaration names none, as a type
+     * variable does, the argument's, read where it is {@code written}, as {@link #element} reads a
+     * deferred declaration's levels. Null where the instantiated form names no key, which says
+     * nothing either way.
+     */
+    Written key(NullScan level, List<Element> written, Types types, Elements elements) {
+      TypeMirror inner = level.writtenKey(instantiated, types, elements);
+      if (inner == null) {
+        return null;
+      }
+      TypeMirror outer = deferred() ? null : level.writtenKey(declared, types, elements);
+      return outer == null ? new Written(inner, inner, written) : new Written(outer, inner, scopes);
     }
 
     /** Whether the form that counts is declared nullable. */
