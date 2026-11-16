@@ -475,10 +475,11 @@ matter: it maps build-only whatever its width, derived fields included.
   `Set` (`emails.nope`) - a null set element is the unlocated `emails: must not contain a null
   element`, a set holding at most one, and a null map key the unlocated `byKey: must not contain a
   null key`, its value not looked at, whether the map copies or converts. An identity container is
-  scanned at every level its type names (`grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a `Map<String, List<String>>`), an
-  `Optional` holding a container included, and however it is declared: any `Collection` or `Map`
-  subtype or supertype (`ArrayList`, `Collection`, `LinkedHashMap`), raw, wildcard-argument, or a
-  type variable bounded by one. A `@MapKey` map's copied values are scanned too. A class that
+  scanned at every level its type names (`grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a
+  `Map<String, List<String>>`), an `Optional` holding a container included, and however it is
+  declared: any `Collection` or `Map` subtype or supertype (`ArrayList`, `Collection`,
+  `LinkedHashMap`), raw, wildcard-argument, or a type variable bounded by one. A `@MapKey` map's
+  copied values are scanned too. A class that
   fixes its own element (`class Bundle extends ArrayList<Bundle>`) is scanned one level into itself.
   `Iterable`, `Stream`, `Maybe` and `NonEmptyList` are not looked inside yet. A primitive array
   carries no element scan. What stays the caller's `NullPointerException`: a null *wire* itself. A
@@ -558,12 +559,13 @@ matter: it maps build-only whatever its width, derived fields included.
 - **A `@Nullable` record wire component costs the optics where the domain says non-null.** Where
   a record wire declares a component `@Nullable`, or an element type that `parse`'s null scan
   reaches (`List<@Nullable String>`, a map's values or keys, an array's elements, a wildcard's
-  bound), and the domain declares its own non-null, `parse` refuses the `null` and no total optic can hand it
-  over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not `asLens()`. A type
-  argument counts where an unannotated type variable leaves the nullness to it (`Page<@Nullable
-  String>` for `Page<T extends @Nullable Object>`), and an annotated use (`@NonNull T`) decides
-  alone for the value itself, while what it holds is still its argument's. A side that says nothing keeps the optic; `? super` wildcards and an `Optional`'s own
-  element do not count. Call `asValidatedPrism()` or `patch`, or give the pair one
+  bound), and the domain declares its own non-null, `parse` refuses the `null` and no total optic
+  can hand it over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not
+  `asLens()`. A type argument counts where an unannotated type variable leaves the nullness to it
+  (`Page<@Nullable String>` for `Page<T extends @Nullable Object>`), and an annotated use
+  (`@NonNull T`) decides alone for the value itself, while what it holds is still its argument's.
+  A side that says nothing keeps the optic; `? super` wildcards and an `Optional`'s own element do
+  not count. Call `asValidatedPrism()` or `patch`, or give the pair one
   nullness.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.

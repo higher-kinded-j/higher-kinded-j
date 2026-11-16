@@ -13303,10 +13303,8 @@ public class MappingProcessor extends AbstractProcessor {
 
     /**
      * Both forms' key types at a map {@code level}, as {@link NullScan#writtenKey} reads them, as
-     * {@link #element} reads the elements; null where the instantiated form names no key, which
-     * says nothing either way. A declaration that is no type variable differs from its
-     * instantiation only in the variables it names, so it names a key wherever that does; the
-     * fallback to the instantiated key is defensive.
+     * {@link #element} reads the elements; null where either form names no key, which says nothing
+     * either way.
      */
     Written key(NullScan level, List<Element> written, Types types, Elements elements) {
       TypeMirror inner = level.writtenKey(instantiated, types, elements);
@@ -13315,10 +13313,9 @@ public class MappingProcessor extends AbstractProcessor {
       }
       return namesNoLevels()
           ? new Written(inner, inner, written)
-          : new Written(
-              Objects.requireNonNullElse(level.writtenKey(declared, types, elements), inner),
-              inner,
-              scopes);
+          : Optional.ofNullable(level.writtenKey(declared, types, elements))
+              .map(outer -> new Written(outer, inner, scopes))
+              .orElse(null);
     }
 
     /** Whether the form that counts is declared nullable. */

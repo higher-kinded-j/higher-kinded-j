@@ -153,7 +153,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 #### Mapping {#runtime-mapping}
 
-- **A map's `null` key is a failure `parse` reports, not an exception** ([#1515](https://github.com/higher-kinded-j/higher-kinded-j/issues/1515)). A generated `parse`, `patch`, `updateFrom` or fallible merge, and `parseValues`, `parseKeys` and `parseEntries`, threw `NullPointerException`; each now returns `Invalid`, so catching that exception no longer catches it, and Spring answers 422, not 500. The `build` bulk forms still throw. See [The null contract, precisely](../mapping/rules.md#the-null-contract-precisely).
+- **A map's `null` key is a failure `parse` reports, not an exception** ([#1515](https://github.com/higher-kinded-j/higher-kinded-j/issues/1515)). A generated `parse`, `patch`, `updateFrom` or fallible merge, and `parseValues`, `parseKeys` and `parseEntries`, threw `NullPointerException`; each now returns `Invalid`, so catching that exception no longer catches it, and Spring answers 422, not 500, by default. The `build` bulk forms still throw. See [The null contract, precisely](../mapping/rules.md#the-null-contract-precisely).
 - **A mapping refuses a map holding two keys that `equals` cannot tell apart, unless it is an `IdentityHashMap`** ([#1483](https://github.com/higher-kinded-j/higher-kinded-j/issues/1483)). A same-typed `Map` copy, `parseValues` and `buildValues` lost an entry; they now throw. Hold such a map as an `IdentityHashMap`, which comes back a writable one, so look its keys up by the same object. See [Same-typed containers cross as copies](../mapping/rules.md#same-typed-containers-cross-as-copies).
 
 #### Core types {#runtime-core-types}

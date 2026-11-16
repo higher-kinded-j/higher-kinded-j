@@ -84,6 +84,7 @@ class NullableReadIntoNonNullTest {
           package com.loose;
 
           import com.marked.Wires;
+          import java.util.List;
           import org.higherkindedj.optics.annotations.Flatten;
           import org.higherkindedj.optics.annotations.GenerateMapping;
           import org.higherkindedj.optics.annotations.MappingSpec;
@@ -91,6 +92,12 @@ class NullableReadIntoNonNullTest {
 
           public final class LooseSpecs {
             private LooseSpecs() {}
+
+            // Below a type variable, its argument is read where the spec writes it, which says
+            // nothing; what the variable's own bound holds is not read there yet.
+            @GenerateMapping
+            public interface LooseRacksMapping
+                extends MappingSpec<Wires.Racks<List<String>>, Wires.HoledRacks> {}
 
             // The argument the spec writes says nothing, here and where the Impl is declared.
             @GenerateMapping
@@ -570,6 +577,13 @@ class NullableReadIntoNonNullTest {
             @GenerateMapping
             public interface AnyKeysMapping extends MappingSpec<AnyKeys, ObjectKeys> {}
 
+            // A domain variable whose argument may hold a null takes the wire's nulls.
+            public record OpenRows<T extends @Nullable Object>(List<@NonNull T> rows) {}
+
+            @GenerateMapping
+            public interface OpenRowsMapping
+                extends MappingSpec<OpenRows<List<@Nullable String>>, HoledGrid> {}
+
             public record AnyKeyRows(List<Map<?, String>> rows) {}
 
             public record ObjectKeyRows(List<Map<? extends @Nullable Object, String>> rows) {}
@@ -742,6 +756,7 @@ class NullableReadIntoNonNullTest {
         "HoldingMapping",
         "AnyKeysMapping",
         "AnyKeyRowsMapping",
+        "OpenRowsMapping",
         "HoledOptionalMapping",
         "RawMapping",
         "RosterMapping",
@@ -772,10 +787,13 @@ class NullableReadIntoNonNullTest {
 
   @Test
   @DisplayName(
-      "a spec in a package that says nothing writes arguments that say nothing, but a flattened"
-          + " group's arguments are written by its domain, and a non-null bound holds")
+      "a spec in a package that says nothing writes arguments that say nothing, below a type"
+          + " variable too, but a flattened group's arguments are written by its domain, and a"
+          + " non-null bound holds at its own level")
   void aSpecOutsideTheMarkedPackage() {
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseBagMappingImpl"))
+        .contains("asIso");
+    Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseRacksMappingImpl"))
         .contains("asIso");
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseItemMappingImpl"))
         .contains("asIso");
@@ -797,7 +815,7 @@ class NullableReadIntoNonNullTest {
   @DisplayName(
       "parse and the patch report the null the optics would have handed over, a map's key"
           + " included")
-  void parseAndThePatchLocateTheNull() throws ReflectiveOperationException {
+  void parseAndThePatchReportTheNull() throws ReflectiveOperationException {
     Object customers = compiled.instance(implOf("CustomerMapping"));
     Object empty =
         compiled
