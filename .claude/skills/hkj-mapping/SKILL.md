@@ -563,7 +563,9 @@ matter: it maps build-only whatever its width, derived fields included.
   can hand it over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not
   `asLens()`. A type argument counts where an unannotated type variable leaves the nullness to it
   (`Page<@Nullable String>` for `Page<T extends @Nullable Object>`), and an annotated use
-  (`@NonNull T`) decides alone for the value itself, while what it holds is still its argument's.
+  (`@NonNull T`) decides alone for the value itself. What any type variable holds, annotated or
+  not, is still its argument's, or its bound's where that rules a `null` out (`L extends
+  List<String>` in a marked record).
   A side that says nothing keeps the optic; `? super` wildcards and an `Optional`'s own element do
   not count. Call `asValidatedPrism()` or `patch`, or give the pair one
   nullness.

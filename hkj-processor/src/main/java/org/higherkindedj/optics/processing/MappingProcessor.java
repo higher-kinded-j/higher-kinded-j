@@ -59,6 +59,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -13265,13 +13266,20 @@ public class MappingProcessor extends AbstractProcessor {
    * variable's own bound rules a null out. Any other declaration counts as it is written,
    * {@code @Nullable T} and {@code @NonNull T} among them, read in its own scope. Below any
    * declared type variable, annotated or not, the levels are the argument's ({@link
-   * #namesNoLevels}), so they are read where it is written. A variable javac made by capturing a
-   * wildcard declares nothing of its own, so it is read as it is written, and says nothing.
+   * #namesNoLevels}), so they are read where it is written, and the variable's own bound, read in
+   * its own scope, rules a null out at each of them where it does ({@code bound}, null outside any
+   * variable). A variable javac made by capturing a wildcard declares nothing of its own, so it is
+   * read as it is written, and says nothing.
    */
-  private record Written(TypeMirror declared, TypeMirror instantiated, List<Element> scopes) {
+  private record Written(
+      TypeMirror declared, TypeMirror instantiated, List<Element> scopes, Bound bound) {
 
     Written {
       scopes = List.copyOf(scopes);
+    }
+
+    Written(TypeMirror declared, TypeMirror instantiated, List<Element> scopes) {
+      this(declared, instantiated, scopes, null);
     }
 
     /** Whether the declaration leaves its nullness to its type argument. */
@@ -13296,9 +13304,10 @@ public class MappingProcessor extends AbstractProcessor {
      */
     Written element(NullScan level, List<Element> written, Types types, Elements elements) {
       TypeMirror inner = level.writtenElement(instantiated, types, elements);
+      Bound within = enclosing().map(b -> b.element(level, types, elements)).orElse(null);
       return namesNoLevels()
-          ? new Written(inner, inner, written)
-          : new Written(level.writtenElement(declared, types, elements), inner, scopes);
+          ? new Written(inner, inner, written, within)
+          : new Written(level.writtenElement(declared, types, elements), inner, scopes, within);
     }
 
     /**
@@ -13311,11 +13320,22 @@ public class MappingProcessor extends AbstractProcessor {
       if (inner == null) {
         return null;
       }
+      Bound within = enclosing().map(b -> b.key(level, types, elements)).orElse(null);
       return namesNoLevels()
-          ? new Written(inner, inner, written)
+          ? new Written(inner, inner, written, within)
           : Optional.ofNullable(level.writtenKey(declared, types, elements))
-              .map(outer -> new Written(outer, inner, scopes))
+              .map(outer -> new Written(outer, inner, scopes, within))
               .orElse(null);
+    }
+
+    /**
+     * The bound the levels below this one sit inside: this declaration's own, where it is a type
+     * variable, read in its scope, or else the one this level sits inside.
+     */
+    private Optional<Bound> enclosing() {
+      return namesNoLevels()
+          ? Optional.of(new Bound(declared, scopes))
+          : Optional.ofNullable(bound);
     }
 
     /** Whether the form that counts is declared nullable. */
@@ -13327,9 +13347,14 @@ public class MappingProcessor extends AbstractProcessor {
      * Whether the form that counts rules a null out ({@link NullableAnnotations#rulesOutNull}) in a
      * scope it is read in: its own, or, for a deferred declaration, where its argument is {@code
      * written}. A deferred variable whose own bound is non-null rules a null out whatever its
-     * argument, as {@link MappingProcessor#nonNullComponent} reads it for the component itself.
+     * argument, as {@link MappingProcessor#nonNullComponent} reads it for the component itself, and
+     * so does the bound of a variable this level sits inside.
      */
     boolean nonNull(List<Element> written) {
+      return ruledOutAsWritten(written) || bound != null && bound.provesNonNull();
+    }
+
+    private boolean ruledOutAsWritten(List<Element> written) {
       if (!deferred()) {
         return scopes.stream().anyMatch(scope -> NullableAnnotations.rulesOutNull(declared, scope));
       }
@@ -13341,6 +13366,62 @@ public class MappingProcessor extends AbstractProcessor {
 
     private TypeMirror counted() {
       return deferred() ? instantiated : declared;
+    }
+  }
+
+  /**
+   * What a type variable's own bound says of a level inside the variable, read in the scope the
+   * variable is declared in: {@code L extends List<String>}, in a {@code @NullMarked} record, holds
+   * non-null strings whatever its argument. {@code type} is the bound's type at this level,
+   * starting at the variable itself. A type variable met inside the bound, as {@code E} in {@code L
+   * extends List<E>}, stands for an argument written elsewhere, so it rules a null out only by its
+   * own bound or annotation, never by the scope it is read in. A level is read through a type
+   * variable's bound, followed while it is one, and through each bound of an intersection in turn,
+   * the first that names it deciding.
+   */
+  private record Bound(TypeMirror type, List<Element> scopes) {
+
+    Bound {
+      scopes = List.copyOf(scopes);
+    }
+
+    /** The bound's element type at {@code level}, or null where the bound names none. */
+    Bound element(NullScan level, Types types, Elements elements) {
+      return at(readable(type).map(read -> level.namedElement(read, types, elements)));
+    }
+
+    /** The bound's key type at a map {@code level}, or null where the bound names none. */
+    Bound key(NullScan level, Types types, Elements elements) {
+      return at(readable(type).map(read -> level.writtenKey(read, types, elements)));
+    }
+
+    /**
+     * Whether the bound proves a null absent at this level, in the variable's own scope: by an
+     * annotation, by its scope, or by a type variable's own bound, never by the parametric rule
+     * that {@link NullableAnnotations#rulesOutNull} adds for a variable in a marked scope.
+     */
+    boolean provesNonNull() {
+      return scopes.stream()
+          .anyMatch(scope -> NullableAnnotations.nonNullReason(type, scope).isPresent());
+    }
+
+    /** The types a level is read through, in order. */
+    private static Stream<TypeMirror> readable(TypeMirror type) {
+      return switch (type.getKind()) {
+        case TYPEVAR -> readable(((TypeVariable) type).getUpperBound());
+        case INTERSECTION ->
+            ((IntersectionType) type).getBounds().stream().flatMap(Bound::readable);
+        default -> Stream.of(type);
+      };
+    }
+
+    /** The first type the bound names at this level, as a bound, or null where it names none. */
+    private Bound at(Stream<TypeMirror> named) {
+      return named
+          .filter(Objects::nonNull)
+          .findFirst()
+          .map(inner -> new Bound(inner, scopes))
+          .orElse(null);
     }
   }
 

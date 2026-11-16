@@ -93,6 +93,9 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   private static final TypeName FAILURES = ParameterizedTypeName.get(NEL, FIELD_ERROR);
   private static final TypeName ANY = WildcardTypeName.subtypeOf(Object.class);
 
+  /** The type a collection's element can be named through by a bound that is no collection. */
+  private static final String ITERABLE = "java.lang.Iterable";
+
   /** Where {@code Map<K, V>} takes its key among its type arguments. */
   private static final int MAP_KEY = 0;
 
@@ -222,13 +225,22 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   /**
    * The argument a container class passes its view as {@code shape} at {@code index}, in terms of
    * its own type parameters, as {@link #elementArgument} reads the element: null for a class that
-   * extends the container raw.
+   * extends the container raw, or is no such container at all, as a type variable's bound such as
+   * {@code Object} need not be. A bound may name a collection's element as an {@code Iterable}'s,
+   * as {@code L extends Iterable<String>} does, so a collection level reads one through that view
+   * where it has no other.
    */
   private static TypeMirror namedArgument(
       TypeElement declaration, Shape shape, int index, Types types, Elements elements) {
-    List<? extends TypeMirror> arguments =
-        view((DeclaredType) declaration.asType(), shape, types, elements).getTypeArguments();
-    return arguments.isEmpty() ? null : arguments.get(index);
+    DeclaredType type = (DeclaredType) declaration.asType();
+    DeclaredType view = view(type, shape, types, elements);
+    if (view == null && shape == Shape.COLLECTION) {
+      view =
+          (DeclaredType) ProcessorUtils.supertypeOf(types, type, elements.getTypeElement(ITERABLE));
+    }
+    return view == null || view.getTypeArguments().isEmpty()
+        ? null
+        : view.getTypeArguments().get(index);
   }
 
   /** The type as the given container, under the arguments it is reached by, or null. */
@@ -255,13 +267,30 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    * @return the type this level's elements are written as
    */
   TypeMirror writtenElement(TypeMirror written, Types types, Elements elements) {
-    TypeMirror argument =
-        switch (written.getKind()) {
-          case ARRAY -> ((ArrayType) written).getComponentType();
-          case DECLARED -> writtenArgument((DeclaredType) written, shape.argument, types, elements);
-          default -> null;
-        };
-    return argument == null ? element : argument;
+    TypeMirror named = namedElement(written, types, elements);
+    return named == null ? element : named;
+  }
+
+  /**
+   * The type this level's elements are written as inside {@code written}, read as {@link
+   * #writtenElement} reads it, but with no fallback: null where {@code written} names none, as a
+   * type variable, a raw container, a wildcard with no upper bound, or a type that is no container
+   * of this level's kind, such as a type variable's bound {@code Object} over an array, does not.
+   *
+   * @param written the type, as a declaration writes it
+   * @param types the round's type utilities
+   * @param elements the round's element utilities
+   * @return the type this level's elements are written as, or null
+   */
+  TypeMirror namedElement(TypeMirror written, Types types, Elements elements) {
+    return switch (written.getKind()) {
+      case ARRAY -> ((ArrayType) written).getComponentType();
+      case DECLARED ->
+          shape == Shape.ARRAY
+              ? null
+              : writtenArgument((DeclaredType) written, shape.argument, types, elements);
+      default -> null;
+    };
   }
 
   /**

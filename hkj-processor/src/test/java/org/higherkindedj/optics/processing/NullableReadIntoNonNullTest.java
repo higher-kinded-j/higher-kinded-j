@@ -84,6 +84,7 @@ class NullableReadIntoNonNullTest {
           package com.loose;
 
           import com.marked.Wires;
+          import java.util.ArrayList;
           import java.util.List;
           import org.higherkindedj.optics.annotations.Flatten;
           import org.higherkindedj.optics.annotations.GenerateMapping;
@@ -94,10 +95,41 @@ class NullableReadIntoNonNullTest {
             private LooseSpecs() {}
 
             // Below a type variable, its argument is read where the spec writes it, which says
-            // nothing; what the variable's own bound holds is not read there yet.
+            // nothing, but the variable's own bound rules a null out where it is declared, at
+            // every level inside it, and through a variable it names.
             @GenerateMapping
             public interface LooseRacksMapping
                 extends MappingSpec<Wires.Racks<List<String>>, Wires.HoledRacks> {}
+
+            @GenerateMapping
+            public interface LinkedMapping
+                extends MappingSpec<Wires.Linked<String, List<String>>, Wires.HoledGrid> {}
+
+            @GenerateMapping
+            public interface CubeMapping
+                extends MappingSpec<Wires.Cube<List<List<String>>>, Wires.HoledCube> {}
+
+            // Unannotated, through an intersection either way round, through another variable,
+            // and through an Iterable.
+            @GenerateMapping
+            public interface PlainRacksMapping
+                extends MappingSpec<Wires.PlainRacks<List<String>>, Wires.HoledRacks> {}
+
+            @GenerateMapping
+            public interface RankedMapping
+                extends MappingSpec<Wires.Ranked<ArrayList<String>>, Wires.HoledArrayRows> {}
+
+            @GenerateMapping
+            public interface SerialMapping
+                extends MappingSpec<Wires.Serial<ArrayList<String>>, Wires.HoledArrayRows> {}
+
+            @GenerateMapping
+            public interface ChainedMapping
+                extends MappingSpec<Wires.Chained<List<String>, List<String>>, Wires.HoledGrid> {}
+
+            @GenerateMapping
+            public interface IteratedMapping
+                extends MappingSpec<Wires.Iterated<List<String>>, Wires.HoledGrid> {}
 
             // The argument the spec writes says nothing, here and where the Impl is declared.
             @GenerateMapping
@@ -130,6 +162,7 @@ class NullableReadIntoNonNullTest {
           """
           package com.marked;
 
+          import java.io.Serializable;
           import java.lang.annotation.ElementType;
           import java.lang.annotation.Target;
           import java.util.ArrayList;
@@ -137,6 +170,7 @@ class NullableReadIntoNonNullTest {
           import java.util.List;
           import java.util.Map;
           import java.util.Optional;
+          import java.util.RandomAccess;
           import org.higherkindedj.optics.annotations.Flatten;
           import org.higherkindedj.optics.annotations.GenerateMapping;
           import org.higherkindedj.optics.annotations.MappingSpec;
@@ -350,6 +384,15 @@ class NullableReadIntoNonNullTest {
             @GenerateMapping
             public interface PinnedValuesMapping
                 extends MappingSpec<Labels, PinnedValues<Map<String, @Nullable String>>> {}
+
+            // A bound that names no array says nothing of one.
+            public record ArrayItems<T extends @Nullable Object>(List<@NonNull T> rows) {}
+
+            public record HoledArrayItems(List<@Nullable String[]> rows) {}
+
+            @GenerateMapping
+            public interface ArrayItemsMapping
+                extends MappingSpec<ArrayItems<String[]>, HoledArrayItems> {}
 
             public record PinnedTags<L extends List<@Nullable String>>(@NonNull L codes) {}
 
@@ -584,6 +627,34 @@ class NullableReadIntoNonNullTest {
             public interface OpenRowsMapping
                 extends MappingSpec<OpenRows<List<@Nullable String>>, HoledGrid> {}
 
+            // A variable inside a bound stands for its own argument: its bound decides, not the
+            // scope it is read in.
+            public record Paired<E extends @Nullable Object, L extends List<E>>(
+                List<@NonNull L> rows) {}
+
+            @GenerateMapping
+            public interface PairedMapping
+                extends MappingSpec<Paired<@Nullable String, List<@Nullable String>>, HoledGrid> {}
+
+            // Bounds the unmarked package's specs read.
+            public record Linked<E, L extends List<E>>(List<@NonNull L> rows) {}
+
+            public record Cube<L extends List<List<String>>>(List<@NonNull L> grid) {}
+
+            public record HoledCube(List<List<List<@Nullable String>>> grid) {}
+
+            public record PlainRacks<L extends List<String>>(List<L> racks) {}
+
+            public record Ranked<L extends List<String> & RandomAccess>(List<@NonNull L> rows) {}
+
+            public record Serial<L extends Serializable & List<String>>(List<@NonNull L> rows) {}
+
+            public record Chained<M extends List<String>, L extends M>(List<@NonNull L> rows) {}
+
+            public record Iterated<L extends Iterable<String>>(List<@NonNull L> rows) {}
+
+            public record HoledArrayRows(List<ArrayList<@Nullable String>> rows) {}
+
             public record AnyKeyRows(List<Map<?, String>> rows) {}
 
             public record ObjectKeyRows(List<Map<? extends @Nullable Object, String>> rows) {}
@@ -723,7 +794,8 @@ class NullableReadIntoNonNullTest {
         "SlotMapping",
         "PinnedKeysMapping",
         "PinnedValuesMapping",
-        "PinnedTagsMapping");
+        "PinnedTagsMapping",
+        "ArrayItemsMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -757,6 +829,7 @@ class NullableReadIntoNonNullTest {
         "AnyKeysMapping",
         "AnyKeyRowsMapping",
         "OpenRowsMapping",
+        "PairedMapping",
         "HoledOptionalMapping",
         "RawMapping",
         "RosterMapping",
@@ -789,12 +862,25 @@ class NullableReadIntoNonNullTest {
   @DisplayName(
       "a spec in a package that says nothing writes arguments that say nothing, below a type"
           + " variable too, but a flattened group's arguments are written by its domain, and a"
-          + " non-null bound holds at its own level")
+          + " non-null bound holds, at its own level and at every level inside it")
   void aSpecOutsideTheMarkedPackage() {
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseBagMappingImpl"))
         .contains("asIso");
-    Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseRacksMappingImpl"))
-        .contains("asIso");
+    Stream.of(
+            "LooseRacksMapping",
+            "LinkedMapping",
+            "CubeMapping",
+            "PlainRacksMapping",
+            "RankedMapping",
+            "SerialMapping",
+            "ChainedMapping",
+            "IteratedMapping")
+        .forEach(
+            spec ->
+                Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecs" + spec + "Impl"))
+                    .as(spec)
+                    .contains("build", "parse")
+                    .doesNotContain("asIso"));
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseItemMappingImpl"))
         .contains("asIso");
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsNamedOrderMappingImpl"))
