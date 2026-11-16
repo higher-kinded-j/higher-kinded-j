@@ -77,7 +77,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Spring {#spring}
 
----
+- **The starter depends on `spring-boot-starter-webmvc`** ([#1377](https://github.com/higher-kinded-j/higher-kinded-j/issues/1377)). Spring Boot 4 deprecates `spring-boot-starter-web`, which the starter put on every application's classpath. The new starter brings the same modules, so nothing changes at runtime.
 
 ## Testing {#testing}
 

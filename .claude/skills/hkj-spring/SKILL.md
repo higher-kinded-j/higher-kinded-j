@@ -361,7 +361,7 @@ EitherPath<ApiError, UserDto> path = userClientApi.getUser("42");
 path.run().fold(this::handleError, this::renderUser);
 ```
 
-The starter bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and applies the base URL (it is **not** pulled in by `spring-boot-starter-web` alone). The generated `…ClientConfiguration` declares the `@ImportHttpServices` group and is component-scanned with your app (it sits in your interface's package); add an explicit `@ImportHttpServices(basePackages = "...")` only if your client interfaces live outside the scan.
+The starter bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and applies the base URL (it is **not** pulled in by `spring-boot-starter-webmvc` alone). The generated `…ClientConfiguration` declares the `@ImportHttpServices` group and is component-scanned with your app (it sits in your interface's package); add an explicit `@ImportHttpServices(basePackages = "...")` only if your client interfaces live outside the scan.
 
 ### Return types
 

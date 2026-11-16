@@ -55,7 +55,7 @@ dependencies {
     // are Spring code, and without these the gate could not compile them at all.
     testImplementation(platform(libs.spring.boot.bom))
     testImplementation(project(":hkj-spring:starter"))
-    testImplementation(libs.spring.boot.starter.web)
+    testImplementation(libs.spring.boot.starter.webmvc)
     testImplementation(libs.spring.boot.starter.test)
     testImplementation(libs.spring.boot.webmvc.test)
 
