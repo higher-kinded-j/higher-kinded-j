@@ -10641,7 +10641,7 @@ public class MappingProcessor extends AbstractProcessor {
     RecordComponentElement component = componentNamed(member.domain(), member.name());
     Written value =
         new Written(
-            component.asType(),
+            component.getAccessor().getReturnType(),
             domainType,
             List.of(component),
             writtenScopes(member.spec(), arguments));
@@ -10675,7 +10675,8 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * {@link #reportedNullableArguments} through {@code nested}, the spec the leg nests: what it is
-   * handed ({@code part}), and what it builds into the wire's {@code site}.
+   * handed ({@code part}), and what it builds into the wire's {@code site}, or into the canonical
+   * constructor's parameter that writes it.
    */
   private boolean reportedNullableArgumentsThrough(
       MemberSite member,
@@ -10706,9 +10707,21 @@ public class MappingProcessor extends AbstractProcessor {
         site.flatMap(
             copy ->
                 NullnessReading.builtArgument(
-                    nested.wire(), bindings, crossing(copy.type(), kind, types, elements)));
+                    nested.wire(),
+                    bindings,
+                    crossing(copy.type(), kind, types, elements),
+                    copy.parameter()
+                        .map(parameter -> crossing(parameter.type(), kind, types, elements)),
+                    types,
+                    elements));
     built.ifPresent(
-        argument -> reportNullableBuiltArgument(member, kind, nested, site.get(), argument));
+        argument ->
+            reportNullableBuiltArgument(
+                member,
+                kind,
+                nested,
+                argument.toParameter() ? site.get().parameter().orElseThrow() : site.get(),
+                argument));
     return built.isPresent();
   }
 
@@ -10887,7 +10900,7 @@ public class MappingProcessor extends AbstractProcessor {
                 reason.orElseThrow());
     List<NonNullSite> ruling =
         NullnessReading.withBound(
-            to, "type argument", site.member(), site.declaration(), site.declaredBy(), asWritten);
+            to, argument.what(), site.member(), site.declaration(), site.declaredBy(), asWritten);
     Diagnostics.error(
         processingEnv.getMessager(),
         member.spec(),
@@ -10896,7 +10909,9 @@ public class MappingProcessor extends AbstractProcessor {
             + nested.describe()
             + "' builds "
             + ProcessorUtils.simpleTypeName(nested.wire())
-            + " with the type argument "
+            + " with the "
+            + argument.what()
+            + " "
             + ProcessorUtils.simpleTypeName(argument.nullable())
             + " @Nullable from "
             + spelt
@@ -10948,7 +10963,11 @@ public class MappingProcessor extends AbstractProcessor {
               spelt, spelt + " is declared @Nullable", "declare " + spelt + " non-null", true));
     }
     Written written =
-        new Written(component.asType(), domainType, List.of(component), List.of(arguments));
+        new Written(
+            component.getAccessor().getReturnType(),
+            domainType,
+            List.of(component),
+            List.of(arguments));
     return written.deferred() && written.nullable()
         ? Optional.of(
             new NullableSource(
@@ -11371,6 +11390,7 @@ public class MappingProcessor extends AbstractProcessor {
       BeanPropertyAnalyser.SingularNulls nulls =
           BeanPropertyAnalyser.singularNulls(
               processingEnv.getElementUtils(),
+              processingEnv.getTypeUtils(),
               singular.method(),
               bean.element(),
               member.wireName());
@@ -11550,7 +11570,8 @@ public class MappingProcessor extends AbstractProcessor {
    * a null element, wherever the domain's may be null. A bridged component is read through its
    * {@code Optional}, its present value as the leg its pair takes unbridged. A copied {@code Map}'s
    * keys count at its own level as its values do. An {@code Optional}'s own level cannot hold a
-   * null.
+   * null. The domain is read at its accessor, which {@code build} calls, as {@link
+   * NullnessReading#readsNullable} reads the component's own level.
    */
   private boolean reportedNullableElements(
       MemberSite member,
@@ -11563,7 +11584,7 @@ public class MappingProcessor extends AbstractProcessor {
     RecordComponentElement component = componentNamed(member.domain(), member.name());
     Written domainSide =
         new Written(
-            component.asType(),
+            component.getAccessor().getReturnType(),
             domainType,
             List.of(component),
             writtenScopes(member.spec(), arguments));

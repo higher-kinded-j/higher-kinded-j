@@ -809,6 +809,28 @@ class NullableIntoBuildTest {
               public interface TalliedAssembly {
                 Tallied merge(Indexed indexed, Labels labels);
               }
+
+              // build calls the accessor, which declares its elements nullable.
+              public record Loud(List<String> tags) {
+                @Override
+                public List<@Nullable String> tags() {
+                  return new ArrayList<>(tags);
+                }
+              }
+
+              public record LoudDto(List<String> tags) {}
+
+              @GenerateMapping
+              public interface LoudMapping extends MappingSpec<Loud, LoudDto> {}
+
+              public record Shout(String name) {}
+
+              public record Heard(List<String> tags, String name) {}
+
+              @GenerateMerge
+              public interface HeardAssembly {
+                Heard merge(Loud loud, Shout shout);
+              }
             }
             """);
     // The spec's package is not @NullMarked, so its argument says nothing of its own.
@@ -1008,7 +1030,19 @@ class NullableIntoBuildTest {
         .hadErrorContaining(
             "and the element type String at the elements' elements of the type argument the spec"
                 + " gives 'GridBox.rows' carries no @Nullable");
-    Assertions.assertThat(compilation.errors()).hasSize(29);
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'Loud.tags' declares its elements @Nullable, and build copies them to"
+                + " the record component 'LoudDto.tags'.")
+        .inFile(elements)
+        .onLineContaining("interface LoudMapping");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "source component 'Loud.tags' declares its elements @Nullable, and the merge copies"
+                + " them to the record component 'Heard.tags'.")
+        .inFile(elements)
+        .onLineContaining("Heard merge(Loud loud, Shout shout)");
+    Assertions.assertThat(compilation.errors()).hasSize(31);
   }
 
   @Test
@@ -1660,6 +1694,167 @@ class NullableIntoBuildTest {
 
   @Test
   @DisplayName(
+      "what a nested spec builds is read at every level it writes: a use annotated @Nullable, an"
+          + " array's elements, and the canonical constructor build hands it to")
+  void aNestedSpecsWireIsReadAtEveryLevel() {
+    JavaFileObject built =
+        JavaFileObjects.forSourceString(
+            "com.marked.Built",
+            """
+            package com.marked;
+
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.jspecify.annotations.Nullable;
+
+            public final class Built {
+              private Built() {}
+
+              public record Box<T extends @Nullable Object>(T item) {}
+
+              public record BoxDto<T extends @Nullable Object>(T item) {}
+
+              // The use says what the spec builds, whatever T is bound to.
+              @GenerateMapping
+              public interface UseMapping<T> extends MappingSpec<Box<T>, BoxDto<@Nullable T>> {}
+
+              public record Used(Box<String> box) {}
+
+              public record UsedDto(BoxDto<String> box) {}
+
+              @GenerateMapping
+              public interface UsedMapping extends MappingSpec<Used, UsedDto> {}
+
+              public record Lists(List<String>[] items) {}
+
+              public record ListsDto<T extends @Nullable Object>(T items) {}
+
+              @GenerateMapping
+              public interface ListsMapping
+                  extends MappingSpec<Lists, ListsDto<List<@Nullable String>[]>> {}
+
+              public record Shelved(Lists lists) {}
+
+              public record ShelvedDto(ListsDto<List<String>[]> lists) {}
+
+              @GenerateMapping
+              public interface ShelvedMapping extends MappingSpec<Shelved, ShelvedDto> {}
+
+              public record Names(String[] items) {}
+
+              @GenerateMapping
+              public interface NamesMapping extends MappingSpec<Names, ListsDto<@Nullable String[]>> {}
+
+              public record Roll(Names names) {}
+
+              public record RollDto(ListsDto<String[]> names) {}
+
+              @GenerateMapping
+              public interface RollMapping extends MappingSpec<Roll, RollDto> {}
+
+              public record Plain(String item) {}
+
+              @GenerateMapping
+              public interface PlainMapping extends MappingSpec<Plain, BoxDto<@Nullable String>> {}
+
+              public record Taken(Plain box) {}
+
+              // The component takes the null; the canonical constructor build calls rules it out.
+              public record TakenDto(BoxDto<@Nullable String> box) {
+                public TakenDto(BoxDto<String> box) {
+                  this.box = box;
+                }
+              }
+
+              @GenerateMapping
+              public interface TakenMapping extends MappingSpec<Taken, TakenDto> {}
+            }
+            """);
+    // Outside any @NullMarked scope the parameter says nothing, so the component decides.
+    JavaFileObject loose =
+        JavaFileObjects.forSourceString(
+            "com.loose.Strict",
+            """
+            package com.loose;
+
+            import com.marked.Built.BoxDto;
+            import com.marked.Built.Plain;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.jspecify.annotations.NonNull;
+
+            public final class Strict {
+              private Strict() {}
+
+              public record Held(Plain box) {}
+
+              public record HeldDto(BoxDto<@NonNull String> box) {
+                public HeldDto(BoxDto<String> box) {
+                  this.box = box;
+                }
+              }
+
+              @GenerateMapping
+              public interface HeldMapping extends MappingSpec<Held, HeldDto> {}
+            }
+            """);
+
+    Compilation compilation = compile(built, loose);
+
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "the spec 'UseMapping' builds Built.BoxDto<T> with the type argument T @Nullable from"
+                + " 'Used.box', and build copies it to the record component 'UsedDto.box'.")
+        .inFile(built)
+        .onLineContaining("interface UsedMapping");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "the spec 'ListsMapping' builds Built.ListsDto<List<String>[]> with the type argument"
+                + " String @Nullable from 'Shelved.lists', and build copies it to the record"
+                + " component 'ShelvedDto.lists'. The spec builds the wire as it declares it, its"
+                + " type variables standing for the domain's arguments, and the type argument String"
+                + " of List<String> in 'ShelvedDto.lists' carries no @Nullable")
+        .inFile(built)
+        .onLineContaining("interface ShelvedMapping");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "the spec 'NamesMapping' builds Built.ListsDto<String[]> with the element type String"
+                + " @Nullable from 'Roll.names', and build copies it to the record component"
+                + " 'RollDto.names'. The spec builds the wire as it declares it, its type variables"
+                + " standing for the domain's arguments, and the element type String of String[]"
+                + " in 'RollDto.names' carries no @Nullable")
+        .inFile(built)
+        .onLineContaining("interface RollMapping");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "the spec 'PlainMapping' builds Built.BoxDto<String> with the type argument String"
+                + " @Nullable from 'Taken.box', and build copies it to the record component"
+                + " 'TakenDto.box'. The spec builds the wire as it declares it, its type variables"
+                + " standing for the domain's arguments, and the type argument String of"
+                + " Built.BoxDto<String> in the parameter 'box' of the canonical constructor"
+                + " TakenDto(Built.BoxDto<String>) carries no @Nullable inside @NullMarked package"
+                + " 'com.marked', so build would hand the wire a null its type says it cannot hold."
+                + " Give the two one nullness: mark the type argument String of"
+                + " Built.BoxDto<String> in the parameter 'box' of the canonical constructor"
+                + " TakenDto(Built.BoxDto<String>) @Nullable;")
+        .inFile(built)
+        .onLineContaining("interface TakenMapping");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "the spec 'PlainMapping' builds Built.BoxDto<String> with the type argument String"
+                + " @Nullable from 'Held.box', and build copies it to the record component"
+                + " 'HeldDto.box'. The spec builds the wire as it declares it, its type variables"
+                + " standing for the domain's arguments, and the type argument String of"
+                + " Built.BoxDto<String> in 'HeldDto.box' is annotated @NonNull")
+        .inFile(loose)
+        .onLineContaining("interface HeldMapping");
+    Assertions.assertThat(compilation.errors()).hasSize(5);
+  }
+
+  @Test
+  @DisplayName(
       "a lifted map that converts its values passes its keys through, and one that converts its"
           + " keys passes its values, to a bulk build that throws on a null either way")
   void aLiftedMapRefusesTheNullItPassesThrough() {
@@ -1911,12 +2106,13 @@ class NullableIntoBuildTest {
                 + " parameter 'tags' of the canonical constructor Tagged(List<String>, String) is"
                 + " annotated @NonNull");
     Assertions.assertThat(compilation.errors()).hasSize(3);
+    assertThat(compile(marked)).succeededWithoutWarnings();
   }
 
   @Test
   @DisplayName(
-      "a Lombok @Singular collection that throws on a null is refused, and one that skips it, or a"
-          + " hand-written one that says nothing, is not")
+      "a Lombok @Singular collection that throws on a null is refused, read on the builder build"
+          + " calls, and one that skips it, or a hand-written one that says nothing, is not")
   void aSingularCollectionThatThrowsIsRefused() {
     JavaFileObject singular =
         JavaFileObjects.forSourceString(
@@ -2076,6 +2272,62 @@ class NullableIntoBuildTest {
 
               @GenerateMapping
               public interface LooseBundleMapping extends MappingSpec<Tagged, LooseBundle> {}
+
+              // build calls builder(), whose builder throws; another builder's skips.
+              @Getter
+              public static final class Twice {
+                private final List<String> tags;
+
+                @Builder
+                Twice(@Singular List<String> tags) {
+                  this.tags = tags;
+                }
+
+                @Builder(builderMethodName = "skipping", builderClassName = "SkippingBuilder")
+                Twice(@Singular(ignoreNullCollections = true) List<String> tags, int extra) {
+                  this.tags = tags;
+                }
+              }
+
+              @GenerateMapping
+              public interface TwiceMapping extends MappingSpec<Tagged, Twice> {}
+
+              // build calls builder(), whose builder skips; another builder's throws.
+              @Getter
+              public static final class Lenient {
+                private final List<String> tags;
+
+                @Builder
+                Lenient(@Singular(ignoreNullCollections = true) List<String> tags) {
+                  this.tags = tags;
+                }
+
+                @Builder(builderMethodName = "strict", builderClassName = "StrictBuilder")
+                Lenient(@Singular List<String> tags, int extra) {
+                  this.tags = tags;
+                }
+              }
+
+              @GenerateMapping
+              public interface LenientMapping extends MappingSpec<Tagged, Lenient> {}
+
+              // Lombok names a method's builder after the type it returns.
+              @Getter
+              public static final class Made {
+                private final List<String> tags;
+
+                private Made(List<String> tags) {
+                  this.tags = tags;
+                }
+
+                @Builder
+                static Made make(@Singular List<String> tags) {
+                  return new Made(tags);
+                }
+              }
+
+              @GenerateMapping
+              public interface MadeMapping extends MappingSpec<Tagged, Made> {}
             }
             """);
 
@@ -2124,7 +2376,15 @@ class NullableIntoBuildTest {
                 + " extends String>) is declared non-null.")
         .inFile(singular)
         .onLineContaining("interface BundleMapping");
-    Assertions.assertThat(compilation.errors()).hasSize(7);
+    assertThat(compilation)
+        .hadErrorContaining("build hands it to the @Singular bean property 'tags'.")
+        .inFile(singular)
+        .onLineContaining("interface TwiceMapping");
+    assertThat(compilation)
+        .hadErrorContaining("build hands it to the @Singular bean property 'tags'.")
+        .inFile(singular)
+        .onLineContaining("interface MadeMapping");
+    Assertions.assertThat(compilation.errors()).hasSize(9);
   }
 
   @Test
@@ -2574,6 +2834,60 @@ class NullableIntoBuildTest {
                   return ValidatedPrism.of(Validated::validNel, code -> code);
                 }
               }
+
+              // build calls the accessor, which leaves the component's gaps out.
+              public record Quiet(List<@Nullable String> tags) {
+                @Override
+                public List<String> tags() {
+                  return tags.stream().filter(java.util.Objects::nonNull).toList();
+                }
+              }
+
+              public record QuietDto(List<String> tags) {}
+
+              @GenerateMapping
+              public interface QuietMapping extends MappingSpec<Quiet, QuietDto> {}
+
+              public record Hushed(List<String> tags, String label) {}
+
+              @GenerateMerge
+              public interface HushedAssembly {
+                Hushed merge(Quiet quiet, Labels labels);
+              }
+
+              public record Box(String item) {}
+
+              public record BoxDto<T extends @Nullable Object>(T item) {}
+
+              @GenerateMapping
+              public interface BoxMapping extends MappingSpec<Box, BoxDto<@Nullable String>> {}
+
+              // The canonical constructor build calls takes the null its component rules out.
+              public record Boxed(Box box) {}
+
+              public record BoxedDto(BoxDto<String> box) {
+                public BoxedDto(BoxDto<@Nullable String> box) {
+                  this.box = new BoxDto<>(box.item() == null ? "" : box.item());
+                }
+              }
+
+              @GenerateMapping
+              public interface BoxedMapping extends MappingSpec<Boxed, BoxedDto> {}
+
+              // A primitive array holds no null.
+              public record Ints(int[] items) {}
+
+              public record IntsDto<T extends @Nullable Object>(T items) {}
+
+              @GenerateMapping
+              public interface IntsMapping extends MappingSpec<Ints, IntsDto<int[]>> {}
+
+              public record Counted(Ints ints) {}
+
+              public record CountedDto(IntsDto<int[]> ints) {}
+
+              @GenerateMapping
+              public interface CountedMapping extends MappingSpec<Counted, CountedDto> {}
             }
             """);
     // A bound that is raw, holds a wildcard, or names another class than the argument gives

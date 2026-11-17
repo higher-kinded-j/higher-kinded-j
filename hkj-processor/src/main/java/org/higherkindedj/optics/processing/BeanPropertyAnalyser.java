@@ -1742,28 +1742,37 @@ final class BeanPropertyAnalyser {
   /**
    * What the {@code @Singular} collection setter {@code writer} does with a {@code null}
    * collection. The annotation is read where Lombok reads it: on the parameter named after {@code
-   * property} of a constructor or method carrying {@code @Builder}, where there is one, or else on
-   * the field of that name, in {@code owner} or up its superclasses.
+   * property} of the constructor or method whose {@code @Builder} names the builder class {@code
+   * writer} is in, where there is one, or else on the field of that name, in {@code owner} or up
+   * its superclasses. Another {@code @Builder} on the class writes another builder class, so what
+   * its parameter says is not read.
    *
    * @param elements the round's element utilities
+   * @param types the round's type utilities
    * @param writer the collection setter a builder has for {@code property}
    * @param owner the class the builder builds
    * @param property the property the writer writes
    * @return what the writer does with a null collection
    */
   static SingularNulls singularNulls(
-      Elements elements, ExecutableElement writer, TypeElement owner, String property) {
+      Elements elements,
+      Types types,
+      ExecutableElement writer,
+      TypeElement owner,
+      String property) {
     if (!writtenByLombok(writer)) {
       return SingularNulls.WRITTEN_BY_HAND;
     }
     if (!ProcessorUtils.compiledFromSource(elements, owner)) {
       return SingularNulls.UNSEEN;
     }
+    String builder = writer.getEnclosingElement().getSimpleName().toString();
     List<VariableElement> parameters =
         owner.getEnclosedElements().stream()
             .filter(ExecutableElement.class::isInstance)
             .map(ExecutableElement.class::cast)
             .filter(executable -> annotatedWithAny(executable, Set.of("lombok.Builder")))
+            .filter(executable -> builderClassName(types, executable).equals(builder))
             .flatMap(executable -> executable.getParameters().stream())
             .filter(parameter -> parameter.getSimpleName().contentEquals(property))
             .map(VariableElement.class::cast)
@@ -1785,6 +1794,29 @@ final class BeanPropertyAnalyser {
                         && Boolean.TRUE.equals(value.getValue().getValue()))
         ? SingularNulls.SKIPS
         : SingularNulls.THROWS;
+  }
+
+  /**
+   * The simple name of the builder class Lombok writes for {@code executable}, which carries
+   * {@code @Builder}: the {@code builderClassName} it is given, or else Lombok's default, the name
+   * of the type it builds followed by {@code Builder}. That type is a constructor's class, or a
+   * method's return type; a method that returns no class or interface names no builder that builds
+   * one, so its name is empty. A {@code lombok.config} that renames the default cannot be read, so
+   * a builder it names is matched by no constructor or method, and its fields are read.
+   */
+  private static String builderClassName(Types types, ExecutableElement executable) {
+    Element built =
+        executable.getKind() == ElementKind.CONSTRUCTOR
+            ? executable.getEnclosingElement()
+            : types.asElement(executable.getReturnType());
+    return executable.getAnnotationMirrors().stream()
+        .filter(mirror -> qualifiedName(mirror).equals("lombok.Builder"))
+        .flatMap(mirror -> mirror.getElementValues().entrySet().stream())
+        .filter(value -> value.getKey().getSimpleName().contentEquals("builderClassName"))
+        .map(value -> value.getValue().getValue().toString())
+        .findFirst()
+        .or(() -> Optional.ofNullable(built).map(type -> type.getSimpleName() + "Builder"))
+        .orElse("");
   }
 
   /**

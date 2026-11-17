@@ -265,6 +265,7 @@ The processor answers that `Album.tracks` `declares its elements @Nullable, and 
 - **The processor checks every level the copy reaches.** That is a `Map`'s values and keys, an array's elements, the container an `Optional` holds, and each level inside, as in `List<List<@Nullable String>>`.
 - **The site is read where the copy writes it.** That is a record component, a setter's or builder setter's parameter, the field Lombok writes one from, or a getter-only `List`'s getter. A type variable's element counts as the spec instantiates it: `ItemsDto<String>` non-null, `ItemsDto<@Nullable String>` nullable.
 - **A record's explicit canonical constructor decides too**, in a mapping and a merge. `build` calls it, so its parameter decides wherever it says anything, the component wherever it says nothing.
+- **The domain is read at the accessor `build` calls**, as [its own nullness](#nullable-where-build-throws) is, so one that leaves out the gaps may declare its elements non-null.
 - **A type variable's bound counts.** `ShelfDto<L extends List<String>>`, in a `@NullMarked` record, holds non-null strings whatever the spec's argument says.
 - **A bean's inherited setter is read as its superclass declares it.** What a subclass gives its type variable cannot be read there, so such a variable rules a `null` out only by its own bound.
 - **A protobuf-java repeated or map field is refused a nullable element or key**, whatever it declares, since protoc's builder throws on one.
@@ -309,7 +310,7 @@ The processor answers that `Tray.slot` declares the type argument `String` `@Nul
 - **A type variable's own non-null bound rules it out too**, and the fix line rewrites that bound as it is declared, as `T extends @Nullable CharSequence`.
 - **What a type variable stands for is read in its bound.** A spec over `Slot<L>` with `L extends List<String>` rules out a `null` element of the list the tray hands it.
 - **The spec is read where its Impl is declared**, as [a copy's type argument](#where-a-nullable-record-component-lands) is: a `@NullUnmarked` spec in a `@NullMarked` package still rules the `null` out.
-- **The wire the spec builds is read the same way**, its type variables bound at any depth, and a wire's own type variable by its bound.
+- **The wire the spec builds is read the same way**, its type variables bound at any depth and a wire's own type variable by its bound. A use annotated for itself, as `BoxDto<@Nullable T>`, counts as written, and an array's elements as a list's do. A record's canonical constructor decides as it does [for a copy](#nullable-elements-into-non-null).
 
 - **A generic spec's type variable takes no nullable argument where its own bound is non-null.** `BoxMapping<T>` in a `@NullMarked` scope rules a `null` out, and `BoxMapping<T extends @Nullable Object>` lets it through to its own types.
 - **An element-mapped spec's leaf takes no `null` either.** A type variable its abstract `ValidatedPrism<B, T>` leaf converts is refused a nullable argument, since the leaf's `build` throws on one.

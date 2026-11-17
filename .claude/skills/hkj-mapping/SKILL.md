@@ -560,9 +560,11 @@ matter: it maps build-only whatever its width, derived fields included.
   into a Lombok `@Singular` method (unless `ignoreNullCollections = true`), a getter-only list or
   a protobuf-java setter. It refuses a oneof variant's one component declared `@Nullable` too.
   Hold the component as an `Optional` the bridge carries (`@OptionalBridge` on its leaf or a
-  marker on a record wire; a oneof takes `Optional<Sealed>`), or declare it non-null. A record's
-  own accessor decides, since `build` calls it, and a Lombok class read from a class file is
-  copied as before, since it keeps no `@Singular`. The processor refuses a lifted container's
+  marker on a record wire; a oneof takes `Optional<Sealed>`), or declare it non-null. A
+  `@Singular` collection and a getter-only list carry no absent `Optional`, so declare it non-null
+  there, or let a `@Singular` builder skip the `null` with `ignoreNullCollections = true`. A
+  record's own accessor decides, since `build` calls it, and a Lombok class read from a class file
+  is copied as before, since it keeps no `@Singular`. The processor refuses a lifted container's
   `@Nullable` elements, a lifted map's keys, or a key or value a lifted map passes through, the
   same way. It also refuses `@Nullable` elements a copy hands to a site whose elements are
   non-null (`List<@Nullable String>` into `List<String>`, a map's values or keys, an array's
@@ -1010,7 +1012,7 @@ before rearranging the spec.
 | A `private` record or component type nested beside the spec, an `@GenerateAssembly` record or an `@GenerateErrorEnvelope` hierarchy | The generated Impl or companion is a top-level class in that package, so the processor refuses it (`cannot be reached from`): leave the nested type package-private, and make a type from another package `public` |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |
 | `@GenerateAssembly` on a **generic** record | Not supported. Use the hand-written `fields()` ladder |
-| Declaring a domain component `@Nullable` to say a value may be absent | A leaf, nested spec, lifted container, `@Singular` method, getter-only list or protobuf-java setter throws on the `null`, so the processor refuses it. Absence in a mapping is an `Optional`: hold it as one and bridge it (`@OptionalBridge` on a record wire), or declare it non-null |
+| Declaring a domain component `@Nullable` to say a value may be absent | A leaf, nested spec, lifted container, `@Singular` method, getter-only list or protobuf-java setter throws on the `null`, so the processor refuses it. Absence in a mapping is an `Optional`: hold it as one and bridge it (`@OptionalBridge` on a record wire), or declare it non-null. A `@Singular` collection or getter-only list carries no absent `Optional`: declare it non-null there, or give the `@Singular` `ignoreNullCollections = true` |
 | Expecting `asIso()` or `asLens()` where a record wire declares `@Nullable` what a `@NullMarked` domain declares non-null | `parse` refuses that `null`, so no total optic is emitted: call `asValidatedPrism()` or `patch`, or give the pair one nullness |
 | Expecting `asIso()` alongside a derived field | A derived field is recomputed on the round trip, so the mapping is not an identity |
 | Adding `-parameters` manually | The plugin already does it |

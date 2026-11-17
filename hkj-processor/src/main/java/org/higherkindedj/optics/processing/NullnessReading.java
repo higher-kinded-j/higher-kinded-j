@@ -21,6 +21,7 @@ import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.TypeKind;
@@ -353,6 +354,14 @@ final class NullnessReading {
           .toList();
     }
 
+    /**
+     * Whether the form that counts takes a null: it is declared nullable, and nothing rules a null
+     * out ({@link #nonNull}).
+     */
+    boolean takesNull() {
+      return nullable() && !nonNull();
+    }
+
     /** Whether the form that counts is declared nullable. */
     boolean nullable() {
       return NullableAnnotations.declaresNullable(counted());
@@ -634,7 +643,7 @@ final class NullnessReading {
         level ->
             parameter
                 .flatMap(written -> reached(written, levels, level, types, elements))
-                .filter(written -> written.nullable() && !written.nonNull())
+                .filter(Written::takesNull)
                 .isPresent();
     return nullableLevel(from, component, levels, taken, types, elements)
         .map(level -> new Copied(level, false))
@@ -789,8 +798,9 @@ final class NullnessReading {
    * The element or map key a plain merge copies from the record component {@code from} into {@code
    * to} nullable, where {@code to}, or the canonical constructor's parameter that writes it, rules
    * a null out, at a level {@code scan} reaches ({@link #copiedInto}): the parts reached, as a
-   * refusal names them, and the site of that element. Empty where there is none. A merge's records
-   * are never generic.
+   * refusal names them, and the site of that element. Empty where there is none. {@code from} is
+   * read at its accessor, which the merge calls, as {@link #readsNullable} reads a component. A
+   * merge's records are never generic.
    */
   static Optional<NullableElement> nullableElement(
       RecordComponentElement from,
@@ -802,7 +812,11 @@ final class NullnessReading {
     String spelt = "'" + record.getSimpleName() + "." + to.getSimpleName() + "'";
     Optional<VariableElement> parameter = canonicalParameter(types, record, to);
     return copiedInto(
-            new Written(from.asType(), from.asType(), List.of(from), List.of()),
+            new Written(
+                from.getAccessor().getReturnType(),
+                from.getAccessor().getReturnType(),
+                List.of(from),
+                List.of()),
             new Written(to.asType(), to.asType(), List.of(to), List.of()),
             parameter.map(
                 taken -> new Written(taken.asType(), taken.asType(), List.of(taken), List.of())),
@@ -946,39 +960,105 @@ final class NullnessReading {
   }
 
   /**
-   * A type argument a nested spec builds nullable ({@code nullable}), where the wire's site rules a
-   * null out there ({@code ruling}), named as {@code named} within its site.
+   * A type argument, or an array's element type, as {@code what} says, that a nested spec builds
+   * nullable ({@code nullable}), where the wire's site rules a null out there ({@code ruling}),
+   * named as {@code named} within its site: the record component, or, where {@code toParameter},
+   * the canonical constructor's parameter that writes it.
    */
-  record BuiltArgument(TypeMirror nullable, Written ruling, String named) {}
+  record BuiltArgument(
+      TypeMirror nullable, Written ruling, String what, String named, boolean toParameter) {}
 
   /**
-   * The first type argument, at any depth, that a nested spec builds nullable, its wire as it
-   * declares it ({@code from}) with its type variables standing for what {@code bindings} gives
-   * them, where {@code to}, the wire's site, rules a null out ({@link Written#nonNull}), its own
-   * type argument or the bound of a type variable it sits inside.
+   * The first type argument, or array element, at any depth, that a nested spec builds nullable,
+   * its wire as it declares it ({@code from}) with its type variables standing for what {@code
+   * bindings} gives them, where {@code to}, the wire's site, rules a null out ({@link
+   * Written#nonNull}), its own type argument or the bound of a type variable it sits inside. A use
+   * annotated for itself, as {@code @Nullable T}, builds what it says whatever its variable stands
+   * for. Where a record's canonical constructor writes the site, through {@code parameter}, the
+   * parameter decides at a level where it says anything: one that takes the null excuses the site,
+   * and one that rules it out refuses it, as {@link #copiedInto} reads a copy. The site is named
+   * first where both rule it out.
    */
   static Optional<BuiltArgument> builtArgument(
-      TypeMirror from, Map<Element, TypeMirror> bindings, Written to) {
+      TypeMirror from,
+      Map<Element, TypeMirror> bindings,
+      Written to,
+      Optional<Written> parameter,
+      Types types,
+      Elements elements) {
     List<? extends TypeMirror> fromArguments = argumentsOf(from);
     List<Written> toArguments = to.typeArguments();
+    Optional<List<Written>> taking = parameter.map(Written::typeArguments);
     for (int i = 0; i < Math.min(fromArguments.size(), toArguments.size()); i++) {
-      TypeMirror built =
-          fromArguments.get(i) instanceof TypeVariable variable
-              ? bindings.getOrDefault(variable.asElement(), variable)
-              : fromArguments.get(i);
-      Written ruling = toArguments.get(i);
-      if (NullableAnnotations.declaresNullable(built) && ruling.nonNull()) {
-        return Optional.of(
-            new BuiltArgument(built, ruling, argumentNamed(ruling.declared(), i, to.counted())));
-      }
-      if (built.getKind() == TypeKind.DECLARED) {
-        Optional<BuiltArgument> inner = builtArgument(built, bindings, ruling);
-        if (inner.isPresent()) {
-          return inner;
-        }
+      int at = i;
+      Optional<BuiltArgument> found =
+          builtLevel(
+              fromArguments.get(i),
+              bindings,
+              toArguments.get(i),
+              taking.map(arguments -> arguments.get(at)),
+              "type argument",
+              argumentNamed(toArguments.get(i).declared(), i, to.counted()),
+              types,
+              elements);
+      if (found.isPresent()) {
+        return found;
       }
     }
     return Optional.empty();
+  }
+
+  /**
+   * {@link #builtArgument} at one level, the {@code what} named {@code named}: {@code declared}, as
+   * the nested spec's wire declares it, against {@code ruling}, the site's type there, and {@code
+   * taking}, the canonical constructor parameter's; then the levels inside it, a declared type's
+   * arguments or an array's elements.
+   */
+  private static Optional<BuiltArgument> builtLevel(
+      TypeMirror declared,
+      Map<Element, TypeMirror> bindings,
+      Written ruling,
+      Optional<Written> taking,
+      String what,
+      String named,
+      Types types,
+      Elements elements) {
+    TypeMirror built =
+        declared instanceof TypeVariable variable
+            ? bindings.getOrDefault(variable.asElement(), variable)
+            : declared;
+    TypeMirror read = NullableAnnotations.annotatesNullness(declared) ? declared : built;
+    boolean nullable = NullableAnnotations.declaresNullable(read);
+    if (nullable && ruling.nonNull() && taking.filter(Written::takesNull).isEmpty()) {
+      return Optional.of(new BuiltArgument(read, ruling, what, named, false));
+    }
+    Optional<Written> rules = taking.filter(Written::nonNull);
+    if (nullable && rules.isPresent()) {
+      return Optional.of(new BuiltArgument(read, rules.get(), what, named, true));
+    }
+    return switch (built.getKind()) {
+      case DECLARED -> builtArgument(built, bindings, ruling, taking, types, elements);
+      // A primitive array has no level to read.
+      case ARRAY ->
+          Optional.ofNullable(NullScan.of(ruling.instantiated(), types, elements))
+              .flatMap(
+                  level -> {
+                    Written element = ruling.element(level, types, elements);
+                    return builtLevel(
+                        ((ArrayType) built).getComponentType(),
+                        bindings,
+                        element,
+                        taking.map(written -> written.element(level, types, elements)),
+                        "element type",
+                        "the element type "
+                            + ProcessorUtils.simpleTypeName(element.declared())
+                            + " of "
+                            + ProcessorUtils.simpleTypeName(ruling.counted()),
+                        types,
+                        elements);
+                  });
+      default -> Optional.empty();
+    };
   }
 
   /**
