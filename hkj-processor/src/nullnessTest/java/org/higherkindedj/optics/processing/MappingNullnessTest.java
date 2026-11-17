@@ -32,10 +32,10 @@ import org.junit.jupiter.params.provider.EnumSource;
  * with a wildcard-carrying element and holder among them.
  *
  * <p>A record wire component declared nullable, read into a domain component declared non-null, is
- * here too: such a mapping offers no {@code asIso()} or {@code asLens()}, which would copy the read
- * straight into the domain's component. A nullable type argument passes through {@code parse}'s
- * ladder at every depth, and {@code build} widens a copy into a wire whose type arguments are
- * declared more nullable, on every tier that copies one.
+ * here too, and so is a map's key declared so: such a mapping offers no {@code asIso()} or {@code
+ * asLens()}, which would copy the read straight into the domain's component. A nullable type
+ * argument passes through {@code parse}'s ladder at every depth, and {@code build} widens a copy
+ * into a wire whose type arguments are declared more nullable, on every tier that copies one.
  */
 @DisplayName("A nullness checker accepts a generated mapping implementation")
 @ParameterizedClass(name = "{0}")
@@ -459,6 +459,23 @@ class MappingNullnessTest {
 
                   @GenerateMapping
                   public interface ProfileViewMapping extends MappingSpec<Profile, ProfileView> {}
+
+                  // The same for a map's key, which parse reports, at any level the copy reaches.
+                  public record Keyed(Map<String, String> byKey, List<Map<String, String>> rows) {}
+
+                  public record KeyedForm(
+                      Map<@Nullable String, String> byKey,
+                      List<Map<@Nullable String, String>> rows) {}
+
+                  @GenerateMapping
+                  public interface KeyedFormMapping extends MappingSpec<Keyed, KeyedForm> {}
+
+                  public record Shelf(String id, Map<String, String> byKey) {}
+
+                  public record ShelfView(Map<@Nullable String, String> byKey) {}
+
+                  @GenerateMapping
+                  public interface ShelfViewMapping extends MappingSpec<Shelf, ShelfView> {}
                 }
                 """));
 

@@ -10966,7 +10966,9 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("identity map values are scanned: null values locate by key; keys stay structural")
+    @DisplayName(
+        "identity map values are scanned: null values locate by key, and a null key, which has"
+            + " nothing to locate by, reports under the map")
     void identityMapValuesAreScanned() throws Exception {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
@@ -11020,7 +11022,7 @@ class MappingProcessorTest {
       Assertions.assertThat(bad.getError().toJavaList())
           .containsExactly(new FieldError(List.of("byPlayer", "bob"), "must not be null"));
 
-      // A null KEY is a structurally broken map: the caller contract, matching parseValues.
+      // A null KEY is wire content too, reported unlocated under the map, as parseValues does.
       java.util.Map<String, Integer> nullKey = new java.util.HashMap<>();
       nullKey.put(null, 1);
       Object nullKeyDto =
@@ -11028,10 +11030,11 @@ class MappingProcessorTest {
               .loadClass("com.example.ScoresDto")
               .getDeclaredConstructor(java.util.Map.class)
               .newInstance(nullKey);
-      Assertions.assertThatThrownBy(() -> invoke(impl, "parse", nullKeyDto))
-          .hasRootCauseInstanceOf(NullPointerException.class)
-          .rootCause()
-          .hasMessageContaining("map keys must not be null");
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> keyless =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", nullKeyDto);
+      Assertions.assertThat(keyless.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("byPlayer"), "must not contain a null key"));
     }
 
     @Test

@@ -450,8 +450,8 @@ Depending on what the mapping can honour:
 
 | Mapping is | You also get |
 |------------|--------------|
-| Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element) the domain declares non-null |
-| A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, on a bean wire any reference property (it can be unset), or on a record wire a `@Nullable` component (or element) the domain declares non-null: validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
+| Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element or map key) the domain declares non-null |
+| A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, on a bean wire any reference property (it can be unset), or on a record wire a `@Nullable` component (or element or map key) the domain declares non-null: validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
 | Full (it builds and parses, and no property is `@ReadOnly`, its own or a nested spec's) | `asValidatedPrism()` |
 | A bean wire with getters and nothing that writes it | `parse` + `asValidatedParse()`, **no** `build` |
 | A bean wire that is written and declares no getter | `build` + `asValidatedBuild()`, **no** `parse` |
@@ -473,19 +473,22 @@ matter: it maps build-only whatever its width, derived fields included.
   containers, each locating the way its container does: by index in a `List` or array
   (`emails.1: must not be null`), by key in a `Map`, and by the element's own rendering in a
   `Set` (`emails.nope`) - a null set element is the unlocated `emails: must not contain a null
-  element`, a set holding at most one. An identity container is scanned at every level its type
-  names (`grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a `Map<String, List<String>>`), an
-  `Optional` holding a container included, and however it is declared: any `Collection` or `Map`
-  subtype or supertype (`ArrayList`, `Collection`, `LinkedHashMap`), raw, wildcard-argument, or a
-  type variable bounded by one. A `@MapKey` map's copied values are scanned too. A class that
+  element`, a set holding at most one, and a null map key the unlocated `byKey: must not contain a
+  null key`, its value not looked at, whether the map copies or converts. An identity container is
+  scanned at every level its type names (`grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a
+  `Map<String, List<String>>`), an `Optional` holding a container included, and however it is
+  declared: any `Collection` or `Map` subtype or supertype (`ArrayList`, `Collection`,
+  `LinkedHashMap`), raw, wildcard-argument, or a type variable bounded by one. A `@MapKey` map's
+  copied values are scanned too. A class that
   fixes its own element (`class Bundle extends ArrayList<Bundle>`) is scanned one level into itself.
   `Iterable`, `Stream`, `Maybe` and `NonEmptyList` are not looked inside yet. A primitive array
-  carries no element scan. What stays the caller's `NullPointerException`: a null *wire* itself,
-  and a null map *key* (a structurally broken map, not a wrong value). A null container *component* is guarded like any reference read
+  carries no element scan. What stays the caller's `NullPointerException`: a null *wire* itself. A
+  null container *component* is guarded like any reference read
   (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
   list/map is the caller's error. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
   parse-iso coherence scoped to non-null wires the domain accepts), unless its wire declares
-  `@Nullable` what the domain declares non-null; a bean's guarded reads still cost the Iso tier,
+  `@Nullable` what the domain declares non-null, a map's key (`Map<@Nullable String, V>`)
+  included; a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
   merge stays total by its declaration).
@@ -555,13 +558,16 @@ matter: it maps build-only whatever its width, derived fields included.
   nullness.
 - **A `@Nullable` record wire component costs the optics where the domain says non-null.** Where
   a record wire declares a component `@Nullable`, or an element type that `parse`'s null scan
-  reaches (`List<@Nullable String>`, a map's values, an array's elements, a wildcard's bound), and
-  the domain declares its own non-null, `parse` refuses the `null` and no total optic can hand it
-  over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not `asLens()`. A type
-  argument counts where an unannotated type variable leaves the nullness to it (`Page<@Nullable
-  String>` for `Page<T extends @Nullable Object>`), and an annotated use (`@NonNull T`) decides
-  alone. A side that says nothing keeps the optic; map keys, `? super` wildcards and an
-  `Optional`'s own element do not count. Call `asValidatedPrism()` or `patch`, or give the pair one
+  reaches (`List<@Nullable String>`, a map's values or keys, an array's elements, a wildcard's
+  bound), and the domain declares its own non-null, `parse` refuses the `null` and no total optic
+  can hand it over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not
+  `asLens()`. A type argument counts where an unannotated type variable leaves the nullness to it
+  (`Page<@Nullable String>` for `Page<T extends @Nullable Object>`), and an annotated use
+  (`@NonNull T`) decides alone for the value itself. What any type variable holds, annotated or
+  not, is still its argument's, or its bound's where that rules a `null` out (`L extends
+  List<String>` in a marked record).
+  A side that says nothing keeps the optic; `? super` wildcards and an `Optional`'s own element do
+  not count. Call `asValidatedPrism()` or `patch`, or give the pair one
   nullness.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
@@ -736,7 +742,8 @@ Validated<NonEmptyList<FieldError>, Customer> updated = update.apply(customer); 
   `JsonNullable` property's value does lift them) — delegate
   via an element leaf to the nested Impl's `asValidatedPrism()` (a FieldMask update lifts them). Same-typed identity containers are null-scanned at every
   depth, as on the dense tiers (`tags.1: must not be null`; a set's unlocated, as `tags: must not
-  contain a null element`), an `Optional` holding a container included. `@MapKey` applies here
+  contain a null element`, and a map's null key, as `labels: must not contain a null key`), an
+  `Optional` holding a container included. `@MapKey` applies here
   too.
 - A **getter-only `List`** property is rejected here: its getter creates the list on first call,
   so it never reads `null` and an omitted field would clear the domain value. Give it a setter,

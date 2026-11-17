@@ -49,8 +49,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * parameter as. Each level locates a failure the way its container identifies an element: a list,
  * queue or array by position, a map by key, a set by the element's rendering, and an {@code
  * Optional} at the value itself. A null element of a set is the unlocated {@code must not contain a
- * null element}, as {@code ValidatedParse.parseAll} reports it. Map keys are structural: a null key
- * stays the caller's {@code NullPointerException}, and a key is never scanned inside.
+ * null element}, as {@code ValidatedParse.parseAll} reports it, and a null key of a map is the
+ * unlocated {@code must not contain a null key}, as {@code ValidatedParse.parseValues} reports it,
+ * its value unscanned. A key is never scanned inside.
  *
  * <p>A scan only checks, it never rebuilds: it runs over the copy the leg hands over (see {@link
  * ContainerCopy}), so every helper returns its argument unchanged under the argument's own type
@@ -83,7 +84,6 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   private static final ClassName NEL =
       ClassName.get("org.higherkindedj.hkt.nonemptylist", "NonEmptyList");
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
-  private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
   private static final ClassName COLLECTION = ClassName.get("java.util", "Collection");
   private static final ClassName LIST = ClassName.get("java.util", "List");
   private static final ClassName ARRAY_LIST = ClassName.get("java.util", "ArrayList");
@@ -92,6 +92,12 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   private static final ClassName OPTIONAL = ClassName.get("java.util", "Optional");
   private static final TypeName FAILURES = ParameterizedTypeName.get(NEL, FIELD_ERROR);
   private static final TypeName ANY = WildcardTypeName.subtypeOf(Object.class);
+
+  /** The type a collection's element can be named through by a bound that is no collection. */
+  private static final String ITERABLE = "java.lang.Iterable";
+
+  /** Where {@code Map<K, V>} takes its key among its type arguments. */
+  private static final int MAP_KEY = 0;
 
   /**
    * One container level, the helper that scans it, and, for a declared container, the type it is
@@ -213,7 +219,28 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    */
   private static TypeMirror elementArgument(
       TypeElement declaration, Shape shape, Types types, Elements elements) {
-    return argument(view((DeclaredType) declaration.asType(), shape, types, elements), shape);
+    return namedArgument(declaration, shape, shape.argument, types, elements);
+  }
+
+  /**
+   * The argument a container class passes its view as {@code shape} at {@code index}, in terms of
+   * its own type parameters, as {@link #elementArgument} reads the element: null for a class that
+   * extends the container raw, or is no such container at all, as a type variable's bound such as
+   * {@code Object} need not be. A bound may name a collection's element as an {@code Iterable}'s,
+   * as {@code L extends Iterable<String>} does, so a collection level reads one through that view
+   * where it has no other.
+   */
+  private static TypeMirror namedArgument(
+      TypeElement declaration, Shape shape, int index, Types types, Elements elements) {
+    DeclaredType type = (DeclaredType) declaration.asType();
+    DeclaredType view = view(type, shape, types, elements);
+    if (view == null && shape == Shape.COLLECTION) {
+      view =
+          (DeclaredType) ProcessorUtils.supertypeOf(types, type, elements.getTypeElement(ITERABLE));
+    }
+    return view == null || view.getTypeArguments().isEmpty()
+        ? null
+        : view.getTypeArguments().get(index);
   }
 
   /** The type as the given container, under the arguments it is reached by, or null. */
@@ -240,31 +267,72 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    * @return the type this level's elements are written as
    */
   TypeMirror writtenElement(TypeMirror written, Types types, Elements elements) {
+    TypeMirror named = namedElement(written, types, elements);
+    return named == null ? element : named;
+  }
+
+  /**
+   * The type this level's elements are written as inside {@code written}, read as {@link
+   * #writtenElement} reads it, but with no fallback: null where {@code written} names none, as a
+   * type variable, a raw container, a wildcard with no upper bound, or a type that is no container
+   * of this level's kind, such as a type variable's bound {@code Object} over an array, does not.
+   *
+   * @param written the type, as a declaration writes it
+   * @param types the round's type utilities
+   * @param elements the round's element utilities
+   * @return the type this level's elements are written as, or null
+   */
+  TypeMirror namedElement(TypeMirror written, Types types, Elements elements) {
     return switch (written.getKind()) {
       case ARRAY -> ((ArrayType) written).getComponentType();
-      case DECLARED -> writtenArgument((DeclaredType) written, types, elements);
-      default -> element;
+      case DECLARED ->
+          shape == Shape.ARRAY
+              ? null
+              : writtenArgument((DeclaredType) written, shape.argument, types, elements);
+      default -> null;
     };
   }
 
   /**
-   * The element {@code written}'s class names for this level, with {@code written}'s own arguments
-   * put in for the class's type variables.
+   * The type a map level's keys are written as inside {@code written}, read as {@link
+   * #writtenElement} reads its values: the key the map class names, with the type's own arguments
+   * put in for its type variables, read through its bound where it is a wildcard, so {@code
+   * Map<@Nullable String, V>} and {@code HashMap<? extends @Nullable String, V>} both name
+   * {@code @Nullable String}. The scan does not look inside a key, so it keeps no key type of its
+   * own to fall back on: where this level is no map, the class names no key, or the type is used
+   * raw, is written another way, such as a type variable, or has a wildcard with no upper bound,
+   * the result is null, a key that says nothing either way.
+   *
+   * @param written the type this level scans, as a declaration writes it
+   * @param types the round's type utilities
+   * @param elements the round's element utilities
+   * @return the type this level's keys are written as, or null
    */
-  private TypeMirror writtenArgument(DeclaredType written, Types types, Elements elements) {
+  TypeMirror writtenKey(TypeMirror written, Types types, Elements elements) {
+    return shape == Shape.MAP && written.getKind() == TypeKind.DECLARED
+        ? writtenArgument((DeclaredType) written, MAP_KEY, types, elements)
+        : null;
+  }
+
+  /**
+   * The argument {@code written}'s class names at {@code index} of this level's container, with
+   * {@code written}'s own arguments put in for the class's type variables, or null where it names
+   * none or its wildcard has no upper bound.
+   */
+  private TypeMirror writtenArgument(
+      DeclaredType written, int index, Types types, Elements elements) {
     TypeElement declaration = (TypeElement) written.asElement();
-    TypeMirror named = elementArgument(declaration, shape, types, elements);
+    TypeMirror named = namedArgument(declaration, shape, index, types, elements);
     List<? extends TypeMirror> arguments = written.getTypeArguments();
-    // A class that extends its container raw names no element, and a raw use binds no variable.
+    // A class that extends its container raw names no argument, and a raw use binds no variable.
     if (named == null || arguments.size() != declaration.getTypeParameters().size()) {
-      return element;
+      return null;
     }
     Map<Element, TypeMirror> bound = new HashMap<>();
     for (int i = 0; i < arguments.size(); i++) {
       bound.put(declaration.getTypeParameters().get(i), arguments.get(i));
     }
-    return Objects.requireNonNullElse(
-        ProcessorUtils.resolveWildcard(substituted(named, bound, types)), element);
+    return ProcessorUtils.resolveWildcard(substituted(named, bound, types));
   }
 
   /**
@@ -432,6 +500,14 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         index);
   }
 
+  /**
+   * A null key's failure: unlocated, since a null has no rendering to locate by, and a map holds at
+   * most one, as a set's null element is.
+   */
+  private static CodeBlock nullKey() {
+    return CodeBlock.of("$T.of($S)", FIELD_ERROR, "must not contain a null key");
+  }
+
   private static CodeBlock nullAt(String location) {
     return CodeBlock.of("$T.of($T.of($S).at($L))", NEL, FIELD_ERROR, "must not be null", location);
   }
@@ -590,8 +666,9 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
     return helperBuilder(
             Shape.MAP.helper,
             c,
-            "Guards an identity-copied map: a null value is a located invalid under its key,"
-                + " accumulating; a null key is the caller's NullPointerException.\n",
+            "Guards an identity-copied map: a null value is a located invalid under its key, and a"
+                + " null key, which has nothing to locate by, the unlocated {@code must not contain a"
+                + " null key}, accumulating.\n",
             c)
         .addParameter(marks.nullable(c), "values")
         .addCode(nullGuard("values"))
@@ -599,8 +676,9 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .beginControlFlow(
             "for ($T entry : values.entrySet())",
             ParameterizedTypeName.get(MAP.nestedClass("Entry"), ANY, ANY))
-        .addStatement("$T.requireNonNull(entry.getKey(), $S)", OBJECTS, "map keys must not be null")
-        .beginControlFlow("if (entry.getValue() == null)")
+        .beginControlFlow("if (entry.getKey() == null)")
+        .addStatement("failures.add($L)", nullKey())
+        .nextControlFlow("else if (entry.getValue() == null)")
         .addStatement("$T located = $L", FAILURES, nullAt("String.valueOf(entry.getKey())"))
         .addStatement("$L", accumulate())
         .endControlFlow()
@@ -618,8 +696,9 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
             Shape.MAP.helper,
             c,
             "Guards an identity-copied map of containers: a null value is a located invalid under"
-                + " its key, and a present value passes its own scan, located under its key; a"
-                + " null key is the caller's NullPointerException.\n",
+                + " its key, and a present value passes its own scan, located under its key; a null"
+                + " key, which has nothing to locate by, is the unlocated {@code must not contain a"
+                + " null key}, its value unscanned.\n",
             c,
             v)
         .addParameter(marks.nullable(c), "values")
@@ -629,10 +708,11 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .beginControlFlow(
             "for ($T entry : values.entrySet())",
             ParameterizedTypeName.get(MAP.nestedClass("Entry"), ANY, WildcardTypeName.subtypeOf(v)))
-        .addStatement(
-            "Object key = $T.requireNonNull(entry.getKey(), $S)",
-            OBJECTS,
-            "map keys must not be null")
+        .addStatement("$T key = entry.getKey()", marks.nullable(ClassName.OBJECT))
+        .beginControlFlow("if (key == null)")
+        .addStatement("failures.add($L)", nullKey())
+        .addStatement("continue")
+        .endControlFlow()
         .addStatement("$T value = entry.getValue()", v)
         .addStatement("$T located", FAILURES)
         .beginControlFlow("if (value == null)")

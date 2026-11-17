@@ -11,6 +11,7 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 import java.time.Month;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -166,13 +167,7 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseValues(null))
           .withMessage("sources must not be null");
-      Map<String, String> nullKey = new HashMap<>();
-      nullKey.put(null, "a@b");
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseValues(nullKey))
-          .withMessage("sources must not contain a null key");
-      // A null value is a located invalid under its key, never an exception; a null
-      // key stays the caller's error — a structurally broken map, not a wrong value.
+      // A null value is a located invalid under its key, never an exception.
       Map<String, String> nullValue = new HashMap<>();
       nullValue.put("work", null);
       Validated<NonEmptyList<FieldError>, Map<String, Email>> locatedNull =
@@ -317,6 +312,38 @@ class ValidatedPrismTest {
     }
 
     @Test
+    @DisplayName(
+        "a null map key is unlocated: a map holds at most one, it has no rendering, and the value"
+            + " under it is not parsed")
+    void parseNullMapKeyIsUnlocated() {
+      FieldError nullKey = FieldError.of("must not contain a null key");
+      // The values under the null key would fail, so a parse of them would show.
+      Map<String, String> values = new LinkedHashMap<>();
+      values.put("home", "nope");
+      values.put(null, "nope");
+      values.put("work", "a@b");
+      assertThat(EMAIL.parseValues(values).getError().toJavaList())
+          .containsExactly(new FieldError(List.of("home"), "not an email address"), nullKey);
+
+      Map<String, Integer> keys = new LinkedHashMap<>();
+      keys.put(null, null);
+      keys.put("nope", 1);
+      assertThat(EMAIL.parseKeys(keys).getError().toJavaList())
+          .containsExactly(nullKey, new FieldError(List.of("nope"), "not an email address"));
+
+      Map<String, String> entries = new LinkedHashMap<>();
+      entries.put("a@b", "nope");
+      entries.put(null, "nope");
+      assertThat(EMAIL.parseEntries(entries, EMAIL).getError().toJavaList())
+          .containsExactly(new FieldError(List.of("a@b"), "not an email address"), nullKey);
+
+      // An IdentityHashMap is read through a copy of its own, which keeps the null key.
+      Map<String, String> identity = new IdentityHashMap<>();
+      identity.put(null, "a@b");
+      assertThat(EMAIL.parseValues(identity).getError().toJavaList()).containsExactly(nullKey);
+    }
+
+    @Test
     @DisplayName("a set collapses silently in both directions: the survivors are equal")
     void setCollapsesSilently() {
       Set<String> wire = new LinkedHashSet<>(List.of("A@B", "a@b"));
@@ -408,11 +435,6 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseKeys(null))
           .withMessage("sources must not be null");
-      Map<String, Integer> nullKey = new HashMap<>();
-      nullKey.put(null, 1);
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseKeys(nullKey))
-          .withMessage("sources must not contain a null key");
     }
 
     @Test
@@ -503,11 +525,6 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseEntries(Map.of("a@b", "x@y"), null))
           .withMessage("valueParse must not be null");
-      Map<String, String> nullKey = new HashMap<>();
-      nullKey.put(null, "x@y");
-      assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseEntries(nullKey, EMAIL))
-          .withMessage("sources must not contain a null key");
     }
 
     @Test

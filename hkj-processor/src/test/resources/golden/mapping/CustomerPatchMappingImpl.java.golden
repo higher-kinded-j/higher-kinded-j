@@ -137,7 +137,7 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   }
 
   /**
-   * Guards an identity-copied map: a null value is a located invalid under its key, accumulating; a null key is the caller's NullPointerException.
+   * Guards an identity-copied map: a null value is a located invalid under its key, and a null key, which has nothing to locate by, the unlocated {@code must not contain a null key}, accumulating.
    */
   private static <C extends Map<?, ?>> Validated<NonEmptyList<FieldError>, C> hkj$valuesPresent(
       @Nullable C values) {
@@ -146,8 +146,9 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
     }
     List<FieldError> failures = new ArrayList<>();
     for (Map.Entry<?, ?> entry : values.entrySet()) {
-      Objects.requireNonNull(entry.getKey(), "map keys must not be null");
-      if (entry.getValue() == null) {
+      if (entry.getKey() == null) {
+        failures.add(FieldError.of("must not contain a null key"));
+      } else if (entry.getValue() == null) {
         NonEmptyList<FieldError> located = NonEmptyList.of(FieldError.of("must not be null").at(String.valueOf(entry.getKey())));
         failures.addAll(located.toJavaList());
       }

@@ -28,7 +28,8 @@ import org.junit.jupiter.api.Test;
  * by a container, alone or beside other bounds, a container class that fixes its own element, a raw
  * type only a container's declaration names, the fallible merge, the sparse {@code UpdateSpec}
  * tier, a mapping wider than one {@code fields()} ladder, and a flattened group. Each locates a
- * null at its full path, however deep.
+ * null at its full path, however deep. A map's null key, which has no rendering to locate by, is
+ * reported unlocated under the map, at any depth, and the value under it is not scanned.
  *
  * <p>Every fixture compiles in one javac run, under {@code -Xlint:all -Werror}, which also holds
  * every emitted scan helper and every call to one clean. Each case calls one static method of the
@@ -106,6 +107,19 @@ class NullScanTest {
 
                       @GenerateMapping
                       public interface DeepMapping extends MappingSpec<Deep, DeepDto> {}
+
+                      public record Keys(
+                          Map<String, String> labels,
+                          Map<String, List<String>> byKey,
+                          List<Map<String, String>> rows) {}
+
+                      public record KeysDto(
+                          Map<String, String> labels,
+                          Map<String, List<String>> byKey,
+                          List<Map<String, String>> rows) {}
+
+                      @GenerateMapping
+                      public interface KeysMapping extends MappingSpec<Keys, KeysDto> {}
 
                       // Container classes that fix their own element, which can lead back to them.
                       public static class Node extends ArrayList<Node> {
@@ -359,6 +373,22 @@ class NullScanTest {
                                 new EnumMap<>(Map.of(Colour.RED, holed("e")))));
                       }
 
+                      // A null key first, then a present one.
+                      private static <V> Map<String, V> nullKeyed(V atNull, V atKey) {
+                        Map<String, V> map = new LinkedHashMap<>();
+                        map.put(null, atNull);
+                        map.put("k", atKey);
+                        return map;
+                      }
+
+                      public static Validated<NonEmptyList<FieldError>, Keys> keys() {
+                        return FixturesKeysMappingImpl.INSTANCE.parse(
+                            new KeysDto(
+                                nullKeyed("a", null),
+                                nullKeyed(holed("b"), holed("c")),
+                                List.of(nullKeyed("d", "e"))));
+                      }
+
                       // A Grid holding one List<List>, whose one raw List holds a null second.
                       @SuppressWarnings("rawtypes")
                       private static Grid grid() {
@@ -514,6 +544,20 @@ class NullScanTest {
             "queue.1: must not be null",
             "sorted.k.1: must not be null",
             "byColour.RED.1: must not be null");
+  }
+
+  @Test
+  @DisplayName(
+      "a map's null key is reported unlocated under the map, at any depth, beside the located"
+          + " failures of its other entries, and the value under it is not scanned")
+  void aNullKeyIsReportedUnderItsMap() throws ReflectiveOperationException {
+    assertThatValidated(probe("keys"))
+        .hasFieldErrors(
+            "labels: must not contain a null key",
+            "labels.k: must not be null",
+            "byKey: must not contain a null key",
+            "byKey.k.1: must not be null",
+            "rows.0: must not contain a null key");
   }
 
   @Test
