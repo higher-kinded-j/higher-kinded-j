@@ -170,19 +170,23 @@ public final class NullableAnnotations {
   }
 
   /**
-   * Whether a type rules {@code null} out where {@code site} names it: declared non-null, as {@link
-   * #nonNullReason(TypeMirror, Element)} reads it, or a type variable with no {@code @Nullable} of
-   * its own inside a {@code NullMarked} scope. Such a variable stands for whatever its type
-   * argument is, which may be non-null, so it may not hold a {@code null}: JSpecify calls its
-   * nullness parametric.
+   * Why a type rules {@code null} out where {@code site} names it, or empty where it does not:
+   * declared non-null, as {@link #nonNullReason(TypeMirror, Element)} reads it, or a type variable
+   * with no {@code @Nullable} of its own inside a {@code NullMarked} scope, which is then the
+   * reason. Such a variable stands for whatever its type argument is, which may be non-null, so it
+   * may not hold a {@code null}: JSpecify calls its nullness parametric.
    *
    * @param type the type, such as a container's element type
    * @param site the declaration that names it, whose scope decides an unannotated type
-   * @return whether a {@code null} is one the type may not hold
+   * @return the reason a {@code null} is one the type may not hold, if it is
    */
-  static boolean rulesOutNull(TypeMirror type, Element site) {
-    return nonNullReason(type, site).isPresent()
-        || declaredVariable(type) && !declaresNullable(type) && nullMarkedScope(site).isPresent();
+  static Optional<NonNullReason> rulesOutNullReason(TypeMirror type, Element site) {
+    return nonNullReason(type, site)
+        .or(
+            () ->
+                declaredVariable(type) && !declaresNullable(type)
+                    ? nullMarkedScope(site).map(NonNullReason.Marked::new)
+                    : Optional.empty());
   }
 
   /**

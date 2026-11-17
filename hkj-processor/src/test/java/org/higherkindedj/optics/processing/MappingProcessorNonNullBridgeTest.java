@@ -718,7 +718,8 @@ class MappingProcessorNonNullBridgeTest {
                 "com.marked",
                 "LooseDtoMapping",
                 "Shapes.Holder",
-                "Shapes.LooseDto<String>",
+                // The spec gives T a nullable argument; LooseDto<String> would rule the null out.
+                "Shapes.LooseDto<java.lang.@org.jspecify.annotations.Nullable String>",
                 valueMarker),
             spec(
                 "com.plain",

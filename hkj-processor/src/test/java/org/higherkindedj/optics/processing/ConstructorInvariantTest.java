@@ -30,8 +30,7 @@ import org.junit.jupiter.api.Test;
  * {@code FieldError} at the record's own path, accumulated with every error around it. The total
  * optics cannot return an error, and are pinned to propagating it. Beside them sit the shapes the
  * constructor thunk must keep compiling: a flattened group's lambda parameters inside a chunked
- * ladder, raw and nullable group types, and a spec member type named like the helper's {@code
- * Supplier}.
+ * ladder, a raw group type, and a spec member type named like the helper's {@code Supplier}.
  *
  * <p>Every fixture compiles in one javac run, under {@code -Xlint:all -Werror}, and each case calls
  * one static method of the compiled {@code Probes} class, so the cases read as the calls they make.
@@ -78,7 +77,6 @@ class ConstructorInvariantTest {
         import org.higherkindedj.optics.annotations.MappingSpec;
         import org.higherkindedj.optics.validated.StandardCodecs;
         import org.higherkindedj.optics.validated.ValidatedPrism;
-        import org.jspecify.annotations.Nullable;
 
         """
             + body);
@@ -153,10 +151,6 @@ class ConstructorInvariantTest {
               public record Post(String title, Tagged tagged) {}
 
               public record PostDto(String title, String tags, int n) {}
-
-              public record Booked(String name, @Nullable Span span) {}
-
-              public record BookedDto(String name, int from, int to) {}
 
               public record Rating(int stars) {
                 public Rating {
@@ -317,13 +311,6 @@ class ConstructorInvariantTest {
                 }
               }
 
-              @GenerateMapping
-              public interface BookedMapping
-                  extends MappingSpec<Records.Booked, Records.BookedDto> {
-                @Flatten
-                Records.Span span();
-              }
-
               // The Impl inherits this member type, which must not shadow java.util.function.
               @GenerateMapping
               public interface RatingMapping extends MappingSpec<Records.Rating, Records.RatingDto> {
@@ -447,10 +434,6 @@ class ConstructorInvariantTest {
 
               public static Object rawGroup() {
                 return SpecsPostMappingImpl.INSTANCE.parse(new Records.PostDto(null, "t", -1));
-              }
-
-              public static Object nullableGroup() {
-                return SpecsBookedMappingImpl.INSTANCE.parse(new Records.BookedDto("n", 5, 1));
               }
 
               public static Object inheritedSupplier() {
@@ -612,16 +595,11 @@ class ConstructorInvariantTest {
   }
 
   @Test
-  @DisplayName(
-      "a flattened group with a raw member type compiles under -Werror, and a nullable group"
-          + " type is still typed by its explicit type argument")
+  @DisplayName("a flattened group with a raw member type compiles under -Werror")
   void groupTypesCompileCleanly() throws ReflectiveOperationException {
     assertThatValidated(probe("rawGroup"))
         .isInvalid()
         .hasFieldErrors("title: must not be null", "tagged: n must not be negative");
-    assertThatValidated(probe("nullableGroup"))
-        .isInvalid()
-        .hasFieldErrors("span: from must not exceed to");
   }
 
   @Test

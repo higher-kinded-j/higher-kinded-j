@@ -547,15 +547,30 @@ matter: it maps build-only whatever its width, derived fields included.
   without `@Nullable`) is refused, and so is a plain `@GenerateMerge` source copied into such a
   target. Mark the wire side `@Nullable` (on a Lombok bean, its field), or declare the domain side
   non-null; a merge can instead take a leaf and return `Validated`. `parse` needs no such rule: it
-  refuses every unbridged `null` read. A `@Nullable` component handed to a leaf, nested spec or
-  lifted container is not checked yet, and throws from `build` on a `null`. The generated copies,
-  guards and leaf caches declare their nulls in JSpecify's annotations, so the Impl passes
-  NullAway, `List<@Nullable String>` included. NullAway still reports any component of a generic
+  refuses every unbridged `null` read. A type variable counts as the spec instantiates it:
+  `One<@Nullable String>` makes a domain `T` nullable, `ItemDto<String>` a wire `T` non-null. The
+  generated copies, guards and leaf caches declare their nulls in JSpecify's annotations, so the
+  Impl passes NullAway, `List<@Nullable String>` included. NullAway still reports any component of a generic
   record, a leaf lifted over such a list, an array of arrays, a leg that widens and narrows at
   once, a narrowing leg in a record of more than 16 components, and a container handed over as it
-  is (an `ArrayList`) whose nullness differs; no declaration clears the first five yet. Where only
-  the domain's elements may be null, it reports `build` rightly: declare both sides with one
-  nullness.
+  is (an `ArrayList`) whose nullness differs; no declaration clears the first five yet.
+- **A `@Nullable` component is not handed to anything that throws on it.** The processor refuses
+  one that a leaf, a nested spec or a lifted container converts (a `@MapKey` map included), a
+  lifted or bridged `Optional`, a flattened record or a oneof's sealed component, and one copied
+  into a Lombok `@Singular` method (unless `ignoreNullCollections = true`), a getter-only list or
+  a protobuf-java setter. It refuses a oneof variant's one component declared `@Nullable` too.
+  Hold the component as an `Optional` the bridge carries (`@OptionalBridge` on its leaf or a
+  marker on a record wire; a oneof takes `Optional<Sealed>`), or declare it non-null. A record's
+  own accessor decides, since `build` calls it, and a Lombok class read from a class file is
+  copied as before, since it keeps no `@Singular`. The processor refuses a lifted container's
+  `@Nullable` elements, a lifted map's keys, or a key or value a lifted map passes through, the
+  same way. It also refuses `@Nullable` elements a copy hands to a site whose elements are
+  non-null (`List<@Nullable String>` into `List<String>`, a map's values or keys, an array's
+  elements, every level a copy reaches), for `build` and a plain merge: give both sides one
+  nullness. A type argument declared `@Nullable` (`One<@Nullable String>`) is refused where a
+  nested spec takes it non-null (over `One<String>`, a use annotated `@NonNull`, a type variable
+  whose bound rules it out, or one its leaf converts), or builds it `@Nullable` into a wire site
+  declared non-null.
 - **A `@Nullable` record wire component costs the optics where the domain says non-null.** Where
   a record wire declares a component `@Nullable`, or an element type that `parse`'s null scan
   reaches (`List<@Nullable String>`, a map's values or keys, an array's elements, a wildcard's
@@ -607,7 +622,8 @@ matter: it maps build-only whatever its width, derived fields included.
   variant through a spec for the pair; a scalar member fills a one-component variant as it is (no
   leaf stands in for a variant, so an enum member keeps `UNRECOGNIZED`: refuse it in the variant's
   constructor). With no member set, an `Optional` reads empty and a plain sealed component reports
-  `must not be null`; `build` throws on a `null` one. Generic sealed types and variants, a
+  `must not be null`; the processor refuses one declared `@Nullable`, and a one-component
+  variant's component declared so, since `build` would throw. Generic sealed types and variants, a
   `@MapField` rename onto a oneof, a method named after the component and another component
   filling a held member are refused. Or map each member to an `Optional` of its own.
 - **A bean crossed one way maps that way.** Getters and nothing that writes it: parse-only
@@ -994,6 +1010,7 @@ before rearranging the spec.
 | A `private` record or component type nested beside the spec, an `@GenerateAssembly` record or an `@GenerateErrorEnvelope` hierarchy | The generated Impl or companion is a top-level class in that package, so the processor refuses it (`cannot be reached from`): leave the nested type package-private, and make a type from another package `public` |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |
 | `@GenerateAssembly` on a **generic** record | Not supported. Use the hand-written `fields()` ladder |
+| Declaring a domain component `@Nullable` to say a value may be absent | A leaf, nested spec, lifted container, `@Singular` method, getter-only list or protobuf-java setter throws on the `null`, so the processor refuses it. Absence in a mapping is an `Optional`: hold it as one and bridge it (`@OptionalBridge` on a record wire), or declare it non-null |
 | Expecting `asIso()` or `asLens()` where a record wire declares `@Nullable` what a `@NullMarked` domain declares non-null | `parse` refuses that `null`, so no total optic is emitted: call `asValidatedPrism()` or `patch`, or give the pair one nullness |
 | Expecting `asIso()` alongside a derived field | A derived field is recomputed on the round trip, so the mapping is not an identity |
 | Adding `-parameters` manually | The plugin already does it |

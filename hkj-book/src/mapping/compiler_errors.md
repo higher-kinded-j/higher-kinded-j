@@ -62,6 +62,13 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`bridges to the primitive`](#bridges-to-a-primitive) | The bridged wire component is a primitive |
 | [`which is declared non-null`](#declared-non-null) | The bridged wire component is declared non-null |
 | [`and build copies it to`](#nullable-copied-into-non-null) | A `@Nullable` component is copied into one declared non-null |
+| [`and build converts`](#nullable-where-build-throws) | A `@Nullable` component reaches a leaf, a spec or a container that throws on `null` |
+| [`and build hands it to`](#nullable-handed-to-a-throwing-site) | A `@Nullable` component reaches a getter-only list, a `@Singular` method or a protobuf setter |
+| [`@Nullable, and build copies them to`](#nullable-elements-copied-into-non-null) | `@Nullable` elements or keys are copied into a container that rules them out |
+| [`and build maps the value it holds`](#nullable-optional-into-build) | A `@Nullable` `Optional` reaches `build`, which maps the value it holds |
+| [`and build passes them through`](#nullable-passed-through-a-lifted-map) | A lifted map passes a `@Nullable` key or value through to a bulk build that throws on it |
+| [`declares the type argument`](#nullable-argument-into-a-spec) | A `@Nullable` type argument reaches a nested spec that rules it out |
+| [`with the type argument`](#nullable-argument-built-by-a-spec) | A nested spec builds a `@Nullable` type argument into a wire that rules it out |
 | [`is declared over the whole Optional`](#bridged-leaf-over-whole-optional) | A bridged leaf is declared over the `Optional` |
 | [`is redundant on a bean wire`](#redundant-on-a-bean-wire) | **Note.** A bean wire bridges without the marker |
 
@@ -904,6 +911,242 @@ The rule: [A `@Nullable` component is not copied into a non-null one](rules.md#n
 record Reader(String name, @Nullable String nickname) {}
 
 record ReaderDto(String name, @NonNull String nickname) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
+```
+~~~
+
+### `domain field 'X.y' is declared @Nullable, and build converts it through the leaf 'y()'` {#nullable-where-build-throws}
+
+A leaf, a nested spec or a lifted container throws on the `null` the domain may hold, in the component or in its elements or keys, so `build` would fail when it meets one.
+
+**Fix.** Hold the component as an `Optional` the bridge carries, or declare it, or the elements or keys the message names, non-null.
+
+```
+@GenerateMapping: domain field 'Reader.email' is declared @Nullable, and build converts it
+through the leaf 'email()'. A leaf's or a nested spec's build takes no null, and build would
+throw on it. parse never reads a null into it either, since it refuses any null that no Optional
+bridges. As 'Reader.email' may be absent, declare it Optional<EmailAddress> and annotate
+'email()' with @OptionalBridge, so build writes an absent value as null and parse reads it back
+as empty; or declare 'Reader.email' non-null, if build never meets it null.
+```
+
+The rule: [A `@Nullable` component is not handed to what throws on it](rules.md#nullable-where-build-throws).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "and build converts" -->
+```java
+record Reader(String name, @Nullable EmailAddress email) {}
+
+record ReaderDto(String name, @Nullable String email) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+```
+~~~
+
+### `domain field 'X.y' is declared @Nullable, and build hands it to the getter-only bean property 'y'` {#nullable-handed-to-a-throwing-site}
+
+A getter-only list, a Lombok `@Singular` builder method or a protobuf-java setter throws on the `null` the domain may hold, whatever the wire declares.
+
+**Fix.** Declare the component non-null. Or take the fix line's other fix where it has one: `@Singular(ignoreNullCollections = true)`, or an `Optional` over a message field with `hasX()`.
+
+```
+@GenerateMapping: domain field 'Reader.tags' is declared @Nullable, and build hands it to the
+getter-only bean property 'tags'. 'tags' is filled through its own getter (the JAXB convention,
+getTags().addAll(...)), and addAll throws on a null, so build would throw on it. parse never
+reads a null into it either, since it refuses any null that no Optional bridges. Declare
+'Reader.tags' non-null, if build never meets it null, and hold an absent list as an empty one.
+```
+
+The rule: [A `@Nullable` component is not handed to what throws on it](rules.md#nullable-where-build-throws).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "and build hands it to" -->
+```java
+record Reader(String name, @Nullable List<String> tags) {}
+
+class ReaderBean {
+  private String name;
+  private final List<String> tags = new ArrayList<>();
+
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+  public List<String> getTags() { return tags; }
+}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderBean> {}
+```
+~~~
+
+### `domain field 'X.y' declares its elements @Nullable, and build copies them to the record component 'XDto.y'` {#nullable-elements-copied-into-non-null}
+
+A same-typed container is copied as it is, so a `null` element or key the domain may hold would land where the wire's element or key type rules it out.
+
+**Fix.** Mark the wire's element or key type `@Nullable`, or declare the domain's non-null.
+
+```
+@GenerateMapping: domain field 'Reader.tags' declares its elements @Nullable, and build copies
+them to the record component 'ReaderDto.tags'. A same-typed component is copied as it is, null
+elements included, and the element type String in 'ReaderDto.tags' is annotated @NonNull, so
+build would hand the wire a null its type says it cannot hold. Give the two one nullness:
+replace @NonNull on the element type String in 'ReaderDto.tags' with @Nullable; or declare the
+elements of 'Reader.tags' non-null, if build never meets a null one.
+```
+
+The rule: [Nullable elements are not copied into ones declared non-null](rules.md#nullable-elements-into-non-null).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "@Nullable, and build copies them to" -->
+```java
+record Reader(String name, List<@Nullable String> tags) {}
+
+record ReaderDto(String name, List<@NonNull String> tags) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
+```
+~~~
+
+### `domain field 'X.y' is declared @Nullable, and build maps the value it holds` {#nullable-optional-into-build}
+
+An `Optional` already says a value is absent by being empty, and `build` maps the one it is handed, so it would throw on a `null` `Optional`.
+
+**Fix.** Declare the `Optional` non-null, and hold an absent value as an empty one.
+
+```
+@GenerateMapping: domain field 'Reader.email' is declared @Nullable, and build maps the value it
+holds. An empty Optional is how a mapping says a value is absent, and build maps a present one,
+so it would throw on a null Optional. parse never reads a null into it either, since it refuses
+any null that no Optional bridges. Declare 'Reader.email' non-null, since an empty Optional
+already says the value is absent.
+```
+
+The rule: [A `@Nullable` component is not handed to what throws on it](rules.md#nullable-where-build-throws).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "and build maps the value it holds" -->
+```java
+record Reader(String name, @Nullable Optional<EmailAddress> email) {}
+
+record ReaderDto(String name, @Nullable String email) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+  @OptionalBridge
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+```
+~~~
+
+### `domain field 'X.y' declares its keys @Nullable, and build passes them through as it converts the values through the leaf 'y()'` {#nullable-passed-through-a-lifted-map}
+
+A map whose values a leaf or a spec converts is built entry by entry, and that build throws on a `null` key, whatever the wire declares. One whose keys a `@MapKey` leaf converts throws on a `null` value.
+
+**Fix.** Declare the keys, or the values, the message names non-null.
+
+```
+@GenerateMapping: domain field 'Reader.emails' declares its keys @Nullable, and build passes
+them through as it converts the values through the leaf 'emails()'. A lifted map is built entry
+by entry, and that build takes no null key either, so build would throw on a null one. parse
+never reads one either, since it refuses a null key. Declare the keys of 'Reader.emails'
+non-null, if build never meets a null one.
+```
+
+The rule: [A `@Nullable` component is not handed to what throws on it](rules.md#nullable-where-build-throws).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "and build passes them through" -->
+```java
+record Reader(String name, Map<@Nullable String, EmailAddress> emails) {}
+
+record ReaderDto(String name, Map<@Nullable String, String> emails) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+  default ValidatedPrism<String, EmailAddress> emails() {
+    return EmailCodecs.EMAIL;
+  }
+}
+```
+~~~
+
+### `domain field 'X.y' declares the type argument T @Nullable, and build passes it to the spec 'YMapping'` {#nullable-argument-into-a-spec}
+
+A nested spec's `build` takes the value as the spec declares its domain, so a type argument the domain declares `@Nullable` may not stand where the spec rules a `null` out.
+
+**Fix.** Declare the type argument non-null, or let the spec's own types take the `null`, where the fix line says.
+
+```
+@GenerateMapping: domain field 'Reader.email' declares the type argument String @Nullable, and
+build passes it to the spec 'SlotViewMapping', which maps Slot<String>. The spec's build takes
+the value as it declares it, and the type argument String of Slot<String> on the spec
+'SlotViewMapping' is annotated @NonNull, so it would hand on a null its own types rule out.
+Declare that type argument non-null in 'Reader.email', if build never meets a null there; or
+replace @NonNull on the type argument String of Slot<String> on the spec 'SlotViewMapping' with
+@Nullable, whose own types must then take it.
+```
+
+The rule: [A nullable type argument does not cross a nested spec that rules it out](rules.md#nullable-argument-across-a-spec).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "declares the type argument" -->
+```java
+record Slot<T extends @Nullable Object>(T value) {}
+
+record SlotView(String value) {}
+
+@GenerateMapping
+interface SlotViewMapping extends MappingSpec<Slot<@NonNull String>, SlotView> {}
+
+record Reader(String name, Slot<@Nullable String> email) {}
+
+record ReaderDto(String name, SlotView email) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
+```
+~~~
+
+### `the spec 'YMapping' builds YDto<T> with the type argument T @Nullable from 'X.y', and build copies it to the record component 'XDto.y'` {#nullable-argument-built-by-a-spec}
+
+A nested spec builds its wire as it declares it, its type variables standing for the domain's arguments, so a `@Nullable` one lands where the wire's site rules a `null` out.
+
+**Fix.** Mark the wire's type argument `@Nullable`, or declare the domain's non-null.
+
+```
+@GenerateMapping: the spec 'BoxMapping' builds BoxDto<T> with the type argument String @Nullable
+from 'Reader.email', and build copies it to the record component 'ReaderDto.email'. The spec
+builds the wire as it declares it, its type variables standing for the domain's arguments, and
+the type argument String of BoxDto<String> in 'ReaderDto.email' is annotated @NonNull, so build
+would hand the wire a null its type says it cannot hold. Give the two one nullness: replace
+@NonNull on the type argument String of BoxDto<String> in 'ReaderDto.email' with @Nullable; or
+declare the type argument of 'Reader.email' non-null, if build never meets a null there.
+```
+
+The rule: [A nullable type argument does not cross a nested spec that rules it out](rules.md#nullable-argument-across-a-spec).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "with the type argument" -->
+```java
+record Box<T extends @Nullable Object>(T value) {}
+
+record BoxDto<T extends @Nullable Object>(T value) {}
+
+@GenerateMapping
+interface BoxMapping<T extends @Nullable Object> extends MappingSpec<Box<T>, BoxDto<T>> {}
+
+record Reader(String name, Box<@Nullable String> email) {}
+
+record ReaderDto(String name, BoxDto<@NonNull String> email) {}
 
 @GenerateMapping
 interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}

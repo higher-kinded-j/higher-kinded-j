@@ -62,7 +62,7 @@ A fill copies when the types match, and a same-typed container [crosses as a cop
 The return type must tell the truth. A fill that can fail demands the `Validated` return, and a merge whose every fill is a copy must declare the plain target. [How a merge fills](rules.md#how-a-merge-fills) has the rest, including why an outbound view cannot fill through a spec's `build` yet.
 
 ~~~admonish warning title="Not checked for you: a merge with a plain return passes nulls through"
-A merge that returns `Validated` checks what it reads, as `parse` does under the [null rule](basics.md#null-doctrine). A merge with a plain return checks nothing: a `null` flows into the target as it is, and whatever the target's constructor throws propagates. To have a merge check, give a component a leaf that can fail, which makes the merge fallible and its return `Validated` ([Nulls and guards in a merge](rules.md#nulls-and-guards-in-a-merge)).
+A merge that returns `Validated` checks what it reads, as `parse` does under the [null rule](basics.md#null-doctrine). A merge with a plain return checks nothing when it runs: a `null` flows into the target as it is, and whatever the target's constructor throws propagates. To have a merge check, give a component a leaf that can fail, which makes the merge fallible and its return `Validated` ([Nulls and guards in a merge](rules.md#nulls-and-guards-in-a-merge)).
 ~~~
 
 ---
@@ -195,7 +195,7 @@ Either way, the repeated envelope and the untyped `Map<String, Object>` are gone
 
 ~~~admonish info title="Key Takeaways"
 * **A merge is a method signature**: each target component fills from the one source that names it, and the return type follows the fills
-* **A merge with a plain return checks nothing**: a `null` flows through, so a merge that must check needs a leaf that can fail
+* **A merge with a plain return checks nothing when it runs**: a `null` flows through, so a merge that must check needs a leaf that can fail
 * **`@GenerateErrorEnvelope` retires the copy-pasted envelope**: one `ErrorEnvelope<C>` component, generated factories, and a typed context record whose every component accepts `null`
 ~~~
 

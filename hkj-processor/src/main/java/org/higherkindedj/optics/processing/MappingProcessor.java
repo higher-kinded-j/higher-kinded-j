@@ -51,7 +51,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
@@ -76,6 +75,9 @@ import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.ReadOnly;
 import org.higherkindedj.optics.annotations.Unmapped;
+import org.higherkindedj.optics.processing.NullnessReading.NonNullSite;
+import org.higherkindedj.optics.processing.NullnessReading.NullableLevel;
+import org.higherkindedj.optics.processing.NullnessReading.Written;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.Lint;
 import org.higherkindedj.optics.processing.util.NamingConvention;
@@ -7257,7 +7259,9 @@ public class MappingProcessor extends AbstractProcessor {
   // Package-visible for the Kind-canary test, which pins the constant list so a new kind must
   // choose its emission before it can land: writeUpdateImpl's parser switch and the default arms of
   // buildCall and parseCall, which bridgeValue routes every kind but IDENTITY through, would
-  // otherwise give it a leaf's build and parse.
+  // otherwise give it a leaf's build and parse. So must it choose what build may hand it: the
+  // default arms of reportedNullIntoBuild and reportNullableIntoLeg would read it as a leaf, and
+  // reportedNullableElements's would check no element of it.
   enum Kind {
     // Same-typed components, copied by identity. One whose type names containers carries a
     // NullScan, so the located-null doctrine holds inside identity containers too, at every depth,
@@ -10183,6 +10187,9 @@ public class MappingProcessor extends AbstractProcessor {
       if (oneof != null) {
         // The oneof's members are claimed by the component, so no other component can take one.
         oneof.pairs().forEach(pair -> claimedWire.put(pair.member().name(), name));
+        if (reportedNullableOneof(spec, registry, domain, wire, oneof, need)) {
+          return null;
+        }
         List<Correspondence> arms = oneofCorrespondences(spec, registry, oneof, need);
         if (arms == null) {
           return null;
@@ -10216,6 +10223,9 @@ public class MappingProcessor extends AbstractProcessor {
       // resolved against the wire exactly as a top-level component would be, and tagged with the
       // group so build reads through it and parse assembles it. The members are contiguous and in
       // the record's declaration order, which is what the group's ladder and constructor need.
+      if (reportedNullableFlattened(spec, domain, group)) {
+        return null;
+      }
       Group tag = group.group();
       List<String> innerNames = componentNames(group.record());
       for (RecordComponentElement inner : group.record().getRecordComponents()) {
@@ -10459,18 +10469,24 @@ public class MappingProcessor extends AbstractProcessor {
     // wins, as the more specific declaration. The bridge's shape is one no rung of resolvePair
     // takes, so asking it first changes no other pair's resolution.
     TypeMirror optionalElement = bridgedArgument(spec, wire, name, wireType, domainType);
+    MemberSite member = new MemberSite(spec, registry, domain, wire, name, wireName, need);
     if (optionalElement != null) {
-      return resolveBridge(
-          spec,
-          registry,
-          domain,
-          wire,
-          name,
-          wireName,
-          declared,
-          domainType,
-          optionalElement,
-          need);
+      Correspondence bridged =
+          resolveBridge(
+              spec,
+              registry,
+              domain,
+              wire,
+              name,
+              wireName,
+              declared,
+              domainType,
+              optionalElement,
+              need);
+      return bridged == null
+              || reportedNullIntoBuild(member, arguments, wireType, domainType, bridged)
+          ? null
+          : bridged;
     }
     PairResolution resolved =
         resolvePair(
@@ -10497,7 +10513,6 @@ public class MappingProcessor extends AbstractProcessor {
       // A container lifts its elements one by one, so the leaf and the spec that would give it a
       // source are over its elements, exactly as for a bridged one.
       LeafOffer offer = leafOffer(spec, name, wireType, domainType);
-      MemberSite member = new MemberSite(spec, registry, domain, wire, name, wireName, need);
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -10531,11 +10546,7 @@ public class MappingProcessor extends AbstractProcessor {
       return null;
     }
     Correspondence correspondence = resolved.correspondence();
-    // Only build writes the wire: a mapping that only parses, such as a FieldMask update, hands
-    // its write sites nothing.
-    if (correspondence.kind() == Kind.IDENTITY
-        && need != Need.PARSE
-        && reportedNullableIntoNonNull(spec, domain, wire, name, wireName, domainType)) {
+    if (reportedNullIntoBuild(member, arguments, wireType, domainType, correspondence)) {
       return null;
     }
     if (correspondence.kind() == Kind.IDENTITY
@@ -10556,56 +10567,1380 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Refuses a plain copy from a domain component declared {@code @Nullable} ({@link
-   * NullableAnnotations#declaresNullable}) into a site {@code build} writes that is declared
-   * non-null ({@link #nonNullWriteSite}), and answers whether it did. {@code build} copies the
-   * value as it is, so a null the domain may hold is one the site's declaration rules out: a
-   * checking constructor or setter throws, and any other keeps a null its type says it cannot hold.
-   * The fixes give the pair one nullness, the site's or the domain's. No leaf is offered, since a
-   * leaf's domain side cannot be a nullable type. A primitive never holds a null, a bean that never
-   * writes the property has no site, and a component or a site that says nothing either way copies
-   * as before.
+   * Refuses a leg whose {@code build} would hand on a {@code null} it cannot take, and answers
+   * whether it did. The domain's component may be null ({@link #nullableSource}) where the leg
+   * converts it through a leaf, a nested spec or a lifted container ({@link
+   * #reportNullableIntoLeg}), maps an {@code Optional} ({@link #reportNullableOptional}), or copies
+   * it into a site that takes no null ({@link #reportedNullableCopy}). Or an element inside it, or
+   * a lifted map's key, declared nullable, may reach a lifted leg's leaf or spec, or be copied into
+   * a site whose element rules a null out ({@link #reportedNullableElements}).
+   *
+   * <p>Absence in a mapping is an {@code Optional}, which the bridge carries to the wire's {@code
+   * null} and back, and {@code parse} refuses every null read no bridge excuses. So such a null can
+   * only come from the caller, and {@code build} would throw on it or hand the wire a value its
+   * type says it cannot hold. Only build writes the wire: a mapping that only parses, such as a
+   * FieldMask update, is never refused.
+   *
+   * <p>The switches here, like {@link #reportNullableIntoLeg}'s and {@link
+   * #reportedNullableElements}'s, route the kinds they do not list through a {@code default} arm,
+   * as the Kind canary records: {@code DERIVED} and {@code ONEOF} never reach {@link
+   * #resolveCorrespondence}.
    */
-  private boolean reportedNullableIntoNonNull(
+  private boolean reportedNullIntoBuild(
+      MemberSite member,
+      Element arguments,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Correspondence c) {
+    if (member.need() == Need.PARSE) {
+      return false;
+    }
+    Optional<NullableSource> source =
+        nullableSource(member.spec(), arguments, member.domain(), member.name(), domainType);
+    if (source.isEmpty()) {
+      return reportedNullableElements(member, arguments, wireType, domainType, c)
+          || reportedNullableArguments(member, arguments, wireType, domainType, c);
+    }
+    return switch (c.kind()) {
+      case IDENTITY -> {
+        if (reportedNullableCopy(member, source.get(), wireType, domainType)) {
+          yield true;
+        }
+        yield reportedNullableElements(member, arguments, wireType, domainType, c);
+      }
+      case OPTIONAL, OPTIONAL_BRIDGE -> {
+        reportNullableOptional(member, source.get());
+        yield true;
+      }
+      default -> {
+        reportNullableIntoLeg(member, source.get(), wireType, domainType, c);
+        yield true;
+      }
+    };
+  }
+
+  /**
+   * Refuses a type argument that crosses a nested spec where one side may hold a {@code null} the
+   * other rules out, and answers whether it did. The spec takes the value it is handed as it
+   * declares its domain, so a type argument the domain declares nullable may not stand where the
+   * spec's domain rules a null out: an argument it declares non-null, a type variable whose own
+   * bound does ({@link NullableAnnotations#nonNullReason}), or a type variable an element-mapped
+   * spec's leaf converts, whose build takes no null ({@link #leafConverted}). And it builds its
+   * wire as it declares it, its type variables bound to the domain's arguments, so a type argument
+   * it builds nullable may not land where the wire's site rules a null out. A leg a leaf converts,
+   * a copy and a {@code Map}'s keys cross no spec.
+   */
+  private boolean reportedNullableArguments(
+      MemberSite member,
+      Element arguments,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Correspondence c) {
+    Types types = processingEnv.getTypeUtils();
+    Elements elements = processingEnv.getElementUtils();
+    RecordComponentElement component = componentNamed(member.domain(), member.name());
+    Written value =
+        new Written(
+            component.asType(),
+            domainType,
+            List.of(component),
+            writtenScopes(member.spec(), arguments));
+    Optional<CopySite> site = copySite(member, wireType);
+    Correspondence leg = c;
+    if (c.kind() == Kind.OPTIONAL_BRIDGE) {
+      value = value.typeArguments().getFirst();
+      leg = c.present();
+    }
+    Kind kind = leg.kind();
+    if (kind == Kind.IDENTITY || kind == Kind.MAP_KEYS) {
+      return false;
+    }
+    TypeMirror[] pair =
+        kind == Kind.LEAF
+            ? new TypeMirror[] {wireType, value.instantiated()}
+            : liftedParts(member, wireType, value.instantiated());
+    if (findLeaf(member.spec(), member.name(), pair[0], pair[1]) != null) {
+      return false;
+    }
+    Written part = crossing(value, kind, types, elements);
+    return servingCandidates(member.spec(), member.registry(), pair[0], pair[1], member.need())
+        .chosen()
+        .stream()
+        .findFirst()
+        .map(
+            nested ->
+                reportedNullableArgumentsThrough(member, arguments, kind, part, site, pair, nested))
+        .orElse(false);
+  }
+
+  /**
+   * {@link #reportedNullableArguments} through {@code nested}, the spec the leg nests: what it is
+   * handed ({@code part}), and what it builds into the wire's {@code site}.
+   */
+  private boolean reportedNullableArgumentsThrough(
+      MemberSite member,
+      Element arguments,
+      Kind kind,
+      Written part,
+      Optional<CopySite> site,
+      TypeMirror[] pair,
+      RegisteredSpec nested) {
+    Types types = processingEnv.getTypeUtils();
+    Elements elements = processingEnv.getElementUtils();
+    Optional<NullnessReading.HandedArgument> handed =
+        NullnessReading.handedArgument(
+            part,
+            nested.domain(),
+            "",
+            writtenScopes(nested.spec(), nested.spec()),
+            leafConverted(nested.spec()));
+    if (handed.isPresent()) {
+      reportNullableHandedArgument(member, arguments, kind, nested, handed.get());
+      return true;
+    }
+    Map<Element, TypeMirror> bindings =
+        nested.generic()
+            ? threadedBindings(member.spec(), nested, pair[1], pair[0]).orElseThrow()
+            : Map.of();
+    Optional<NullnessReading.BuiltArgument> built =
+        site.flatMap(
+            copy ->
+                NullnessReading.builtArgument(
+                    nested.wire(), bindings, crossing(copy.type(), kind, types, elements)));
+    built.ifPresent(
+        argument -> reportNullableBuiltArgument(member, kind, nested, site.get(), argument));
+    return built.isPresent();
+  }
+
+  /**
+   * The part of a domain or wire value a nested spec crosses: the value itself for a leaf leg, or
+   * the element, value or present value a lifted container hands it one by one.
+   */
+  private static Written crossing(Written value, Kind kind, Types types, Elements elements) {
+    return switch (kind) {
+      case ARRAY ->
+          value.element(NullScan.of(value.instantiated(), types, elements), types, elements);
+      case MAP, MAP_ENTRIES -> value.typeArguments().get(1);
+      case ELEMENTS, OPTIONAL -> value.typeArguments().getFirst();
+      default -> value;
+    };
+  }
+
+  /**
+   * The type variables an element-mapped spec's leaves convert to, each with the first leaf that
+   * does: the {@code A} each abstract {@code ValidatedPrism<B, A>} leaf returns, whose build takes
+   * no {@code null}.
+   */
+  private Map<Element, ExecutableElement> leafConverted(TypeElement spec) {
+    // Keyed by the element of what each leaf converts to: a type variable's is the variable.
+    Map<Element, ExecutableElement> converted = new LinkedHashMap<>();
+    for (ExecutableElement leaf : abstractLeaves(spec)) {
+      converted.putIfAbsent(
+          processingEnv
+              .getTypeUtils()
+              .asElement(((DeclaredType) leaf.getReturnType()).getTypeArguments().get(1)),
+          leaf);
+    }
+    return converted;
+  }
+
+  /** What a leg hands a nested spec, as a refusal names it: its value, or its parts. */
+  private static String crossed(Kind kind) {
+    return switch (kind) {
+      case LEAF -> "it";
+      case MAP, MAP_ENTRIES -> "its values";
+      case OPTIONAL -> "the value it holds";
+      default -> "its elements";
+    };
+  }
+
+  /**
+   * Refuses a nullable type argument handed to a nested spec that rules a null out there ({@link
+   * NullnessReading.Ruling}): as the spec declares it, by a type variable's non-null bound, or as a
+   * type variable its leaf converts. Where the domain's own type argument wrote the {@code
+   * Nullable}, the fix is made there. A fix on the spec lets the null in, so the spec's own types
+   * must then take it.
+   */
+  private void reportNullableHandedArgument(
+      MemberSite member,
+      Element arguments,
+      Kind kind,
+      RegisteredSpec nested,
+      NullnessReading.HandedArgument argument) {
+    String spelt = "'" + member.domain().getSimpleName() + "." + member.name() + "'";
+    String type = ProcessorUtils.simpleTypeName(argument.nullable().counted());
+    String spec = "the spec '" + nested.describe() + "'";
+    boolean fromArgument = argument.nullable().fromArgument();
+    String rules;
+    String fix;
+    switch (argument.ruling()) {
+      case NullnessReading.Ruling.Converted converted -> {
+        rules =
+            "its leaf '"
+                + converted.leaf().getSimpleName()
+                + "()' converts its type variable "
+                + converted.variable().asElement().getSimpleName()
+                + ", whose build takes no null";
+        fix = "";
+      }
+      case NullnessReading.Ruling.Bounded bounded -> {
+        String name = bounded.variable().asElement().getSimpleName().toString();
+        rules =
+            "the bound of its type variable "
+                + name
+                + " "
+                + NullnessReading.nonNullBecause(processingEnv, bounded.reason());
+        fix =
+            "; or declare "
+                + name
+                + " extends "
+                + nullableBound(bounded.variable().getUpperBound())
+                + " on "
+                + spec
+                + ", whose own types must then take it";
+      }
+      case NullnessReading.Ruling.Declared declared -> {
+        NonNullSite site =
+            new NonNullSite(
+                spec,
+                declared.named() + " on " + spec,
+                declared.type(),
+                nested.spec(),
+                declared.reason());
+        rules = site.declaration() + " " + NullnessReading.nonNullBecause(processingEnv, site);
+        fix = "; or " + nullableFix(site) + ", whose own types must then take it";
+      }
+    }
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field "
+            + spelt
+            + " declares the type argument "
+            + type
+            + " @Nullable"
+            + (fromArgument ? " through its type argument" : "")
+            + ", and build passes "
+            + crossed(kind)
+            + " to "
+            + spec
+            + ", which maps "
+            + ProcessorUtils.simpleTypeName(nested.domain())
+            + ".",
+        "The spec's build takes the value as it declares it, and "
+            + rules
+            + ", so it would hand on a null its own types rule out.",
+        (fromArgument
+                ? "Declare it non-null in the type argument "
+                    + argumentsWhere(member.spec(), arguments)
+                    + " gives "
+                    + spelt
+                : "Declare that type argument non-null in " + spelt)
+            + ", if build never meets a null there"
+            + fix
+            + ".");
+  }
+
+  /**
+   * A type variable's bound as a fix rewrites it to take a {@code null}: each bound of an
+   * intersection marked, since one non-null bound keeps the whole non-null.
+   */
+  private static String nullableBound(TypeMirror bound) {
+    return (bound instanceof IntersectionType intersection
+            ? intersection.getBounds().stream()
+            : Stream.of(bound))
+        .map(each -> "@Nullable " + ProcessorUtils.simpleTypeName(each))
+        .collect(Collectors.joining(" & "));
+  }
+
+  /**
+   * Refuses a nullable type argument a nested spec builds into a wire site that rules a null out
+   * there: the site's own type argument, the one the spec gives it, or the bound of a type variable
+   * it sits inside ({@link NullnessReading#rulingSites}).
+   */
+  private void reportNullableBuiltArgument(
+      MemberSite member,
+      Kind kind,
+      RegisteredSpec nested,
+      CopySite site,
+      NullnessReading.BuiltArgument argument) {
+    String spelt = "'" + member.domain().getSimpleName() + "." + member.name() + "'";
+    Written to = argument.ruling();
+    Optional<NullableAnnotations.NonNullReason> reason = to.nonNullReason();
+    NonNullSite asWritten =
+        to.fromArgument()
+            ? new NonNullSite(
+                site.member(),
+                "the type argument "
+                    + ProcessorUtils.simpleTypeName(to.counted())
+                    + " the spec gives "
+                    + site.declaration(),
+                to.counted(),
+                member.spec(),
+                reason.orElseThrow())
+            : new NonNullSite(
+                site.member(),
+                argument.named() + " in " + site.declaration(),
+                to.declared(),
+                site.declaredBy(),
+                reason.orElseThrow());
+    List<NonNullSite> ruling =
+        NullnessReading.withBound(
+            to, "type argument", site.member(), site.declaration(), site.declaredBy(), asWritten);
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "the spec '"
+            + nested.describe()
+            + "' builds "
+            + ProcessorUtils.simpleTypeName(nested.wire())
+            + " with the type argument "
+            + ProcessorUtils.simpleTypeName(argument.nullable())
+            + " @Nullable from "
+            + spelt
+            + ", and build copies "
+            + crossed(kind)
+            + " to "
+            + site.member()
+            + ".",
+        "The spec builds the wire as it declares it, its type variables standing for the domain's"
+            + " arguments, and "
+            + ruling.getFirst().declaration()
+            + " "
+            + NullnessReading.nonNullBecause(processingEnv, ruling.getFirst())
+            + ", so build would hand the wire a null its type says it cannot hold.",
+        "Give the two one nullness: "
+            + ruling.stream().map(this::nullableFix).collect(Collectors.joining(", and "))
+            + "; or declare the type argument of "
+            + spelt
+            + " non-null, if build never meets a null there.");
+  }
+
+  /**
+   * A domain component {@code build} may meet as {@code null}, as a refusal names it: {@code
+   * spelt}, its {@code 'Record.name'}; {@code declared}, how it says so; {@code nonNull}, the fix
+   * that rules the null out; and {@code bridgeable}, whether holding it as an {@code Optional} is a
+   * fix, which it is for a component declared so, and not for one whose type argument says so.
+   */
+  private record NullableSource(
+      String spelt, String declared, String nonNull, boolean bridgeable) {}
+
+  /**
+   * How a domain component may be {@code null} for {@code build}, or empty where it says it may
+   * not, or says nothing either way: declared nullable where {@code build} reads it ({@link
+   * NullnessReading#readsNullable}), or typed by a type variable with no nullness of its own whose
+   * argument, written where {@code arguments} is, is declared nullable ({@link Written}), as {@code
+   * One<@Nullable String>} gives {@code record One<T extends @Nullable Object>(T value)}. A
+   * primitive is never null.
+   */
+  private Optional<NullableSource> nullableSource(
+      TypeElement spec, Element arguments, TypeElement owner, String name, TypeMirror domainType) {
+    if (domainType.getKind().isPrimitive()) {
+      return Optional.empty();
+    }
+    RecordComponentElement component = componentNamed(owner, name);
+    String spelt = "'" + owner.getSimpleName() + "." + name + "'";
+    if (NullnessReading.readsNullable(component)) {
+      return Optional.of(
+          new NullableSource(
+              spelt, spelt + " is declared @Nullable", "declare " + spelt + " non-null", true));
+    }
+    Written written =
+        new Written(component.asType(), domainType, List.of(component), List.of(arguments));
+    return written.deferred() && written.nullable()
+        ? Optional.of(
+            new NullableSource(
+                spelt,
+                spelt
+                    + " is "
+                    + ProcessorUtils.simpleTypeName(component.asType())
+                    + ", whose type argument "
+                    + argumentsWhere(spec, arguments)
+                    + " declares @Nullable",
+                "declare that type argument non-null",
+                false))
+        : Optional.empty();
+  }
+
+  /**
+   * Where a type argument a refusal names is written: on the spec, or on the domain that holds it.
+   */
+  private static String argumentsWhere(TypeElement spec, Element arguments) {
+    return arguments.equals(spec) ? "the spec" : "'" + arguments.getSimpleName() + "'";
+  }
+
+  /**
+   * Refuses a nullable domain component that a leaf, a nested spec, or a container lifted through
+   * either converts. A leaf's {@code build} takes no {@code null} ({@code value must not be null}),
+   * nor does a nested spec's, and a lifted container is converted element by element, so its own
+   * {@code null} has none to convert ({@code values must not be null}). The fixes give absence an
+   * encoding the wire carries ({@link #bridgeFix}), or rule the null out.
+   */
+  private void reportNullableIntoLeg(
+      MemberSite member,
+      NullableSource source,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Correspondence c) {
+    String converts =
+        switch (c.kind()) {
+          case LEAF -> "it through " + converter(member, new TypeMirror[] {wireType, domainType});
+          case MAP_KEYS -> "its keys through " + keyConverter(member, wireType, domainType);
+          case MAP_ENTRIES ->
+              "its keys through "
+                  + keyConverter(member, wireType, domainType)
+                  + " and its values through "
+                  + converter(member, liftedParts(member, wireType, domainType));
+          case MAP ->
+              "its values through " + converter(member, liftedParts(member, wireType, domainType));
+          default ->
+              "its elements through "
+                  + converter(member, liftedParts(member, wireType, domainType));
+        };
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field " + source.declared() + ", and build converts " + converts + ".",
+        (c.kind() == Kind.LEAF
+                ? "A leaf's or a nested spec's build takes no null"
+                : "A lifted container is built element by element, so a null one has none to build")
+            + ", and build would throw on it."
+            + neverParsed(member, NULL_NEVER_PARSED),
+        absenceFix(member, source, bridgeFix(member, source, wireType, domainType, c)));
+  }
+
+  /**
+   * Why a refusal of a nullable domain component does not have {@code build} carry the null
+   * through: {@code parse}, the other direction, never produces one.
+   */
+  private static final String NULL_NEVER_PARSED =
+      " parse never reads a null into it either, since it refuses any null that no Optional"
+          + " bridges.";
+
+  /** {@link #NULL_NEVER_PARSED}, for an element: {@code parse} refuses a null one. */
+  private static final String NULL_ELEMENT_NEVER_PARSED =
+      " parse never reads one either, since it refuses a null element.";
+
+  /** {@link #NULL_NEVER_PARSED}, for a map's value: {@code parse} refuses a null one. */
+  private static final String NULL_VALUE_NEVER_PARSED =
+      " parse never reads one either, since it refuses a null value.";
+
+  /** {@link #NULL_NEVER_PARSED}, for a map's key: {@code parse} refuses a null one. */
+  private static final String NULL_KEY_NEVER_PARSED =
+      " parse never reads one either, since it refuses a null key.";
+
+  /** Why a lifted container's leaf or nested spec cannot take a null part. */
+  private static final String LIFTED_TAKES_NO_NULL =
+      "A leaf's or a nested spec's build takes no null, so build would throw on a null one.";
+
+  /**
+   * {@code clause}, which says what {@code parse} makes of the null, where the mapping parses: a
+   * mapping that only builds has nothing to say it.
+   */
+  private static String neverParsed(MemberSite member, String clause) {
+    return member.need() == Need.BUILD ? "" : clause;
+  }
+
+  /** The (wire, domain) parts a lifted container converts one by one: its elements or values. */
+  private TypeMirror[] liftedParts(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
+    return containerElementPair(member.spec(), member.name(), wireType, domainType);
+  }
+
+  /**
+   * What converts a pair, as a refusal names it: the leaf named after the component, or else the
+   * spec nested for the pair.
+   */
+  private String converter(MemberSite member, TypeMirror[] pair) {
+    ExecutableElement leaf = findLeaf(member.spec(), member.name(), pair[0], pair[1]);
+    return leaf != null
+        ? "the leaf '" + leaf.getSimpleName() + "()'"
+        : "the spec '"
+            + servingCandidates(member.spec(), member.registry(), pair[0], pair[1], member.need())
+                .chosen()
+                .getFirst()
+                .describe()
+            + "'";
+  }
+
+  /** The key leaf a lifted {@code Map}'s keys convert through, as a refusal names it. */
+  private String keyConverter(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
+    DeclaredType[] maps = mapPair(wireType, domainType);
+    return "the leaf '"
+        + findKeyLeaf(
+                member.spec(),
+                member.name(),
+                maps[0].getTypeArguments().getFirst(),
+                maps[1].getTypeArguments().getFirst())
+            .getSimpleName()
+        + "()'";
+  }
+
+  /**
+   * Refuses a nullable domain {@code Optional}: lifted through a leaf, or bridged to a nullable
+   * wire member, {@code build} maps the value it holds, so a {@code null} one throws. An empty
+   * {@code Optional} already says the value is absent, so the one fix rules the null out.
+   */
+  private void reportNullableOptional(MemberSite member, NullableSource source) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field " + source.declared() + ", and build maps the value it holds.",
+        "An empty Optional is how a mapping says a value is absent, and build maps a present one,"
+            + " so it would throw on a null Optional."
+            + neverParsed(member, NULL_NEVER_PARSED),
+        ProcessorUtils.capitalise(source.nonNull())
+            + ", since an empty Optional already says the value is absent.");
+  }
+
+  /**
+   * Refuses a domain component mapping a protobuf-java oneof whole, or a variant's one component a
+   * member is filled from, that may be {@code null}, and answers whether it did. {@code build} sets
+   * the member the component's variant names, so a null sealed component names none and throws, a
+   * null {@code Optional} of one has nothing to read ({@link #reportNullableOptional}), and a null
+   * member value throws in protoc's setter. An {@code Optional} of the sealed interface gives
+   * absence the encoding a oneof has: no member set.
+   */
+  private boolean reportedNullableOneof(
       TypeElement spec,
+      List<RegisteredSpec> registry,
       TypeElement domain,
       WireShape wire,
-      String name,
-      String wireName,
-      TypeMirror domainType) {
-    if (domainType.getKind().isPrimitive()
-        || !NullableAnnotations.declaresNullable(componentNamed(domain, name))) {
+      OneofGroup group,
+      Need need) {
+    if (need == Need.PARSE) {
       return false;
     }
-    NonNullSite site = nonNullWriteSite(processingEnv.getTypeUtils(), wire, wireName);
-    if (site == null) {
-      return false;
+    MemberSite member =
+        new MemberSite(spec, registry, domain, wire, group.name(), group.name(), need);
+    Optional<NullableSource> source =
+        nullableSource(spec, spec, domain, group.name(), group.type());
+    if (source.isEmpty()) {
+      return reportedNullableVariant(member, group);
     }
-    String source = "'" + domain.getSimpleName() + "." + name + "'";
-    String nullable = nullableFix(site);
+    if (group.optional()) {
+      reportNullableOptional(member, source.get());
+      return true;
+    }
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
         TAG,
         "domain field "
-            + source
-            + " is declared @Nullable, and build copies it to "
-            + site.member()
+            + source.get().declared()
+            + ", and build writes it to the oneof '"
+            + group.name()
+            + "' of the protobuf-java message '"
+            + wire.element().getSimpleName()
+            + "'.",
+        "build sets the member its variant names, so it would throw on a null, which names none."
+            + neverParsed(member, NULL_NEVER_PARSED),
+        // A oneof's component is a sealed interface, never a type variable, so it is declared.
+        "As "
+            + source.get().spelt()
+            + " may be absent, declare it Optional<"
+            + ProcessorUtils.simpleTypeName(group.type())
+            + ">, which sets no member when empty; or "
+            + source.get().nonNull()
+            + ", if build never meets it null.");
+    return true;
+  }
+
+  /**
+   * Refuses a variant whose one component fills its oneof member as it is, its type being the
+   * member's, where that component may be {@code null}, and answers whether it did: protoc's setter
+   * throws on one.
+   */
+  private boolean reportedNullableVariant(MemberSite member, OneofGroup group) {
+    for (OneofPair pair : group.pairs()) {
+      List<? extends RecordComponentElement> held = pair.variant().getRecordComponents();
+      if (held.size() == 1
+          && processingEnv
+              .getTypeUtils()
+              .isSameType(boxed(held.getFirst().asType()), boxed(pair.member().type()))
+          && NullnessReading.readsNullable(held.getFirst())) {
+        String spelt =
+            "'" + pair.variant().getSimpleName() + "." + held.getFirst().getSimpleName() + "'";
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            member.spec(),
+            TAG,
+            "variant component "
+                + spelt
+                + " is declared @Nullable, and build copies it to the field '"
+                + pair.member().name()
+                + "' of the protobuf-java message '"
+                + member.wire().element().getSimpleName()
+                + "'.",
+            "A protobuf-java builder's setter throws on a null, so build would throw on it.",
+            "Declare "
+                + spelt
+                + " non-null: a set member always holds a value, and an empty Optional<"
+                + ProcessorUtils.simpleTypeName(group.sealed())
+                + "> is how a oneof says no member is set.");
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Refuses a flattened domain component that may be {@code null} ({@link #nullableSource}), and
+   * answers whether it did. {@code build} reads each of its record's components into the wire, so
+   * it would throw on a null, which has none, and {@code parse} builds the record from those
+   * components, so it never reads one back. A flattened record has no absent state of its own on
+   * the wire, so the one fix rules the null out.
+   */
+  private boolean reportedNullableFlattened(TypeElement spec, TypeElement domain, Flattened group) {
+    // Only a record wire takes a flattened group, and a record wire is always built.
+    Optional<NullableSource> source =
+        nullableSource(spec, spec, domain, group.name(), group.type());
+    if (source.isEmpty()) {
+      return false;
+    }
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field "
+            + source.get().declared()
+            + ", and build spreads it across the wire, reading its components "
+            + group.inner().stream().map(name -> "'" + name + "'").collect(Collectors.joining(", "))
             + ".",
+        "build reads each of them from it, so it would throw on a null, and parse never reads one"
+            + " back, since it builds the record from those components.",
+        ProcessorUtils.capitalise(source.get().nonNull())
+            + ", if build never meets it null; a flattened record has no absent state of its own on"
+            + " the wire.");
+    return true;
+  }
+
+  /**
+   * The fixes for a nullable domain component a leg cannot take: hold it as an {@code Optional} the
+   * bridge carries to the wire's {@code null} and back ({@code bridge}), where the wire can carry
+   * one, and rule the null out.
+   */
+  private static String absenceFix(
+      MemberSite member, NullableSource source, Optional<String> bridge) {
+    String nonNull = source.nonNull() + ", if build never meets it null.";
+    return bridge
+        .map(
+            fix ->
+                "As "
+                    + source.spelt()
+                    + " may be absent, "
+                    + fix
+                    + (member.need() == Need.BUILD ? "" : " and parse reads it back as empty")
+                    + "; or "
+                    + nonNull)
+        .orElseGet(() -> ProcessorUtils.capitalise(nonNull));
+  }
+
+  /**
+   * How to hold a nullable domain component as an {@code Optional} the bridge carries, so absence
+   * has an encoding the wire carries both ways, or empty where the wire cannot carry one: a
+   * getter-only list or a {@code @Singular} collection, which has no absent state, a protobuf-java
+   * repeated or map field ({@link #messageBridge}), and a component whose type argument is what
+   * says it may be null. A record wire bridges where the spec asks, by an {@code @OptionalBridge}
+   * on the component's leaf or on a marker ({@link #bridgeMarking}), and a bean bridges as it is. A
+   * site declared non-null needs a {@code @Nullable} too ({@link NullnessReading#nullableFix}).
+   */
+  private Optional<String> bridgeFix(
+      MemberSite member,
+      NullableSource source,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Correspondence c) {
+    WireShape wire = member.wire();
+    String wireName = member.wireName();
+    if (messageField(wire, wireName).isPresent()) {
+      return messageBridge(member, source, wireType, domainType);
+    }
+    if (!source.bridgeable()
+        || writeSite(wire, wireName) instanceof WireShape.WriteSite.CollectionAdd
+        || writeSite(wire, wireName) instanceof WireShape.WriteSite.SingularCollection) {
+      return Optional.empty();
+    }
+    String marked =
+        wire instanceof WireShape.RecordShape
+            ? bridgeMarking(member, wireType, domainType, c)
+            : ", which a bean wire bridges as it is";
+    NonNullSite site = nonNullSite(member.spec(), wire, wireName, wireType);
+    return Optional.of(
+        "declare it Optional<"
+            + ProcessorUtils.simpleTypeName(domainType)
+            + ">"
+            + marked
+            + (site == null ? "" : ", and " + nullableFix(site))
+            + ", so build writes an absent value as null");
+  }
+
+  /**
+   * How to hold a nullable domain component as an {@code Optional} over a protobuf-java message's
+   * field: one with {@code hasX()}, which {@code build} leaves unset for an empty one, or a scalar
+   * declared {@code optional} in its {@code .proto} file to give it one. A repeated or map field
+   * has none to give, as it reads as empty when unset.
+   */
+  private Optional<String> messageBridge(
+      MemberSite member, NullableSource source, TypeMirror wireType, TypeMirror domainType) {
+    // A bean wire maps no generic domain, so the component itself is declared nullable.
+    WireShape.MessageField field = messageField(member.wire(), member.wireName()).orElseThrow();
+    if (field.presence().isEmpty() && ContainerCopy.of(wireType) != null) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "declare it Optional<"
+            + ProcessorUtils.simpleTypeName(domainType)
+            + ">"
+            + (field.presence().isPresent()
+                ? ""
+                : ", and the field optional in its .proto file, which gives it has"
+                    + ProcessorUtils.capitalise(member.wireName())
+                    + "()")
+            + ", so build leaves the field unset for an empty one");
+  }
+
+  /**
+   * How a record wire's spec asks for the bridge on a component a leaf converts, or one a nested
+   * spec does: an {@code @OptionalBridge} on the leaf named after the component, overriding it
+   * where a mix-in declares it, since a mix-in's leaf serves specs whose component is no {@code
+   * Optional}; or on a marker in its place, carrying any rename.
+   */
+  private String bridgeMarking(
+      MemberSite member, TypeMirror wireType, TypeMirror domainType, Correspondence c) {
+    TypeMirror[] pair =
+        c.kind() == Kind.LEAF
+            ? new TypeMirror[] {wireType, domainType}
+            : liftedParts(member, wireType, domainType);
+    ExecutableElement leaf = findLeaf(member.spec(), member.name(), pair[0], pair[1]);
+    if (leaf != null) {
+      return declaredLocally(leaf, member.spec())
+          ? " and annotate '" + member.name() + "()' with @OptionalBridge"
+          : " and override '"
+              + member.name()
+              + "()' on the spec with @OptionalBridge, returning '"
+              + leaf.getEnclosingElement().getSimpleName()
+              + ".super."
+              + member.name()
+              + "()'";
+    }
+    return " and "
+        + lowerFirst(
+            leafLine(
+                member.spec(),
+                member.name(),
+                "'@OptionalBridge "
+                    + keptAnnotations(member.spec(), member.name(), member.wireName())
+                    + "Optional<"
+                    + ProcessorUtils.qualifiedTypeName(domainType)
+                    + "> "
+                    + member.name()
+                    + "();'"));
+  }
+
+  /**
+   * Refuses a nullable domain component that {@code build} copies into a site that takes no {@code
+   * null}, and answers whether it did: a protobuf-java message's field, whose builder's setter
+   * throws on one whatever it declares ({@link #reportNullableIntoMessage}); a getter-only list,
+   * filled through {@code addAll} ({@link #reportNullableIntoGetterOnly}); a Lombok
+   * {@code @Singular} collection that throws on one ({@link #reportNullableIntoSingular}); or a
+   * site declared non-null ({@link #nonNullSite}). The fixes for the last give the pair one
+   * nullness, the site's or the domain's; a domain {@code Optional}'s own emptiness already says
+   * the value is absent. No leaf is offered, since a leaf's domain side cannot be a nullable type.
+   * A bean that never writes the property has no site, and a site that says nothing either way
+   * copies as before.
+   */
+  private boolean reportedNullableCopy(
+      MemberSite member, NullableSource source, TypeMirror wireType, TypeMirror domainType) {
+    WireShape wire = member.wire();
+    if (messageField(wire, member.wireName()).isPresent()) {
+      reportNullableIntoMessage(member, source, wireType, domainType);
+      return true;
+    }
+    WireShape.WriteSite write = writeSite(wire, member.wireName());
+    if (write instanceof WireShape.WriteSite.CollectionAdd add) {
+      reportNullableIntoGetterOnly(member, source, add);
+      return true;
+    }
+    NonNullSite site;
+    if (write instanceof WireShape.WriteSite.SingularCollection singular) {
+      WireShape.BeanShape bean = (WireShape.BeanShape) wire;
+      BeanPropertyAnalyser.SingularNulls nulls =
+          BeanPropertyAnalyser.singularNulls(
+              processingEnv.getElementUtils(),
+              singular.method(),
+              bean.element(),
+              member.wireName());
+      if (nulls == BeanPropertyAnalyser.SingularNulls.THROWS) {
+        reportNullableIntoSingular(member, source, singular);
+        return true;
+      }
+      // One that skips a null takes it, and one read from a class file is copied as before.
+      if (nulls != BeanPropertyAnalyser.SingularNulls.WRITTEN_BY_HAND) {
+        return false;
+      }
+      // One written by hand says what it takes as a builder setter does.
+      site = nonNullWriter(bean, member.wireName(), singular.method());
+    } else {
+      site = nonNullSite(member.spec(), wire, member.wireName(), wireType);
+    }
+    if (site == null) {
+      return false;
+    }
+    String nullable = nullableFix(site);
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field " + source.declared() + ", and build copies it to " + site.member() + ".",
         "A same-typed component is copied as it is, a null included, and "
             + site.declaration()
             + " "
-            + nonNullBecause(processingEnv, site)
+            + NullnessReading.nonNullBecause(processingEnv, site)
             + ", so build would write a null its declaration rules out, and either throw or leave"
             + " a null its type says it cannot hold.",
-        "As "
-            + source
-            + " may be absent, "
-            + nullable
-            + "; or declare "
-            + source
-            + " non-null, if build never meets it null.");
+        containerElement(domainType, "java.util.Optional") != null
+            ? ProcessorUtils.capitalise(source.nonNull())
+                + ", since an empty Optional already says the value is absent; or "
+                + nullable
+                + "."
+            : "As "
+                + source.spelt()
+                + " may be absent, "
+                + nullable
+                + "; or "
+                + source.nonNull()
+                + ", if build never meets it null.");
     return true;
+  }
+
+  /**
+   * The site {@code build} writes a wire member into, when it is declared non-null: as {@link
+   * #nonNullWriteSite} reads its declaration, or a record component typed by a type variable with
+   * no nullness of its own, such as {@code T} in {@code record Page<T extends @Nullable Object>(T
+   * item)}, whose argument the spec writes non-null ({@link Written}). Its argument is then what
+   * the fix marks, on the spec. Null when the site may take a {@code null}, or says nothing either
+   * way.
+   */
+  private NonNullSite nonNullSite(
+      TypeElement spec, WireShape wire, String wireName, TypeMirror wireType) {
+    Types types = processingEnv.getTypeUtils();
+    NonNullSite declared = nonNullWriteSite(types, wire, wireName);
+    if (declared != null || !(wire instanceof WireShape.RecordShape record)) {
+      return declared;
+    }
+    RecordComponentElement to = componentNamed(record.element(), wireName);
+    Written written = new Written(to.asType(), wireType, List.of(to), writtenScopes(spec, spec));
+    String spelt = "'" + record.element().getSimpleName() + "." + wireName + "'";
+    return NullnessReading.deferredNonNull(types, record.element(), to, written)
+        .map(
+            reason ->
+                new NonNullSite(
+                    "the record component "
+                        + spelt
+                        + ", whose type "
+                        + ProcessorUtils.simpleTypeName(to.asType())
+                        + " the spec gives a non-null argument",
+                    "the type argument "
+                        + ProcessorUtils.simpleTypeName(wireType)
+                        + " the spec gives "
+                        + spelt,
+                    wireType,
+                    spec,
+                    reason))
+        .orElse(null);
+  }
+
+  /**
+   * Where a type argument the spec writes is read: where it is written, {@code arguments}, and
+   * where the Impl, which spells it again, is declared, the spec's package.
+   */
+  private List<Element> writtenScopes(TypeElement spec, Element arguments) {
+    return List.of(arguments, processingEnv.getElementUtils().getPackageOf(spec));
+  }
+
+  /**
+   * Refuses a nullable domain component copied into a Lombok {@code @Singular} collection whose
+   * builder method throws on a {@code null}, as Lombok writes it unless the {@code @Singular} says
+   * {@code ignoreNullCollections = true}; with it, the method skips the null, and the builder
+   * builds an empty collection. The collection has no absent state, so no {@code Optional} is
+   * offered.
+   */
+  private void reportNullableIntoSingular(
+      MemberSite member, NullableSource source, WireShape.WriteSite.SingularCollection write) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field "
+            + source.declared()
+            + ", and build hands it to the @Singular bean property '"
+            + member.wireName()
+            + "'.",
+        "Lombok writes "
+            + BeanPropertyAnalyser.writerSignature(write.method())
+            + " to throw on a null collection, so build would throw on it."
+            + neverParsed(member, NULL_NEVER_PARSED),
+        ProcessorUtils.capitalise(source.nonNull())
+            + ", if build never meets it null; or add ignoreNullCollections = true to the"
+            + " @Singular on '"
+            + member.wireName()
+            + "', so the builder skips a null and builds an empty collection.");
+  }
+
+  /**
+   * Refuses a nullable domain component copied into a getter-only list, the JAXB convention {@code
+   * getX().addAll(...)}, which throws on a {@code null}. The list has no absent state, so no {@code
+   * Optional} is offered.
+   */
+  private void reportNullableIntoGetterOnly(
+      MemberSite member, NullableSource source, WireShape.WriteSite.CollectionAdd write) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field "
+            + source.declared()
+            + ", and build hands it to the getter-only bean property '"
+            + member.wireName()
+            + "'.",
+        "'"
+            + member.wireName()
+            + "' is filled through its own getter (the JAXB convention, "
+            + write.getter()
+            + "().addAll(...)), and addAll throws on a null, so build would throw on it."
+            + neverParsed(member, NULL_NEVER_PARSED),
+        ProcessorUtils.capitalise(source.nonNull())
+            + ", if build never meets it null, and hold an absent list as an empty one.");
+  }
+
+  /**
+   * Refuses a nullable domain component copied into a protobuf-java message's field, whose
+   * builder's setter throws on a {@code null} whatever it declares.
+   */
+  private void reportNullableIntoMessage(
+      MemberSite member, NullableSource source, TypeMirror wireType, TypeMirror domainType) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field "
+            + source.declared()
+            + ", and build hands it to the field '"
+            + member.wireName()
+            + "' of the protobuf-java message '"
+            + member.wire().element().getSimpleName()
+            + "'.",
+        "A protobuf-java builder's setter throws on a null, so build would throw on it."
+            + neverParsed(member, NULL_NEVER_PARSED),
+        absenceFix(member, source, messageBridge(member, source, wireType, domainType)));
+  }
+
+  /**
+   * Refuses an element a domain component declares nullable where {@code build} hands it on to
+   * something that takes no {@code null}, and answers whether it did. A lifted container converts
+   * its elements, or a {@code Map}'s values, one by one through its leaf or spec, whose build takes
+   * no null ({@code values[1] must not be null}), and a lifted {@code Map}'s keys through its key
+   * leaf: their first level counts. A copy hands the wire the domain's container as it is, so every
+   * level the copy reaches ({@link NullScan}) counts, where the wire's element rules a null out
+   * ({@link NullnessReading#copiedInto}), and, on a protobuf-java message, whose builder throws on
+   * a null element, wherever the domain's may be null. A bridged component is read through its
+   * {@code Optional}, its present value as the leg its pair takes unbridged. A copied {@code Map}'s
+   * keys count at its own level as its values do. An {@code Optional}'s own level cannot hold a
+   * null.
+   */
+  private boolean reportedNullableElements(
+      MemberSite member,
+      Element arguments,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Correspondence c) {
+    Types types = processingEnv.getTypeUtils();
+    Elements elements = processingEnv.getElementUtils();
+    RecordComponentElement component = componentNamed(member.domain(), member.name());
+    Written domainSide =
+        new Written(
+            component.asType(),
+            domainType,
+            List.of(component),
+            writtenScopes(member.spec(), arguments));
+    NullScan levels = NullScan.of(domainType, types, elements);
+    List<NullScan.Shape> through = List.of();
+    Correspondence leg = c;
+    if (c.kind() == Kind.OPTIONAL_BRIDGE) {
+      // An Optional of no container has no element to hold a null.
+      if (levels == null) {
+        return false;
+      }
+      domainSide = domainSide.element(levels, types, elements);
+      through = List.of(levels.shape());
+      levels = levels.inner();
+      leg = c.present();
+    }
+    Lifted lifted = new Lifted(member, arguments, wireType, domainSide.instantiated(), through);
+    return switch (leg.kind()) {
+      case IDENTITY ->
+          reportedNullableCopiedElements(member, arguments, domainSide, wireType, levels, through);
+      case MAP_KEYS ->
+          reportedNullableKeys(lifted, domainSide, levels)
+              || reportedNullablePassedThrough(
+                  lifted, domainSide.element(levels, types, elements), levels, false)
+              || reportedNullableCopiedElements(
+                  member, arguments, domainSide, wireType, levels, through);
+      case MAP_ENTRIES ->
+          reportedNullableKeys(lifted, domainSide, levels)
+              || reportedNullableLifted(
+                  lifted, domainSide.element(levels, types, elements), levels);
+      // A lifted map is named exactly, with its arguments, so it always names its key.
+      case MAP ->
+          reportedNullablePassedThrough(
+                  lifted, domainSide.key(levels, types, elements), levels, true)
+              || reportedNullableLifted(
+                  lifted, domainSide.element(levels, types, elements), levels);
+      case ELEMENTS, ARRAY ->
+          reportedNullableLifted(lifted, domainSide.element(levels, types, elements), levels);
+      default -> false;
+    };
+  }
+
+  /**
+   * A lifted leg whose parts a refusal names: its member, where the domain's type arguments are
+   * written, its wire and domain types (the bridge's present value's, for a bridged one), and the
+   * levels walked to reach it.
+   */
+  private record Lifted(
+      MemberSite member,
+      Element arguments,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      List<NullScan.Shape> through) {
+
+    Lifted {
+      through = List.copyOf(through);
+    }
+  }
+
+  /**
+   * Refuses the elements or values a lifted container converts one by one through its leaf or spec,
+   * where the domain declares them nullable ({@code element}, read at {@code level}), and answers
+   * whether it did.
+   */
+  private boolean reportedNullableLifted(Lifted lifted, Written element, NullScan level) {
+    if (!element.nullable()) {
+      return false;
+    }
+    reportNullableLiftedParts(
+        lifted,
+        NullnessReading.parts(NullnessReading.append(lifted.through(), level.shape())),
+        "converts them through "
+            + converter(
+                lifted.member(),
+                liftedParts(lifted.member(), lifted.wireType(), lifted.domainType())),
+        LIFTED_TAKES_NO_NULL,
+        element.fromArgument(),
+        level.shape() == NullScan.Shape.MAP ? NULL_VALUE_NEVER_PARSED : NULL_ELEMENT_NEVER_PARSED);
+    return true;
+  }
+
+  /**
+   * Refuses the keys, where {@code key}, or else the values, that a lifted {@code Map} passes
+   * through as they are beside the part it converts, where the domain declares them nullable
+   * ({@code part}, read at {@code level}), and answers whether it did. The bulk build that converts
+   * the other part takes no null key or value either, whatever the wire declares.
+   */
+  private boolean reportedNullablePassedThrough(
+      Lifted lifted, Written part, NullScan level, boolean key) {
+    if (!part.nullable()) {
+      return false;
+    }
+    MemberSite member = lifted.member();
+    reportNullableLiftedParts(
+        lifted,
+        NullnessReading.parts(NullnessReading.append(lifted.through(), level.shape()), key),
+        "passes them through as it converts the "
+            + (key ? "values" : "keys")
+            + " through "
+            + (key
+                ? converter(member, liftedParts(member, lifted.wireType(), lifted.domainType()))
+                : keyConverter(member, lifted.wireType(), lifted.domainType())),
+        "A lifted map is built entry by entry, and that build takes no null "
+            + (key ? "key" : "value")
+            + " either, so build would throw on a null one.",
+        part.fromArgument(),
+        key ? NULL_KEY_NEVER_PARSED : NULL_VALUE_NEVER_PARSED);
+    return true;
+  }
+
+  /**
+   * Refuses the keys a lifted {@code Map} converts one by one through its key leaf, where the
+   * domain declares them nullable, read at the map's {@code level} as a copy reads them ({@link
+   * Written#key}), and answers whether it did.
+   */
+  private boolean reportedNullableKeys(Lifted lifted, Written map, NullScan level) {
+    // A lifted map is named exactly, with its arguments, so it always names its key.
+    Written key = map.key(level, processingEnv.getTypeUtils(), processingEnv.getElementUtils());
+    if (!key.nullable()) {
+      return false;
+    }
+    reportNullableLiftedParts(
+        lifted,
+        NullnessReading.parts(NullnessReading.append(lifted.through(), level.shape()), true),
+        "converts them through "
+            + keyConverter(lifted.member(), lifted.wireType(), lifted.domainType()),
+        LIFTED_TAKES_NO_NULL,
+        key.fromArgument(),
+        NULL_KEY_NEVER_PARSED);
+    return true;
+  }
+
+  /**
+   * Refuses the {@code parts} of a lifted container that the domain declares nullable, where {@code
+   * build} hands them on as {@code how} says, which takes no null, as {@code why} says. Where the
+   * domain's {@code argument} declares them so, the fix is made there.
+   */
+  private void reportNullableLiftedParts(
+      Lifted lifted, String parts, String how, String why, boolean argument, String neverParsed) {
+    MemberSite member = lifted.member();
+    String spelt = "'" + member.domain().getSimpleName() + "." + member.name() + "'";
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field "
+            + spelt
+            + " declares its "
+            + parts
+            + " @Nullable"
+            + (argument ? " through its type argument" : "")
+            + ", and build "
+            + how
+            + ".",
+        why + neverParsed(member, neverParsed),
+        ProcessorUtils.capitalise(
+                nonNullParts(member.spec(), lifted.arguments(), parts, spelt, argument))
+            + ", if build never meets a null one.");
+  }
+
+  /**
+   * The fix that rules null {@code parts} out: on the domain component, or, where its {@code
+   * argument} declares them nullable, in that type argument.
+   */
+  private static String nonNullParts(
+      TypeElement spec, Element arguments, String parts, String spelt, boolean argument) {
+    return argument
+        ? "declare them non-null in the type argument "
+            + argumentsWhere(spec, arguments)
+            + " gives "
+            + spelt
+        : "declare the " + parts + " of " + spelt + " non-null";
+  }
+
+  /**
+   * Refuses a copy that hands the wire an element the domain declares nullable at a level where the
+   * wire's site rules a null out ({@link NullnessReading#copiedInto}), or, on a protobuf-java
+   * message, whose builder throws on a null element, at any level. Answers whether it did. A bean
+   * that never writes the property has no site, and a record's canonical constructor that takes the
+   * null where its component does not decides, since {@code build} calls it.
+   */
+  private boolean reportedNullableCopiedElements(
+      MemberSite member,
+      Element arguments,
+      Written domainSide,
+      TypeMirror wireType,
+      NullScan levels,
+      List<NullScan.Shape> through) {
+    Types types = processingEnv.getTypeUtils();
+    Elements elements = processingEnv.getElementUtils();
+    String spelt = "'" + member.domain().getSimpleName() + "." + member.name() + "'";
+    // A message's repeated and map fields hold no container, so their own level is the one. A
+    // bean wire maps no generic domain, so no type argument says the element is nullable.
+    if (messageField(member.wire(), member.wireName()).isPresent()) {
+      if (levels == null) {
+        return false;
+      }
+      Written key = domainSide.key(levels, types, elements);
+      boolean keys = key != null && key.nullable();
+      if (!keys && !domainSide.element(levels, types, elements).nullable()) {
+        return false;
+      }
+      String parts = NullnessReading.parts(NullnessReading.append(through, levels.shape()), keys);
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          member.spec(),
+          TAG,
+          "domain field "
+              + spelt
+              + " declares its "
+              + parts
+              + " @Nullable, and build copies them to the field '"
+              + member.wireName()
+              + "' of the protobuf-java message '"
+              + member.wire().element().getSimpleName()
+              + "'.",
+          "A protobuf-java builder throws on a null "
+              + (keys ? "key" : "element")
+              + ", so build would throw on one."
+              + neverParsed(member, keys ? NULL_KEY_NEVER_PARSED : NULL_ELEMENT_NEVER_PARSED),
+          "Declare the " + parts + " of " + spelt + " non-null, if build never meets a null one.");
+      return true;
+    }
+    Optional<CopySite> written = copySite(member, wireType);
+    Optional<NullnessReading.Copied> copied =
+        written.flatMap(
+            copy ->
+                NullnessReading.copiedInto(
+                    domainSide,
+                    copy.type(),
+                    copy.parameter().map(CopySite::type),
+                    levels,
+                    types,
+                    elements));
+    if (copied.isEmpty()) {
+      return false;
+    }
+    NullableLevel level = copied.get().level();
+    CopySite site =
+        copied.get().toParameter() ? written.get().parameter().orElseThrow() : written.get();
+    List<NullScan.Shape> path = Stream.concat(through.stream(), level.path().stream()).toList();
+    String parts = NullnessReading.parts(path, level.key());
+    List<NonNullSite> ruling =
+        NullnessReading.rulingSites(
+            level, site.member(), site.declaration(), site.declaredBy(), member.spec());
+    NonNullSite element = ruling.getFirst();
+    boolean argument = level.from().fromArgument();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        member.spec(),
+        TAG,
+        "domain field "
+            + spelt
+            + " declares its "
+            + parts
+            + " @Nullable"
+            + (argument ? " through its type argument" : "")
+            + ", and build copies them to "
+            + site.member()
+            + ".",
+        "A same-typed component is copied as it is, null "
+            + NullnessReading.parts(List.of(path.getLast()), level.key())
+            + " included, and "
+            + element.declaration()
+            + " "
+            + NullnessReading.nonNullBecause(processingEnv, element)
+            + ", so build would hand the wire a null its type says it cannot hold.",
+        "Give the two one nullness: "
+            + ruling.stream().map(this::nullableFix).collect(Collectors.joining(", and "))
+            + "; or "
+            + nonNullParts(member.spec(), arguments, parts, spelt, argument)
+            + ", if build never meets a null one.");
+    return true;
+  }
+
+  /**
+   * A site a copy writes the domain's container into, as a refusal of its element names it: how the
+   * member reads, the declaration a fix marks, its type as declared and as instantiated, the type
+   * declaring it, and, for a record, its canonical constructor's {@code parameter}, which is what
+   * {@code build} hands the value to ({@link NullnessReading#copiedInto}). A record's component; a
+   * bean's setter or builder setter, or a {@code @Singular} collection's, by its parameter, or the
+   * field Lombok writes it from; and a getter-only list by its getter's type. A bean's writer is
+   * read as it is declared, since what its class instantiates a superclass's type variables with
+   * cannot be read there, so such a variable says nothing beyond its own bound.
+   */
+  private record CopySite(
+      String member,
+      String declaration,
+      Written type,
+      TypeElement declaredBy,
+      Optional<CopySite> parameter) {}
+
+  /**
+   * The site a copy writes the property {@code member} names, or empty for a bean never written.
+   */
+  private Optional<CopySite> copySite(MemberSite member, TypeMirror wireType) {
+    String wireName = member.wireName();
+    return switch (member.wire()) {
+      case WireShape.RecordShape record -> {
+        RecordComponentElement to = componentNamed(record.element(), wireName);
+        String spelt = "'" + record.element().getSimpleName() + "." + wireName + "'";
+        List<Element> arguments = writtenScopes(member.spec(), member.spec());
+        yield Optional.of(
+            new CopySite(
+                "the record component " + spelt,
+                spelt,
+                new Written(to.asType(), wireType, List.of(to), arguments),
+                record.element(),
+                NullnessReading.canonicalParameter(
+                        processingEnv.getTypeUtils(), record.element(), to)
+                    .map(
+                        parameter ->
+                            new CopySite(
+                                "the record component " + spelt,
+                                NullnessReading.parameterNamed(record.element(), parameter),
+                                new Written(
+                                    parameter.asType(), wireType, List.of(parameter), arguments),
+                                record.element(),
+                                Optional.empty()))));
+      }
+      case WireShape.BeanShape bean ->
+          Optional.ofNullable(writeSite(bean, wireName))
+              .map(
+                  write ->
+                      switch (write) {
+                        case WireShape.WriteSite.Setter setter ->
+                            writerSite(bean, wireName, setter.method());
+                        case WireShape.WriteSite.SingularCollection singular ->
+                            writerSite(bean, wireName, singular.method());
+                        case WireShape.WriteSite.CollectionAdd add -> {
+                          ExecutableElement getter =
+                              add.calls(processingEnv.getElementUtils(), bean.element())
+                                  .findFirst()
+                                  .orElseThrow();
+                          yield new CopySite(
+                              "the getter-only bean property '" + wireName + "'",
+                              "the return type of " + add.getter() + "()",
+                              new Written(
+                                  getter.getReturnType(),
+                                  getter.getReturnType(),
+                                  List.of(getter),
+                                  List.of()),
+                              (TypeElement) getter.getEnclosingElement(),
+                              Optional.empty());
+                        }
+                      });
+    };
+  }
+
+  /** The copy site a bean's writer is, by its parameter, or the field Lombok writes it from. */
+  private static CopySite writerSite(
+      WireShape.BeanShape bean, String wireName, ExecutableElement writer) {
+    VariableElement parameter = writer.getParameters().getFirst();
+    String method = writerName(bean, writer);
+    return lombokField(bean, wireName, writer)
+        .map(
+            field ->
+                new CopySite(
+                    "the bean property '"
+                        + wireName
+                        + "', through "
+                        + method
+                        + ", which Lombok writes from "
+                        + fieldNamed(field),
+                    fieldNamed(field),
+                    new Written(field.asType(), field.asType(), List.of(field), List.of()),
+                    (TypeElement) field.getEnclosingElement(),
+                    Optional.<CopySite>empty()))
+        .orElseGet(
+            () ->
+                new CopySite(
+                    "the bean property '" + wireName + "', through " + method,
+                    "the parameter of " + method,
+                    new Written(
+                        parameter.asType(), parameter.asType(), List.of(parameter), List.of()),
+                    (TypeElement) writer.getEnclosingElement(),
+                    Optional.empty()));
   }
 
   /**
@@ -10662,7 +11997,7 @@ public class MappingProcessor extends AbstractProcessor {
             wireType,
             domainType,
             member.need(),
-            nonNullWriteSite(processingEnv.getTypeUtils(), member.wire(), member.wireName()));
+            nonNullSite(member.spec(), member.wire(), member.wireName(), wireType));
     String leaf =
         leafLine(
             member.spec(),
@@ -10944,8 +12279,7 @@ public class MappingProcessor extends AbstractProcessor {
                     wireBoxed,
                     domainBoxed,
                     member.need(),
-                    nonNullWriteSite(
-                        processingEnv.getTypeUtils(), member.wire(), member.wireName()))
+                    nonNullSite(member.spec(), member.wire(), member.wireName(), wireBoxed))
                 .strip();
     return "Align the component types, or declare "
         + String.join(" and ", wrappers)
@@ -11233,8 +12567,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // A message field's builder is never handed the empty Optional's null: build leaves the field
     // unset instead, so what its setter declares about null does not matter.
-    NonNullSite nonNull =
-        field.isPresent() ? null : nonNullWriteSite(processingEnv.getTypeUtils(), wire, wireName);
+    NonNullSite nonNull = field.isPresent() ? null : nonNullSite(spec, wire, wireName, wireType);
     if (present.correspondence() == null) {
       reportUnbridged(
           spec, registry, domain, wire, name, wireName, read, bridged, need, site, nonNull);
@@ -11256,19 +12589,6 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A site {@code build} writes a value into that is declared non-null: how a diagnostic names the
-   * member (with what it declares) and the declaration that says so, the site's declared type, the
-   * type declaring it, and why it takes no {@code null}. Shared with the merge, whose target
-   * component is such a site.
-   */
-  record NonNullSite(
-      String member,
-      String declaration,
-      TypeMirror type,
-      TypeElement declaredBy,
-      NullableAnnotations.NonNullReason reason) {}
-
-  /**
    * The site a bridged component is written into, when it is declared non-null ({@link
    * NullableAnnotations#nonNullReason}): a record's component, which its canonical constructor
    * takes, or the parameter of a bean's setter or builder setter. Null when the site may take a
@@ -11277,204 +12597,107 @@ public class MappingProcessor extends AbstractProcessor {
   private static NonNullSite nonNullWriteSite(Types types, WireShape wire, String wireName) {
     return switch (wire) {
       case WireShape.RecordShape record ->
-          nonNullComponent(types, record.element(), componentNamed(record.element(), wireName));
-      case WireShape.BeanShape bean -> {
-        // A bean that is never written (parse-only) has no setter to hand the null to.
-        if (!(writeSite(bean, wireName) instanceof WireShape.WriteSite.Setter setter)) {
-          yield null;
-        }
-        VariableElement parameter = setter.parameter();
-        TypeElement declaredBy = (TypeElement) setter.method().getEnclosingElement();
-        WireShape.UnpairedAccessor.Role role =
-            bean.strategy().orElseThrow() instanceof WireShape.ConstructionStrategy.Builder
-                ? WireShape.UnpairedAccessor.Role.BUILDER_SETTER
-                : WireShape.UnpairedAccessor.Role.SETTER;
-        // A setter the bean inherits is marked where it is declared, as the analyser says.
-        Optional<TypeElement> inherited =
-            Optional.of(declaredBy)
-                .filter(
-                    type ->
-                        role == WireShape.UnpairedAccessor.Role.SETTER
-                            && !type.equals(bean.element()));
-        String method =
-            setter.method().getSimpleName()
-                + "("
-                + ProcessorUtils.simpleTypeName(parameter.asType())
-                + ")"
-                + BeanPropertyAnalyser.declaredOn(inherited);
-        // A writer Lombok generates takes its annotations from the field it writes, the one place
-        // they can be changed, so a fix names the field.
-        TypeElement owner =
-            role == WireShape.UnpairedAccessor.Role.BUILDER_SETTER ? bean.element() : declaredBy;
-        Optional<String> lombokField =
-            BeanPropertyAnalyser.lombokSourceField(setter.method(), owner, wireName)
-                .map(
-                    field ->
-                        "the field '"
-                            + field.getEnclosingElement().getSimpleName()
-                            + "."
-                            + wireName
-                            + "'");
-        yield NullableAnnotations.nonNullReason(parameter)
-            .map(
-                reason ->
-                    new NonNullSite(
-                        "the bean property '"
-                            + wireName
-                            + "', whose "
-                            + role.label()
-                            + " "
-                            + method
-                            + lombokField
-                                .map(field -> ", which Lombok writes from " + field + ",")
-                                .orElse("")
-                            + " is declared non-null",
-                        lombokField.orElse("the parameter of " + method),
-                        parameter.asType(),
-                        declaredBy,
-                        reason))
-            .orElse(null);
-      }
+          NullnessReading.nonNullComponent(
+              types, record.element(), componentNamed(record.element(), wireName));
+      // A bean that is never written (parse-only) has no setter to hand the null to.
+      case WireShape.BeanShape bean ->
+          writeSite(bean, wireName) instanceof WireShape.WriteSite.Setter setter
+              ? nonNullWriter(bean, wireName, setter.method())
+              : null;
     };
   }
 
   /**
-   * The record component a canonical constructor writes, when it is declared non-null ({@link
-   * NullableAnnotations#nonNullReason}), or null. What the value is handed to is the canonical
-   * constructor's parameter, so one an explicit constructor declares nullable takes the null,
-   * whatever the component says, as a constructor that defaults it does, and one it declares
-   * non-null takes none, where the component says nothing either way. Shared with the merge, whose
-   * target is a record.
+   * The parameter of a bean's setter or builder setter, {@code writer}, as the site of the property
+   * {@code wireName} it writes, when it is declared non-null ({@link
+   * NullableAnnotations#nonNullReason}), or null.
    */
-  static NonNullSite nonNullComponent(
-      Types types, TypeElement record, RecordComponentElement component) {
-    Optional<VariableElement> parameter = canonicalParameter(types, record, component);
-    if (parameter.filter(NullableAnnotations::declaresNullable).isPresent()) {
-      return null;
-    }
-    String spelt = "'" + record.getSimpleName() + "." + component.getSimpleName() + "'";
-    return NullableAnnotations.nonNullReason(component)
-        .map(
-            reason ->
-                new NonNullSite(
-                    "the record component " + spelt + ", which is declared non-null",
-                    spelt,
-                    component.asType(),
-                    record,
-                    reason))
-        .or(() -> parameter.flatMap(taken -> nonNullParameter(record, spelt, taken)))
-        .orElse(null);
-  }
-
-  /**
-   * The parameter of {@code record}'s canonical constructor that writes {@code component}, found by
-   * its parameter types, since {@code Elements.isCanonicalConstructor} answers false for every
-   * constructor of a record read from a class file.
-   */
-  private static Optional<VariableElement> canonicalParameter(
-      Types types, TypeElement record, RecordComponentElement component) {
-    int index = record.getRecordComponents().indexOf(component);
-    return ProcessorUtils.canonicalConstructorOf(types, record)
-        .findFirst()
-        .map(constructor -> constructor.getParameters().get(index));
-  }
-
-  /**
-   * A canonical constructor's parameter, as the site of the component it writes, when the parameter
-   * is declared non-null and the component says nothing either way: the fix is made on the
-   * parameter, so the diagnostic names it.
-   */
-  private static Optional<NonNullSite> nonNullParameter(
-      TypeElement record, String component, VariableElement parameter) {
-    String constructor =
-        ((ExecutableElement) parameter.getEnclosingElement())
-            .getParameters().stream()
-                .map(each -> ProcessorUtils.simpleTypeName(each.asType()))
-                .collect(Collectors.joining(", ", record.getSimpleName() + "(", ")"));
+  private static NonNullSite nonNullWriter(
+      WireShape.BeanShape bean, String wireName, ExecutableElement writer) {
+    VariableElement parameter = writer.getParameters().getFirst();
+    TypeElement declaredBy = (TypeElement) writer.getEnclosingElement();
+    WireShape.UnpairedAccessor.Role role = writerRole(bean);
+    String method = writerName(bean, writer);
+    // A writer Lombok generates takes its annotations from the field it writes, the one place
+    // they can be changed, so a fix names the field.
+    Optional<String> lombokField =
+        lombokField(bean, wireName, writer).map(MappingProcessor::fieldNamed);
     return NullableAnnotations.nonNullReason(parameter)
         .map(
             reason ->
                 new NonNullSite(
-                    "the record component "
-                        + component
-                        + ", whose canonical constructor's parameter is declared non-null",
-                    "the parameter '"
-                        + parameter.getSimpleName()
-                        + "' of the canonical constructor "
-                        + constructor,
+                    "the bean property '"
+                        + wireName
+                        + "', whose "
+                        + role.label()
+                        + " "
+                        + method
+                        + lombokField
+                            .map(field -> ", which Lombok writes from " + field + ",")
+                            .orElse("")
+                        + " is declared non-null",
+                    lombokField.orElse("the parameter of " + method),
                     parameter.asType(),
-                    record,
-                    reason));
+                    declaredBy,
+                    reason))
+        .orElse(null);
+  }
+
+  /** The field Lombok writes a bean's writer from, or empty for a writer the bean declares. */
+  private static Optional<VariableElement> lombokField(
+      WireShape.BeanShape bean, String wireName, ExecutableElement writer) {
+    return BeanPropertyAnalyser.lombokSourceField(writer, writerOwner(bean, writer), wireName);
+  }
+
+  /** A field as a refusal names it: {@code the field 'Profile.tags'}. */
+  private static String fieldNamed(VariableElement field) {
+    return "the field '"
+        + field.getEnclosingElement().getSimpleName()
+        + "."
+        + field.getSimpleName()
+        + "'";
   }
 
   /**
-   * The clause that lets a non-null write site take a {@code null}: mark it {@code Nullable}, or
-   * replace the annotation that rules {@code null} out. An array site is told where the annotation
-   * goes, since one before the type marks the elements, and a site read from a class file is told
-   * the change is made where it is declared, which may not be this build's to make. So is a site
-   * the compiler cannot place, since that clause holds of a source site too.
+   * A bean's writer as a diagnostic names it, with its parameter's type, and where a setter the
+   * bean inherits is declared, as the analyser says: {@code setTags(List<String>) (declared on
+   * 'Base')}.
    */
+  private static String writerName(WireShape.BeanShape bean, ExecutableElement writer) {
+    TypeElement declaredBy = (TypeElement) writer.getEnclosingElement();
+    Optional<TypeElement> inherited =
+        Optional.of(declaredBy)
+            .filter(
+                type ->
+                    writerRole(bean) == WireShape.UnpairedAccessor.Role.SETTER
+                        && !type.equals(bean.element()));
+    return writer.getSimpleName()
+        + "("
+        + ProcessorUtils.simpleTypeName(writer.getParameters().getFirst().asType())
+        + ")"
+        + BeanPropertyAnalyser.declaredOn(inherited);
+  }
+
+  /** Whether a bean's writers are setters on the bean or setters on its builder. */
+  private static WireShape.UnpairedAccessor.Role writerRole(WireShape.BeanShape bean) {
+    return bean.strategy().orElseThrow() instanceof WireShape.ConstructionStrategy.Builder
+        ? WireShape.UnpairedAccessor.Role.BUILDER_SETTER
+        : WireShape.UnpairedAccessor.Role.SETTER;
+  }
+
+  /**
+   * Where the field Lombok writes {@code writer} from is looked for: the class a builder builds, or
+   * the class declaring a setter, which may be a superclass of the bean.
+   */
+  private static TypeElement writerOwner(WireShape.BeanShape bean, ExecutableElement writer) {
+    return writerRole(bean) == WireShape.UnpairedAccessor.Role.BUILDER_SETTER
+        ? bean.element()
+        : (TypeElement) writer.getEnclosingElement();
+  }
+
+  /** {@link NullnessReading#nullableFix}, in this round's environment. */
   private String nullableFix(NonNullSite site) {
-    return nullableFix(processingEnv, site);
-  }
-
-  /** {@link #nullableFix(NonNullSite)}, shared with the merge. */
-  static String nullableFix(ProcessingEnvironment env, NonNullSite site) {
-    String fix =
-        switch (site.reason()) {
-          case NullableAnnotations.NonNullReason.Annotated annotated ->
-              "replace @"
-                  + annotated.annotation()
-                  + " on "
-                  + site.declaration()
-                  + " with @Nullable";
-          case NullableAnnotations.NonNullReason.Marked _ ->
-              "mark "
-                  + site.declaration()
-                  + " @Nullable"
-                  + (site.type().getKind() == TypeKind.ARRAY
-                      ? " before its brackets, '"
-                          + nullableArray(site.type())
-                          + "', since a @Nullable before the type marks the elements"
-                      : "");
-        };
-    return ProcessorUtils.compiledFromSource(env.getElementUtils(), site.declaredBy())
-        ? fix
-        : fix + " where '" + nestedName(env, site.declaredBy()) + "' is declared, if you build it";
-  }
-
-  /**
-   * Why a non-null site takes no {@code null}, as the clause after its declaration: the annotation
-   * it carries, or the {@code NullMarked} scope it sits in, named by its kind. Shared with the
-   * merge.
-   */
-  static String nonNullBecause(ProcessingEnvironment env, NonNullSite site) {
-    return switch (site.reason()) {
-      case NullableAnnotations.NonNullReason.Annotated annotated ->
-          "is annotated @" + annotated.annotation();
-      case NullableAnnotations.NonNullReason.Marked marked ->
-          "carries no @Nullable inside @NullMarked "
-              + marked.scope().getKind().toString().toLowerCase(Locale.ROOT).replace('_', ' ')
-              + " '"
-              + switch (marked.scope()) {
-                case TypeElement type -> nestedName(env, type);
-                case QualifiedNameable qualified -> qualified.getQualifiedName();
-                default -> marked.scope().getSimpleName();
-              }
-              + "'";
-    };
-  }
-
-  /** An array type with {@code @Nullable} on the array itself: {@code String @Nullable [][]}. */
-  private static String nullableArray(TypeMirror array) {
-    String spelt = ProcessorUtils.simpleTypeName(array);
-    int brackets = spelt.indexOf('[');
-    return spelt.substring(0, brackets) + " @Nullable " + spelt.substring(brackets);
-  }
-
-  /** A type's name with its enclosing types and no type arguments: {@code Profile.Builder}. */
-  private static String nestedName(ProcessingEnvironment env, TypeElement type) {
-    return ProcessorUtils.simpleTypeName(env.getTypeUtils().erasure(type.asType()));
+    return NullnessReading.nullableFix(processingEnv, site);
   }
 
   /**
@@ -11482,13 +12705,13 @@ public class MappingProcessor extends AbstractProcessor {
    * an empty {@code Optional} as {@code null}, into the record component or through the setter, so
    * a declaration that rules {@code null} out is contradicted on every empty value: a checking
    * setter or constructor throws, and any other keeps a {@code null} its type says it cannot hold.
-   * The fixes each give the pair an honest encoding: a nullable site ({@link #nullableFix}), a
-   * domain component without the {@code Optional}, or a leaf over the whole {@code Optional} that
-   * encodes absence the way the wire does. A marker or bridged leaf the spec declares is named in
-   * the last two, since each replaces it, and the leaf carries the component's rename ({@link
-   * #renameAnnotation}). The primitive half of the same contract is refused where a marker is
-   * declared ({@link #checkBridgeWireSide}); this half needs the bean's write sites, which only
-   * classification knows.
+   * The fixes each give the pair an honest encoding: a nullable site ({@link
+   * NullnessReading#nullableFix}), a domain component without the {@code Optional}, or a leaf over
+   * the whole {@code Optional} that encodes absence the way the wire does. A marker or bridged leaf
+   * the spec declares is named in the last two, since each replaces it, and the leaf carries the
+   * component's rename ({@link #renameAnnotation}). The primitive half of the same contract is
+   * refused where a marker is declared ({@link #checkBridgeWireSide}); this half needs the bean's
+   * write sites, which only classification knows.
    */
   private void reportNonNullBridge(
       TypeElement spec,
@@ -11499,7 +12722,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType,
       TypeMirror element,
       NonNullSite site) {
-    String because = nonNullBecause(processingEnv, site);
+    String because = NullnessReading.nonNullBecause(processingEnv, site);
     Optional<ExecutableElement> bridge = bridgeDeclaration(spec, name);
     // A marker that also renames stays, as the rename's marker, once the bridge leaves it.
     String dropped =
@@ -11742,7 +12965,7 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror wrapper = boxed(wireType);
     ExecutableElement leaf = findLeaf(spec, name, wrapper, element);
     boolean converted = leaf != null || processingEnv.getTypeUtils().isSameType(wrapper, element);
-    NonNullSite nonNull = nonNullWriteSite(processingEnv.getTypeUtils(), wire, wireName);
+    NonNullSite nonNull = nonNullSite(spec, wire, wireName, wireType);
     return "Declare '"
         + wireName
         + "' on '"
@@ -11861,6 +13084,9 @@ public class MappingProcessor extends AbstractProcessor {
     // A oneof a sealed component maps sources each of its members through that component's arm.
     Map<String, Correspondence> arms = new LinkedHashMap<>();
     for (OneofGroup group : oneofs) {
+      if (reportedNullableOneof(spec, registry, domain, wire, group, need)) {
+        return null;
+      }
       List<Correspondence> resolved = oneofCorrespondences(spec, registry, group, need);
       if (resolved == null) {
         return null;
@@ -13182,20 +14408,19 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Whether a record wire's identity copy may hand the domain a {@code null} the domain's
    * declaration rules out, which {@code parse} refuses with a located error, so no total optic can
-   * hand it over. The wire's component may be declared nullable, read as {@link
-   * #reportedNullableIntoNonNull} reads the domain's for {@code build}, where the domain's is
-   * declared non-null, read as that check reads its write site ({@link #nonNullComponent}). Or an
-   * element, at a level the copy's null scan reaches ({@link NullScan}), may be declared nullable
-   * where the domain's element at that level rules a null out, and so may a map's key at its level,
-   * which {@code parse} reports too, though the scan does not look inside it. An {@code Optional}
-   * cannot hold a null, so its own level counts for nothing, and a side that says nothing either
-   * way rules nothing out.
+   * hand it over. The wire's component may be declared nullable, read as {@link #nullableSource}
+   * reads the domain's for {@code build}, where the domain's is declared non-null, read as that
+   * check reads its write site ({@link NullnessReading#nonNullComponent}). Or an element, at a
+   * level the copy's null scan reaches ({@link NullScan}), may be declared nullable where the
+   * domain's element at that level rules a null out, and so may a map's key at its level, which
+   * {@code parse} reports too, though the scan does not look inside it ({@link
+   * NullnessReading#copiedInto}).
    *
    * <p>Each type is read as the record declares it and as it is instantiated ({@link Written}):
    * {@code wireType} and {@code domainType} are the instantiated components, {@code scan} is the
    * copy's scan over {@code domainType}, and {@code arguments} is where the domain's type arguments
-   * are written. The build-side check reads declarations alone, so it does not follow a type
-   * argument this way.
+   * are written. The check on {@code build} reads its two sides the same way, roles swapped ({@link
+   * #reportedNullIntoBuild}).
    */
   private boolean readsNullableIntoNonNull(
       TypeElement spec,
@@ -13215,214 +14440,34 @@ public class MappingProcessor extends AbstractProcessor {
     Elements elements = processingEnv.getElementUtils();
     RecordComponentElement from = componentNamed(wire.element(), wireName);
     RecordComponentElement to = componentNamed(domain, name);
-    // A type argument is read where it is written, and where the Impl, which spells it again,
-    // is declared: the spec's package.
-    List<Element> written = List.of(arguments, elements.getPackageOf(spec));
-    Written wireSide = new Written(from.asType(), wireType, List.of(from));
-    Written domainSide = new Written(to.asType(), domainType, List.of(to));
+    Written wireSide =
+        new Written(from.asType(), wireType, List.of(from), writtenScopes(spec, spec));
+    Written domainSide =
+        new Written(to.asType(), domainType, List.of(to), writtenScopes(spec, arguments));
     // The domain's component is read where its canonical constructor takes it, unless its
     // declaration leaves the nullness to its type argument.
     boolean domainNonNull =
-        nonNullComponent(types, domain, to) != null
-            || domainSide.deferred()
-                && !NullableAnnotations.declaresNullable(to)
-                && canonicalParameter(types, domain, to)
-                    .filter(NullableAnnotations::declaresNullable)
-                    .isEmpty()
-                && domainSide.nonNull(written);
+        NullnessReading.nonNullComponent(types, domain, to) != null
+            || NullnessReading.deferredNonNull(types, domain, to, domainSide).isPresent();
     if ((NullableAnnotations.declaresNullable(from) || wireSide.nullable()) && domainNonNull) {
       return true;
     }
-    for (NullScan level = scan; level != null; level = level.inner()) {
-      // A map's keys are read at its own level, before the sides move on to its values. javac
-      // takes Map<?, V> and Map<? extends Object, V> for one type, so one side may name a key
-      // the other does not: a key a side does not name says nothing either way.
-      Written wireKey = wireSide.key(level, written, types, elements);
-      Written domainKey = domainSide.key(level, written, types, elements);
-      if (wireKey != null
-          && domainKey != null
-          && wireKey.nullable()
-          && domainKey.nonNull(written)) {
-        return true;
-      }
-      wireSide = wireSide.element(level, written, types, elements);
-      domainSide = domainSide.element(level, written, types, elements);
-      // A raw container names no element type, so it says nothing either way.
-      if (level.element() != null
-          && level.shape() != NullScan.Shape.OPTIONAL
-          && wireSide.nullable()
-          && domainSide.nonNull(written)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * A type as a record declares it and as it is instantiated, read together, with the scopes the
-   * declaration is read in. A type variable with no nullness annotation of its own, as {@code T} in
-   * {@code record Page<T extends @Nullable Object>(T item)}, stands for its type argument ({@link
-   * #deferred}): the instantiated form counts then, read where that argument is written, unless the
-   * variable's own bound rules a null out. Any other declaration counts as it is written,
-   * {@code @Nullable T} and {@code @NonNull T} among them, read in its own scope. Below any
-   * declared type variable, annotated or not, the levels are the argument's ({@link
-   * #namesNoLevels}), so they are read where it is written, and the variable's own bound, read in
-   * its own scope, rules a null out at each of them where it does ({@code bound}, null outside any
-   * variable). A variable javac made by capturing a wildcard declares nothing of its own, so it is
-   * read as it is written, and says nothing.
-   */
-  private record Written(
-      TypeMirror declared, TypeMirror instantiated, List<Element> scopes, Bound bound) {
-
-    Written {
-      scopes = List.copyOf(scopes);
-    }
-
-    Written(TypeMirror declared, TypeMirror instantiated, List<Element> scopes) {
-      this(declared, instantiated, scopes, null);
-    }
-
-    /** Whether the declaration leaves its nullness to its type argument. */
-    boolean deferred() {
-      return NullableAnnotations.declaredVariable(declared)
-          && !NullableAnnotations.annotatesNullness(declared);
-    }
-
-    /**
-     * Whether the declaration is a type variable, which names no level of its own, whatever its
-     * annotation: an {@code @NonNull M} says the value is present, and its argument, as {@code
-     * Map<String, @Nullable String>}, says what it holds.
-     */
-    boolean namesNoLevels() {
-      return NullableAnnotations.declaredVariable(declared);
-    }
-
-    /**
-     * Both forms' element types at {@code level}, as {@link NullScan#writtenElement} reads them;
-     * below a type variable ({@link #namesNoLevels}), the argument's alone, read where it is {@code
-     * written}.
-     */
-    Written element(NullScan level, List<Element> written, Types types, Elements elements) {
-      TypeMirror inner = level.writtenElement(instantiated, types, elements);
-      Bound within = enclosing().map(b -> b.element(level, types, elements)).orElse(null);
-      return namesNoLevels()
-          ? new Written(inner, inner, written, within)
-          : new Written(level.writtenElement(declared, types, elements), inner, scopes, within);
-    }
-
-    /**
-     * Both forms' key types at a map {@code level}, as {@link NullScan#writtenKey} reads them, as
-     * {@link #element} reads the elements; null where either form names no key, which says nothing
-     * either way.
-     */
-    Written key(NullScan level, List<Element> written, Types types, Elements elements) {
-      TypeMirror inner = level.writtenKey(instantiated, types, elements);
-      if (inner == null) {
-        return null;
-      }
-      Bound within = enclosing().map(b -> b.key(level, types, elements)).orElse(null);
-      return namesNoLevels()
-          ? new Written(inner, inner, written, within)
-          : Optional.ofNullable(level.writtenKey(declared, types, elements))
-              .map(outer -> new Written(outer, inner, scopes, within))
-              .orElse(null);
-    }
-
-    /**
-     * The bound the levels below this one sit inside: this declaration's own, where it is a type
-     * variable, read in its scope, or else the one this level sits inside.
-     */
-    private Optional<Bound> enclosing() {
-      return namesNoLevels()
-          ? Optional.of(new Bound(declared, scopes))
-          : Optional.ofNullable(bound);
-    }
-
-    /** Whether the form that counts is declared nullable. */
-    boolean nullable() {
-      return NullableAnnotations.declaresNullable(counted());
-    }
-
-    /**
-     * Whether the form that counts rules a null out ({@link NullableAnnotations#rulesOutNull}) in a
-     * scope it is read in: its own, or, for a deferred declaration, where its argument is {@code
-     * written}. A deferred variable whose own bound is non-null rules a null out whatever its
-     * argument, as {@link MappingProcessor#nonNullComponent} reads it for the component itself, and
-     * so does the bound of a variable this level sits inside.
-     */
-    boolean nonNull(List<Element> written) {
-      return ruledOutAsWritten(written) || bound != null && bound.provesNonNull();
-    }
-
-    private boolean ruledOutAsWritten(List<Element> written) {
-      if (!deferred()) {
-        return scopes.stream().anyMatch(scope -> NullableAnnotations.rulesOutNull(declared, scope));
-      }
-      return scopes.stream()
-              .anyMatch(scope -> NullableAnnotations.nonNullReason(declared, scope).isPresent())
-          || written.stream()
-              .anyMatch(scope -> NullableAnnotations.rulesOutNull(instantiated, scope));
-    }
-
-    private TypeMirror counted() {
-      return deferred() ? instantiated : declared;
-    }
-  }
-
-  /**
-   * What a type variable's own bound says of a level inside the variable, read in the scope the
-   * variable is declared in: {@code L extends List<String>}, in a {@code @NullMarked} record, holds
-   * non-null strings whatever its argument. {@code type} is the bound's type at this level,
-   * starting at the variable itself. A type variable met inside the bound, as {@code E} in {@code L
-   * extends List<E>}, stands for an argument written elsewhere, so it rules a null out only by its
-   * own bound or annotation, never by the scope it is read in. A level is read through a type
-   * variable's bound, followed while it is one, and through each bound of an intersection in turn,
-   * the first that names it deciding.
-   */
-  private record Bound(TypeMirror type, List<Element> scopes) {
-
-    Bound {
-      scopes = List.copyOf(scopes);
-    }
-
-    /** The bound's element type at {@code level}, or null where the bound names none. */
-    Bound element(NullScan level, Types types, Elements elements) {
-      return at(readable(type).map(read -> level.namedElement(read, types, elements)));
-    }
-
-    /** The bound's key type at a map {@code level}, or null where the bound names none. */
-    Bound key(NullScan level, Types types, Elements elements) {
-      return at(readable(type).map(read -> level.writtenKey(read, types, elements)));
-    }
-
-    /**
-     * Whether the bound proves a null absent at this level, in the variable's own scope: by an
-     * annotation, by its scope, or by a type variable's own bound, never by the parametric rule
-     * that {@link NullableAnnotations#rulesOutNull} adds for a variable in a marked scope.
-     */
-    boolean provesNonNull() {
-      return scopes.stream()
-          .anyMatch(scope -> NullableAnnotations.nonNullReason(type, scope).isPresent());
-    }
-
-    /** The types a level is read through, in order. */
-    private static Stream<TypeMirror> readable(TypeMirror type) {
-      return switch (type.getKind()) {
-        case TYPEVAR -> readable(((TypeVariable) type).getUpperBound());
-        case INTERSECTION ->
-            ((IntersectionType) type).getBounds().stream().flatMap(Bound::readable);
-        default -> Stream.of(type);
-      };
-    }
-
-    /** The first type the bound names at this level, as a bound, or null where it names none. */
-    private Bound at(Stream<TypeMirror> named) {
-      return named
-          .filter(Objects::nonNull)
-          .findFirst()
-          .map(inner -> new Bound(inner, scopes))
-          .orElse(null);
-    }
+    // A null the component or the canonical constructor's parameter rules out is one parse
+    // refuses, or one a total optic would hand the constructor.
+    return NullnessReading.ruledOutIn(
+        wireSide,
+        domainSide,
+        NullnessReading.canonicalParameter(types, domain, to)
+            .map(
+                parameter ->
+                    new Written(
+                        parameter.asType(),
+                        domainType,
+                        List.of(parameter),
+                        writtenScopes(spec, arguments))),
+        scan,
+        types,
+        elements);
   }
 
   /**

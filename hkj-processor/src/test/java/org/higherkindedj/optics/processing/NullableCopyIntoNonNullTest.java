@@ -23,8 +23,9 @@ import org.junit.jupiter.api.io.TempDir;
  * non-null: a record component, a setter's or a builder setter's parameter, declared so by a
  * recognised annotation or by JSpecify's {@code @NullMarked} scope. A plain merge copies its
  * sources the same way and is refused alike. A site or a component that says nothing, a site that
- * may take the null, a primitive, a leaf, a bean that is never written and a fallible merge, whose
- * guard reports a null, all compile as before.
+ * may take the null, a primitive, a bean that is never written and a fallible merge, whose guard
+ * reports a null, all compile as before. {@link NullableIntoBuildTest} holds every leg but a plain
+ * copy.
  *
  * <p>Each compilation carries several specs, to keep the javac runs few.
  */
@@ -567,8 +568,7 @@ class NullableCopyIntoNonNullTest {
 
     assertThat(compilation)
         .hadErrorContaining(
-            "build copies it to the bean property 'id', whose builder setter setId(String) is"
-                + " declared non-null.")
+            "build hands it to the field 'id' of the protobuf-java message 'Account'.")
         .inFile(compilation.sourceFiles().get(1))
         .onLineContaining("interface AccountMapping");
     Assertions.assertThat(compilation.errors()).hasSize(1);
@@ -576,8 +576,8 @@ class NullableCopyIntoNonNullTest {
 
   @Test
   @DisplayName(
-      "a site that may take the null or says nothing, a primitive, a leaf, a bean never written and"
-          + " a fallible merge all compile as before")
+      "a site that may take the null or says nothing, a primitive, a bean never written and a"
+          + " fallible merge all compile as before")
   void everyOtherPairCompiles() {
     Compilation compilation =
         compile(
@@ -627,19 +627,6 @@ class NullableCopyIntoNonNullTest {
 
                   @GenerateMapping
                   public interface PlainMapping extends MappingSpec<Plain, PlainDto> {}
-
-                  public record Coded(@Nullable String code) {}
-
-                  public record CodedDto(String code) {}
-
-                  // A leaf converts the value instead: it is not a copy, and its build is the
-                  // leaf's own to answer for.
-                  @GenerateMapping
-                  public interface CodedMapping extends MappingSpec<Coded, CodedDto> {
-                    default ValidatedPrism<String, String> code() {
-                      return ValidatedPrism.of(Validated::validNel, code -> code);
-                    }
-                  }
 
                   // The canonical constructor build calls takes a null, whatever the component says.
                   public record Defaulted(String id, String name) {

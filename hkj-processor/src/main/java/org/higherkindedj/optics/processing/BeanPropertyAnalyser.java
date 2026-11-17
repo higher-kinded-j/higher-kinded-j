@@ -27,6 +27,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.NamingConvention;
@@ -1721,6 +1722,69 @@ final class BeanPropertyAnalyser {
       }
     }
     return Optional.empty();
+  }
+
+  /** What a {@code @Singular} collection setter does with a {@code null} collection. */
+  enum SingularNulls {
+    /** Lombok wrote it to throw on one, as it does by default. */
+    THROWS,
+    /** Lombok wrote it to skip one, as {@code @Singular(ignoreNullCollections = true)} asks. */
+    SKIPS,
+    /**
+     * Lombok wrote it in a class read from a class file, which keeps no {@code @Singular} to say
+     * which, since Lombok retains that annotation in source only.
+     */
+    UNSEEN,
+    /** It was written by hand, so it says what it takes as any builder setter does. */
+    WRITTEN_BY_HAND
+  }
+
+  /**
+   * What the {@code @Singular} collection setter {@code writer} does with a {@code null}
+   * collection. The annotation is read where Lombok reads it: on the parameter named after {@code
+   * property} of a constructor or method carrying {@code @Builder}, where there is one, or else on
+   * the field of that name, in {@code owner} or up its superclasses.
+   *
+   * @param elements the round's element utilities
+   * @param writer the collection setter a builder has for {@code property}
+   * @param owner the class the builder builds
+   * @param property the property the writer writes
+   * @return what the writer does with a null collection
+   */
+  static SingularNulls singularNulls(
+      Elements elements, ExecutableElement writer, TypeElement owner, String property) {
+    if (!writtenByLombok(writer)) {
+      return SingularNulls.WRITTEN_BY_HAND;
+    }
+    if (!ProcessorUtils.compiledFromSource(elements, owner)) {
+      return SingularNulls.UNSEEN;
+    }
+    List<VariableElement> parameters =
+        owner.getEnclosedElements().stream()
+            .filter(ExecutableElement.class::isInstance)
+            .map(ExecutableElement.class::cast)
+            .filter(executable -> annotatedWithAny(executable, Set.of("lombok.Builder")))
+            .flatMap(executable -> executable.getParameters().stream())
+            .filter(parameter -> parameter.getSimpleName().contentEquals(property))
+            .map(VariableElement.class::cast)
+            .toList();
+    List<VariableElement> declared =
+        parameters.isEmpty()
+            ? Stream.iterate(owner, Objects::nonNull, BeanPropertyAnalyser::superclassOf)
+                .flatMap(type -> ElementFilter.fieldsIn(type.getEnclosedElements()).stream())
+                .filter(field -> field.getSimpleName().contentEquals(property))
+                .toList()
+            : parameters;
+    return declared.stream()
+            .flatMap(variable -> variable.getAnnotationMirrors().stream())
+            .filter(mirror -> qualifiedName(mirror).equals("lombok.Singular"))
+            .flatMap(mirror -> mirror.getElementValues().entrySet().stream())
+            .anyMatch(
+                value ->
+                    value.getKey().getSimpleName().contentEquals("ignoreNullCollections")
+                        && Boolean.TRUE.equals(value.getValue().getValue()))
+        ? SingularNulls.SKIPS
+        : SingularNulls.THROWS;
   }
 
   /**

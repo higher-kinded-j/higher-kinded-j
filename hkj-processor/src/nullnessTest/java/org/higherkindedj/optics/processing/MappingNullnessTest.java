@@ -636,6 +636,30 @@ class MappingNullnessTest {
                       return alias();
                     }
                   }
+
+                  // What the processor offers for a @Nullable component a nested spec or a lifted
+                  // leaf would be handed: an Optional the bridge carries.
+                  public record Address(String city) {}
+
+                  public record AddressDto(String city) {}
+
+                  @GenerateMapping
+                  public interface AddressMapping extends MappingSpec<Address, AddressDto> {}
+
+                  public record Order(Optional<Address> address, Optional<List<Code>> codes) {}
+
+                  public record OrderDto(@Nullable AddressDto address, @Nullable List<String> codes) {}
+
+                  @GenerateMapping
+                  public interface OrderMapping extends MappingSpec<Order, OrderDto> {
+                    @OptionalBridge
+                    Optional<Address> address();
+
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> codes() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+                  }
                 }
                 """));
 
