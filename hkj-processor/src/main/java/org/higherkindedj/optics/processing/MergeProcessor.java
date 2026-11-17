@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -288,12 +289,13 @@ public class MergeProcessor extends AbstractProcessor {
 
   /**
    * Refuses each fill of a plain merge from a source component declared {@code @Nullable} into a
-   * target component declared non-null, and answers whether none was. A plain merge copies every
-   * source value as it is, a null included, where a fallible one guards each read and reports a
-   * null as a failure. It is the rule a mapping's {@code build} keeps for the same copy, in the
-   * same shape, with one more fix: a leaf on any fill makes the merge fallible, so its guard takes
-   * this read too. A primitive never holds a null, and a component that says nothing either way
-   * copies as before.
+   * target component declared non-null, or holding elements declared {@code @Nullable} into one
+   * whose elements are declared non-null ({@link #reportedNullableElement}), and answers whether
+   * none was. A plain merge copies every source value as it is, a null included, where a fallible
+   * one guards each read, scans what it copies, and reports a null as a failure. It is the rule a
+   * mapping's {@code build} keeps for the same copy, in the same shape, with one more fix: a leaf
+   * on any fill makes the merge fallible, so its guard takes this read too. A primitive never holds
+   * a null, and a component that says nothing either way copies as before.
    */
   private boolean checkNoNullableIntoNonNull(
       ExecutableElement mergeMethod, TypeElement target, List<Fill> fills) {
@@ -306,17 +308,17 @@ public class MergeProcessor extends AbstractProcessor {
               .findFirst()
               .orElseThrow();
       RecordComponentElement from = componentNamed(source, fill.component());
-      if (from.asType().getKind().isPrimitive() || !NullableAnnotations.declaresNullable(from)) {
-        continue;
-      }
       RecordComponentElement to = componentNamed(target, fill.component());
-      MappingProcessor.NonNullSite site =
-          MappingProcessor.nonNullComponent(processingEnv.getTypeUtils(), target, to);
+      NullnessReading.NonNullSite site =
+          from.asType().getKind().isPrimitive() || !NullableAnnotations.declaresNullable(from)
+              ? null
+              : NullnessReading.nonNullComponent(processingEnv.getTypeUtils(), target, to);
       if (site == null) {
+        clean &= !reportedNullableElement(mergeMethod, source, fill, from, to);
         continue;
       }
       String spelt = "'" + source.getSimpleName() + "." + fill.component() + "'";
-      String nullable = MappingProcessor.nullableFix(processingEnv, site);
+      String nullable = NullnessReading.nullableFix(processingEnv, site);
       Diagnostics.error(
           processingEnv.getMessager(),
           mergeMethod,
@@ -329,7 +331,7 @@ public class MergeProcessor extends AbstractProcessor {
           "A plain merge copies each source value as it is, a null included, and "
               + site.declaration()
               + " "
-              + MappingProcessor.nonNullBecause(processingEnv, site)
+              + NullnessReading.nonNullBecause(processingEnv, site)
               + ", so the merge would write a null its declaration rules out, and either throw or"
               + " leave a null its type says it cannot hold.",
           "As "
@@ -348,6 +350,59 @@ public class MergeProcessor extends AbstractProcessor {
       clean = false;
     }
     return clean;
+  }
+
+  /**
+   * Refuses a plain merge's fill that copies an element or map key its source declares nullable
+   * into a target whose element or key rules a null out ({@link NullnessReading#nullableElement}),
+   * and answers whether it did. A plain merge copies its sources as they are, so the null lands
+   * where the target's type says it cannot be.
+   */
+  private boolean reportedNullableElement(
+      ExecutableElement mergeMethod,
+      TypeElement source,
+      Fill fill,
+      RecordComponentElement from,
+      RecordComponentElement to) {
+    Optional<NullnessReading.NullableElement> found =
+        NullnessReading.nullableElement(
+            from, to, fill.scan(), processingEnv.getTypeUtils(), processingEnv.getElementUtils());
+    if (found.isEmpty()) {
+      return false;
+    }
+    NullnessReading.NullableElement element = found.get();
+    String spelt = "'" + source.getSimpleName() + "." + fill.component() + "'";
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        mergeMethod,
+        TAG,
+        "source component "
+            + spelt
+            + " declares its "
+            + element.parts()
+            + " @Nullable, and the merge copies them to "
+            + element.site().member()
+            + ".",
+        "A plain merge copies each source value as it is, null "
+            + element.last()
+            + " included, and "
+            + element.site().declaration()
+            + " "
+            + NullnessReading.nonNullBecause(processingEnv, element.site())
+            + ", so the merge would hand the target a null its type says it cannot hold.",
+        "Give the two one nullness: "
+            + NullnessReading.nullableFix(processingEnv, element.site())
+            + "; or declare the "
+            + element.parts()
+            + " of "
+            + spelt
+            + " non-null, if the merge never meets a null one. Or give any fill a leaf and return"
+            + " Validated<NonEmptyList<FieldError>, "
+            + ((TypeElement) to.getEnclosingElement()).getSimpleName()
+            + ">, so the merge, now fallible, reports a null "
+            + (element.key() ? "key as an error" : "element as a located error")
+            + ".");
+    return true;
   }
 
   private static RecordComponentElement componentNamed(TypeElement record, String name) {

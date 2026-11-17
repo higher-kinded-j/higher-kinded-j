@@ -1954,8 +1954,10 @@ class MappingProcessorUpdateTest {
     void kindCanary() {
       // writeUpdateImpl's parser switch, buildCall and parseCall each route the kinds they do not
       // list through a default arm, to a leaf's or a lifted container's call, and bridgeValue
-      // sends every kind but IDENTITY through parseCall, so a new Kind would silently take one. A
-      // new constant fails this pin: give it an explicit arm in each (the dense buildValue and
+      // sends every kind but IDENTITY through parseCall, so a new Kind would silently take one.
+      // The null checks on build do too: reportedNullIntoBuild and reportNullableIntoLeg read an
+      // unlisted kind as a leaf, and reportedNullableElements checks none of its elements. A new
+      // constant fails this pin: give it an explicit arm in each (the dense buildValue and
       // legValue switches are compiler-enforced already) before extending this list.
       Assertions.assertThat(Arrays.stream(MappingProcessor.Kind.values()).map(Enum::name))
           .containsExactlyInAnyOrder(

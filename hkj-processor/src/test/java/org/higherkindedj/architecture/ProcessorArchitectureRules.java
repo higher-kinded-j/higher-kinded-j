@@ -523,6 +523,39 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * The null reading asks neither processor that reads through it.
+   *
+   * <p>{@code NullnessReading} reads what each side of a copy says about {@code null}, for {@code
+   * MappingProcessor}'s checks on {@code parse} and {@code build} and for {@code MergeProcessor}'s,
+   * as {@code NullScan} and {@code ContainerCopy} emit for them. A reading that called back into a
+   * processor for a helper would tie them into a cycle, so it reads only the classes the processors
+   * share with it. Comparing both its dependents and its own dependencies with the ones allowed,
+   * rather than forbidding the rest, also fails the rule if a class it names is renamed or stops
+   * depending on what it allows.
+   */
+  @Test
+  @DisplayName("The null reading should ask neither processor that reads through it")
+  void the_null_reading_should_ask_neither_processor_that_reads_through_it() {
+    assertThat(dependentsOf(PROCESSING + "NullnessReading"))
+        .as("read a copy's nullness through NullnessReading from the processors that check it")
+        .isEqualTo(Set.of("MappingProcessor", "MergeProcessor"));
+    Set<String> asked =
+        StreamSupport.stream(classes.spliterator(), false)
+            .filter(javaClass -> topLevelName(javaClass).equals(PROCESSING + "NullnessReading"))
+            .flatMap(javaClass -> javaClass.getDirectDependenciesFromSelf().stream())
+            .map(dependency -> topLevelName(dependency.getTargetClass()))
+            .filter(target -> target.startsWith(PROCESSING))
+            .map(target -> target.substring(PROCESSING.length()))
+            .filter(target -> !target.equals("NullnessReading"))
+            .collect(Collectors.toSet());
+    assertThat(asked)
+        .as(
+            "move what NullnessReading needs from a processor into NullnessReading, or into a"
+                + " class they share")
+        .isEqualTo(Set.of("NullableAnnotations", "NullScan", "util.ProcessorUtils"));
+  }
+
+  /**
    * Only the methods that need a type's string form render a type through it.
    *
    * <p>A {@code TypeMirror}'s string form keeps type-use annotations and qualifies them, so a
@@ -825,6 +858,9 @@ class ProcessorArchitectureRules {
 
   /** The package the copy-strategy checks are declared in. */
   private static final String EXTERNAL = "org.higherkindedj.optics.processing.external.";
+
+  /** The package the processors and the classes they share live in. */
+  private static final String PROCESSING = "org.higherkindedj.optics.processing.";
 
   /** The copy-strategy checks, which a class they share may not ask. */
   private static final Set<String> COPY_STRATEGY_CHECKS =

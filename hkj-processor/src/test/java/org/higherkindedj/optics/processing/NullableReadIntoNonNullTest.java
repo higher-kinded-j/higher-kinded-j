@@ -89,10 +89,34 @@ class NullableReadIntoNonNullTest {
           import org.higherkindedj.optics.annotations.Flatten;
           import org.higherkindedj.optics.annotations.GenerateMapping;
           import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.jspecify.annotations.NonNull;
           import org.jspecify.annotations.Nullable;
 
           public final class LooseSpecs {
             private LooseSpecs() {}
+
+            public record TagsDto(List<@Nullable String> tags) {}
+
+            // Only the canonical constructor, which parse calls, rules a null element out.
+            public record Guarded(List<String> tags) {
+              public Guarded(List<@NonNull String> tags) {
+                this.tags = tags;
+              }
+            }
+
+            @GenerateMapping
+            public interface GuardedMapping extends MappingSpec<Guarded, TagsDto> {}
+
+            // The constructor takes a null element, but parse refuses the one its component rules
+            // out.
+            public record Loosened(List<@NonNull String> tags) {
+              public Loosened(List<@Nullable String> tags) {
+                this.tags = tags.stream().filter(tag -> tag != null).toList();
+              }
+            }
+
+            @GenerateMapping
+            public interface LoosenedMapping extends MappingSpec<Loosened, TagsDto> {}
 
             // Below a type variable, its argument is read where the spec writes it, which says
             // nothing, but the variable's own bound rules a null out where it is declared, at
@@ -862,10 +886,19 @@ class NullableReadIntoNonNullTest {
   @DisplayName(
       "a spec in a package that says nothing writes arguments that say nothing, below a type"
           + " variable too, but a flattened group's arguments are written by its domain, and a"
-          + " non-null bound holds, at its own level and at every level inside it")
+          + " non-null bound holds, at its own level and at every level inside it, as does a"
+          + " canonical constructor's parameter that rules a null element out, beside its"
+          + " component")
   void aSpecOutsideTheMarkedPackage() {
     Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecsLooseBagMappingImpl"))
         .contains("asIso");
+    Stream.of("GuardedMapping", "LoosenedMapping")
+        .forEach(
+            spec ->
+                Assertions.assertThat(methodsOfImpl("com.loose.LooseSpecs" + spec + "Impl"))
+                    .as(spec)
+                    .contains("build", "parse")
+                    .doesNotContain("asIso"));
     Stream.of(
             "LooseRacksMapping",
             "LinkedMapping",

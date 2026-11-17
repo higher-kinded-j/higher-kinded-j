@@ -22,7 +22,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
 | [Can a `@Nullable` component be copied into one declared non-null?](#nullable-copy-into-non-null) | No: `build` would write the `null`, so give both one nullness. | by design |
-| [Is a `@Nullable` component handed to a leaf or a nested spec refused?](#nullable-copy-into-non-null) | Not yet: `build` throws when it meets the `null`. | not supported yet |
+| [Is a `@Nullable` component handed to a leaf or a nested spec refused?](#nullable-where-build-throws) | Yes: `build` would throw on the `null`, so hold it as an `Optional` or declare it non-null. | by design |
 | [Can a bean spec declare `@OptionalBridge`?](#optional-bridge-on-a-bean-wire) | Yes, but it changes nothing: the processor answers with a note. | by design |
 | [Can a bridged value go through a leaf or a spec?](#what-converts-a-bridged-value) | Yes: whatever converts it unbridged, over the inner types. | by design |
 | **Shared vocabulary** | | |
@@ -36,6 +36,8 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | **Containers** | | |
 | [Is a same-typed container shared with the wire?](#same-typed-containers-cross-as-copies) | Not when declared exactly `List`, `Set`, `Collection`, `Map`, `Optional` or array. | by design |
 | [Does NullAway pass a component typed `List<@Nullable String>`?](#same-typed-containers-cross-as-copies) | Yes, but for the shapes the rule names. | not supported yet |
+| [Can a type argument declared `@Nullable` cross a nested spec that declares it non-null?](#nullable-argument-across-a-spec) | No: the spec's `build` would hand on the `null` its own types rule out, so give both one nullness. | by design |
+| [Can a `List<@Nullable String>` be copied into a `List<String>` whose elements are declared non-null?](#nullable-elements-into-non-null) | No: `build` would hand the wire a `null` element its type rules out, so give both one nullness. | by design |
 | [Does a `List` lift against a `Set`, or an `ArrayList`?](#what-lifts) | No: the same exact container on both sides, one level deep. | by design |
 | [Can a lifted array hold `T` or `List<Tag>`?](#what-lifts) | No: the generated array creation would be generic. | by design |
 | [Can a raw or wildcard `Map` have its keys or values converted?](#what-lifts) | No: name its type arguments. | by design |
@@ -175,13 +177,145 @@ interface ReaderViewMapping extends MappingSpec<Reader, ReaderView> {}
 
 The processor answers that `Reader.nickname` `is declared @Nullable, and build copies it to` a component declared non-null. Give the pair one nullness: mark `ReaderView.nickname` `@Nullable`, or declare `Reader.nickname` non-null if every `Reader` that `build` is given has one. On a Lombok bean, mark the field: Lombok copies its `@Nullable` to the setter it writes. In a mapping, a leaf is no way out, since its `build` refuses a `null`.
 
-- The domain component counts as nullable by the same wide reading: any annotation named `Nullable` or `CheckForNull`, or JSR-305's `@Nonnull(when = MAYBE)`, on the component, its type, its accessor or its field.
+- The domain component counts as nullable by the same wide reading: any annotation named `Nullable` or `CheckForNull`, or JSR-305's `@Nonnull(when = MAYBE)`. It is read at the accessor `build` calls, where javac copies one written on the component, unless that annotation targets only fields or record components.
+- A type variable counts as the spec instantiates it. A domain component `T` is nullable where the spec writes `One<@Nullable String>` for `record One<T extends @Nullable Object>(T value)`. A wire component of that shape is non-null where the spec writes `ItemDto<String>`.
 - The site is read where `build` hands it the value, a record's canonical constructor parameter. One that an explicit constructor declares `@Nullable` takes the `null` whatever the component says, and one it declares non-null takes none where the component says nothing.
 - A wire class you cannot change keeps one more way. Hold the component as an `Optional` in the domain, and give it a leaf over the whole `Optional` that says what an absent value becomes on the wire.
 - `parse` needs no such rule: it refuses a `null` read whatever the domain declares, as [the null contract](#the-null-contract-precisely) says.
 - A primitive, a bean property `build` never writes, and a component or a site that says nothing either way are copied as before. A mapping that only parses, such as a protobuf [`FieldMask` update](beans.md#a-patch-through-its-fieldmask), writes no site, so this rule never refuses it.
 - A plain [`@GenerateMerge`](#how-a-merge-fills) refuses a `@Nullable` source component copied into a target component declared non-null, the same way. It offers one more fix: a leaf on that fill, or on any other, makes the merge fallible, and a fallible merge guards each read, reporting a `null` as `must not be null`.
-- Only a copy is checked. Refusing a `@Nullable` component that `build` hands to a leaf, a nested spec, a lifted container, a `@Singular` builder method or a getter-only list is not supported yet. Each of those throws when `build` meets the `null`, but a `@Singular(ignoreNullCollections = true)` method skips it.
+- The processor [refuses a `@Nullable` component](#nullable-where-build-throws) that `build` hands to anything but such a copy, wherever what takes it would throw on the `null`.
+
+### A `@Nullable` component is not handed to what throws on it {#nullable-where-build-throws}
+
+**The processor refuses a `@Nullable` domain component where `build` hands it to something that throws on a `null`.** Here a patron's pass may be absent, and a leaf converts it:
+
+<!-- verify:rejects "and build converts it through the leaf" -->
+```java
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
+
+record Pass(String code) {}
+
+record Patron(String name, @Nullable Pass pass) {}
+
+record PatronView(String name, @Nullable String pass) {}
+
+@GenerateMapping
+interface PatronViewMapping extends MappingSpec<Patron, PatronView> {
+  default ValidatedPrism<String, Pass> pass() {
+    return ValidatedPrism.of(code -> Validated.validNel(new Pass(code)), Pass::code);
+  }
+}
+```
+
+The processor answers that `Patron.pass` is declared `@Nullable`, `and build converts it through the leaf` `pass()`. A leaf's `build` refuses a `null`, so `build` would throw `NullPointerException: value must not be null`. Absence in a mapping is an `Optional`, which the [bridge](absence.md#optional-bridge) writes as the wire's `null` and reads back as empty. So declare `Patron.pass` as `Optional<Pass>` and annotate `pass()` with `@OptionalBridge`. Or declare it non-null, if every `Patron` that `build` is given has a pass.
+
+What else takes the `null`, and the fix the processor offers there:
+
+| `build` hands the `null` to | What throws | The fix offered |
+|---|---|---|
+| A leaf or a nested spec | Its `build`: `value must not be null` | An `Optional` the bridge carries, or a non-null component |
+| A container lifted through a leaf or a spec, a `@MapKey` map among them | Its bulk `build`: `values must not be null` | An `Optional` the bridge carries, or a non-null component |
+| A map's keys passed through while a leaf or a spec converts its values, or its values passed through while a `@MapKey` leaf converts its keys | Its bulk `build`: `values must not contain a null key`, or a null value under its key | Non-null keys or values |
+| A oneof variant's one component, which fills its member as it is | protoc's setter | A non-null component, since an empty `Optional` of the sealed interface already sets no member |
+| An `Optional`, lifted or bridged | The `map` over its value | A non-null component, since an empty `Optional` already says the value is absent |
+| A flattened record | The read of its components | A non-null component |
+| A oneof's sealed component | The write of the member its variant names | An `Optional` of the sealed interface, which sets no member when empty |
+| A Lombok `@Singular` collection | Its builder method: `tags cannot be null` | `@Singular(ignoreNullCollections = true)`, which skips the `null`, or a non-null component |
+| A getter-only `List` | `getTags().addAll(...)` | A non-null component |
+| A protobuf-java message's field | protoc's setter, whatever it declares | An `Optional`, over a field with `hasX()`, or a non-null component |
+
+- **A lifted container's elements and keys count too.** The processor refuses a domain `List<@Nullable Pass>` lifted through a leaf, since the leaf throws on the `null` element, and a `Map<@Nullable Pass, String>` whose keys a `@MapKey` leaf converts: declare them non-null.
+- **`@Nullable` is read as for [a copy](#nullable-copy-into-non-null)**, a type argument the spec writes `@Nullable` included. Holding such a component as an `Optional` is no fix, so its type argument is offered instead.
+- **A record's own accessor decides.** `build` calls it, so the processor accepts an accessor that answers a value where the field holds `null`.
+- **A bridge onto a site declared non-null needs it nullable too**, so the fix line says to mark it. A leaf a mix-in declares is overridden on the spec, carrying `@OptionalBridge`, since the mix-in serves specs whose component is no `Optional`.
+- **A Lombok class read from a class file is copied as before.** Lombok keeps `@Singular` in source only, so a compiled builder cannot show whether it skips a `null`.
+- **`parse` never produces such a `null`.** It refuses any read that no `Optional` bridges, as [the null contract](#the-null-contract-precisely) says, so carrying the `null` through `build` would make the two directions disagree.
+- **The processor leaves a `@GenerateMerge` with a leaf or a nested spec alone.** Such a merge is fallible, and guards each read, reporting a `null` as `must not be null`.
+- **A mapping that only parses writes nothing**, so this rule never refuses it.
+
+### Nullable elements are not copied into ones declared non-null {#nullable-elements-into-non-null}
+
+**A copy hands over every element as it is, a `null` included.** So the processor refuses a domain container whose elements are declared `@Nullable` where `build` copies it into a site whose elements are declared non-null. Here an album may hold a gap, and the view says it never does:
+
+<!-- verify:rejects "declares its elements @Nullable, and build copies them to" -->
+```java
+import java.util.List;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+@NullMarked
+record Album(String title, List<@Nullable String> tracks) {}
+
+@NullMarked
+record AlbumView(String title, List<String> tracks) {}
+
+@GenerateMapping
+interface AlbumViewMapping extends MappingSpec<Album, AlbumView> {}
+```
+
+The processor answers that `Album.tracks` `declares its elements @Nullable, and build copies them to` the record component `AlbumView.tracks`, whose element type carries no `@Nullable` inside a `@NullMarked` scope. Give the pair one nullness: write the view's `List<@Nullable String>`, or declare the album's elements non-null if `build` never meets a gap.
+
+- **The processor checks every level the copy reaches.** That is a `Map`'s values and keys, an array's elements, the container an `Optional` holds, and each level inside, as in `List<List<@Nullable String>>`.
+- **The site is read where the copy writes it.** That is a record component, a setter's or builder setter's parameter, the field Lombok writes one from, or a getter-only `List`'s getter. A type variable's element counts as the spec instantiates it: `ItemsDto<String>` non-null, `ItemsDto<@Nullable String>` nullable.
+- **A record's explicit canonical constructor decides too**, in a mapping and a merge. `build` calls it, so its parameter decides wherever it says anything, the component wherever it says nothing.
+- **The domain is read at the accessor `build` calls**, as [its own nullness](#nullable-where-build-throws) is, so one that leaves out the gaps may declare its elements non-null.
+- **A type variable's bound counts.** `ShelfDto<L extends List<String>>`, in a `@NullMarked` record, holds non-null strings whatever the spec's argument says.
+- **A bean's inherited setter is read as its superclass declares it.** What a subclass gives its type variable cannot be read there, so such a variable rules a `null` out only by its own bound.
+- **A protobuf-java repeated or map field is refused a nullable element or key**, whatever it declares, since protoc's builder throws on one.
+- **The processor refuses a plain `@GenerateMerge` the same way.** A fallible one scans what it copies, reporting a `null` element as a located error, and a `null` key as an error under the map.
+- **`parse` still refuses a `null` element**, as [the null contract](#the-null-contract-precisely) says, so a value holding one survives `build` but not a round trip.
+- **The wire-to-domain direction is [Where a `@Nullable` record component lands](#where-a-nullable-record-component-lands).** There a nullable wire element withholds `asIso()` and `asLens()`.
+
+### A nullable type argument does not cross a nested spec that rules it out {#nullable-argument-across-a-spec}
+
+**A nested spec takes the value as it declares its domain, and builds its wire as it declares it.** So the processor refuses a type argument the domain declares `@Nullable` where the spec it nests rules a `null` out there, and one the spec builds `@Nullable` where the wire's site rules it out. Here a tray's slot may be empty, and the spec for a slot says it never is:
+
+<!-- verify:rejects "and build passes it to the spec 'SlotViewMapping'" -->
+```java
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+@NullMarked
+record Slot<T extends @Nullable Object>(T value) {}
+
+@NullMarked
+record SlotView(String value) {}
+
+@NullMarked
+@GenerateMapping
+interface SlotViewMapping extends MappingSpec<Slot<String>, SlotView> {}
+
+@NullMarked
+record Tray(Slot<@Nullable String> slot) {}
+
+@NullMarked
+record TrayView(SlotView slot) {}
+
+@GenerateMapping
+interface TrayViewMapping extends MappingSpec<Tray, TrayView> {}
+```
+
+The processor answers that `Tray.slot` declares the type argument `String` `@Nullable`, `and build passes it to the spec 'SlotViewMapping'`, which maps `Slot<String>`. Declare the tray's argument non-null, or map `Slot<@Nullable String>` with a spec whose own types take the `null`. Letting the `null` into the spec moves the question to its own types, which must then take it.
+
+- **The spec's domain is read as it is written.** An argument it declares non-null rules the `null` out, as does a use annotated `@NonNull`, as in `Slot<@NonNull T>`, or a type variable a leaf of an element-mapped spec converts.
+- **A type variable's own non-null bound rules it out too**, and the fix line rewrites that bound as it is declared, as `T extends @Nullable CharSequence`.
+- **What a type variable stands for is read in its bound.** A spec over `Slot<L>` with `L extends List<String>` rules out a `null` element of the list the tray hands it.
+- **The spec is read where its Impl is declared**, as [a copy's type argument](#where-a-nullable-record-component-lands) is: a `@NullUnmarked` spec in a `@NullMarked` package still rules the `null` out.
+- **The wire the spec builds is read the same way**, its type variables bound at any depth and a wire's own type variable by its bound. A use annotated for itself, as `BoxDto<@Nullable T>`, counts as written, and an array's elements as a list's do. A record's canonical constructor decides as it does [for a copy](#nullable-elements-into-non-null).
+
+- **A generic spec's type variable takes no nullable argument where its own bound is non-null.** `BoxMapping<T>` in a `@NullMarked` scope rules a `null` out, and `BoxMapping<T extends @Nullable Object>` lets it through to its own types.
+- **An element-mapped spec's leaf takes no `null` either.** A type variable its abstract `ValidatedPrism<B, T>` leaf converts is refused a nullable argument, since the leaf's `build` throws on one.
+- **What the spec builds counts too.** `LooseBoxMapping<T extends @Nullable Object>` bound to `@Nullable String` builds `LooseBoxDto<@Nullable String>`, which the processor refuses where the wire's site is `LooseBoxDto<String>`.
+- **Every depth counts**, as in `Slot<List<@Nullable String>>` against a spec over `Slot<List<String>>`, on both sides.
 
 ### The null contract, precisely {#the-null-contract-precisely}
 
@@ -377,7 +511,7 @@ A component whose type is the same on both sides, with no leaf of its own, cross
 - It says so to a nullness checker: where your module can read JSpecify, each copy, and each guard `parse` reads through, declares the `null` it takes or gives. A type argument declared nullable, as in `List<@Nullable String>`, is written out where inference would drop it, so the Impl passes NullAway in [both configurations](../hkts/core-concepts.md#what-a-nullness-checker-sees). Nothing changes at run time.
 - NullAway still reports some shapes, which are not supported yet. They are any component of a generic record, a leaf lifted over such a list, and an array of arrays. So are a leg whose nullness widens in one place and narrows in another, and a narrowing leg in a record of more than 16 components.
 - A container handed over as it is, such as an `ArrayList`, is reported wherever its nullness differs between the two sides, rightly, since both sides keep it.
-- Where only the record's elements may be null, `build` hands the wire one, and NullAway reports it rightly: give the pair one nullness, as for [a component](#nullable-copy-into-non-null). Where only the wire's may be, the mapping has no `asIso()` or `asLens()`, as [Where a `@Nullable` record component lands](#where-a-nullable-record-component-lands) says.
+- Where only the wire's elements or keys may be null, a record mapping [has no `asIso()` or `asLens()`](#where-a-nullable-record-component-lands). Where only the record's may be, the processor [refuses the copy](#nullable-elements-into-non-null).
 - Every level inside is copied too: each list inside a `List<List<String>>`, each value of a `Map<String, List<String>>`, each row of a `String[][]`, and the container an `Optional` holds. Each call allocates one copy per container it hands over, at every level.
 - A copy compares the way a list, set or map does. A sorted source (`TreeSet`, `TreeMap`) keeps its order but not its comparator; declare the sorted type, which is handed over as it is, or sort again in the record's compact constructor. A `Collection` holding an `ArrayDeque`, which compares by identity, comes back comparing by its elements.
 - A `Map` copy keeps every entry under the source's own key. An `IdentityHashMap` declared as `Map` comes back an `IdentityHashMap` of its own, in the same order, so equal keys that are not the same object stay apart. It alone can be written to: a read-only view of one is no `IdentityHashMap`, so the next copy would refuse it.
@@ -463,7 +597,7 @@ Such a mapping withholds `asIso()`, so a call to it fails with [`cannot find sym
 - **A type argument counts too.** Where a generic record leaves a component's nullness to an unannotated type variable, as `record Page<T extends @Nullable Object>(T item)` does, its argument decides. `Page<@Nullable String>` may hold a `null`. An unannotated argument is non-null where it is written, by the spec or by the domain for a flattened group, or where the Impl is declared, the spec's package, is `@NullMarked`.
 - **An annotated use decides alone for the value itself**, as `@NonNull T` or `@Nullable T` does, whatever the argument, and so does a non-null bound, as on `<T>` in a `@NullMarked` record. An unannotated type variable in a `@NullMarked` scope may stand for a non-null type, so it rules a `null` out too.
 - **What a type variable's value holds is still the argument's**, annotated or not, unless the variable's own bound rules a `null` out there. A `@NonNull M` whose `M` is `Map<String, @Nullable String>` holds nullable values, so it costs the optic as that map would. In a `@NullMarked` record, `L extends List<String>` holds non-null strings, whatever its argument says.
-- **A side that says nothing either way keeps the optic**, as does a domain whose canonical constructor declares the parameter itself `@Nullable`. The parameter's element types are not read.
+- **A side that says nothing either way keeps the optic**, as does a domain whose canonical constructor declares the parameter itself `@Nullable`. An element type the parameter declares non-null costs the optic too, beside the component's, since the optic calls the constructor.
 - **To keep the optic**, give the pair one nullness. Or call `asValidatedPrism()` or `patch` in its place.
 
 ---
@@ -592,6 +726,7 @@ A one-directional mapping follows these rules:
 - **Among several candidates, a regular English singular wins.** That is `tag` for `tags`, or `entry` for `entries`, ahead of a writer the name only begins with. An irregular singular, such as `person` for `people`, is not recognised. Failing that, the only candidate no other collection claims is the adder.
 - **The processor refuses a build-only adder it cannot tell apart.** A derived field for it would add its value on top of the collection's. Drop `@Singular` there, so the builder takes the collection whole.
 - **A `@Singular` collection is never absent.** Its builder builds an empty collection when nothing is added, and refuses a `null`. So the processor refuses an [`Optional` bridge](#bean-optional-bridge) onto one, and a PATCH bean whose builder writes one, as it refuses a [getter-only `List`](#no-getter-only-list-on-a-patch). Neither is supported yet: drop `@Singular`, so the builder stores what it is given.
+- **A `@Nullable` domain component copied into one is [refused](#nullable-where-build-throws)**, unless its `@Singular` says `ignoreNullCollections = true`.
 
 ### How a protobuf-java message is read {#how-a-message-is-read}
 
@@ -604,6 +739,7 @@ A one-directional mapping follows these rules:
 - **The other accessors are not fields.** `getXBytes()`, `getXValue()` beside an open enum, `getUnknownFields()`, counts, element getters and `OrBuilder` views stay out of the mapping. A domain component named after one has no wire counterpart.
 - **A field with `hasX()` reads `null` when it is unset.** A message field has one, as has a field declared `optional`, a oneof member and every singular proto2 field. Any component but an `Optional` then reports `must not be null`, so every message `parse` accepts builds back equal, bar the unknown fields and extensions it carries, which no domain component holds.
 - **An `Optional` over such a field reads it as empty when it is unset.** `build` leaves the field unset for an empty one, since protobuf's setters refuse `null`.
+- **A `@Nullable` domain component copied into a field is [refused](#nullable-where-build-throws).** protoc's setters throw on a `null`, whatever they declare.
 - **A field with no `hasX()` reads its default when unset**, as protobuf's own getter does: `""`, `0`, `false`, the first enum constant, or an empty collection.
 - **A primitive field reads as its wrapper where the domain holds a reference.** So a `ValidatedPrism<Long, Instant>` leaf converts an `int64` field, and an `Integer` component maps an `int32` field as it is.
 - **A message maps both ways, and leaves no accessor unpaired.** So an [`@Unmapped`](#what-unmapped-withholds) or [`@ReadOnly`](#what-readonly-reads) marker has nothing on it to name.
@@ -620,7 +756,7 @@ A one-directional mapping follows these rules:
 - **A member's value becomes its variant through a spec for the pair**, as a nested message does, or fills the variant's one component when that component has the member's type. A variant filled neither way is refused.
 - **No leaf stands in for a variant**, so a method named after the component is refused. A scalar member fills its variant as it is, and an enum member keeps the generated enum, `UNRECOGNIZED` included: refuse it in the variant's constructor. Converting a member through a leaf is not supported yet.
 - **The component carries the oneof's name.** A `@MapField` rename onto a oneof is not supported yet, and a component filling a member the sealed component holds is refused.
-- **`build` writes the member the variant names**, and leaves the oneof unset for an empty `Optional`. A plain sealed component holding `null` throws, as a protobuf setter does.
+- **`build` writes the member the variant names**, and leaves the oneof unset for an empty `Optional`. A plain sealed component holding `null` would throw, as a protobuf setter does, so the processor [refuses one declared `@Nullable`](#nullable-where-build-throws), and a variant's one component declared so.
 - **`parse` reads the member the message has set as its variant.** With no member set, an `Optional` reads as empty, and a sealed component reports `must not be null`. That failure, and a variant's own refusal, are located at the component.
 - **An `Optional` for each member reads a member that is not set as empty**, and `build` writes only the members present. The domain can then hold two members, and `build` keeps only the last one it wrote.
 
@@ -967,7 +1103,7 @@ interface SearchMapping<U extends Number> extends MappingSpec<Search<U>, SearchD
 **A merge is one abstract method on an `@GenerateMerge` interface: two or more record sources in, one record target out.** The processor refuses fewer than two sources, a second abstract method, and a generic merge.
 
 - **Each target component fills from the one source with a component of the same name.** A merge matches by name only and has no rename, so the processor refuses a target component no source names ([`is not filled by any source`](compiler_errors.md#merge-unfilled)), and one that two or more sources carry ([`both carry it`](compiler_errors.md#merge-component-ambiguous)). A source component the target lacks fills nothing.
-- **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies). A plain merge refuses a `@Nullable` source component whose target component is [declared non-null](#nullable-copy-into-non-null).
+- **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies). A plain merge refuses a `@Nullable` source component whose target component is [declared non-null](#nullable-copy-into-non-null), and [`@Nullable` elements](#nullable-elements-into-non-null) copied into elements declared non-null.
 - **A leaf converts a fill.** It is a zero-parameter `default` method on the merge interface, named after the target component, returning `ValidatedPrism<SourceComponent, TargetComponent>`, source first. An explicit leaf wins even when the types match.
 - **A `@GenerateMapping` spec fills a component as `parse`.** The source component must be the spec's wire and the target component its domain, in this module or a dependency. A merge never runs a spec's `build`, so an outbound view cannot fill through one yet.
 - **A threaded spec fills by the rule a mapping nests it by.** It fills where its pair has the components' shape and its bounds admit each argument, through `PageMappingImpl.<Integer>instance()`, and [the most specific spec is used](#generic-spec-precedence), your own specs before a dependency's.
@@ -1079,7 +1215,7 @@ interface LeaderboardMerge {
 
 ### Nulls and guards in a merge {#nulls-and-guards-in-a-merge}
 
-A fallible merge, one returning `Validated`, carries the [same null doctrine as `parse`](basics.md#null-doctrine): a null source-component read is a located, accumulated `FieldError`, never an exception, while a null source *argument* stays the caller's `NullPointerException`. It carries parse's [constructor guard](absence.md#constructor-invariants) too: an exception the target's constructor throws becomes an unlabelled `FieldError` with its message. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them, and whatever that constructor throws propagates. A `@Nullable` source component whose target component is declared non-null is [refused](#nullable-copy-into-non-null). (The return type follows the fills, so the guards cannot be bought by declaration alone: an identity-only merge that wants them should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
+A fallible merge, one returning `Validated`, carries the [same null doctrine as `parse`](basics.md#null-doctrine): a null source-component read is a located, accumulated `FieldError`, never an exception, while a null source *argument* stays the caller's `NullPointerException`. It carries parse's [constructor guard](absence.md#constructor-invariants) too: an exception the target's constructor throws becomes an unlabelled `FieldError` with its message. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them, and whatever that constructor throws propagates. A `@Nullable` source component whose target component is declared non-null is [refused](#nullable-copy-into-non-null), and so are [`@Nullable` elements](#nullable-elements-into-non-null) whose target's are. (The return type follows the fills, so the guards cannot be bought by declaration alone: an identity-only merge that wants them should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
 
 ### Error envelope rules {#error-envelope-rules}
 

@@ -421,6 +421,124 @@ record ReaderDto(String name, @NonNull String nickname) {}
 
 @GenerateMapping
 interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}"""),
+        dict(id="nullable-where-build-throws",
+             heading="domain field 'X.y' is declared @Nullable, and build converts it through the leaf 'y()'",
+             fragment="and build converts",
+             meaning="A leaf, a nested spec or a lifted container throws on the `null` the domain may hold, in the component or in its elements or keys, so `build` would fail when it meets one.",
+             fix="Hold the component as an `Optional` the bridge carries, or declare it, or the elements or keys the message names, non-null.",
+             rule=("A `@Nullable` component is not handed to what throws on it", "rules.md#nullable-where-build-throws"),
+             code="""record Reader(String name, @Nullable EmailAddress email) {}
+
+record ReaderDto(String name, @Nullable String email) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}"""),
+        dict(id="nullable-handed-to-a-throwing-site",
+             heading="domain field 'X.y' is declared @Nullable, and build hands it to the getter-only bean property 'y'",
+             fragment="and build hands it to",
+             meaning="A getter-only list, a Lombok `@Singular` builder method or a protobuf-java setter throws on the `null` the domain may hold, whatever the wire declares.",
+             fix="Declare the component non-null. Or take the fix line's other fix where it has one: `@Singular(ignoreNullCollections = true)`, or an `Optional` over a message field with `hasX()`.",
+             rule=("A `@Nullable` component is not handed to what throws on it", "rules.md#nullable-where-build-throws"),
+             code="""record Reader(String name, @Nullable List<String> tags) {}
+
+class ReaderBean {
+  private String name;
+  private final List<String> tags = new ArrayList<>();
+
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+  public List<String> getTags() { return tags; }
+}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderBean> {}"""),
+        dict(id="nullable-elements-copied-into-non-null",
+             heading="domain field 'X.y' declares its elements @Nullable, and build copies them to the record component 'XDto.y'",
+             fragment="@Nullable, and build copies them to",
+             meaning="A same-typed container is copied as it is, so a `null` element or key the domain may hold would land where the wire's element or key type rules it out.",
+             fix="Mark the wire's element or key type `@Nullable`, or declare the domain's non-null.",
+             rule=("Nullable elements are not copied into ones declared non-null", "rules.md#nullable-elements-into-non-null"),
+             code="""record Reader(String name, List<@Nullable String> tags) {}
+
+record ReaderDto(String name, List<@NonNull String> tags) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}"""),
+        dict(id="nullable-optional-into-build",
+             heading="domain field 'X.y' is declared @Nullable, and build maps the value it holds",
+             fragment="and build maps the value it holds",
+             meaning="An `Optional` already says a value is absent by being empty, and `build` maps the one it is handed, so it would throw on a `null` `Optional`.",
+             fix="Declare the `Optional` non-null, and hold an absent value as an empty one.",
+             rule=("A `@Nullable` component is not handed to what throws on it", "rules.md#nullable-where-build-throws"),
+             code="""record Reader(String name, @Nullable Optional<EmailAddress> email) {}
+
+record ReaderDto(String name, @Nullable String email) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+  @OptionalBridge
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}"""),
+        dict(id="nullable-passed-through-a-lifted-map",
+             heading="domain field 'X.y' declares its keys @Nullable, and build passes them through as it converts the values through the leaf 'y()'",
+             fragment="and build passes them through",
+             meaning="A map whose values a leaf or a spec converts is built entry by entry, and that build throws on a `null` key, whatever the wire declares. One whose keys a `@MapKey` leaf converts throws on a `null` value.",
+             fix="Declare the keys, or the values, the message names non-null.",
+             rule=("A `@Nullable` component is not handed to what throws on it", "rules.md#nullable-where-build-throws"),
+             code="""record Reader(String name, Map<@Nullable String, EmailAddress> emails) {}
+
+record ReaderDto(String name, Map<@Nullable String, String> emails) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+  default ValidatedPrism<String, EmailAddress> emails() {
+    return EmailCodecs.EMAIL;
+  }
+}"""),
+        dict(id="nullable-argument-into-a-spec",
+             heading="domain field 'X.y' declares the type argument T @Nullable, and build passes it to the spec 'YMapping'",
+             fragment="declares the type argument",
+             meaning="A nested spec's `build` takes the value as the spec declares its domain, so a type argument the domain declares `@Nullable` may not stand where the spec rules a `null` out.",
+             fix="Declare the type argument non-null, or let the spec's own types take the `null`, where the fix line says.",
+             rule=("A nullable type argument does not cross a nested spec that rules it out", "rules.md#nullable-argument-across-a-spec"),
+             code="""record Slot<T extends @Nullable Object>(T value) {}
+
+record SlotView(String value) {}
+
+@GenerateMapping
+interface SlotViewMapping extends MappingSpec<Slot<@NonNull String>, SlotView> {}
+
+record Reader(String name, Slot<@Nullable String> email) {}
+
+record ReaderDto(String name, SlotView email) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}"""),
+        dict(id="nullable-argument-built-by-a-spec",
+             heading="the spec 'YMapping' builds YDto<T> with the type argument T @Nullable from 'X.y', and build copies it to the record component 'XDto.y'",
+             fragment="with the type argument",
+             meaning="A nested spec builds its wire as it declares it, its type variables standing for the domain's arguments, so a `@Nullable` one lands where the wire's site rules a `null` out.",
+             fix="Mark the wire's type argument `@Nullable`, or declare the domain's non-null.",
+             rule=("A nullable type argument does not cross a nested spec that rules it out", "rules.md#nullable-argument-across-a-spec"),
+             code="""record Box<T extends @Nullable Object>(T value) {}
+
+record BoxDto<T extends @Nullable Object>(T value) {}
+
+@GenerateMapping
+interface BoxMapping<T extends @Nullable Object> extends MappingSpec<Box<T>, BoxDto<T>> {}
+
+record Reader(String name, Box<@Nullable String> email) {}
+
+record ReaderDto(String name, BoxDto<@NonNull String> email) {}
+
+@GenerateMapping
+interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}"""),
         dict(id="bridged-leaf-over-whole-optional",
              heading="@OptionalBridge leaf 'x' is declared over the whole Optional",
              fragment="is declared over the whole Optional",
