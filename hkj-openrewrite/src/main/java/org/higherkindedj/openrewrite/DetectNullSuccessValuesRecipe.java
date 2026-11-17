@@ -63,10 +63,12 @@ import org.openrewrite.marker.SearchResult;
  *
  * <h2>Why this is detection-only</h2>
  *
- * <p>The replacement is {@code Unit}, but changing {@code Void} to {@code Unit} changes a method's
- * signature for every caller and implementer, and a lambda can return {@code null} from anywhere in
- * its body. So this recipe marks each site for a human to change, rather than risking a rewrite
- * that compiles and then fails when it runs.
+ * <p>A {@code null} given where the value has a type of its own needs a decision: a {@code Maybe},
+ * or an error that says why the value is missing. Where the value is {@code Void}, {@link
+ * ReplaceVoidSuccessWithUnitRecipe} replaces it with {@code Unit}, and the {@code null} with {@code
+ * Unit.INSTANCE}; it runs before this recipe in {@code MigrateDeprecationsTo0_5_0}. A {@code null}
+ * that recipe cannot tie to a {@code Void} value, such as one a lambda returns where the compiler
+ * typed the result {@code Object}, still compiles, and fails when it runs: this recipe marks it.
  */
 public class DetectNullSuccessValuesRecipe extends Recipe {
 

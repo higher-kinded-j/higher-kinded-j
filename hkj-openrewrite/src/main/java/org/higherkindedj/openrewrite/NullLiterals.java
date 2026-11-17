@@ -5,13 +5,17 @@ package org.higherkindedj.openrewrite;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.marker.SearchResult;
 
-/** Finds the {@code null} literals, and the values a lambda returns, that the null recipes mark. */
+/**
+ * Finds the {@code null} literals, and the values a lambda or a method returns, that the null
+ * recipes mark or replace.
+ */
 final class NullLiterals {
 
   private NullLiterals() {}
@@ -64,22 +68,35 @@ final class NullLiterals {
    * value, where one on the call would print from the start of its chain.
    */
   static J.Lambda markReturned(J.Lambda lambda, Predicate<Expression> marks, String message) {
+    return mapReturned(
+        lambda, value -> marks.test(value) ? SearchResult.found(value, message) : value);
+  }
+
+  /**
+   * The lambda with each value it returns, as its body or in one of its own {@code return}s, put
+   * through {@code map}.
+   */
+  static J.Lambda mapReturned(J.Lambda lambda, UnaryOperator<Expression> map) {
     return switch (lambda.getBody()) {
-      case Expression body when marks.test(body) ->
-          lambda.withBody(SearchResult.found(body, message));
-      case J.Block block ->
-          lambda.withBody(
-              new OwnReturns<Integer>() {
-                @Override
-                public J.Return visitReturn(J.Return ret, Integer p) {
-                  J.Return r = super.visitReturn(ret, p);
-                  return r.getExpression() != null && marks.test(r.getExpression())
-                      ? r.withExpression(SearchResult.found(r.getExpression(), message))
-                      : r;
-                }
-              }.visit(block, 0));
+      case J.Block block -> lambda.withBody(mapOwnReturns(block, map));
+      case Expression body -> lambda.withBody(map.apply(body));
       default -> lambda;
     };
+  }
+
+  /**
+   * The block with what each of its own {@code return}s gives put through {@code map}, as {@link
+   * #ownReturns} finds them: a method's body, or a lambda's.
+   */
+  static J.Block mapOwnReturns(J.Block block, UnaryOperator<Expression> map) {
+    return (J.Block)
+        new OwnReturns<Integer>() {
+          @Override
+          public J.Return visitReturn(J.Return ret, Integer p) {
+            J.Return r = super.visitReturn(ret, p);
+            return r.getExpression() == null ? r : r.withExpression(map.apply(r.getExpression()));
+          }
+        }.visitNonNull(block, 0);
   }
 
   /**
@@ -100,7 +117,10 @@ final class NullLiterals {
     return returned;
   }
 
-  /** A visitor that keeps to a lambda's own body, leaving each lambda and class inside it alone. */
+  /**
+   * A visitor that keeps to a lambda's or a method's own body, leaving each lambda and class inside
+   * it alone.
+   */
   private abstract static class OwnReturns<P> extends JavaIsoVisitor<P> {
     @Override
     public J.Lambda visitLambda(J.Lambda lambda, P p) {

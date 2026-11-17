@@ -45,6 +45,7 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
         + "   enum Capability {"
         + "     COMPOSABLE, COMBINABLE, CHAINABLE, RECOVERABLE, EFFECTFUL, ACCUMULATING } }",
     "package org.higherkindedj.hkt; public interface Monad<F> {}",
+    "package org.higherkindedj.hkt; public enum Unit { INSTANCE }",
     "package org.higherkindedj.hkt.id;"
         + " public final class IdMonad implements org.higherkindedj.hkt.Monad<Object> {"
         + "   public static final IdMonad INSTANCE = new IdMonad(); }",
@@ -86,7 +87,7 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
   }
 
   @Test
-  void marksANullSuccessWithoutRewritingIt() {
+  void rewritesAVoidSuccessToUnitRatherThanMarkingIt() {
     rewriteRun(
         java(
             """
@@ -103,11 +104,90 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
             """
             package com.example;
 
+            import org.higherkindedj.hkt.Unit;
             import org.higherkindedj.hkt.either.Either;
 
             class Cancel {
-                /*~~(Void has no value for a success to hold: use Unit)~~>*/Either<String, Void> cancel() {
-                    return /*~~(A success always holds a value: pass Unit.INSTANCE for a step with nothing to return)~~>*/Either.right(null);
+                Either<String, Unit> cancel() {
+                    return Either.right(Unit.INSTANCE);
+                }
+            }
+            """));
+  }
+
+  @Test
+  void marksWhatTheVoidRewriteLeaves() {
+    rewriteRun(
+        spec ->
+            spec.parser(JavaParser.fromJavaVersion().classpath("hkj-core", "hkj-api", "jspecify")),
+        java(
+            """
+            package com.example;
+
+            import java.util.concurrent.CompletableFuture;
+            import org.higherkindedj.hkt.effect.CompletableFuturePath;
+            import org.higherkindedj.hkt.effect.Path;
+            import org.higherkindedj.hkt.either.Either;
+            import org.higherkindedj.hkt.vtask.VTask;
+
+            class Jobs {
+                VTask<Void> purge() {
+                    return VTask.of(() -> {
+                        System.out.println("purging");
+                        return null;
+                    });
+                }
+
+                Object untyped() {
+                    var task = VTask.of(() -> {
+                        System.out.println("working");
+                        return null;
+                    });
+                    return task;
+                }
+
+                Either<String, String> missing() {
+                    return Either.right(null);
+                }
+
+                CompletableFuturePath<Void> sent(CompletableFuture<Void> sending) {
+                    return Path.future(sending);
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import java.util.concurrent.CompletableFuture;
+
+            import org.higherkindedj.hkt.Unit;
+            import org.higherkindedj.hkt.effect.CompletableFuturePath;
+            import org.higherkindedj.hkt.effect.Path;
+            import org.higherkindedj.hkt.either.Either;
+            import org.higherkindedj.hkt.vtask.VTask;
+
+            class Jobs {
+                VTask<Unit> purge() {
+                    return VTask.of(() -> {
+                        System.out.println("purging");
+                        return Unit.INSTANCE;
+                    });
+                }
+
+                Object untyped() {
+                    var task = VTask.of(() -> {
+                        System.out.println("working");
+                        return /*~~(Returns null, which now fails when it runs: return a value, or fail with an error that says why)~~>*/null;
+                    });
+                    return task;
+                }
+
+                Either<String, String> missing() {
+                    return /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/Either.right(null);
+                }
+
+                CompletableFuturePath<Unit> sent(CompletableFuture<Void> sending) {
+                    return /*~~(A future with nothing to return completes with null, which now fails the path: map it to Unit with thenApply(_ -> Unit.INSTANCE) first)~~>*/Path.future(sending);
                 }
             }
             """));
@@ -145,6 +225,7 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
             """
             package com.example;
 
+            import org.higherkindedj.hkt.Unit;
             import org.higherkindedj.hkt.either.Either;
 
             class Results {
@@ -152,8 +233,8 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
                     return Either.right(value);
                 }
 
-                /*~~(Void has no value for a success to hold: use Unit)~~>*/Either<String, Void> purge() {
-                    return /*~~(Passes null on to Either.right, which now throws: pass Unit.INSTANCE for a step with nothing to return)~~>*/right(null);
+                Either<String, Unit> purge() {
+                    return right(Unit.INSTANCE);
                 }
             }
             """));

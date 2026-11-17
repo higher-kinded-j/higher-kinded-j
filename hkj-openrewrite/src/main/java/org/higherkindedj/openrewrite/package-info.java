@@ -41,9 +41,9 @@
  * deprecated annotation that has no effect, replaces two deprecated {@code @PathSource}
  * capabilities with the levels they generate, and drops the {@code Monad} argument that {@code
  * StateT} no longer takes. Adds to {@code @GenerateFocus}'s {@code widenFields} each container a
- * 0.4.x navigator stepped into, and marks the nulls 0.5.0 refuses. The recipes match the 0.4.x
- * signatures, so run them from this module's 0.5.0 release or later before the project moves to
- * 0.5.0.
+ * 0.4.x navigator stepped into, replaces {@code Void} with {@code Unit} as a success's value type,
+ * and marks the other nulls 0.5.0 refuses. The recipes match the 0.4.x signatures, so run them from
+ * this module's 0.5.0 release or later before the project moves to 0.5.0.
  *
  * <ul>
  *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0} - Runs all 0.5.0
@@ -66,6 +66,9 @@
  *       {@code widenFields} each {@code Map} or third-party collection of {@code @GenerateFocus}
  *       records that a 0.4.x navigator stepped into, marking one whose elements have a field named
  *       like a path method
+ *   <li>{@code org.higherkindedj.openrewrite.ReplaceVoidSuccessWithUnitRecipe} - {@code Void} to
+ *       {@code Unit} as a success's value type, and each {@code null} that filled it to {@code
+ *       Unit.INSTANCE}
  *   <li>{@code org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe} - Marks each null
  *       success 0.5.0 refuses, and each type that holds {@code Void} as its value
  *   <li>{@code org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe} - Marks each

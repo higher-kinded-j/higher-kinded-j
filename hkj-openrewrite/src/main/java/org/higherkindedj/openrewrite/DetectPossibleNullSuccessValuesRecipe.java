@@ -460,7 +460,7 @@ public class DetectPossibleNullSuccessValuesRecipe
   }
 
   /** Whether an annotation, read from the source, says its value may be null. */
-  private static boolean isNullable(J.Annotation annotation) {
+  static boolean isNullable(J.Annotation annotation) {
     return NULLABLE_ANNOTATIONS.contains(annotation.getSimpleName());
   }
 
