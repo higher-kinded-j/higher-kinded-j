@@ -197,10 +197,10 @@ on 0.4.x, and move it to 0.5.0 in the same change: the recipes match the 0.4.x s
 the rewritten `StateT` calls and `widenFields` entries compile only against 0.5.0.
 
 The `Void` rewrite arrives with 0.6.0, so take 0.6.0 or later to have it. On 0.4.x, `hkj-spring`
-writes a `Unit` success as the JSON string `"INSTANCE"`, which is another reason to move to 0.5.0
-in the same change. On 0.5.0, a 200 response that answered `Right(null)` sends no body, and a
-`Unit` nested in a body, as in a list of `Either`, writes as `"INSTANCE"` where `Void` wrote
-`null`. A project already on 0.5.0 can run `ReplaceVoidSuccessWithUnitRecipe` on its own, with
+writes a `Unit` success as a JSON string, where a `Void` one wrote `null`, which is another reason
+to move to 0.5.0 in the same change. On 0.5.0, a 200 response that answered `Right(null)` sends no
+body, and a `Unit` nested in a body, as in a list of `Either`, writes as `"()"`, its `toString()`,
+where `Void` wrote `null` (`"INSTANCE"` with `spring.jackson.use-jackson2-defaults=true`). A project already on 0.5.0 can run `ReplaceVoidSuccessWithUnitRecipe` on its own, with
 `DetectNullSuccessValuesRecipe` after it to mark what it leaves. Migrate a library typed with
 `Void` before the builds that use it.
 

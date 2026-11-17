@@ -83,8 +83,9 @@ import org.openrewrite.marker.Markers;
  *
  * <p>The rewrite changes a signature for every caller and implementer. OpenRewrite rewrites every
  * file in the run, so those in the same build change with it; one in another build stops compiling.
- * On 0.4.x, {@code hkj-spring} writes a {@code Unit} success as the JSON string {@code "INSTANCE"},
- * so run it in the change that moves the project to 0.5.0, not in an earlier one.
+ * On 0.4.x, {@code hkj-spring} writes a {@code Unit} success as a JSON string, where a {@code Void}
+ * one wrote {@code null}, so run it in the change that moves the project to 0.5.0, not in an
+ * earlier one.
  */
 public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
 

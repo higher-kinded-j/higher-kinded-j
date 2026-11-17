@@ -180,7 +180,7 @@ Each null recipe puts a lambda's mark on the value it returns, not at the start 
 
 #### `Void` becomes `Unit` {#void-becomes-unit}
 
-`ReplaceVoidSuccessWithUnitRecipe` arrives with `hkj-openrewrite` 0.6.0, and each later release keeps it. Run the group with `hkj-openrewrite` 0.6.0 or later to have `Void` rewritten rather than marked. Move the project to 0.5.0 in the same change: on 0.4.x, `hkj-spring` writes a `Unit` success as the JSON string `"INSTANCE"`.
+`ReplaceVoidSuccessWithUnitRecipe` arrives with `hkj-openrewrite` 0.6.0, and each later release keeps it. Run the group with `hkj-openrewrite` 0.6.0 or later to have `Void` rewritten rather than marked. Move the project to 0.5.0 in the same change: on 0.4.x, `hkj-spring` writes a `Unit` success as a JSON string, where a `Void` one wrote `null`.
 
 The recipe matches 0.5.0 code as well, so a project already on 0.5.0 can run it alone. Run `DetectNullSuccessValuesRecipe` after it, to mark what it leaves:
 
@@ -197,7 +197,7 @@ Delete each mark an earlier run left on a site the rewrite has fixed, such as `/
 The rewrite changes what a running program, or another build, sees:
 
 - **A 200 response that answered `Right(null)` now sends no body.** On 0.4.x the handler wrote a JSON `null`, and on 0.5.0 a `Unit` success writes none, as the [0.5.0 notes](../release-history/v0_5_0.md#runtime-spring) say. A client that parses the body notices.
-- **A `Unit` inside a response body writes as `"INSTANCE"`.** Only a handler's own success writes no body. Jackson writes a `Unit` in a field or a list element as its name, where `Void` wrote `null`.
+- **A `Unit` inside a response body writes as a string.** Only a handler's own success writes no body. A `Unit` in a field or a list element writes as `"()"`, its `toString()`, where `Void` wrote `null`. With `spring.jackson.use-jackson2-defaults=true` it writes `"INSTANCE"`.
 - **A library typed with `Void` changes its signature for its own consumers.** Each caller and implementer the run covers changes with it. Migrate a library before the builds that use it: a build that runs the recipe while the library still returns `Void` stops compiling where it calls the library.
 
 The recipe adds the `Unit` import, or writes `org.higherkindedj.hkt.Unit` in full in a file that uses another type named `Unit`. It leaves these for you:

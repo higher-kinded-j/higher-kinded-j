@@ -12,7 +12,7 @@
 # Run these with hkj-openrewrite 0.5.0 or later while the project is still on
 # 0.4.x, and move it to 0.5.0 in the same change: they match the 0.4.x
 # signatures, the StateT and widenFields rewrites compile only against 0.5.0,
-# and on 0.4.x hkj-spring writes a Unit success as the JSON string "INSTANCE".
+# and on 0.4.x hkj-spring writes a Unit success as a JSON string, not null.
 # A later release carries every recipe here; the Void rewrite arrives with 0.6.0.
 #
 # Usage:
