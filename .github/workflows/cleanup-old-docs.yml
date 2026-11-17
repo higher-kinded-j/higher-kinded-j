@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout gh-pages repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: higher-kinded-j/higher-kinded-j.github.io
           path: gh-pages-repo
