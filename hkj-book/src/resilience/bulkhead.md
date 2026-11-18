@@ -6,6 +6,7 @@
 - The distinction between Bulkhead and VStreamPar
 - How to protect VTask operations with concurrency limiting
 - How to chain `withBulkhead` on Path carriers, with typed rejections on the railway
+- Why a call that passes two guards of one bulkhead takes a single permit
 ~~~
 
 ---
@@ -95,6 +96,8 @@ VTask<Result> resilient = dbBulkhead.protect(
     });
 ```
 
+A guarded fork of a guarded call can be turned away too, while it waits for the permit its own call holds. [One Call, One Permit](#one-call-one-permit) shows how to avoid that.
+
 ## Path-Native Bulkheads
 
 The lazy Path carriers chain bulkhead protection directly:
@@ -127,6 +130,29 @@ EitherPath<OrderError, Reservation> reserved = EitherPath.withBulkhead(
 ```
 
 Without the `onFull` argument, `BulkheadFullException` propagates as-is.
+
+## One Call, One Permit {#one-call-one-permit}
+
+A repository and the service that calls it may each guard one dependency with the same bulkhead. The call then passes two guards, but takes one permit. A `ReentrantLock` works the same way: a thread that holds it can lock it again without waiting, and a thread it starts is not the holder. A bulkhead goes one step further, because its permit also follows the call onto the thread a timeout runs it on.
+
+<!-- verify -->
+```java
+IOPath<Result> query = Path.io(() -> database.query(sql))
+    .withBulkhead(dbBulkhead)               // the repository's guard
+    .withTimeout(Duration.ofSeconds(2))
+    .withBulkhead(dbBulkhead);              // the service's guard takes no second permit
+```
+
+Whether the inner guard needs a permit of its own depends on what lies between the two guards:
+
+| Between the guards | Inner guard's permit | Why |
+|---|---|---|
+| `map`, `withRetry` or `recover` | The call's | One thread runs the call |
+| `withTimeout`, or a circuit breaker's call timeout | The call's | The call does nothing else until the timed task stops, so one thread uses the permit at a time |
+| A fork, as `Par`, `Scope`, `parEvalMap` and `runAsync` start | Its own | It runs beside the call, so it counts against `maxConcurrent` |
+| `detachOnCancel` | Its own | A cancelled call stops waiting, and the detached task runs on beside it |
+
+A [circuit breaker](circuit_breaker.md#the-state-machine) counts a fork as part of the call. A bulkhead gives the fork a permit of its own, because the fork runs at the same time as the rest of the call. The call keeps its permit while it waits for a guarded fork. So once calls hold every permit, each of their forks waits for `waitTimeout` and fails with `BulkheadFullException`, however large `maxConcurrent` is. Guard the forks, not the call that starts them. The same goes for a guarded task under `detachOnCancel`.
 
 ## Bulkhead vs VStreamPar
 
@@ -166,6 +192,7 @@ int active = dbBulkhead.activeCount();           // How many callers are current
 ~~~admonish info title="Key Takeaways"
 * **A bulkhead protects everyone else**: capping concurrent access to one slow dependency keeps the shared capacity available to healthy ones; waiting for a permit is itself bounded by `waitTimeout`, and `maxWait` bounds the queue
 * **One instance per resource**: like a breaker, a bulkhead is shared application-wide; `protect()` is generic across return types
+* **A guard reached again reuses the call's permit**: on the call's thread or under a timeout, but a thread the call starts takes its own
 * **Rejection is explicit**: a full bulkhead throws `BulkheadFullException`, or lands as a typed `Left` via the `onFull` overload on the railway carriers
 * **Different scope from `parEvalMap`**: VStreamPar bounds one pipeline's parallelism; a bulkhead bounds a shared resource across the whole application, and the two compose
 ~~~

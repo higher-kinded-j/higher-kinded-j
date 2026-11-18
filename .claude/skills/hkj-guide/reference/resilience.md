@@ -322,6 +322,8 @@ bulkhead.activeCount();
 
 Bulkhead vs VStreamPar: Bulkhead is per-service (shared across callers). VStreamPar is per-stream (within a pipeline). They compose naturally.
 
+A call guarded twice by one bulkhead, as in `io.withBulkhead(b).map(f).withBulkhead(b)`, takes one permit: a guard reached again on the call's thread, or inside a `withTimeout` or circuit breaker, runs on the permit the call holds. A fork (`Par`, `Scope`, `parEvalMap`, `runAsync`), or a task detached with `detachOnCancel`, takes a permit of its own. So once calls hold every permit, their guarded forks wait `waitTimeout` and fail, at any `maxConcurrent`: guard the forks, not the call that starts them.
+
 ## 5. Combining Patterns
 
 ### Correct Ordering (outermost to innermost)

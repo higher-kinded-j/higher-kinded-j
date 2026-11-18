@@ -3,14 +3,18 @@
 package org.higherkindedj.hkt.resilience;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -697,6 +701,266 @@ class BulkheadTest {
     @DisplayName("withMaxConcurrent rejects value less than 1")
     void withMaxConcurrentRejectsInvalidValue() {
       assertThatIllegalArgumentException().isThrownBy(() -> Bulkhead.withMaxConcurrent(0));
+    }
+  }
+
+  @Nested
+  @DisplayName("Nested Protection Tests")
+  class NestedProtectionTests {
+
+    /** One permit, with a wait short enough that a guard waiting for a second fails quickly. */
+    private static Bulkhead onePermit() {
+      return Bulkhead.create(
+          BulkheadConfig.builder().maxConcurrent(1).waitTimeout(Duration.ofMillis(100)).build());
+    }
+
+    /** A task that gives how many of the bulkhead's permits are free while it runs. */
+    private static VTask<Integer> freePermits(Bulkhead bulkhead) {
+      return VTask.of(bulkhead::availablePermits);
+    }
+
+    /** Waits for the latch, as a task that an interrupt cannot reach does. */
+    private static void awaitIgnoringInterrupts(CountDownLatch latch) {
+      while (latch.getCount() > 0) {
+        try {
+          latch.await();
+        } catch (InterruptedException ignored) {
+          // Unreachable by an interrupt: wait on
+        }
+      }
+    }
+
+    /** Holds one of a bulkhead's permits on a thread of its own until closed. */
+    private record Occupant(Thread thread, CountDownLatch leave) implements AutoCloseable {
+
+      static Occupant of(Bulkhead bulkhead) throws InterruptedException {
+        CountDownLatch holding = new CountDownLatch(1);
+        CountDownLatch leave = new CountDownLatch(1);
+        Thread thread =
+            Thread.ofVirtual()
+                .start(
+                    () ->
+                        bulkhead
+                            .protect(
+                                VTask.of(
+                                    () -> {
+                                      holding.countDown();
+                                      leave.await();
+                                      return "occupied";
+                                    }))
+                            .run());
+        assertThat(holding.await(2, TimeUnit.SECONDS)).as("the occupant took a permit").isTrue();
+        return new Occupant(thread, leave);
+      }
+
+      @Override
+      public void close() throws InterruptedException {
+        leave.countDown();
+        thread.join();
+      }
+    }
+
+    @Test
+    @DisplayName("a call guarded twice, through a map, runs on one permit")
+    void guardedTwiceRunsOnOnePermit() {
+      Bulkhead bulkhead = onePermit();
+
+      String result =
+          bulkhead
+              .protect(bulkhead.protect(VTask.succeed("inventory")).map(String::toUpperCase))
+              .run();
+
+      assertThat(result).isEqualTo("INVENTORY");
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("three guards of one bulkhead take one permit between them")
+    void threeGuardsTakeOnePermit() {
+      Bulkhead bulkhead = Bulkhead.withMaxConcurrent(3);
+
+      int free = bulkhead.protect(bulkhead.protect(bulkhead.protect(freePermits(bulkhead)))).run();
+
+      assertThat(free).isEqualTo(2);
+      assertThat(bulkhead.availablePermits()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("protectWithTimeout inside the call runs on its permit without waiting")
+    void protectWithTimeoutRunsOnTheCallsPermit() {
+      Bulkhead bulkhead = onePermit();
+
+      int free =
+          bulkhead.protect(bulkhead.protectWithTimeout(freePermits(bulkhead), Duration.ZERO)).run();
+
+      assertThat(free).isZero();
+    }
+
+    @Test
+    @DisplayName("a timeout between the guards runs the inner guard on the call's permit")
+    void timeoutBetweenTheGuards() {
+      Bulkhead bulkhead = onePermit();
+
+      int free =
+          bulkhead
+              .protect(bulkhead.protect(freePermits(bulkhead)).timeout(Duration.ofSeconds(5)))
+              .run();
+
+      assertThat(free).isZero();
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a circuit breaker between the guards runs the inner guard on the call's permit")
+    void circuitBreakerBetweenTheGuards() {
+      Bulkhead bulkhead = onePermit();
+      CircuitBreaker breaker = CircuitBreaker.withDefaults();
+
+      int free = bulkhead.protect(breaker.protect(bulkhead.protect(freePermits(bulkhead)))).run();
+
+      assertThat(free).isZero();
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a thread whose call has finished holds no permit for its next guard")
+    void finishedCallLeavesNoPermitBehind() throws Exception {
+      Bulkhead bulkhead = onePermit();
+      assertThatThrownBy(bulkhead.protect(VTask.fail(new IOException("down")))::run)
+          .hasRootCauseInstanceOf(IOException.class);
+      assertThat(bulkhead.protect(VTask.succeed("done")).run()).isEqualTo("done");
+
+      try (Occupant _ = Occupant.of(bulkhead)) {
+        VTask<String> next = bulkhead.protect(VTask.succeed("beside the occupant"));
+
+        assertThatThrownBy(next::run).isInstanceOf(BulkheadFullException.class);
+      }
+    }
+
+    @Test
+    @DisplayName("a guard nested in another bulkhead's holds no permit once it has finished")
+    void finishedNestedGuardLeavesNoPermitBehind() {
+      Bulkhead outer = onePermit();
+      Bulkhead inner = onePermit();
+      VTask<String> twice =
+          VTask.of(
+              () -> {
+                inner.protect(VTask.succeed("first")).run();
+                try (Occupant _ = Occupant.of(inner)) {
+                  return inner.protect(VTask.succeed("beside the occupant")).run();
+                } catch (BulkheadFullException full) {
+                  return "turned away";
+                }
+              });
+
+      assertThat(outer.protect(twice).run()).isEqualTo("turned away");
+    }
+
+    @Test
+    @DisplayName("a guard nested inside another bulkhead's finds the permit its call holds")
+    void anotherBulkheadBetween() {
+      Bulkhead outer = onePermit();
+      Bulkhead other = onePermit();
+      VTask<String> both =
+          VTask.of(() -> outer.availablePermits() + "/" + other.availablePermits());
+
+      String free = outer.protect(other.protect(outer.protect(both))).run();
+
+      assertThat(free).isEqualTo("0/0");
+      assertThat(outer.availablePermits()).isEqualTo(1);
+      assertThat(other.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a guard inside detachOnCancel takes a permit of its own, so one permit is not enough")
+    void detachedGuardTakesItsOwnPermit() {
+      Bulkhead bulkhead = onePermit();
+
+      VTask<Integer> detached =
+          bulkhead.protect(bulkhead.protect(freePermits(bulkhead)).detachOnCancel());
+
+      assertThatThrownBy(detached::run).isInstanceOf(BulkheadFullException.class);
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a detached guard keeps its permit once its call is cancelled, until its task stops")
+    void detachedGuardKeepsItsPermit() throws Exception {
+      Bulkhead bulkhead =
+          Bulkhead.create(
+              BulkheadConfig.builder().maxConcurrent(2).waitTimeout(Duration.ofSeconds(2)).build());
+      CountDownLatch started = new CountDownLatch(1);
+      CountDownLatch release = new CountDownLatch(1);
+      VTask<String> stubborn =
+          () -> {
+            started.countDown();
+            awaitIgnoringInterrupts(release);
+            return "late";
+          };
+      AtomicReference<Throwable> failure = new AtomicReference<>();
+      Thread caller =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      bulkhead.protect(bulkhead.protect(stubborn).detachOnCancel()).execute();
+                    } catch (Throwable t) {
+                      failure.set(t);
+                    }
+                  });
+
+      try {
+        assertThat(started.await(2, TimeUnit.SECONDS)).isTrue();
+        assertThat(bulkhead.availablePermits()).as("the call and its detached guard").isZero();
+        caller.interrupt();
+        assertThat(caller.join(Duration.ofSeconds(2))).isTrue();
+
+        assertThat(failure.get()).isInstanceOf(InterruptedException.class);
+        assertThat(bulkhead.availablePermits()).as("the detached guard keeps its own").isOne();
+      } finally {
+        release.countDown();
+      }
+      await().atMost(Duration.ofSeconds(2)).until(() -> bulkhead.availablePermits() == 2);
+    }
+
+    @Test
+    @DisplayName("threads a guarded call starts take permits of their own, within maxConcurrent")
+    void forksTakePermitsOfTheirOwn() {
+      Bulkhead bulkhead =
+          Bulkhead.create(
+              BulkheadConfig.builder().maxConcurrent(2).waitTimeout(Duration.ofSeconds(5)).build());
+      AtomicInteger running = new AtomicInteger();
+      AtomicInteger peak = new AtomicInteger();
+      VTask<Integer> branch =
+          bulkhead.protect(
+              VTask.of(
+                  () -> {
+                    peak.accumulateAndGet(running.incrementAndGet(), Math::max);
+                    Thread.sleep(10);
+                    running.decrementAndGet();
+                    return 1;
+                  }));
+
+      List<Integer> results =
+          bulkhead.protect(Par.all(List.of(branch, branch, branch, branch))).run();
+
+      assertThat(results).containsExactly(1, 1, 1, 1);
+      assertThat(peak.get()).as("the call holds one permit; its branches share the other").isOne();
+      assertThat(bulkhead.availablePermits()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("a fork of a call holding the only permit waits for it, and fails at waitTimeout")
+    void forkUnderTheOnlyPermitWaits() {
+      Bulkhead bulkhead = onePermit();
+
+      VTask<List<Integer>> fanOut =
+          bulkhead.protect(Par.all(List.of(bulkhead.protect(freePermits(bulkhead)))));
+
+      assertThatThrownBy(fanOut::run).isInstanceOf(BulkheadFullException.class);
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
     }
   }
 

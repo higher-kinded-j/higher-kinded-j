@@ -1474,6 +1474,49 @@ class IOPathTest {
     }
 
     @Test
+    @DisplayName("withBulkhead: one bulkhead applied twice runs the call on one permit")
+    void withBulkheadTwiceTakesOnePermit() {
+      // A second permit would never come: the wait gives up after 200 ms
+      Bulkhead bulkhead =
+          Bulkhead.create(
+              BulkheadConfig.builder()
+                  .maxConcurrent(1)
+                  .waitTimeout(Duration.ofMillis(200))
+                  .build());
+
+      String result =
+          Path.io(() -> "inventory")
+              .withBulkhead(bulkhead)
+              .map(String::toUpperCase)
+              .withBulkhead(bulkhead)
+              .unsafeRun();
+
+      assertThat(result).isEqualTo("INVENTORY");
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("withBulkhead: a withTimeout between two guards of one bulkhead keeps one permit")
+    void withBulkheadTwiceAcrossATimeout() {
+      Bulkhead bulkhead =
+          Bulkhead.create(
+              BulkheadConfig.builder()
+                  .maxConcurrent(1)
+                  .waitTimeout(Duration.ofMillis(200))
+                  .build());
+
+      String result =
+          Path.io(() -> "inventory")
+              .withBulkhead(bulkhead)
+              .withTimeout(Duration.ofSeconds(5))
+              .withBulkhead(bulkhead)
+              .unsafeRun();
+
+      assertThat(result).isEqualTo("inventory");
+      assertThat(bulkhead.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("null arguments are rejected")
     void nullArgumentsRejected() {
       IOPath<Integer> path = Path.io(() -> 1);

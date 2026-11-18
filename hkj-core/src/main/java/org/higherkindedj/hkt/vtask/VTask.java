@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.util.Cleanup;
+import org.higherkindedj.hkt.util.HeldPermits;
 import org.higherkindedj.hkt.util.validation.Validation;
 
 /**
@@ -393,13 +394,14 @@ public interface VTask<A> extends VTaskKind<A> {
    * Creates a new task that fails if this task does not complete within the specified duration.
    *
    * <p>This task runs on a new virtual thread, which does not see the caller's {@code ScopedValue}
-   * bindings. When the time runs out, this task is interrupted, and the new task fails with a
-   * {@link TimeoutException} once it has stopped, so its cleanup has run and it is not left
-   * running. A duration of zero or less runs out at once, so the new task fails unless this task
-   * has already finished. A task that finishes after the time runs out still fails with the {@code
-   * TimeoutException}. A {@code TimeoutException} this task throws itself is reported as the time
-   * running out too, with that exception as its cause, so what a nested timeout kept is not lost.
-   * Any other failure passes through as thrown.
+   * bindings. It does run on the caller's bulkhead permits, so a {@code Bulkhead} guard in it that
+   * the caller is already inside takes no second permit. When the time runs out, this task is
+   * interrupted, and the new task fails with a {@link TimeoutException} once it has stopped, so its
+   * cleanup has run and it is not left running. A duration of zero or less runs out at once, so the
+   * new task fails unless this task has already finished. A task that finishes after the time runs
+   * out still fails with the {@code TimeoutException}. A {@code TimeoutException} this task throws
+   * itself is reported as the time running out too, with that exception as its cause, so what a
+   * nested timeout kept is not lost. Any other failure passes through as thrown.
    *
    * <p>The duration says when this task is cancelled, not when the caller gets control back, as in
    * a {@link Scope} that times out. A task that ignores interruption, or blocks where an interrupt
@@ -432,7 +434,9 @@ public interface VTask<A> extends VTaskKind<A> {
     Objects.requireNonNull(duration, "duration cannot be null");
     return () -> {
       CompletableFuture<A> outcome = new CompletableFuture<>();
-      Thread running = startCompleting(outcome);
+      // The caller waits until this task has stopped, so it runs on the caller's bulkhead permits
+      HeldPermits.HandOff handOff = HeldPermits.handOff();
+      Thread running = startCompleting(() -> handOff.run(this::execute), outcome);
       try {
         return outcome.get(TimeUnit.NANOSECONDS.convert(duration), TimeUnit.NANOSECONDS);
       } catch (TimeoutException e) {
@@ -474,14 +478,18 @@ public interface VTask<A> extends VTaskKind<A> {
    * stop when interrupted instead. A bulkhead around a detached task gives its permit back when the
    * task is cancelled, so the leftover no longer counts against the bulkhead's limit, and each
    * retry after a timeout can leave one more running. Where the limit must hold, detach the
-   * protected task instead: {@code bulkhead.protect(task).detachOnCancel()}.
+   * protected task instead: {@code bulkhead.protect(task).detachOnCancel()}. Since this task may
+   * run on beside the caller, its guard takes a permit of its own, even where the caller holds one
+   * of the same bulkhead, unlike a guard under {@link #timeout}. So under a caller that holds that
+   * bulkhead's last permit, it waits the bulkhead's {@code waitTimeout} and fails with {@code
+   * BulkheadFullException}: guard the detached task, not the caller as well.
    *
    * @return A new {@code VTask<A>} that stops waiting for this task when cancelled. Never null.
    */
   default VTask<A> detachOnCancel() {
     return () -> {
       CompletableFuture<A> outcome = new CompletableFuture<>();
-      Thread running = startCompleting(outcome);
+      Thread running = startCompleting(this, outcome);
       try {
         return outcome.get();
       } catch (ExecutionException e) {
@@ -493,13 +501,13 @@ public interface VTask<A> extends VTaskKind<A> {
     };
   }
 
-  /** Starts this task on a new virtual thread that completes {@code outcome} with its result. */
-  private Thread startCompleting(CompletableFuture<A> outcome) {
+  /** Starts {@code task} on a new virtual thread that completes {@code outcome} with its result. */
+  private static <A> Thread startCompleting(VTask<A> task, CompletableFuture<A> outcome) {
     return Thread.ofVirtual()
         .start(
             () -> {
               try {
-                outcome.complete(execute());
+                outcome.complete(task.execute());
               } catch (Throwable t) {
                 // get() removes exactly this layer, so the task's own exception arrives as is
                 outcome.completeExceptionally(new CompletionException(t));
