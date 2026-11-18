@@ -150,14 +150,16 @@ One prism lifts over whole containers, accumulating **every** failure and locati
 
 | Form | Parses | Each failure locates by |
 |---|---|---|
-| `parseAll(List<? extends S>)` | every element | its **index** - `emails.1: not an email address`, or `customers.1.email` through a nested spec |
-| `parseAll(Set<? extends S>)` | every element | the **element's own rendering** - `emails.nope`; a set has no index |
-| `parseAll(S[], IntFunction<A[]>)` | every element | its **index**, as a list. The array constructor supplies the result, since a generic array cannot be created otherwise |
-| `parseValues(Map<K, ? extends S>)` | the values; keys pass through | its **key** - `attributes.en: ...` |
-| `parseKeys(Map<? extends S, V>)` | the keys; values pass through | the **source** key, naming what the caller sent |
+| `parseAll(List<? extends @Nullable S>)` | every element | its **index** - `emails.1: not an email address`, or `customers.1.email` through a nested spec |
+| `parseAll(Set<? extends @Nullable S>)` | every element | the **element's own rendering** - `emails.nope`; a set has no index |
+| `parseAll(@Nullable S[], IntFunction<A[]>)` | every element, any of which may be null | its **index**, as a list. The array constructor supplies the result, since a generic array cannot be created otherwise |
+| `parseValues(Map<? extends @Nullable K, ? extends @Nullable S>)` | the values; keys pass through | its **key** - `attributes.en: ...` |
+| `parseKeys(Map<? extends @Nullable S, ? extends @Nullable V>)` | the keys; values pass through | the **source** key, naming what the caller sent |
 | `parseEntries(Map, ValidatedParse)` | both sides; the receiver parses the **keys** | the source key, so an entry wrong on both sides reports both reasons there |
 
 The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside all of them: a `null` element or map value is a located, accumulating `must not be null`, never an exception, while a `null` container stays the caller's error. A `null` set element is the unlocated `must not contain a null element`, a set holding at most one, and a `null` map key the unlocated `must not contain a null key`, its value left unparsed. Every build direction (`buildAll`, `buildValues`, `buildKeys`, `buildEntries`) is total like `build` and rejects nulls outright.
+
+Each parse form's parameter says so. It takes a container whose elements, keys or values may be null, such as the `List<@Nullable String>` a JSON body reads into, so a [nullness checker](../hkts/core-concepts.md#what-a-nullness-checker-sees) accepts one. What comes back holds no `null`. A build form's result is declared to hold none, so a checker takes it where a `List<? extends @Nullable String>` is asked for. A site declared `List<@Nullable String>` takes it through `Collections.unmodifiableList`, and a set or map through `unmodifiableSet` or `unmodifiableMap`, none of which copies.
 
 Mapping is not injective, so a container can **collapse**: a prism mapping both `"1"` and `"01"` to one domain value leaves a smaller set, and the source spellings cannot be recovered. A set drops the duplicate **silently** - the domain values that remain are equal to the ones dropped, so the set still holds every distinct value it was given. Two map keys parsing to one domain key are a located `duplicates an earlier key` instead: there the dropped entry takes its own value with it, and that value need not be equal to anything. Either way the prism doing it already breaks the [section law](#laws), which is what stops a lawful mapping collapsing at all.
 

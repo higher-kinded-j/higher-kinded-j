@@ -925,4 +925,312 @@ class MappingNullnessTest {
 
     assertThat(compilation).succeeded();
   }
+
+  @Test
+  @DisplayName(
+      "a leaf or nested spec lifted over a wire whose elements, keys or values may be null, on"
+          + " every tier, and a caller's own bulk parse of such a container")
+  void aLiftedLeafOverNullableElementsPassesTheChecker() {
+    Compilation compilation =
+        compile(
+            configuration,
+            List.of(
+                new MappingProcessor(), new MergeProcessor(), new CompanionAnnotationProcessor()),
+            List.of("-Xep:NullableOptional:ERROR"),
+            source(
+                "com.example.Lifted",
+                """
+                package com.example;
+
+                import java.util.ArrayList;
+                import java.util.List;
+                import java.util.Map;
+                import java.util.Optional;
+                import java.util.Set;
+                import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+                import org.higherkindedj.hkt.validated.FieldError;
+                import org.higherkindedj.hkt.validated.Validated;
+                import org.higherkindedj.optics.annotations.GenerateMapping;
+                import org.higherkindedj.optics.annotations.MapKey;
+                import org.higherkindedj.optics.annotations.MappingSpec;
+                import org.higherkindedj.optics.annotations.OptionalBridge;
+                import org.higherkindedj.optics.annotations.UpdateSpec;
+                import org.higherkindedj.optics.validated.ValidatedPrism;
+                import org.jspecify.annotations.Nullable;
+
+                public final class Lifted {
+                  private Lifted() {}
+
+                  public record Code(String value) {}
+
+                  public record Row(String[] cells) {}
+
+                  static ValidatedPrism<String, Code> code() {
+                    return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                  }
+
+                  public record Item(Code code) {}
+
+                  public record ItemDto(String code) {}
+
+                  @GenerateMapping
+                  public interface ItemMapping extends MappingSpec<Item, ItemDto> {
+                    default ValidatedPrism<String, Code> code() { return Lifted.code(); }
+                  }
+
+                  public record Pair<A, B>(A first, B second) {}
+
+                  public record Lift(
+                      List<Code> list,
+                      Set<Code> set,
+                      Code[] array,
+                      Row[] grid,
+                      Map<String, Code> values,
+                      Map<String, Code> keyedValues,
+                      Map<Code, String> keys,
+                      Map<Code, Code> entries,
+                      Map<Code, List<String>> rows,
+                      List<Item> items,
+                      Map<String, Item> byName,
+                      List<Row> lines,
+                      List<Code> pairs) {}
+
+                  // An inbound DTO, whose elements, keys and values may each be null.
+                  public record LiftDto(
+                      List<@Nullable String> list,
+                      @Nullable Set<@Nullable String> set,
+                      @Nullable String[] array,
+                      String[] @Nullable [] grid,
+                      Map<String, @Nullable String> values,
+                      Map<@Nullable String, String> keyedValues,
+                      Map<@Nullable String, @Nullable String> keys,
+                      Map<@Nullable String, @Nullable String> entries,
+                      Map<@Nullable String, List<String>> rows,
+                      List<@Nullable ItemDto> items,
+                      Map<String, @Nullable ItemDto> byName,
+                      List<String @Nullable []> lines,
+                      List<@Nullable Pair<String, String>> pairs) {}
+
+                  @GenerateMapping
+                  public interface LiftMapping extends MappingSpec<Lift, LiftDto> {
+                    default ValidatedPrism<String, Code> list() { return code(); }
+
+                    default ValidatedPrism<String, Code> set() { return code(); }
+
+                    default ValidatedPrism<String, Code> array() { return code(); }
+
+                    default ValidatedPrism<String[], Row> grid() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Row(raw)), Row::cells);
+                    }
+
+                    default ValidatedPrism<String, Code> values() { return code(); }
+
+                    default ValidatedPrism<String, Code> keyedValues() { return code(); }
+
+                    @MapKey("keys")
+                    default ValidatedPrism<String, Code> keysKey() { return code(); }
+
+                    default ValidatedPrism<String, Code> entries() { return code(); }
+
+                    @MapKey("entries")
+                    default ValidatedPrism<String, Code> entriesKey() { return code(); }
+
+                    @MapKey("rows")
+                    default ValidatedPrism<String, Code> rowsKey() { return code(); }
+
+                    default ValidatedPrism<String[], Row> lines() { return grid(); }
+
+                    default ValidatedPrism<Pair<String, String>, Code> pairs() {
+                      return ValidatedPrism.of(
+                          raw -> Validated.validNel(new Code(raw.first())),
+                          code -> new Pair<>(code.value(), code.value()));
+                    }
+                  }
+
+                  // A leaf over the lists it builds, and bridges through a wildcard and a variable.
+                  public record Codes(List<String> values) {}
+
+                  public record Grouped(List<Codes> groups) {}
+
+                  public record GroupedDto(List<@Nullable List<String>> groups) {}
+
+                  @GenerateMapping
+                  public interface GroupedMapping extends MappingSpec<Grouped, GroupedDto> {
+                    default ValidatedPrism<List<String>, Codes> groups() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Codes(raw)), Codes::values);
+                    }
+                  }
+
+                  public record Wild(Optional<? extends List<Code>> codes) {}
+
+                  public record Bound<O extends Optional<List<Code>>>(O codes) {}
+
+                  public record WildDto(@Nullable List<@Nullable String> codes) {}
+
+                  @GenerateMapping
+                  public interface WildMapping extends MappingSpec<Wild, WildDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  @GenerateMapping
+                  public interface BoundMapping
+                      extends MappingSpec<Bound<Optional<List<Code>>>, WildDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  // A bean's setter, a getter-only list and a bridged set, then a record's bridge.
+                  public record Order(List<Code> codes, List<Code> extras, Optional<Set<Code>> maybe) {}
+
+                  public static final class OrderBean {
+                    private @Nullable List<@Nullable String> codes;
+                    private final List<@Nullable String> extras = new ArrayList<>();
+                    private @Nullable Set<@Nullable String> maybe;
+
+                    public @Nullable List<@Nullable String> getCodes() { return codes; }
+
+                    public void setCodes(@Nullable List<@Nullable String> codes) { this.codes = codes; }
+
+                    public List<@Nullable String> getExtras() { return extras; }
+
+                    public @Nullable Set<@Nullable String> getMaybe() { return maybe; }
+
+                    public void setMaybe(@Nullable Set<@Nullable String> maybe) { this.maybe = maybe; }
+                  }
+
+                  @GenerateMapping
+                  public interface OrderBeanMapping extends MappingSpec<Order, OrderBean> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+
+                    default ValidatedPrism<String, Code> extras() { return code(); }
+
+                    default ValidatedPrism<String, Code> maybe() { return code(); }
+                  }
+
+                  public record Tagged(Optional<List<Code>> codes, Optional<Map<String, Code>> prices) {}
+
+                  public record TaggedDto(
+                      @Nullable List<@Nullable String> codes,
+                      @Nullable Map<@Nullable String, String> prices) {}
+
+                  @GenerateMapping
+                  public interface TaggedMapping extends MappingSpec<Tagged, TaggedDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> prices() { return code(); }
+                  }
+
+                  // A projection, its sparse update, and a parse-only view into an array whose
+                  // elements the domain declares nullable.
+                  public record Profile(String id, List<Code> codes) {}
+
+                  public record ProfileView(List<@Nullable String> codes) {}
+
+                  @GenerateMapping
+                  public interface ProfileViewMapping extends MappingSpec<Profile, ProfileView> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  public static final class ProfilePatch {
+                    private @Nullable List<@Nullable String> codes;
+
+                    public @Nullable List<@Nullable String> getCodes() { return codes; }
+
+                    public void setCodes(@Nullable List<@Nullable String> codes) { this.codes = codes; }
+                  }
+
+                  @GenerateMapping
+                  public interface ProfilePatchMapping extends UpdateSpec<Profile, ProfilePatch> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  public record Loose(@Nullable Code[] codes) {}
+
+                  public static final class LooseView {
+                    private final String[] codes;
+
+                    public LooseView(String[] codes) { this.codes = codes; }
+
+                    public String[] getCodes() { return codes; }
+                  }
+
+                  @GenerateMapping
+                  public interface LooseViewMapping extends MappingSpec<Loose, LooseView> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  // A caller validating what a JSON body held, nulls and all.
+                  static Validated<NonEmptyList<FieldError>, List<Code>> list(
+                      List<@Nullable String> raw) {
+                    return code().parseAll(raw);
+                  }
+
+                  static Validated<NonEmptyList<FieldError>, Set<Code>> set(
+                      Set<@Nullable String> raw) {
+                    return code().parseAll(raw);
+                  }
+
+                  static Validated<NonEmptyList<FieldError>, Code[]> array(@Nullable String[] raw) {
+                    return code().parseAll(raw, Code[]::new);
+                  }
+
+                  static Validated<NonEmptyList<FieldError>, Map<String, Code>> values(
+                      Map<@Nullable String, @Nullable String> raw) {
+                    return code().parseValues(raw);
+                  }
+
+                  static Validated<NonEmptyList<FieldError>, Map<Code, String>> keys(
+                      Map<@Nullable String, @Nullable String> raw) {
+                    return code().parseKeys(raw);
+                  }
+
+                  static Validated<NonEmptyList<FieldError>, Map<Code, Code>> entries(
+                      Map<@Nullable String, @Nullable String> raw) {
+                    return code().parseEntries(raw, code());
+                  }
+                }
+                """),
+            source(
+                "com.example.Wide",
+                """
+                package com.example;
+
+                import java.util.List;
+                import org.higherkindedj.hkt.validated.Validated;
+                import org.higherkindedj.optics.annotations.GenerateMapping;
+                import org.higherkindedj.optics.annotations.MappingSpec;
+                import org.higherkindedj.optics.validated.ValidatedPrism;
+                import org.jspecify.annotations.Nullable;
+
+                // More than 16 components, so parse assembles in chunks.
+                public final class Wide {
+                  private Wide() {}
+
+                  public record Code(String value) {}
+
+                  public record Big(
+                      String a1, String a2, String a3, String a4, String a5, String a6,
+                      String a7, String a8, String a9, String a10, String a11, String a12,
+                      String a13, String a14, String a15, String a16, List<Code> codes) {}
+
+                  public record BigDto(
+                      String a1, String a2, String a3, String a4, String a5, String a6,
+                      String a7, String a8, String a9, String a10, String a11, String a12,
+                      String a13, String a14, String a15, String a16,
+                      List<@Nullable String> codes) {}
+
+                  @GenerateMapping
+                  public interface BigMapping extends MappingSpec<Big, BigDto> {
+                    default ValidatedPrism<String, Code> codes() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+                  }
+                }
+                """));
+
+    assertThat(compilation).succeeded();
+  }
 }

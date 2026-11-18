@@ -1149,7 +1149,7 @@ class NullableIntoBuildTest {
   @Test
   @DisplayName(
       "a type argument crossing a nested spec is refused where the spec rules its null out, as it"
-          + " takes the value or as it builds the wire")
+          + " takes the value or as it builds the wire, a mix-in's leaf converting it included")
   void aTypeArgumentCrossingANestedSpecIsRefused() {
     JavaFileObject nested =
         JavaFileObjects.forSourceString(
@@ -1319,6 +1319,50 @@ class NullableIntoBuildTest {
               public interface CatalogMapping extends MappingSpec<Catalog, CatalogDto> {
                 default ValidatedPrism<String, Code> page() { return Codes.CODE; }
               }
+
+              // A mix-in's leaf converts the spec's T as well: one generic over the pair, and one
+              // declared to return its type variable.
+              public interface RackLeaf<X extends @Nullable Object, Y extends @Nullable Object> {
+                ValidatedPrism<Y, X> items();
+              }
+
+              public record Rack<T extends @Nullable Object>(List<T> items) {}
+
+              public record RackDto<D extends @Nullable Object>(List<D> items) {}
+
+              @GenerateMapping
+              public interface RackMapping<T extends @Nullable Object, D extends @Nullable Object>
+                  extends MappingSpec<Rack<T>, RackDto<D>>, RackLeaf<T, D> {}
+
+              public record Library(Rack<@Nullable Code> rack) {}
+
+              public record LibraryDto(RackDto<String> rack) {}
+
+              @GenerateMapping
+              public interface LibraryMapping extends MappingSpec<Library, LibraryDto> {
+                default ValidatedPrism<String, Code> rack() { return Codes.CODE; }
+              }
+
+              public interface TrayLeaf<P> {
+                P items();
+              }
+
+              public record Tray<T extends @Nullable Object>(List<T> items) {}
+
+              public record TrayDto<D extends @Nullable Object>(List<D> items) {}
+
+              @GenerateMapping
+              public interface TrayMapping<T extends @Nullable Object, D extends @Nullable Object>
+                  extends MappingSpec<Tray<T>, TrayDto<D>>, TrayLeaf<ValidatedPrism<D, T>> {}
+
+              public record Kitchen(Tray<@Nullable Code> tray) {}
+
+              public record KitchenDto(TrayDto<String> tray) {}
+
+              @GenerateMapping
+              public interface KitchenMapping extends MappingSpec<Kitchen, KitchenDto> {
+                default ValidatedPrism<String, Code> tray() { return Codes.CODE; }
+              }
             }
             """);
 
@@ -1390,13 +1434,25 @@ class NullableIntoBuildTest {
                 + " never meets a null there.");
     assertThat(compilation)
         .hadErrorContaining(
+            "domain field 'Library.rack' declares the type argument Codes.Code @Nullable, and"
+                + " build passes it to the spec 'RackMapping', which maps Nested.Rack<T>. The"
+                + " spec's build takes the value as it declares it, and its leaf 'items()' converts"
+                + " its type variable T, whose build takes no null");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'Kitchen.tray' declares the type argument Codes.Code @Nullable, and"
+                + " build passes it to the spec 'TrayMapping', which maps Nested.Tray<T>. The"
+                + " spec's build takes the value as it declares it, and its leaf 'items()' converts"
+                + " its type variable T, whose build takes no null");
+    assertThat(compilation)
+        .hadErrorContaining(
             "domain field 'Lifted.one' declares the type argument String @Nullable, and build"
                 + " passes the value it holds to the spec 'OneMapping'");
     assertThat(compilation)
         .hadErrorContaining(
             "domain field 'Valued.ones' declares the type argument String @Nullable, and build"
                 + " passes its values to the spec 'OneMapping'");
-    Assertions.assertThat(compilation.errors()).hasSize(11);
+    Assertions.assertThat(compilation.errors()).hasSize(13);
   }
 
   @Test

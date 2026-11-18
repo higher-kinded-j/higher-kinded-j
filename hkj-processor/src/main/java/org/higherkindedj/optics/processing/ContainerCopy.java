@@ -164,6 +164,23 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     };
   }
 
+  /**
+   * The one level an element-lifted leg's bulk form makes fresh, {@code type}'s own, which says to
+   * {@link #retyping} what is fresh and is never itself written as a copy. {@code buildAll}, {@code
+   * buildValues}, {@code buildKeys} and {@code buildEntries} each hand back a new container, but
+   * what it holds is what a leaf or a nested spec built, or, passed through, what the domain held,
+   * and none of that is copied. So only the container's own arguments may be typed differently, and
+   * nothing inside them.
+   *
+   * @param type the type of the container the bulk form builds: exactly {@code List}, {@code Set}
+   *     or {@code Map}, with its arguments
+   * @return the one level
+   */
+  static ContainerCopy level(TypeMirror type) {
+    ContainerCopy copy = of(type);
+    return new ContainerCopy(copy.shape, null, copy.element);
+  }
+
   private static ContainerCopy declared(DeclaredType type) {
     String name = ((TypeElement) type.asElement()).getQualifiedName().toString();
     for (Shape shape : DECLARED) {
@@ -228,9 +245,10 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * narrower one is checked before it is read. Below a level handed over as it is, or inside a
    * map's key, which no copy rebuilds, the two sides share the container, and either side could put
    * a {@code null} into what the other declares holds none. Neither is an array's component below
-   * the top, whose nullness the null scan's element lambda does not keep. Two types of different
-   * kinds, as a bridged wildcard and the wire's container are, pair nowhere, and positions are
-   * paired by index.
+   * the top, whose nullness the null scan's element lambda does not keep, nor an argument of an
+   * enclosing type, as in {@code Outer<@Nullable String>.Inner}, which no copy rebuilds, since a
+   * copy makes new containers and never a new {@code Inner}. Two types of different kinds, as a
+   * bridged wildcard and the wire's container are, pair nowhere, and positions are paired by index.
    *
    * @param copy the copy of {@code from}, or null where it has none
    * @param from the type copied
@@ -275,7 +293,8 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * holding the two types is rebuilt, {@code top} whether the two are the copy's own types, and
    * {@code copy} is their own copy, or null. A wildcard's bound stands where the wildcard does; any
    * other type's arguments are fresh where the type is a level the copy rebuilds, an array below
-   * the top aside, and only the level's element is copied further inside.
+   * the top aside, and only the level's element is copied further inside. An enclosing type's
+   * arguments are never fresh.
    */
   private static Stream<Position> positions(
       boolean fresh, boolean top, ContainerCopy copy, TypeMirror from, TypeMirror to) {
@@ -286,24 +305,35 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     List<? extends TypeMirror> tos = NullableAnnotations.inside(to).toList();
     boolean wildcard = from.getKind() == TypeKind.WILDCARD;
     boolean held = wildcard ? fresh : copy != null && (top || from.getKind() != TypeKind.ARRAY);
-    return IntStream.range(0, Math.min(froms.size(), tos.size()))
-        .boxed()
-        .flatMap(
-            i ->
-                Stream.concat(
-                    Stream.of(
-                        new Position(
-                            NullableAnnotations.nullableHere(froms.get(i)),
-                            NullableAnnotations.nullableHere(tos.get(i)),
-                            held)),
-                    positions(
-                        held,
-                        false,
-                        wildcard
-                            ? copy
-                            : copy != null && i == copy.shape.argument ? copy.inner : null,
-                        froms.get(i),
-                        tos.get(i))));
+    Stream<Position> arguments =
+        IntStream.range(0, Math.min(froms.size(), tos.size()))
+            .boxed()
+            .flatMap(
+                i ->
+                    Stream.concat(
+                        Stream.of(
+                            new Position(
+                                NullableAnnotations.nullableHere(froms.get(i)),
+                                NullableAnnotations.nullableHere(tos.get(i)),
+                                held)),
+                        positions(
+                            held,
+                            false,
+                            wildcard
+                                ? copy
+                                : copy != null && i == copy.shape.argument ? copy.inner : null,
+                            froms.get(i),
+                            tos.get(i))));
+    return from.getKind() == TypeKind.DECLARED
+        ? Stream.concat(
+            arguments,
+            positions(
+                false,
+                false,
+                null,
+                ((DeclaredType) from).getEnclosingType(),
+                ((DeclaredType) to).getEnclosingType()))
+        : arguments;
   }
 
   /**

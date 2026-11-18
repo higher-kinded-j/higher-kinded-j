@@ -273,6 +273,20 @@ final class NullnessReading {
       this(declared, instantiated, scopes, arguments, null);
     }
 
+    /**
+     * This form read through a wildcard's upper bound, as a bridged {@code Optional}'s present
+     * value is resolved: {@code ? extends List<Code>} holds a {@code List<Code>}. Itself where it
+     * is no {@code ? extends} wildcard.
+     */
+    Written throughWildcard() {
+      return new Written(
+          extendsOf(declared).findFirst().orElse(declared),
+          extendsOf(instantiated).findFirst().orElse(instantiated),
+          scopes,
+          arguments,
+          bound);
+    }
+
     /** Whether the declaration leaves its nullness to its type argument. */
     boolean deferred() {
       return NullableAnnotations.declaredVariable(declared)
