@@ -550,10 +550,15 @@ matter: it maps build-only whatever its width, derived fields included.
   refuses every unbridged `null` read. A type variable counts as the spec instantiates it:
   `One<@Nullable String>` makes a domain `T` nullable, `ItemDto<String>` a wire `T` non-null. The
   generated copies, guards and leaf caches declare their nulls in JSpecify's annotations, so the
-  Impl passes NullAway, `List<@Nullable String>` included. NullAway still reports any component of a generic
-  record, a leaf lifted over such a list, an array of arrays, a leg that widens and narrows at
-  once, a narrowing leg in a record of more than 16 components, and a container handed over as it
-  is (an `ArrayList`) whose nullness differs; no declaration clears the first five yet.
+  Impl passes NullAway, `List<@Nullable String>` included, and so does a leaf or spec lifted over
+  one, where it builds each element as the wire declares it inside (a leaf over `List<String>`
+  lifted into `List<List<@Nullable String>>` is reported: declare it over `List<@Nullable
+  String>`). NullAway still reports any component of a generic record, an array of arrays, a
+  generic spec (or a generic mix-in's leaf whose wire type names its type variable) lifted over
+  nullable elements, a leg that widens and narrows at once, a narrowing
+  leg in a record of more than 16 components or in a `@MapKey` map's copied values, and a
+  container handed over as it is (an `ArrayList`) whose nullness differs; no declaration clears
+  the first five yet.
 - **A `@Nullable` component is not handed to anything that throws on it.** The processor refuses
   one that a leaf, a nested spec or a lifted container converts (a `@MapKey` map included), a
   lifted or bridged `Optional`, a flattened record or a oneof's sealed component, and one copied

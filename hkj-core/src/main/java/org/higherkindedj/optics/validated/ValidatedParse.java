@@ -18,6 +18,7 @@ import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.internal.MapEntries;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The parse half of a {@link ValidatedPrism}: a fallible, accumulating conversion from a source
@@ -29,6 +30,11 @@ import org.higherkindedj.optics.internal.MapEntries;
  * every prism serves wherever only parsing is asked for. A value with no {@code build} at all, the
  * read side of a wire the domain is never written back to, is made with {@link #of}, or exposed by
  * a parse-only {@code @GenerateMapping} as {@code asValidatedParse()}.
+ *
+ * <p>The bulk forms take a container whose elements, or whose keys and values, may be null, as an
+ * inbound wire's often may: each {@code null} is one more failure they report, so their parameters
+ * declare it, and a nullness checker accepts a {@code List<@Nullable String>} there. What they hand
+ * back holds no {@code null}. {@link #parse} itself takes none.
  *
  * <p>With no {@code build} there is no round trip, so the prism's two laws have nothing to relate.
  * What remains is the parse contract itself: a source that parses is {@code Valid}, and one that
@@ -64,17 +70,18 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * A null element is a located {@code must not be null} at its index, never an exception,
    * completing the null doctrine inside containers.
    *
-   * @param sources the wire values; the list itself must not be null
+   * @param sources the wire values, any of which may be null; the list itself must not be null
    * @return {@code Valid(list)} or every failure from every element, located by index, in list
    *     order (non-null)
    * @throws NullPointerException if {@code sources} is null
    */
-  default Validated<NonEmptyList<FieldError>, List<A>> parseAll(List<? extends S> sources) {
+  default Validated<NonEmptyList<FieldError>, List<A>> parseAll(
+      List<? extends @Nullable S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
     List<A> values = new ArrayList<>(sources.size());
     List<FieldError> failures = new ArrayList<>();
     int i = 0;
-    for (S source : sources) {
+    for (@Nullable S source : sources) {
       int index = i++;
       if (source == null) {
         failures.add(FieldError.of("must not be null").at(String.valueOf(index)));
@@ -112,16 +119,16 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * dropped <em>silently</em>: the element that remains is equal to the one dropped, so the set
    * still holds every distinct value it was given. Iteration order is preserved.
    *
-   * @param sources the wire values; the set itself must not be null
+   * @param sources the wire values, one of which may be null; the set itself must not be null
    * @return {@code Valid(set)} or every failure from every element, in iteration order (non-null,
    *     immutable)
    * @throws NullPointerException if {@code sources} is null
    */
-  default Validated<NonEmptyList<FieldError>, Set<A>> parseAll(Set<? extends S> sources) {
+  default Validated<NonEmptyList<FieldError>, Set<A>> parseAll(Set<? extends @Nullable S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
     Set<A> values = LinkedHashSet.newLinkedHashSet(sources.size());
     List<FieldError> failures = new ArrayList<>();
-    for (S source : sources) {
+    for (@Nullable S source : sources) {
       if (source == null) {
         failures.add(FieldError.of("must not contain a null element"));
       } else {
@@ -146,20 +153,20 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * <p>{@code newArray} supplies the result array — a generic array cannot be created otherwise —
    * and is called once, with the source's length, in the mould of {@code Stream#toArray}.
    *
-   * @param sources the wire values; the array itself must not be null
+   * @param sources the wire values, any of which may be null; the array itself must not be null
    * @param newArray the domain array constructor, typically {@code Domain[]::new}; must not be null
    * @return {@code Valid(array)} or every failure from every element, located by index, in array
    *     order (non-null)
    * @throws NullPointerException if {@code sources} or {@code newArray} is null
    */
   default Validated<NonEmptyList<FieldError>, A[]> parseAll(
-      S[] sources, IntFunction<A[]> newArray) {
+      @Nullable S[] sources, IntFunction<A[]> newArray) {
     Objects.requireNonNull(sources, "sources must not be null");
     Objects.requireNonNull(newArray, "newArray must not be null");
     A[] values = newArray.apply(sources.length);
     List<FieldError> failures = new ArrayList<>();
     for (int i = 0; i < sources.length; i++) {
-      S source = sources[i];
+      @Nullable S source = sources[i];
       if (source == null) {
         failures.add(FieldError.of("must not be null").at(String.valueOf(i)));
       } else {
@@ -202,11 +209,12 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * list stays exact, with the whole key as one segment. Distinct keys whose {@code toString()}
    * collide share a rendered location, but every error is still reported.
    *
-   * @param sources the wire values by key; the map itself must not be null — a null <em>value</em>
-   *     is a located {@code must not be null} under its key, and a null key the unlocated {@code
-   *     must not contain a null key}, never an exception, completing the null doctrine inside
-   *     containers
-   * @param <K> the key type, carried through unchanged
+   * @param sources the wire values by key, any key or value of which may be null; the map itself
+   *     must not be null — a null <em>value</em> is a located {@code must not be null} under its
+   *     key, and a null key the unlocated {@code must not contain a null key}, never an exception,
+   *     completing the null doctrine inside containers
+   * @param <K> the key type, carried through unchanged: a null key fails, so a map that parses
+   *     holds none
    * @return {@code Valid(map)} or every failure from every entry, in entry order (non-null; the map
    *     is unmodifiable unless it is an {@code IdentityHashMap})
    * @throws NullPointerException if {@code sources} is null
@@ -214,9 +222,9 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    *     tell apart; the message names both
    */
   default <K> Validated<NonEmptyList<FieldError>, Map<K, A>> parseValues(
-      Map<K, ? extends S> sources) {
+      Map<? extends @Nullable K, ? extends @Nullable S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
-    MapEntries<K, ? extends S> entries =
+    MapEntries<? extends @Nullable K, ? extends @Nullable S> entries =
         MapEntries.of(
             sources,
             new MapEntries.Refusal(
@@ -224,8 +232,8 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     List<A> values = new ArrayList<>(entries.keys().size());
     List<FieldError> failures = new ArrayList<>();
     for (int index = 0; index < entries.keys().size(); index++) {
-      K key = entries.keys().get(index);
-      S source = entries.values().get(index);
+      @Nullable K key = entries.keys().get(index);
+      @Nullable S source = entries.values().get(index);
       if (key == null) {
         failures.add(nullKey());
       } else if (source == null) {
@@ -240,7 +248,9 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
       }
     }
     if (failures.isEmpty()) {
-      return Validated.valid(entries.rebuildToHandBack(values));
+      @SuppressWarnings("unchecked") // a fresh map, and a null key failed above
+      Map<K, A> parsed = (Map<K, A>) entries.rebuildToHandBack(values);
+      return Validated.valid(parsed);
     }
     // No map is built, but a source no map could hold is still refused, not hidden behind these.
     entries.requireDistinctKeys();
@@ -266,24 +276,26 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * contents convert or are copied. A {@code null} source key is the unlocated {@code must not
    * contain a null key}, as {@link #parseValues(Map)} reports it, and its value is not looked at.
    *
-   * @param sources the wire values by key; the map itself must not be null
-   * @param <V> the value type, carried through unchanged
+   * @param sources the wire values by key, any key or value of which may be null; the map itself
+   *     must not be null
+   * @param <V> the value type, carried through unchanged: a null value fails, so a map that parses
+   *     holds none
    * @return {@code Valid(map)} or every failure, in entry order (non-null, immutable)
    * @throws NullPointerException if {@code sources} is null
    */
   default <V> Validated<NonEmptyList<FieldError>, Map<A, V>> parseKeys(
-      Map<? extends S, V> sources) {
+      Map<? extends @Nullable S, ? extends @Nullable V> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
     Map<A, V> values = LinkedHashMap.newLinkedHashMap(sources.size());
     Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
     List<FieldError> failures = new ArrayList<>();
-    for (Map.Entry<? extends S, V> entry : sources.entrySet()) {
-      S source = entry.getKey();
+    for (Map.Entry<? extends @Nullable S, ? extends @Nullable V> entry : sources.entrySet()) {
+      @Nullable S source = entry.getKey();
       if (source == null) {
         failures.add(nullKey());
         continue;
       }
-      V value = entry.getValue();
+      @Nullable V value = entry.getValue();
       Validated<NonEmptyList<FieldError>, A> parsedKey = parse(source);
       int reported = failures.size();
       if (!parsedKey.isValid()) {
@@ -293,8 +305,7 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
       }
       if (value == null) {
         failures.add(FieldError.of("must not be null").at(source.toString()));
-      }
-      if (failures.size() == reported) {
+      } else if (failures.size() == reported) {
         values.put(parsedKey.get(), value);
       }
     }
@@ -316,7 +327,8 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * unlocated {@code must not contain a null key}, whose value is not parsed, and colliding domain
    * keys are a located failure, exactly as in {@link #parseKeys(Map)}. Entry order is preserved.
    *
-   * @param sources the wire entries; the map itself must not be null
+   * @param sources the wire entries, any key or value of which may be null; the map itself must not
+   *     be null
    * @param valueParse the parse converting the values; must not be null
    * @param <SV> the wire value type
    * @param <V> the domain value type
@@ -324,19 +336,20 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
    * @throws NullPointerException if {@code sources} or {@code valueParse} is null
    */
   default <SV, V> Validated<NonEmptyList<FieldError>, Map<A, V>> parseEntries(
-      Map<? extends S, ? extends SV> sources, ValidatedParse<SV, V> valueParse) {
+      Map<? extends @Nullable S, ? extends @Nullable SV> sources,
+      ValidatedParse<SV, V> valueParse) {
     Objects.requireNonNull(sources, "sources must not be null");
     Objects.requireNonNull(valueParse, "valueParse must not be null");
     Map<A, V> values = LinkedHashMap.newLinkedHashMap(sources.size());
     Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
     List<FieldError> failures = new ArrayList<>();
-    for (Map.Entry<? extends S, ? extends SV> entry : sources.entrySet()) {
-      S source = entry.getKey();
+    for (Map.Entry<? extends @Nullable S, ? extends @Nullable SV> entry : sources.entrySet()) {
+      @Nullable S source = entry.getKey();
       if (source == null) {
         failures.add(nullKey());
         continue;
       }
-      SV rawValue = entry.getValue();
+      @Nullable SV rawValue = entry.getValue();
       Validated<NonEmptyList<FieldError>, A> parsedKey = parse(source);
       Validated<NonEmptyList<FieldError>, V> parsedValue =
           rawValue == null

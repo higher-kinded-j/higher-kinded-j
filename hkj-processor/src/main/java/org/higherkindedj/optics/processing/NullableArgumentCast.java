@@ -16,7 +16,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * argument nullable that the copied type does not: {@code (List<@Nullable String>)
  * hkj$copyOf(domain.labels())}, which {@code build} hands a wire whose elements may be null and a
  * plain merge its target, and which {@code parse} and a fallible merge bind ahead of their ladder
- * for a record whose elements may be.
+ * for a record whose elements may be. The container an element-lifted leg's bulk form builds is
+ * fresh at its own level in the same way ({@link ContainerCopy#level}), so {@code build} types
+ * {@code (List<@Nullable String>) codes().buildAll(domain.codes())} as its site too.
  *
  * <p>A copy is typed by what it copies, and a nullness checker holds each type argument to the
  * nullness it declares, so to the checker a {@code List<String>} is no {@code List<@Nullable

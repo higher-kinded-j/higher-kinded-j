@@ -1453,7 +1453,8 @@ public class MappingProcessor extends AbstractProcessor {
         null,
         null,
         null,
-        false);
+        false,
+        null);
   }
 
   /**
@@ -7875,6 +7876,11 @@ public class MappingProcessor extends AbstractProcessor {
    * <p>{@code nullableIntoNonNull} says an identity copy from a record wire may hand the domain a
    * {@code null} that the domain's declaration rules out ({@link #readsNullableIntoNonNull}), so
    * the copy is no total read; false for every other correspondence.
+   *
+   * <p>{@code builtType} is the container a lifted leg's bulk form builds, its parts typed as the
+   * leaf or spec that builds them declares them, so that {@code build} can type it as the site it
+   * is handed to ({@link NullableArgumentCast}); null for every other leg, and where a part is
+   * built by a generic spec, whose wire is bound at each use.
    */
   private record Correspondence(
       String name,
@@ -7891,7 +7897,8 @@ public class MappingProcessor extends AbstractProcessor {
       CodeBlock built,
       CodeBlock builtValues,
       RegisteredSpec nested,
-      boolean nullableIntoNonNull) {
+      boolean nullableIntoNonNull,
+      TypeMirror builtType) {
 
     Correspondence {
       built = built == null ? prism : built;
@@ -7901,7 +7908,7 @@ public class MappingProcessor extends AbstractProcessor {
     Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
       this(
           name, wireName, kind, prism, null, null, null, null, null, null, null, null, null, null,
-          false);
+          false, null);
     }
 
     /**
@@ -7924,7 +7931,8 @@ public class MappingProcessor extends AbstractProcessor {
           resolved.built(),
           null,
           resolved.nested(),
-          false);
+          false,
+          null);
     }
 
     /** The same correspondence as a member of {@code group}. */
@@ -7944,7 +7952,8 @@ public class MappingProcessor extends AbstractProcessor {
           built,
           builtValues,
           nested,
-          nullableIntoNonNull);
+          nullableIntoNonNull,
+          builtType);
     }
 
     /** The same correspondence as an arm of the sealed component mapping {@code sealed}. */
@@ -7964,7 +7973,8 @@ public class MappingProcessor extends AbstractProcessor {
           built,
           builtValues,
           nested,
-          nullableIntoNonNull);
+          nullableIntoNonNull,
+          builtType);
     }
 
     /** The arm of the sealed component this {@code ONEOF} correspondence writes. */
@@ -8000,7 +8010,8 @@ public class MappingProcessor extends AbstractProcessor {
           built,
           builtValues,
           nested,
-          nullableIntoNonNull);
+          nullableIntoNonNull,
+          builtType);
     }
 
     /**
@@ -8023,7 +8034,8 @@ public class MappingProcessor extends AbstractProcessor {
           built,
           values.built(),
           values.nested(),
-          nullableIntoNonNull);
+          nullableIntoNonNull,
+          builtType);
     }
 
     /**
@@ -8046,7 +8058,8 @@ public class MappingProcessor extends AbstractProcessor {
           built,
           builtValues,
           nested,
-          nullableIntoNonNull);
+          nullableIntoNonNull,
+          builtType);
     }
 
     /**
@@ -8069,7 +8082,32 @@ public class MappingProcessor extends AbstractProcessor {
           built,
           builtValues,
           nested,
-          true);
+          true,
+          builtType);
+    }
+
+    /**
+     * The same correspondence carrying the container its lifted leg's bulk form builds ({@link
+     * MappingProcessor#builtType}).
+     */
+    Correspondence withBuiltType(TypeMirror type) {
+      return new Correspondence(
+          name,
+          wireName,
+          kind,
+          prism,
+          group,
+          domainElement,
+          valuePrism,
+          present,
+          scan,
+          copy,
+          oneof,
+          built,
+          builtValues,
+          nested,
+          nullableIntoNonNull,
+          type);
     }
 
     /**
@@ -10545,7 +10583,12 @@ public class MappingProcessor extends AbstractProcessor {
                   : ""));
       return null;
     }
-    Correspondence correspondence = resolved.correspondence();
+    Correspondence correspondence =
+        resolved
+            .correspondence()
+            .withBuiltType(
+                builtType(
+                    spec, registry, name, need, wireType, domainType, resolved.correspondence()));
     if (reportedNullIntoBuild(member, arguments, wireType, domainType, correspondence)) {
       return null;
     }
@@ -10648,7 +10691,9 @@ public class MappingProcessor extends AbstractProcessor {
     Optional<CopySite> site = copySite(member, wireType);
     Correspondence leg = c;
     if (c.kind() == Kind.OPTIONAL_BRIDGE) {
-      value = value.typeArguments().getFirst();
+      // The present value as the bridge resolved it: an Optional<? extends List<Code>> holds a
+      // list.
+      value = value.typeArguments().getFirst().throughWildcard();
       leg = c.present();
     }
     Kind kind = leg.kind();
@@ -12531,6 +12576,93 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The container a lifted leg's bulk form builds for {@code c} from {@code wireType} and {@code
+   * domainType}, as a nullness checker reads it ({@link Correspondence#builtType}): a new {@code
+   * List}, {@code Set} or {@code Map} of the domain's, holding each part a leaf or a nested spec
+   * converts as that leaf or spec declares it builds it ({@link #builds}), and a {@code Map}'s keys
+   * or values passed through as the domain declares them. Null for a leg that lifts nothing, an
+   * array included, and where a generic spec builds a part. The pairs are read as {@link
+   * #resolvePair} read them to lift the leg.
+   */
+  private TypeMirror builtType(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      String name,
+      Need need,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      Correspondence c) {
+    Types types = processingEnv.getTypeUtils();
+    return switch (c.kind()) {
+      case ELEMENTS -> {
+        TypeMirror[] pair = elementPair(wireType, domainType);
+        yield container(types, domainType, builds(spec, registry, name, need, pair[0], pair[1]));
+      }
+      case MAP, MAP_KEYS, MAP_ENTRIES -> {
+        DeclaredType[] maps = mapPair(wireType, domainType);
+        List<? extends TypeMirror> wire = maps[0].getTypeArguments();
+        List<? extends TypeMirror> domain = maps[1].getTypeArguments();
+        TypeMirror key =
+            c.kind() == Kind.MAP
+                ? domain.getFirst()
+                : leafBuilds(findKeyLeaf(spec, name, wire.getFirst(), domain.getFirst()));
+        TypeMirror value =
+            c.kind() == Kind.MAP_KEYS
+                ? domain.get(1)
+                : builds(spec, registry, name, need, wire.get(1), domain.get(1));
+        yield container(types, maps[1], key, value);
+      }
+      default -> null;
+    };
+  }
+
+  /**
+   * The type the leaf or nested spec that converts {@code wirePart} and {@code domainPart} declares
+   * it builds: the leaf's wire type, or the spec's wire, found as {@link #converter} finds it. Null
+   * for a generic spec, whose wire is bound at each use. Both read again what resolution chose, by
+   * the precedence {@link #resolvePair} applies, a leaf before a spec, so a change to that
+   * precedence changes them too.
+   */
+  private TypeMirror builds(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      String name,
+      Need need,
+      TypeMirror wirePart,
+      TypeMirror domainPart) {
+    ExecutableElement leaf = findLeaf(spec, name, wirePart, domainPart);
+    if (leaf != null) {
+      return leafBuilds(leaf);
+    }
+    RegisteredSpec nested =
+        servingCandidates(spec, registry, wirePart, domainPart, need).chosen().getFirst();
+    return nested.generic() ? null : nested.wire();
+  }
+
+  /**
+   * The wire type a leaf declares it builds, its {@code ValidatedPrism}'s first argument, read as
+   * the leaf writes it; null where that names a type variable, as a generic mix-in's leaf {@code
+   * ValidatedPrism<Box<@Nullable T>, Code>} does. Read under the spec, such a type loses an
+   * annotation on the variable's use, {@code Box<@Nullable T>} becoming {@code Box<String>}, while
+   * the Impl's own leaf writes it back ({@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror,
+   * DeclaredType, String)}), so the two would disagree inside the part.
+   */
+  private static TypeMirror leafBuilds(ExecutableElement leaf) {
+    TypeMirror declared = ((DeclaredType) leaf.getReturnType()).getTypeArguments().getFirst();
+    return ProcessorUtils.namesTypeVariable(declared) ? null : declared;
+  }
+
+  /**
+   * A new container of {@code domainType}'s kind holding {@code parts}, or null where one of them
+   * is not known.
+   */
+  private static TypeMirror container(Types types, TypeMirror domainType, TypeMirror... parts) {
+    return Arrays.stream(parts).anyMatch(Objects::isNull)
+        ? null
+        : types.getDeclaredType((TypeElement) types.asElement(domainType), parts);
+  }
+
+  /**
    * The Optional bridge: a domain {@code Optional<DE>} against a nullable wire member {@code PE},
    * an empty {@code Optional} mapping to {@code null}. The present value resolves as the pair
    * ({@code PE}, {@code DE}) would unbridged, by {@link #resolvePair}: copied, through a leaf,
@@ -12606,7 +12738,11 @@ public class MappingProcessor extends AbstractProcessor {
       reportNonNullBridge(spec, domain, name, wireName, wireType, domainType, bridged, nonNull);
       return null;
     }
-    return bridgedCorrespondence(present.correspondence(), bridged, implPackage(spec));
+    Correspondence presentLeg = present.correspondence();
+    return bridgedCorrespondence(
+        presentLeg.withBuiltType(builtType(spec, registry, name, need, read, bridged, presentLeg)),
+        bridged,
+        implPackage(spec));
   }
 
   /**
@@ -13920,8 +14056,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The expression {@code build} fills a wire component with, from its correspondence. The value is
-   * the same on either wire shape; only the write around it differs. A copy is typed as its site
-   * where the site declares its type arguments more nullable ({@link NullableArgumentCast}).
+   * the same on either wire shape; only the write around it differs. A copy, and the container an
+   * element-lifted leg builds, is typed as its site where the site declares its type arguments more
+   * nullable ({@link NullableArgumentCast}).
    */
   private static CodeBlock buildValue(
       Types types,
@@ -13952,12 +14089,42 @@ public class MappingProcessor extends AbstractProcessor {
         };
     // What the domain holds reaches the wire as a copy, never as the domain's own container.
     CodeBlock copied = ContainerCopy.through(c.valueCopy(), value, SCAN_SCOPE);
-    // Only a copy can be typed wider; a derived field has no component to read.
-    TypeMirror from = c.valueCopy() == null ? null : held(c, componentType(c, domain));
     TypeMirror to = siteType(types, wire, wc);
-    return from == null || to == null
+    // Only a container build makes can be typed wider; a derived field has no component to read.
+    Fresh fresh =
+        to == null || c.kind() == Kind.DERIVED ? null : fresh(c, componentType(c, domain));
+    return fresh == null
         ? copied
-        : NullableArgumentCast.on(c.valueCopy(), from, to, targetPackage, copied);
+        : NullableArgumentCast.on(fresh.copy(), fresh.type(), to, targetPackage, copied);
+  }
+
+  /**
+   * A container {@code build} makes, typed as a nullness checker reads it, and the {@code copy}
+   * that says which levels of it are fresh.
+   */
+  private record Fresh(ContainerCopy copy, TypeMirror type) {}
+
+  /**
+   * What {@code build} makes for {@code c}, from {@code type}, its component's on the domain side:
+   * the levels a copy makes ({@link #held}), or the one level an element-lifted {@code List},
+   * {@code Set} or {@code Map} builds ({@link Correspondence#builtType}), bridged or not. Null
+   * where it hands on a container it did not make. A lifted array needs neither, since a checker
+   * takes a {@code String[]} where a {@code @Nullable String[]} is asked for.
+   */
+  private static Fresh fresh(Correspondence c, TypeMirror type) {
+    TypeMirror copied = c.valueCopy() == null ? null : held(c, type);
+    if (copied != null) {
+      return new Fresh(c.valueCopy(), copied);
+    }
+    Correspondence leg = c.kind() == Kind.OPTIONAL_BRIDGE ? c.present() : c;
+    TypeMirror built = leg.builtType();
+    // A @MapKey map whose values hold containers copies them as well, and its copy says which
+    // levels inside them are fresh; any other bulk form makes its own level alone.
+    return built == null
+        ? null
+        : new Fresh(
+            Objects.requireNonNullElseGet(leg.valueCopy(), () -> ContainerCopy.level(built)),
+            built);
   }
 
   /**
@@ -13981,16 +14148,26 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The type of the value {@code c} copies, from {@code type}, its component's on the domain side:
    * that type, or, bridged as it is, the type its {@code Optional} holds. Null where {@code c}
-   * converts the value instead, through a leaf or a nested spec. {@code build} reads it from the
-   * component's own type, and {@code parse} hands it on as its canonical constructor's.
+   * converts the value instead, through a leaf or a nested spec, or where the component names its
+   * {@code Optional} through a type variable. {@code build} reads it from the component's own type,
+   * and {@code parse} hands it on as its canonical constructor's.
    */
   private static TypeMirror held(Correspondence c, TypeMirror type) {
     return switch (c.kind()) {
       case IDENTITY -> type;
-      case OPTIONAL_BRIDGE ->
-          c.present().prism() == null ? ((DeclaredType) type).getTypeArguments().getFirst() : null;
+      case OPTIONAL_BRIDGE -> c.present().prism() == null ? optionalArgument(type) : null;
       default -> null;
     };
+  }
+
+  /**
+   * The type a domain {@code Optional} holds, or null where {@code type} names it through a type
+   * variable ({@code O extends Optional<List<String>>}), which declares no argument to read.
+   */
+  private static TypeMirror optionalArgument(TypeMirror type) {
+    return type.getKind() == TypeKind.DECLARED
+        ? ((DeclaredType) type).getTypeArguments().getFirst()
+        : null;
   }
 
   /** The type the domain declares {@code c}'s component with, in its record or its group's. */
@@ -14047,8 +14224,7 @@ public class MappingProcessor extends AbstractProcessor {
           new PrismCall(
               c.built(),
               "buildAll",
-              CodeBlock.of(
-                  "$T[]::new",
+              arrayConstructor(
                   ProcessorUtils.typeNameOf(
                       ((ArrayType) wc.type()).getComponentType(), targetPackage)));
       case MAP -> new PrismCall(c.built(), "buildValues", null);
@@ -14062,6 +14238,23 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The constructor of an array of {@code element}, {@code String[]::new}, with no type annotation
+   * in it: the array it creates is the same without one, and a nullness checker cannot read one
+   * there, since NullAway throws at {@code @Nullable String[]::new}. The element type is one an
+   * array can name ({@link #nameableArrayPair}), so it holds no type argument to look inside.
+   */
+  private static CodeBlock arrayConstructor(TypeName element) {
+    return CodeBlock.of("$T[]::new", unannotated(element));
+  }
+
+  /** {@code type} with no type annotation on it, or on any array component inside it. */
+  private static TypeName unannotated(TypeName type) {
+    return type instanceof ArrayTypeName array
+        ? ArrayTypeName.of(unannotated(array.componentType()))
+        : type.withoutAnnotations();
+  }
+
+  /**
    * The call {@code parse} makes for a converting kind: a leaf's {@code parse}, or the bulk form
    * its container lifts through. The domain element type names the array a lifted array parses
    * into. Taken apart rather than as a correspondence because the sparse tier's edits carry the
@@ -14071,7 +14264,7 @@ public class MappingProcessor extends AbstractProcessor {
       Kind kind, CodeBlock prism, TypeName domainElement, CodeBlock valuePrism, NullScan scan) {
     return switch (kind) {
       case ELEMENTS -> new PrismCall(prism, "parseAll", null);
-      case ARRAY -> new PrismCall(prism, "parseAll", CodeBlock.of("$T[]::new", domainElement));
+      case ARRAY -> new PrismCall(prism, "parseAll", arrayConstructor(domainElement));
       case MAP -> new PrismCall(prism, "parseValues", null);
       case MAP_KEYS ->
           scan == null

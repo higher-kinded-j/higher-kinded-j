@@ -14,7 +14,9 @@ import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.tools.JavaFileObject;
@@ -40,15 +42,18 @@ class NullableTypeArgumentTest {
 
   private static final String IMPORTS =
       """
+      import java.util.ArrayList;
       import java.util.List;
       import java.util.Map;
       import java.util.Optional;
+      import java.util.Set;
       import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
       import org.higherkindedj.hkt.validated.FieldError;
       import org.higherkindedj.hkt.validated.Validated;
       import org.higherkindedj.optics.annotations.Flatten;
       import org.higherkindedj.optics.annotations.GenerateMapping;
       import org.higherkindedj.optics.annotations.GenerateMerge;
+      import org.higherkindedj.optics.annotations.MapKey;
       import org.higherkindedj.optics.annotations.MappingSpec;
       import org.higherkindedj.optics.annotations.OptionalBridge;
       import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -99,9 +104,13 @@ class NullableTypeArgumentTest {
     return canonical.newInstance(components);
   }
 
-  @SuppressWarnings("unchecked") // the generated parse's result, read reflectively
   private static Validated<NonEmptyList<FieldError>, Object> parse(Object impl, Object wire) {
-    return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", wire);
+    return validated(invoke(impl, "parse", wire));
+  }
+
+  @SuppressWarnings("unchecked") // a generated parse's or patch's result, read reflectively
+  private static Validated<NonEmptyList<FieldError>, Object> validated(Object result) {
+    return (Validated<NonEmptyList<FieldError>, Object>) result;
   }
 
   @Test
@@ -441,6 +450,374 @@ class NullableTypeArgumentTest {
             record(result, "Widened$Names", List.of("a")),
             record(result, "Widened$Codes", "c"));
     Assertions.assertThat(merged).isEqualTo(record(result, "Widened$Merged", List.of("a"), "c"));
+  }
+
+  @Test
+  @DisplayName(
+      "build casts the container a lifted leaf or nested spec builds into a site whose elements,"
+          + " keys or values are declared nullable, where it builds each as the site declares it"
+          + " inside: a list, a set, every map form, elements that hold lists, arrays or type"
+          + " arguments, a setter, a bridged value and a projection; an array's constructor names"
+          + " no annotation, and parse still reports each null")
+  void buildCastsALiftedContainerIntoAWiderSite() throws ReflectiveOperationException {
+    var result =
+        compileClean(
+            source(
+                "Lifted",
+                """
+                public final class Lifted {
+                  private Lifted() {}
+
+                  public record Code(String value) {}
+
+                  public record Row(String[] cells) {}
+
+                  static ValidatedPrism<String, Code> code() {
+                    return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                  }
+
+                  public record Item(Code code) {}
+
+                  public record ItemDto(String code) {}
+
+                  @GenerateMapping
+                  public interface ItemMapping extends MappingSpec<Item, ItemDto> {
+                    default ValidatedPrism<String, Code> code() { return Lifted.code(); }
+                  }
+
+                  public record Pair<A, B>(A first, B second) {}
+
+                  public record Lift(
+                      List<Code> list,
+                      Set<Code> set,
+                      Map<String, Code> values,
+                      Map<Code, String> keys,
+                      Map<Code, Code> entries,
+                      Map<Code, List<String>> rows,
+                      List<Item> items,
+                      Code[] array,
+                      Row[] grid,
+                      List<Row> lines,
+                      List<Code> pairs) {}
+
+                  public record LiftDto(
+                      List<@Nullable String> list,
+                      @Nullable Set<@Nullable String> set,
+                      Map<@Nullable String, @Nullable String> values,
+                      Map<@Nullable String, @Nullable String> keys,
+                      Map<@Nullable String, @Nullable String> entries,
+                      Map<@Nullable String, List<String>> rows,
+                      List<@Nullable ItemDto> items,
+                      @Nullable String[] array,
+                      String[] @Nullable [] grid,
+                      List<String @Nullable []> lines,
+                      List<@Nullable Pair<String, String>> pairs) {}
+
+                  @GenerateMapping
+                  public interface LiftMapping extends MappingSpec<Lift, LiftDto> {
+                    default ValidatedPrism<String, Code> list() { return code(); }
+
+                    default ValidatedPrism<String, Code> set() { return code(); }
+
+                    default ValidatedPrism<String, Code> values() { return code(); }
+
+                    @MapKey("keys")
+                    default ValidatedPrism<String, Code> keysKey() { return code(); }
+
+                    default ValidatedPrism<String, Code> entries() { return code(); }
+
+                    @MapKey("entries")
+                    default ValidatedPrism<String, Code> entriesKey() { return code(); }
+
+                    @MapKey("rows")
+                    default ValidatedPrism<String, Code> rowsKey() { return code(); }
+
+                    default ValidatedPrism<String, Code> array() { return code(); }
+
+                    default ValidatedPrism<String[], Row> grid() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Row(raw)), Row::cells);
+                    }
+
+                    default ValidatedPrism<String[], Row> lines() { return grid(); }
+
+                    default ValidatedPrism<Pair<String, String>, Code> pairs() {
+                      return ValidatedPrism.of(
+                          raw -> Validated.validNel(new Code(raw.first())),
+                          code -> new Pair<>(code.value(), code.value()));
+                    }
+                  }
+
+                  public record Codes(List<String> values) {}
+
+                  public record Grouped(List<Codes> groups) {}
+
+                  public record GroupedDto(List<@Nullable List<String>> groups) {}
+
+                  @GenerateMapping
+                  public interface GroupedMapping extends MappingSpec<Grouped, GroupedDto> {
+                    default ValidatedPrism<List<String>, Codes> groups() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Codes(raw)), Codes::values);
+                    }
+                  }
+
+                  // Bridged through a wildcard, and through a type variable.
+                  public record Wild(Optional<? extends List<Code>> codes) {}
+
+                  public record Bound<O extends Optional<List<Code>>>(O codes) {}
+
+                  public record WildDto(@Nullable List<@Nullable String> codes) {}
+
+                  @GenerateMapping
+                  public interface WildMapping extends MappingSpec<Wild, WildDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  @GenerateMapping
+                  public interface BoundMapping
+                      extends MappingSpec<Bound<Optional<List<Code>>>, WildDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  public record Order(List<Code> codes, List<Code> extras, Optional<Set<Code>> maybe) {}
+
+                  public static final class OrderBean {
+                    private @Nullable List<@Nullable String> codes;
+                    private final List<@Nullable String> extras = new ArrayList<>();
+                    private @Nullable Set<@Nullable String> maybe;
+
+                    public @Nullable List<@Nullable String> getCodes() { return codes; }
+
+                    public void setCodes(@Nullable List<@Nullable String> codes) { this.codes = codes; }
+
+                    public List<@Nullable String> getExtras() { return extras; }
+
+                    public @Nullable Set<@Nullable String> getMaybe() { return maybe; }
+
+                    public void setMaybe(@Nullable Set<@Nullable String> maybe) { this.maybe = maybe; }
+                  }
+
+                  @GenerateMapping
+                  public interface OrderBeanMapping extends MappingSpec<Order, OrderBean> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+
+                    default ValidatedPrism<String, Code> extras() { return code(); }
+
+                    default ValidatedPrism<String, Code> maybe() { return code(); }
+                  }
+
+                  public record Tagged(Optional<Map<String, Code>> prices) {}
+
+                  public record TaggedDto(@Nullable Map<@Nullable String, String> prices) {}
+
+                  @GenerateMapping
+                  public interface TaggedMapping extends MappingSpec<Tagged, TaggedDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> prices() { return code(); }
+                  }
+
+                  public record Profile(String id, List<Code> codes) {}
+
+                  public record ProfileView(List<@Nullable String> codes) {}
+
+                  @GenerateMapping
+                  public interface ProfileViewMapping extends MappingSpec<Profile, ProfileView> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+
+                  // Parse only, into an array whose elements the domain declares nullable.
+                  public record Loose(@Nullable Code[] codes) {}
+
+                  public static final class LooseView {
+                    private final String[] codes;
+
+                    public LooseView(String[] codes) { this.codes = codes; }
+
+                    public String[] getCodes() { return codes; }
+                  }
+
+                  @GenerateMapping
+                  public interface LooseViewMapping extends MappingSpec<Loose, LooseView> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+                  }
+                }
+                """));
+
+    String lift = generated(result.compilation(), "LiftedLiftMappingImpl");
+    Assertions.assertThat(lift)
+        .contains("(List<@Nullable String>) list().buildAll(domain.list())")
+        .contains("(@Nullable Set<@Nullable String>) set().buildAll(domain.set())")
+        .contains("(Map<@Nullable String, @Nullable String>) values().buildValues(domain.values())")
+        .contains("(Map<@Nullable String, @Nullable String>) keysKey().buildKeys(domain.keys())")
+        .contains(
+            "(Map<@Nullable String, @Nullable String>)"
+                + " entriesKey().buildEntries(domain.entries(), entries())")
+        // The values copy, so the cast is the copy's: the keys are the map's own level.
+        .contains(
+            "(Map<@Nullable String, List<String>>) hkj$copyOf(rowsKey().buildKeys(domain.rows()),"
+                + " e -> hkj$copyOf(e))")
+        .contains(
+            "(List<Lifted. @Nullable ItemDto>)"
+                + " LiftedItemMappingImpl.INSTANCE.asValidatedPrism().buildAll(domain.items())")
+        // A checker takes a String[] where a @Nullable String[] is asked for, so an array needs
+        // no cast, and its constructor carries no annotation, which NullAway cannot read there.
+        .contains("array().buildAll(domain.array(), String[]::new)")
+        .contains("grid().buildAll(domain.grid(), String[][]::new)")
+        .contains("v -> array().parseAll(v, Lifted.Code[]::new)")
+        // An element that holds an array or type arguments is cast where the leaf builds it as the
+        // site declares it inside.
+        .contains("(List<String @Nullable []>) lines().buildAll(domain.lines())")
+        .contains(
+            "(List<Lifted. @Nullable Pair<String, String>>) pairs().buildAll(domain.pairs())");
+    Assertions.assertThat(generated(result.compilation(), "LiftedGroupedMappingImpl"))
+        .contains("(List<@Nullable List<String>>) groups().buildAll(domain.groups())");
+    Assertions.assertThat(generated(result.compilation(), "LiftedWildMappingImpl"))
+        .contains(
+            "(@Nullable List<@Nullable String>) domain.codes().map(codes()::buildAll).orElse(null)");
+    Assertions.assertThat(generated(result.compilation(), "LiftedBoundMappingImpl"))
+        .contains(
+            "(@Nullable List<@Nullable String>) domain.codes().map(codes()::buildAll).orElse(null)");
+    Assertions.assertThat(generated(result.compilation(), "LiftedOrderBeanMappingImpl"))
+        .contains(".setCodes((@Nullable List<@Nullable String>) codes().buildAll(domain.codes()))")
+        // A getter-only list takes what its addAll does, a Collection<? extends E>.
+        .contains(".getExtras().addAll(extras().buildAll(domain.extras()))")
+        .contains(
+            ".setMaybe((@Nullable Set<@Nullable String>)"
+                + " domain.maybe().map(maybe()::buildAll).orElse(null))");
+    Assertions.assertThat(generated(result.compilation(), "LiftedTaggedMappingImpl"))
+        .contains(
+            "(@Nullable Map<@Nullable String, String>)"
+                + " domain.prices().map(prices()::buildValues).orElse(null)");
+    Assertions.assertThat(generated(result.compilation(), "LiftedProfileViewMappingImpl"))
+        .contains("(List<@Nullable String>) codes().buildAll(domain.codes())");
+    Assertions.assertThat(generated(result.compilation(), "LiftedLooseViewMappingImpl"))
+        .contains("v -> codes().parseAll(v, Lifted.Code[]::new)");
+
+    Object impl = result.instance("com.example.LiftedProfileViewMappingImpl");
+    Object code = record(result, "Lifted$Code", "a");
+    Assertions.assertThat(
+            invoke(impl, "build", record(result, "Lifted$Profile", "p1", List.of(code))))
+        .isEqualTo(record(result, "Lifted$ProfileView", List.of("a")));
+    Object holed = record(result, "Lifted$ProfileView", Arrays.asList("a", null));
+    assertThatValidated(
+            validated(
+                invoke(impl, "patch", record(result, "Lifted$Profile", "p1", List.of()), holed)))
+        .isInvalid()
+        .hasFieldErrors("codes.1: must not be null");
+    Map<String, String> keyless = new HashMap<>();
+    keyless.put(null, "b");
+    assertThatValidated(
+            parse(
+                result.instance("com.example.LiftedTaggedMappingImpl"),
+                record(result, "Lifted$TaggedDto", keyless)))
+        .isInvalid()
+        .hasFieldErrors("prices: must not contain a null key");
+  }
+
+  @Test
+  @DisplayName(
+      "a lifted container is left uncast where what builds an element types it otherwise inside:"
+          + " a leaf over lists the site declares holding nulls, an enclosing type's argument, a"
+          + " generic spec and a generic mix-in's leaf; and a copy, where an enclosing type's"
+          + " argument differs")
+  void aLiftedContainerBuiltOtherwiseIsLeftUncast() {
+    var result =
+        compileClean(
+            source(
+                "Unlifted",
+                """
+                public final class Unlifted {
+                  private Unlifted() {}
+
+                  public record Code(String value) {}
+
+                  public static final class Outer<T> {
+                    public final class Inner {}
+                  }
+
+                  public record Codes(List<String> values) {}
+
+                  public record Box<T>(T item) {}
+
+                  public record BoxDto<T>(T item) {}
+
+                  @GenerateMapping
+                  public interface BoxMapping<T> extends MappingSpec<Box<T>, BoxDto<T>> {}
+
+                  public record Nested(List<Codes> groups, List<Code> inners, List<Box<String>> boxes) {}
+
+                  public record NestedDto(
+                      List<List<@Nullable String>> groups,
+                      List<Outer<@Nullable String>. @Nullable Inner> inners,
+                      List<@Nullable BoxDto<String>> boxes) {}
+
+                  @GenerateMapping
+                  public interface NestedMapping extends MappingSpec<Nested, NestedDto> {
+                    default ValidatedPrism<List<String>, Codes> groups() {
+                      return ValidatedPrism.of(raw -> Validated.validNel(new Codes(raw)), Codes::values);
+                    }
+
+                    default ValidatedPrism<Outer<String>.Inner, Code> inners() {
+                      return ValidatedPrism.of(
+                          raw -> Validated.validNel(new Code("x")),
+                          code -> new Outer<String>().new Inner());
+                    }
+                  }
+
+                  // A generic mix-in's leaf, whose built type names its variable: read under the
+                  // spec, Box<@Nullable T> would lose the annotation the Impl's leaf writes back.
+                  public interface BoxLeaves<T> {
+                    default ValidatedPrism<Box<@Nullable T>, Code> mixed() {
+                      return ValidatedPrism.of(
+                          raw -> Validated.validNel(new Code("x")), code -> new Box<@Nullable T>(null));
+                    }
+                  }
+
+                  public record Mixed(List<Code> mixed) {}
+
+                  public record MixedDto(List<@Nullable Box<String>> mixed) {}
+
+                  @GenerateMapping
+                  public interface MixedMapping extends MappingSpec<Mixed, MixedDto>, BoxLeaves<String> {}
+
+                  // A copy: an enclosing type's argument differs, or only the element's own nullness.
+                  public record Held(List<Outer<String>.Inner> shared, List<Outer<String>.Inner> own) {}
+
+                  public record HeldDto(
+                      List<Outer<@Nullable String>.Inner> shared,
+                      List<Outer<String>. @Nullable Inner> own) {}
+
+                  @GenerateMapping
+                  public interface HeldMapping extends MappingSpec<Held, HeldDto> {}
+
+                  // A copy bridged through a type variable, whose Optional names no argument.
+                  public record Bound<O extends Optional<List<String>>>(O tags) {}
+
+                  public record BoundDto(@Nullable List<@Nullable String> tags) {}
+
+                  @GenerateMapping
+                  public interface BoundMapping
+                      extends MappingSpec<Bound<Optional<List<String>>>, BoundDto> {
+                    @OptionalBridge
+                    Optional<List<String>> tags();
+                  }
+                }
+                """));
+
+    Assertions.assertThat(generated(result.compilation(), "UnliftedNestedMappingImpl"))
+        .contains(
+            "return new Unlifted.NestedDto(groups().buildAll(domain.groups()),"
+                + " inners().buildAll(domain.inners()),"
+                + " UnliftedBoxMappingImpl.<String>instance().asValidatedPrism().buildAll(domain.boxes()));");
+    Assertions.assertThat(generated(result.compilation(), "UnliftedMixedMappingImpl"))
+        .contains("return new Unlifted.MixedDto(mixed().buildAll(domain.mixed()));");
+    Assertions.assertThat(generated(result.compilation(), "UnliftedHeldMappingImpl"))
+        .contains("return new Unlifted.HeldDto(hkj$copyOf(domain.shared()),")
+        .contains("(List<Unlifted.Outer<String>. @Nullable Inner>) hkj$copyOf(domain.own())");
+    Assertions.assertThat(generated(result.compilation(), "UnliftedBoundMappingImpl"))
+        .contains("hkj$copyOf(domain.tags().orElse(null))")
+        .doesNotContain("(@Nullable List");
   }
 
   @Test
