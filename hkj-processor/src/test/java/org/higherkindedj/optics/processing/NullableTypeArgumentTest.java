@@ -719,8 +719,8 @@ class NullableTypeArgumentTest {
   @DisplayName(
       "a lifted container is left uncast where what builds an element types it otherwise inside:"
           + " a leaf over lists the site declares holding nulls, an enclosing type's argument, a"
-          + " generic spec and a generic mix-in's leaf; and a copy, where an enclosing type's"
-          + " argument differs")
+          + " generic spec, a generic mix-in's leaf and one declared to return its type variable;"
+          + " and a copy, where an enclosing type's argument differs")
   void aLiftedContainerBuiltOtherwiseIsLeftUncast() {
     var result =
         compileClean(
@@ -781,6 +781,32 @@ class NullableTypeArgumentTest {
                   @GenerateMapping
                   public interface MixedMapping extends MappingSpec<Mixed, MixedDto>, BoxLeaves<String> {}
 
+                  // A mix-in's leaves declared to return its type variable declare no wire type.
+                  public interface Picks<P extends ValidatedPrism<String, Code>> {
+                    @SuppressWarnings("unchecked") // P is a ValidatedPrism<String, Code> at each use
+                    private static <P> P pick() {
+                      return (P) ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                    }
+
+                    default P picks() {
+                      return pick();
+                    }
+
+                    @MapKey("priced")
+                    default P pricedKey() {
+                      return pick();
+                    }
+                  }
+
+                  public record Picked(List<Code> picks, Map<Code, String> priced) {}
+
+                  public record PickedDto(
+                      List<@Nullable String> picks, Map<@Nullable String, String> priced) {}
+
+                  @GenerateMapping
+                  public interface PickedMapping
+                      extends MappingSpec<Picked, PickedDto>, Picks<ValidatedPrism<String, Code>> {}
+
                   // A copy: an enclosing type's argument differs, or only the element's own nullness.
                   public record Held(List<Outer<String>.Inner> shared, List<Outer<String>.Inner> own) {}
 
@@ -812,6 +838,10 @@ class NullableTypeArgumentTest {
                 + " UnliftedBoxMappingImpl.<String>instance().asValidatedPrism().buildAll(domain.boxes()));");
     Assertions.assertThat(generated(result.compilation(), "UnliftedMixedMappingImpl"))
         .contains("return new Unlifted.MixedDto(mixed().buildAll(domain.mixed()));");
+    Assertions.assertThat(generated(result.compilation(), "UnliftedPickedMappingImpl"))
+        .contains("return new Unlifted.PickedDto(picks().buildAll(domain.picks()),")
+        .doesNotContain("(List<@Nullable String>)")
+        .doesNotContain("(Map<@Nullable String, String>)");
     Assertions.assertThat(generated(result.compilation(), "UnliftedHeldMappingImpl"))
         .contains("return new Unlifted.HeldDto(hkj$copyOf(domain.shared()),")
         .contains("(List<Unlifted.Outer<String>. @Nullable Inner>) hkj$copyOf(domain.own())");

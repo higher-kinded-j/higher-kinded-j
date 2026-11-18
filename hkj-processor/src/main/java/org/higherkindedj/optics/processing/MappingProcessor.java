@@ -10787,17 +10787,18 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The type variables an element-mapped spec's leaves convert to, each with the first leaf that
    * does: the {@code A} each abstract {@code ValidatedPrism<B, A>} leaf returns, whose build takes
-   * no {@code null}.
+   * no {@code null}. Each leaf is read under the spec, so a mix-in's leaf names the spec's own
+   * variable, as the spec's domain does, and not the mix-in's, which a {@code P items()} leaf
+   * declares no {@code A} for at all.
    */
   private Map<Element, ExecutableElement> leafConverted(TypeElement spec) {
     // Keyed by the element of what each leaf converts to: a type variable's is the variable.
     Map<Element, ExecutableElement> converted = new LinkedHashMap<>();
     for (ExecutableElement leaf : abstractLeaves(spec)) {
+      // abstractLeaves keeps a leaf whose return under the spec is a ValidatedPrism<B, A> alone.
+      DeclaredType prism = (DeclaredType) memberTypeIn(spec, leaf);
       converted.putIfAbsent(
-          processingEnv
-              .getTypeUtils()
-              .asElement(((DeclaredType) leaf.getReturnType()).getTypeArguments().get(1)),
-          leaf);
+          processingEnv.getTypeUtils().asElement(prism.getTypeArguments().get(1)), leaf);
     }
     return converted;
   }
@@ -12642,13 +12643,18 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The wire type a leaf declares it builds, its {@code ValidatedPrism}'s first argument, read as
    * the leaf writes it; null where that names a type variable, as a generic mix-in's leaf {@code
-   * ValidatedPrism<Box<@Nullable T>, Code>} does. Read under the spec, such a type loses an
-   * annotation on the variable's use, {@code Box<@Nullable T>} becoming {@code Box<String>}, while
-   * the Impl's own leaf writes it back ({@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror,
-   * DeclaredType, String)}), so the two would disagree inside the part.
+   * ValidatedPrism<Box<@Nullable T>, Code>} does, or where the leaf is declared to return one, as a
+   * mix-in's {@code P codes()} is. Read under the spec, such a type loses an annotation on the
+   * variable's use, {@code Box<@Nullable T>} becoming {@code Box<String>}, while the Impl's own
+   * leaf writes it back ({@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror, DeclaredType,
+   * String)}), so the two would disagree inside the part.
    */
   private static TypeMirror leafBuilds(ExecutableElement leaf) {
-    TypeMirror declared = ((DeclaredType) leaf.getReturnType()).getTypeArguments().getFirst();
+    TypeMirror returned = leaf.getReturnType();
+    if (returned.getKind() != TypeKind.DECLARED) {
+      return null;
+    }
+    TypeMirror declared = ((DeclaredType) returned).getTypeArguments().getFirst();
     return ProcessorUtils.namesTypeVariable(declared) ? null : declared;
   }
 
