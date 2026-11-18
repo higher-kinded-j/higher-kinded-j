@@ -93,6 +93,48 @@ class DetectNullSuccessValuesRecipeTest implements RewriteTest {
   }
 
   @Test
+  void marksAVoidValueWhichCanOnlyBeNullAndALambdaInBrackets() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            import org.higherkindedj.hkt.either.Either;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Purges {
+                Void purge() {
+                    return null;
+                }
+
+                void run(Void[] none) {
+                    var purged = Either.right(purge());
+                    Try<String> lookup = Try.of((() -> null));
+                    var nothing = Either.right(none);
+                }
+            }
+            """,
+            """
+            package test;
+
+            import org.higherkindedj.hkt.either.Either;
+            import org.higherkindedj.hkt.trymonad.Try;
+
+            public class Purges {
+                Void purge() {
+                    return null;
+                }
+
+                void run(Void[] none) {
+                    var purged = /*~~(A success always holds a value: pass Unit.INSTANCE for a step with nothing to return)~~>*/Either.right(purge());
+                    Try<String> lookup = Try.of((() -> /*~~(Returns null, which now gives a Failure: return a value, or fail with an error that says why)~~>*/null));
+                    var nothing = Either.right(none);
+                }
+            }
+            """));
+  }
+
+  @Test
   void leavesNonNullSuccessesAndOtherTypesAlone() {
     rewriteRun(
         java(

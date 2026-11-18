@@ -67,7 +67,7 @@ mvn rewrite:dryRun   # preview changes
 mvn rewrite:run      # apply changes
 ```
 
-`hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A recipe for an API deprecated after 0.4.11 arrives with the release that deprecates it. A recipe for a signature that changes with no deprecation first, such as `StateT`'s in 0.5.0, arrives with the release that changes it: run it before the project moves to that release.
+`hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A recipe for an API deprecated after 0.4.11 arrives with the release that deprecates it. A recipe for a signature that changes with no deprecation first, such as `StateT`'s in 0.5.0, arrives with the release that changes it: run it before the project moves to that release. A recipe can also join a group later, as the 0.5.0 group's `Void` rewrite does with 0.6.0, so take the latest release.
 
 ---
 
@@ -134,13 +134,13 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 ### 0.5.0 deprecation migration
 
-Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes, and names in `widenFields` each container a 0.4.x navigator stepped into. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe`, `DetectPossibleNullSuccessValuesRecipe` and `DetectNullErrorValuesRecipe`, which only mark each null success, value that may be null, or null error that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
+Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes, names in `widenFields` each container a 0.4.x navigator stepped into, and replaces `Void` with `Unit` as the value type of a success. These recipes rewrite source, apart from `DetectNullSuccessValuesRecipe`, `DetectPossibleNullSuccessValuesRecipe` and `DetectNullErrorValuesRecipe`, which only mark the null successes, values that may be null and null errors they find that 0.5.0 refuses, for you to change by hand. `rewriteRun` writes each mark into the source as a `/*~~(…)~~>*/` comment; remove it once the site is fixed.
 
-Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 or later on the rewrite classpath. The recipes match the 0.4.x signatures, and the `StateT` calls and `widenFields` entries they write compile only against 0.5.0, so bump the library straight after. A `StateT` held in `var` over a witness with a type argument may then need its types named, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
+Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 or later on the rewrite classpath. Take 0.6.0 or later to have `Void` rewritten to `Unit`, where 0.5.0 only marks it, as [`Void` becomes `Unit`](#void-becomes-unit) explains. The recipes match the 0.4.x signatures, and the `StateT` calls and `widenFields` entries they write compile only against 0.5.0, so bump the library straight after. A `StateT` held in `var` over a witness with a type argument may then need its types named, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
 
 | Recipe | Change |
 |--------|--------|
-| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all ten recipes below |
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs every recipe below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` becomes `StateTKind.narrow(..)`; the wildcard `Kind` parameter bypassed witness type safety, so an argument typed `Kind<?, A>` needs its witness declared by hand |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` becomes `KindValidator.narrowHolder(..)` |
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(...)` become `foldFailureFirst(failureMapper, successMapper)`, swapping the two arguments as well as renaming the method. It reads the declared signature and leaves the failure-first `fold` of 0.6.0 and later alone, so it finds a success-first call only while the project is on 0.4.x |
@@ -148,7 +148,8 @@ Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 or later
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` becomes `CHAINABLE` and `ACCUMULATING` becomes `RECOVERABLE`; each generates the same class as its replacement |
 | `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` take the function alone, and `stateT.mapT(monad, f)` becomes `stateT.mapT(f)` |
 | `org.higherkindedj.openrewrite.AddWidenFieldsForNavigatedContainersRecipe` | On a `@GenerateFocus` record that writes `generateNavigators = true` and not `widenCollections = true`, adds to `widenFields` each field holding a `Map`, or third-party collection, of `@GenerateFocus` records, unless `includeFields` or `excludeFields` leaves it out. So `ImmutableList<Position> positions` gains `widenFields = "positions"`, and `positions().ticker()` compiles as it did on 0.4.x. A field whose elements have a field named like a path method, such as `last`, is marked instead, since 0.5.0 can give it no navigator |
-| `org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe` | Marks a `null` passed to a success or value factory, such as `Either.right`, `Try.success`, `VTask.succeed`, `State.pure`, `Context.succeed`, a `KindHelper` or context `pure`, or a `Path` factory such as `Path.ioPure`. It also marks a `null` `iterate` seed, `StateTuple` or `Writer` value, or stream element. A lambda that returns `null` is marked when given to `Try.of`, a deferred factory such as `VTask.of` or `IO.delay`, or the `map` of a lazy type, a `Path`, an `Either` or a `Writer`. The `map` of a `Maybe`, an `Optional` or a list, or of their Paths, is left alone, since there a null result means empty. A `CompletableFuture<Void>` given to `Path.future` is marked, as is `Void` as the value type of an `Either`, `Try`, lazy type or `Path`. Replace each with `Unit`, or with a `Maybe` where a value may be missing |
+| `org.higherkindedj.openrewrite.ReplaceVoidSuccessWithUnitRecipe` | `Void` as the value type of an `Either`, `Try`, lazy type or `Path`, or of a `Kind` over one, becomes `Unit`, at any depth, as in `List<Either<E, Void>>`. Each `null` that filled it becomes `Unit.INSTANCE`, whether passed as the value, as to `Either.right(null)` or your own wrapper, or returned as the value by a lambda, as to `VTask.of`. So does one returned by a method that overrides a success's own, such as `execute()` in an anonymous `VTask<Void>`. `Void` elsewhere, as in `CompletableFuture<Void>`, and `Void` as an error type are left alone. A `null` that another overload could take once it is a `Unit` is marked instead, since `Unit.INSTANCE` might call that overload |
+| `org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe` | Marks a `null` passed to a success or value factory, such as `Either.right`, `Try.success`, `VTask.succeed`, `State.pure`, `Context.succeed`, a `KindHelper` or context `pure`, or a `Path` factory such as `Path.ioPure`, and a `Void` value passed there, such as `Either.right(purge())`, since it can only be `null`. It also marks a `null` `iterate` seed, `StateTuple` or `Writer` value, or stream element. A lambda that returns `null` is marked when given to `Try.of`, a deferred factory such as `VTask.of` or `IO.delay`, or the `map` of a lazy type, a `Path`, an `Either` or a `Writer`. The `map` of a `Maybe`, an `Optional` or a list, or of their Paths, is left alone, since there a null result means empty. A `CompletableFuture<Void>` given to `Path.future` is marked, as is `Void` as the value type of an `Either`, `Try`, lazy type or `Path`. In the group it runs after `ReplaceVoidSuccessWithUnitRecipe`, so of the `Void` sites it marks only those that recipe leaves. Replace each with `Unit`, or with a `Maybe` where a value may be missing |
 | `org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe` | Marks a value that may reach a success as `null` where no `null` is written. It marks the `@Nullable` parameter of a wrapper whose body is only `return Either.right(value);`, or another success factory, and each `null` passed to a wrapper. It marks a method that may return `null` where `Try.of`, a deferred factory or a `map` reads it, through a lambda or a method reference such as `Try.of(this::exchange)`. It also marks a null check in a later success step, such as `flatMap(r -> r == null ? ...)`, and a method reference there to a method whose parameter is `@Nullable`. 0.5.0 never hands that step a `null`. Carry a missing value as a `Maybe` from the call that returns it |
 | `org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe` | Marks a `null`, cast or not, passed as the error to `Either.left`, `EitherT.left`, `Maybe.toEither`, `raiseError` on any `MonadError`, or a `LensExtensions` or `PrismExtensions` helper, and a `mapLeft` or `bimap` error lambda that returns `null`. Also marks `Void` as the error type of an `Either`, `EitherT`, `EitherMonad` or `EitherTMonad`. Replace each with an error that says what went wrong, or `Unit.INSTANCE` where the error type is `Unit` |
 
@@ -176,6 +177,34 @@ Each null recipe puts a lambda's mark on the value it returns, not at the start 
 - **A setting or field list that is not a literal skips the record.** Widen its fields by hand.
 - **A note can remain where 0.4.x gave no navigator,** such as at a `Map` of `List`s, since widening it would change what its method returns. A note does not fail the build.
 - **An element whose module never ran the processor is widened anyway.** 0.5.0's note at the field says so; take the field out of `widenFields` to keep the container whole, as 0.4.x did.
+
+#### `Void` becomes `Unit` {#void-becomes-unit}
+
+`ReplaceVoidSuccessWithUnitRecipe` arrives with `hkj-openrewrite` 0.6.0, and each later release keeps it. Run the group with `hkj-openrewrite` 0.6.0 or later to have `Void` rewritten rather than marked. Move the project to 0.5.0 in the same change: on 0.4.x, `hkj-spring` writes a `Unit` success as a JSON string, where a `Void` one wrote `null`.
+
+The recipe matches 0.5.0 code as well, so a project already on 0.5.0 can run it alone. Run `DetectNullSuccessValuesRecipe` after it, to mark what it leaves:
+
+```kotlin
+rewrite {
+    activeRecipe(
+        "org.higherkindedj.openrewrite.ReplaceVoidSuccessWithUnitRecipe",
+        "org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe")
+}
+```
+
+Delete each mark an earlier run left on a site the rewrite has fixed, such as `/*~~(Void has no value for a success to hold: use Unit)~~>*/` in front of `Unit`. Run your formatter after `rewriteRun`, since the recipe adds an import and lengthens lines.
+
+The rewrite changes what a running program, or another build, sees:
+
+- **A 200 response that answered `Right(null)` now sends no body.** On 0.4.x the handler wrote a JSON `null`, and on 0.5.0 a `Unit` success writes none, as the [0.5.0 notes](../release-history/v0_5_0.md#runtime-spring) say. A client parsing it notices.
+- **A `Unit` inside a response body writes as a string.** Only a handler's own success writes no body. A `Unit` in a field or a list element writes as `"()"`, its `toString()`, where `Void` wrote `null`. With `spring.jackson.use-jackson2-defaults=true` it writes `"INSTANCE"`.
+- **A library typed with `Void` changes its signature for its own consumers.** Each caller and implementer in the run changes with it. Migrate the library first, or the builds that use it stop compiling where they call it.
+
+The recipe adds the `Unit` import, or writes `org.higherkindedj.hkt.Unit` in full in a file that uses another type, or a variable, named `Unit`. It leaves these for you:
+
+- **The recipe leaves a `null` it cannot tie to the value,** such as one a lambda returns where the compiler typed the result `Object`, as in a `var` holding `VTask.of(...)`. It fails only when it runs, so `DetectNullSuccessValuesRecipe` marks it.
+- **Make a value or function typed `Void` give `Unit`.** A `Void` variable or method, a `Callable<Void>` or `Supplier<Void>`, or a method reference such as `this::purge` stops compiling where it meets a rewritten type. Elsewhere it fails when it runs. `DetectNullSuccessValuesRecipe` marks one passed straight to a success factory, as in `Either.right(purge())`, and no other.
+- **Map a `CompletableFuture<Void>` to `Unit` before `Path.future`.** The rewrite changes its `CompletableFuturePath<Void>`, so the call stops compiling, and its mark says to add `thenApply(_ -> Unit.INSTANCE)`.
 
 ### 0.6.0 deprecation migration
 
