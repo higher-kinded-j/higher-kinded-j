@@ -1103,6 +1103,85 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
     }
 
     @Test
+    @DisplayName("A null that another overload could take once it is a Unit")
+    void aNullAnotherOverloadCouldTakeAsAUnit() {
+      rewriteRun(
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+
+              class Moves {
+                  static <T> Either<String, T> ok(T value) {
+                      return Either.right(value);
+                  }
+
+                  static Either<String, Unit> ok(Unit value) {
+                      return Either.left("different");
+                  }
+
+                  static <T> Either<String, T> pick(T value, Object label) {
+                      return Either.right(value);
+                  }
+
+                  static <E extends Enum<E>> Either<String, E> pick(E value, String label) {
+                      return Either.left("different");
+                  }
+
+                  Object[] both() {
+                      var moved = ok((Void) null);
+                      var picked = pick((Void) null, "label");
+                      return new Object[] {moved, picked};
+                  }
+              }
+              """));
+    }
+
+    @Test
+    @DisplayName("A file where a variable named org and another Unit leave no way to write Unit")
+    void aFileWhereUnitCannotBeWritten() {
+      rewriteRun(
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Hidden {
+                  Either<String, Void> reset(int Unit, int org) {
+                      return Either.right(null);
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Plain {
+                  Either<String, Void> reset(int org) {
+                      return Either.right(null);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+
+              class Plain {
+                  Either<String, Unit> reset(int org) {
+                      return Either.right(Unit.INSTANCE);
+                  }
+              }
+              """));
+    }
+
+    @Test
     @DisplayName("A Kind whose witness is a type variable")
     void aKindOverATypeVariable() {
       rewriteRun(

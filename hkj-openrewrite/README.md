@@ -188,10 +188,10 @@ deprecated annotation that has no effect, replaces two deprecated `@PathSource` 
 with the levels they generate, and drops the `Monad` argument that `StateT` no longer takes. It
 adds to `@GenerateFocus`'s `widenFields` each container a 0.4.x navigator stepped into, and
 replaces `Void` with `Unit` as the value type of a success, with `Unit.INSTANCE` for each `null`
-that filled it. It also marks, without rewriting, each other null success or null error that
-0.5.0 refuses, each value that may reach a success as null, and each container it would widen
-but for an element field named like a path method: `rewriteRun` writes each mark into the source
-as a `/*~~(…)~~>*/` comment, to remove once the site is fixed. The composite recipe runs all
+it can tie to that value. It also marks, without rewriting, the other null successes and null
+errors it finds that 0.5.0 refuses, the values it finds that may reach a success as null, and
+each container it would widen but for an element field named like a path method: `rewriteRun`
+writes each mark into the source as a `/*~~(…)~~>*/` comment, to remove once the site is fixed. The composite recipe runs all
 sub-recipes in one pass. Run it with `hkj-openrewrite` 0.5.0 or later while the project is still
 on 0.4.x, and move it to 0.5.0 in the same change: the recipes match the 0.4.x signatures, and
 the rewritten `StateT` calls and `widenFields` entries compile only against 0.5.0.

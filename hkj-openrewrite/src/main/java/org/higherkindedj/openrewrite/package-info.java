@@ -67,14 +67,14 @@
  *       records that a 0.4.x navigator stepped into, marking one whose elements have a field named
  *       like a path method
  *   <li>{@code org.higherkindedj.openrewrite.ReplaceVoidSuccessWithUnitRecipe} - {@code Void} to
- *       {@code Unit} as a success's value type, and each {@code null} that filled it to {@code
- *       Unit.INSTANCE}
- *   <li>{@code org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe} - Marks each null
- *       success 0.5.0 refuses, and each type that holds {@code Void} as its value
+ *       {@code Unit} as a success's value type, and each {@code null} it can tie to that value to
+ *       {@code Unit.INSTANCE}
+ *   <li>{@code org.higherkindedj.openrewrite.DetectNullSuccessValuesRecipe} - Marks the null
+ *       successes it finds that 0.5.0 refuses, and each type that holds {@code Void} as its value
  *   <li>{@code org.higherkindedj.openrewrite.DetectPossibleNullSuccessValuesRecipe} - Marks each
  *       value that may reach a success as null, where no {@code null} is written
- *   <li>{@code org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe} - Marks each null error
- *       0.5.0 refuses, and each type that holds {@code Void} as its error
+ *   <li>{@code org.higherkindedj.openrewrite.DetectNullErrorValuesRecipe} - Marks the null errors
+ *       it finds that 0.5.0 refuses, and each type that holds {@code Void} as its error
  * </ul>
  *
  * <h2>0.6.0 Deprecation Migration</h2>

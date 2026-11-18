@@ -10,6 +10,7 @@ import static org.higherkindedj.openrewrite.NullLiterals.isVoidType;
 import static org.higherkindedj.openrewrite.NullLiterals.mapReturned;
 
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -37,9 +38,9 @@ import org.openrewrite.marker.Markers;
 
 /**
  * Recipe that replaces {@code Void} with {@code Unit} as the value type of a Higher-Kinded-J
- * success type, and each {@code null} that filled it with {@code Unit.INSTANCE}. From 0.5.0 a
- * {@code Right} or a {@code Success} always holds a value, and {@code Void}'s only value is {@code
- * null}, so a {@code null} where a {@code Void} value is expected can only mean "nothing to
+ * success type, and each {@code null} it can tie to that value with {@code Unit.INSTANCE}. From
+ * 0.5.0 a {@code Right} or a {@code Success} always holds a value, and {@code Void}'s only value is
+ * {@code null}, so a {@code null} where a {@code Void} value is expected can only mean "nothing to
  * return".
  *
  * <h2>What it rewrites</h2>
@@ -58,8 +59,10 @@ import org.openrewrite.marker.Markers;
  *       a project's own wrapper such as {@code static <T> Either<String, T> ok(T value)}. The type
  *       variable must be the method's own, or one of a success type's, since only then does the
  *       call, or a type this recipe rewrites, decide it. Where another overload fits the call too,
- *       as {@code ok(Void)} does beside {@code <T> ok(T)}, the {@code null} stays. Each {@code
- *       null} a conditional gives counts, here and below, as in {@code ready ? null : null}.
+ *       as {@code ok(Void)} does beside {@code <T> ok(T)}, the {@code null} stays. So it does where
+ *       another could take the {@code Unit}, as {@code ok(Unit)} could, since Java might then pick
+ *       that one. Each {@code null} a conditional gives counts, here and below, as in {@code ready
+ *       ? null : null}.
  *   <li>A {@code null} returned by a lambda whose function gives that value, in brackets or not, as
  *       its body or in one of its own {@code return}s: {@code VTask.of(() -> { ...; return null;
  *       })}, {@code either.map(x -> null)}, and a lambda that is itself a {@code VTask}, an {@code
@@ -84,6 +87,10 @@ import org.openrewrite.marker.Markers;
  *   <li>A {@code null} it cannot tie to a {@code Void} value, such as one in a lambda whose result
  *       the compiler typed {@code Object}. {@link DetectNullSuccessValuesRecipe}, run after this
  *       recipe, marks it, since 0.5.0 refuses it when it runs.
+ *   <li>A file where {@code Unit.INSTANCE} cannot be written: one with a variable named {@code
+ *       org}, which hides the package in {@code org.higherkindedj.hkt.Unit.INSTANCE}, beside a type
+ *       or a variable named {@code Unit}. {@link DetectNullSuccessValuesRecipe} marks its {@code
+ *       Void} types and {@code null}s.
  * </ul>
  *
  * <p>The rewrite changes a signature for every caller and implementer. OpenRewrite rewrites every
@@ -100,6 +107,16 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
   private static final String UNIT = "org.higherkindedj.hkt.Unit";
 
   private static final String KIND = "org.higherkindedj.hkt.Kind";
+
+  /** {@code Unit} and its supertypes, each a parameter type that could take a {@code Unit}. */
+  private static final Set<String> HOLDS_UNIT =
+      Set.of(
+          UNIT,
+          "java.lang.Object",
+          "java.lang.Enum",
+          "java.lang.Comparable",
+          "java.io.Serializable",
+          "java.lang.constant.Constable");
 
   /** What a witness's name adds to its type's, as {@code EitherKind$Witness} does to Either. */
   private static final String WITNESS_SUFFIX = "Kind$Witness";
@@ -128,11 +145,11 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
   @Override
   public String getDescription() {
     return "Replaces Void with Unit as the value type of an Either, Try, lazy type, Path, or Kind"
-        + " over one, and each null that filled it with Unit.INSTANCE: a null passed as the value,"
-        + " a null a lambda returns as the value, and a null returned by a method that overrides"
-        + " one returning the value. From 0.5.0 a success always holds a value. Void in any other"
-        + " type, or as an error type, is left alone, and DetectNullSuccessValuesRecipe marks a"
-        + " null not tied to a Void value.";
+        + " over one, and each null it can tie to that value with Unit.INSTANCE: a null passed as"
+        + " the value, a null a lambda returns as the value, and a null returned by a method that"
+        + " overrides one returning the value. From 0.5.0 a success always holds a value. Void in"
+        + " any other type, or as an error type, is left alone, and DetectNullSuccessValuesRecipe"
+        + " marks the nulls it finds that this recipe leaves.";
   }
 
   @Override
@@ -146,7 +163,13 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
 
       @Override
       public J.CompilationUnit visitCompilationUnit(J.CompilationUnit cu, ExecutionContext ctx) {
-        getCursor().putMessage(UNIT_TAKEN, unitNameTaken(cu));
+        Set<String> values = valueNames(cu);
+        boolean taken = unitNameTaken(cu, values);
+        if (taken && values.contains("org")) {
+          // A variable named org hides the package in org.higherkindedj.hkt.Unit.INSTANCE too.
+          return cu;
+        }
+        getCursor().putMessage(UNIT_TAKEN, taken);
         return super.visitCompilationUnit(cu, ctx);
       }
 
@@ -182,11 +205,12 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
         }
         boolean successOwner =
             SUCCESS_TYPES.contains(invoked.getDeclaringType().getFullyQualifiedName());
+        List<JavaType.Method> overloads =
+            invoked.getDeclaringType().getMethods().stream()
+                .filter(m -> !m.isConstructor() && m.getName().equals(invoked.getName()))
+                .toList();
         Optional<Declared> found =
-            onlyFitting(
-                    invoked.getDeclaringType().getMethods().stream()
-                        .filter(m -> !m.isConstructor() && m.getName().equals(invoked.getName())),
-                    invoked)
+            onlyFitting(overloads, invoked)
                 .flatMap(
                     m ->
                         valueVariable(m.getReturnType())
@@ -196,8 +220,11 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
           return mi;
         }
         Declared declared = found.get();
-        J.MethodInvocation withArgs =
-            mi.withArguments(valueArguments(mi.getArguments(), invoked, declared));
+        List<Expression> args = valueArguments(mi.getArguments(), invoked, declared);
+        if (anotherTakesUnit(overloads, declared, mi.getArguments(), args)) {
+          return mi;
+        }
+        J.MethodInvocation withArgs = mi.withArguments(args);
         JContainer<Expression> witnesses = withArgs.getPadding().getTypeParameters();
         if (witnesses == null) {
           return withArgs;
@@ -228,12 +255,19 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
             classVariables.isEmpty()
                 ? Optional.empty()
                 : typeVariableName(classVariables.getLast());
-        return onlyFitting(
-                invoked.getDeclaringType().getMethods().stream()
-                    .filter(JavaType.Method::isConstructor),
-                invoked)
+        List<JavaType.Method> constructors =
+            invoked.getDeclaringType().getMethods().stream()
+                .filter(JavaType.Method::isConstructor)
+                .toList();
+        return onlyFitting(constructors, invoked)
             .flatMap(m -> value.map(v -> new Declared(m, v)))
-            .map(d -> nc.withArguments(valueArguments(nc.getArguments(), invoked, d)))
+            .flatMap(
+                d -> {
+                  List<Expression> args = valueArguments(nc.getArguments(), invoked, d);
+                  return anotherTakesUnit(constructors, d, nc.getArguments(), args)
+                      ? Optional.empty()
+                      : Optional.of(nc.withArguments(args));
+                })
             .orElse(nc);
       }
 
@@ -412,7 +446,7 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
           return taken;
         }
         J.CompilationUnit cu = getCursor().firstEnclosing(J.CompilationUnit.class);
-        return cu != null && unitNameTaken(cu);
+        return cu != null && unitNameTaken(cu, valueNames(cu));
       }
     };
   }
@@ -459,9 +493,44 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
    * do, since then the value's place is not known.
    */
   private static Optional<JavaType.Method> onlyFitting(
-      Stream<JavaType.Method> overloads, JavaType.Method invoked) {
-    List<JavaType.Method> fitting = overloads.filter(m -> fits(m, invoked)).limit(2).toList();
+      List<JavaType.Method> overloads, JavaType.Method invoked) {
+    List<JavaType.Method> fitting =
+        overloads.stream().filter(m -> fits(m, invoked)).limit(2).toList();
     return fitting.size() == 1 ? Optional.of(fitting.getFirst()) : Optional.empty();
+  }
+
+  /**
+   * Whether another overload of the same arity could take a {@code Unit} at a parameter the rewrite
+   * gives one, as {@code ok(Unit)} could beside {@code <T> ok(T)}. Java might then pick it in place
+   * of the declaration the call resolves to now.
+   */
+  private static boolean anotherTakesUnit(
+      List<JavaType.Method> overloads,
+      Declared declared,
+      List<Expression> before,
+      List<Expression> after) {
+    int arity = declared.method().getParameterTypes().size();
+    List<Integer> given =
+        IntStream.range(0, Math.min(arity, before.size()))
+            .filter(i -> before.get(i) != after.get(i) && declared.takesValueAt(i))
+            .boxed()
+            .toList();
+    return overloads.stream()
+        .filter(m -> m != declared.method() && m.getParameterTypes().size() == arity)
+        .anyMatch(m -> given.stream().anyMatch(i -> couldHoldUnit(m.getParameterTypes().get(i))));
+  }
+
+  /**
+   * Whether a parameter could take a {@code Unit}: {@code Unit} or one of its supertypes, or a type
+   * variable that only such types bound, as {@code Enum<E>} bounds {@code E}.
+   */
+  private static boolean couldHoldUnit(JavaType parameter) {
+    return switch (parameter) {
+      case JavaType.GenericTypeVariable variable ->
+          variable.getBounds().stream().allMatch(ReplaceVoidSuccessWithUnitRecipe::couldHoldUnit);
+      case JavaType.FullyQualified named -> HOLDS_UNIT.contains(named.getFullyQualifiedName());
+      default -> false;
+    };
   }
 
   /**
@@ -689,7 +758,10 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
    * a type variable of that name. A variable or an enum constant named {@code Unit} counts too,
    * since in {@code Unit.INSTANCE} it hides the type.
    */
-  private static boolean unitNameTaken(J.CompilationUnit cu) {
+  private static boolean unitNameTaken(J.CompilationUnit cu, Set<String> valueNames) {
+    if (valueNames.contains("Unit")) {
+      return true;
+    }
     boolean used =
         cu.getTypesInUse().getTypesInUse().stream()
             .map(TypeUtils::asFullyQualified)
@@ -717,24 +789,28 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
         }
         return super.visitTypeParameter(t, found);
       }
+    }.reduce(cu, new AtomicBoolean()).get();
+  }
 
+  /**
+   * The names a file gives a variable, a parameter, a field or an enum constant, any of which hides
+   * a type or a package of that name at the start of an expression such as {@code Unit.INSTANCE}.
+   */
+  private static Set<String> valueNames(J.CompilationUnit cu) {
+    return new JavaIsoVisitor<Set<String>>() {
       @Override
       public J.VariableDeclarations.NamedVariable visitVariable(
-          J.VariableDeclarations.NamedVariable v, AtomicBoolean found) {
-        if ("Unit".equals(v.getSimpleName())) {
-          found.set(true);
-        }
-        return super.visitVariable(v, found);
+          J.VariableDeclarations.NamedVariable v, Set<String> names) {
+        names.add(v.getSimpleName());
+        return super.visitVariable(v, names);
       }
 
       @Override
-      public J.EnumValue visitEnumValue(J.EnumValue e, AtomicBoolean found) {
-        if ("Unit".equals(e.getName().getSimpleName())) {
-          found.set(true);
-        }
-        return super.visitEnumValue(e, found);
+      public J.EnumValue visitEnumValue(J.EnumValue e, Set<String> names) {
+        names.add(e.getName().getSimpleName());
+        return super.visitEnumValue(e, names);
       }
-    }.reduce(cu, new AtomicBoolean()).get();
+    }.reduce(cu, new HashSet<>());
   }
 
   private static String simpleName(JavaType.FullyQualified type) {
