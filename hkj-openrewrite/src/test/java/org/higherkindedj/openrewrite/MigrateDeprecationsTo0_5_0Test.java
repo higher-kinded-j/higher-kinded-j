@@ -212,6 +212,56 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
   }
 
   @Test
+  void marksOnceANullTheVoidRewriteLeavesForAnotherOverload() {
+    rewriteRun(
+        spec ->
+            spec.parser(JavaParser.fromJavaVersion().classpath("hkj-core", "hkj-api", "jspecify")),
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.Unit;
+            import org.higherkindedj.hkt.either.Either;
+
+            class Moves {
+                static <T> Either<String, T> ok(T value) {
+                    return Either.right(value);
+                }
+
+                static Either<String, Unit> ok(Unit value) {
+                    return Either.left("different");
+                }
+
+                Object moved() {
+                    var result = ok((Void) null);
+                    return result;
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.Unit;
+            import org.higherkindedj.hkt.either.Either;
+
+            class Moves {
+                static <T> Either<String, T> ok(T value) {
+                    return Either.right(value);
+                }
+
+                static Either<String, Unit> ok(Unit value) {
+                    return Either.left("different");
+                }
+
+                Object moved() {
+                    var result = ok(/*~~(A success always holds a value, and Unit.INSTANCE here could call another overload: pass it, and check which overload the call then reaches)~~>*/(Void) null);
+                    return result;
+                }
+            }
+            """));
+  }
+
+  @Test
   void marksAValueThatMayReachASuccessAsNull() {
     rewriteRun(
         java(

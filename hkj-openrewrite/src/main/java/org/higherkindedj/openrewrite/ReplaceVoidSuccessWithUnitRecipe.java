@@ -35,6 +35,7 @@ import org.openrewrite.java.tree.Space;
 import org.openrewrite.java.tree.TypeTree;
 import org.openrewrite.java.tree.TypeUtils;
 import org.openrewrite.marker.Markers;
+import org.openrewrite.marker.SearchResult;
 
 /**
  * Recipe that replaces {@code Void} with {@code Unit} as the value type of a Higher-Kinded-J
@@ -61,8 +62,8 @@ import org.openrewrite.marker.Markers;
  *       call, or a type this recipe rewrites, decide it. Where another overload fits the call too,
  *       as {@code ok(Void)} does beside {@code <T> ok(T)}, the {@code null} stays. So it does where
  *       another could take the {@code Unit}, as {@code ok(Unit)} could, since Java might then pick
- *       that one. Each {@code null} a conditional gives counts, here and below, as in {@code ready
- *       ? null : null}.
+ *       that one, and there the recipe marks it. Each {@code null} a conditional gives counts, here
+ *       and below, as in {@code ready ? null : null}.
  *   <li>A {@code null} returned by a lambda whose function gives that value, in brackets or not, as
  *       its body or in one of its own {@code return}s: {@code VTask.of(() -> { ...; return null;
  *       })}, {@code either.map(x -> null)}, and a lambda that is itself a {@code VTask}, an {@code
@@ -89,8 +90,9 @@ import org.openrewrite.marker.Markers;
  *       recipe, marks it, since 0.5.0 refuses it when it runs.
  *   <li>A file where {@code Unit.INSTANCE} cannot be written: one with a variable named {@code
  *       org}, which hides the package in {@code org.higherkindedj.hkt.Unit.INSTANCE}, beside a type
- *       or a variable named {@code Unit}. {@link DetectNullSuccessValuesRecipe} marks its {@code
- *       Void} types and {@code null}s.
+ *       or a variable named {@code Unit}. A field a class inherits, or a static import brings in,
+ *       counts as a variable. {@link DetectNullSuccessValuesRecipe} marks its {@code Void} types
+ *       and {@code null}s.
  * </ul>
  *
  * <p>The rewrite changes a signature for every caller and implementer. OpenRewrite rewrites every
@@ -133,6 +135,11 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
           UNIT_TYPE,
           UNIT_TYPE,
           List.of());
+
+  /** The mark on a {@code null} left because {@code Unit.INSTANCE} could call another overload. */
+  static final String OVERLOAD_TAKES_UNIT =
+      "A success always holds a value, and Unit.INSTANCE here could call another overload: pass"
+          + " it, and check which overload the call then reaches";
 
   /** The cursor message that says another type named {@code Unit} is in use in the file. */
   private static final String UNIT_TAKEN = "unitTaken";
@@ -221,8 +228,9 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
         }
         Declared declared = found.get();
         List<Expression> args = valueArguments(mi.getArguments(), invoked, declared);
-        if (anotherTakesUnit(overloads, declared, mi.getArguments(), args)) {
-          return mi;
+        List<Integer> given = givenUnit(declared, mi.getArguments(), args);
+        if (anotherTakesUnit(overloads, declared, given)) {
+          return mi.withArguments(markedAt(mi.getArguments(), given));
         }
         J.MethodInvocation withArgs = mi.withArguments(args);
         JContainer<Expression> witnesses = withArgs.getPadding().getTypeParameters();
@@ -261,12 +269,14 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
                 .toList();
         return onlyFitting(constructors, invoked)
             .flatMap(m -> value.map(v -> new Declared(m, v)))
-            .flatMap(
+            .map(
                 d -> {
                   List<Expression> args = valueArguments(nc.getArguments(), invoked, d);
-                  return anotherTakesUnit(constructors, d, nc.getArguments(), args)
-                      ? Optional.empty()
-                      : Optional.of(nc.withArguments(args));
+                  List<Integer> given = givenUnit(d, nc.getArguments(), args);
+                  return nc.withArguments(
+                      anotherTakesUnit(constructors, d, given)
+                          ? markedAt(nc.getArguments(), given)
+                          : args);
                 })
             .orElse(nc);
       }
@@ -505,19 +515,26 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
    * of the declaration the call resolves to now.
    */
   private static boolean anotherTakesUnit(
-      List<JavaType.Method> overloads,
-      Declared declared,
-      List<Expression> before,
-      List<Expression> after) {
+      List<JavaType.Method> overloads, Declared declared, List<Integer> given) {
     int arity = declared.method().getParameterTypes().size();
-    List<Integer> given =
-        IntStream.range(0, Math.min(arity, before.size()))
-            .filter(i -> before.get(i) != after.get(i) && declared.takesValueAt(i))
-            .boxed()
-            .toList();
     return overloads.stream()
         .filter(m -> m != declared.method() && m.getParameterTypes().size() == arity)
         .anyMatch(m -> given.stream().anyMatch(i -> couldHoldUnit(m.getParameterTypes().get(i))));
+  }
+
+  /** The indices of the value parameters whose argument the rewrite changed. */
+  private static List<Integer> givenUnit(
+      Declared declared, List<Expression> before, List<Expression> after) {
+    return IntStream.range(0, Math.min(before.size(), after.size()))
+        .filter(i -> before.get(i) != after.get(i) && declared.takesValueAt(i))
+        .boxed()
+        .toList();
+  }
+
+  /** The arguments with the mark that says another overload could take a Unit at each index. */
+  private static List<Expression> markedAt(List<Expression> args, List<Integer> indices) {
+    return ListUtils.map(
+        args, (i, arg) -> indices.contains(i) ? SearchResult.found(arg, OVERLOAD_TAKES_UNIT) : arg);
   }
 
   /**
@@ -793,24 +810,77 @@ public class ReplaceVoidSuccessWithUnitRecipe extends Recipe {
   }
 
   /**
-   * The names a file gives a variable, a parameter, a field or an enum constant, any of which hides
-   * a type or a package of that name at the start of an expression such as {@code Unit.INSTANCE}.
+   * The names a variable, a parameter, a field or an enum constant has in a file, any of which
+   * hides a type or a package of that name at the start of an expression such as {@code
+   * Unit.INSTANCE}. They include each field a class in the file inherits, and each name a static
+   * import brings in.
    */
   private static Set<String> valueNames(J.CompilationUnit cu) {
-    return new JavaIsoVisitor<Set<String>>() {
-      @Override
-      public J.VariableDeclarations.NamedVariable visitVariable(
-          J.VariableDeclarations.NamedVariable v, Set<String> names) {
-        names.add(v.getSimpleName());
-        return super.visitVariable(v, names);
-      }
+    Set<String> names =
+        new JavaIsoVisitor<Set<String>>() {
+          @Override
+          public J.VariableDeclarations.NamedVariable visitVariable(
+              J.VariableDeclarations.NamedVariable v, Set<String> found) {
+            found.add(v.getSimpleName());
+            return super.visitVariable(v, found);
+          }
 
-      @Override
-      public J.EnumValue visitEnumValue(J.EnumValue e, Set<String> names) {
-        names.add(e.getName().getSimpleName());
-        return super.visitEnumValue(e, names);
-      }
-    }.reduce(cu, new HashSet<>());
+          @Override
+          public J.EnumValue visitEnumValue(J.EnumValue e, Set<String> found) {
+            found.add(e.getName().getSimpleName());
+            return super.visitEnumValue(e, found);
+          }
+
+          @Override
+          public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration c, Set<String> found) {
+            if (c.getType() != null) {
+              ancestors(c.getType(), 0)
+                  .flatMap(ReplaceVoidSuccessWithUnitRecipe::fieldNames)
+                  .forEach(found::add);
+            }
+            return super.visitClassDeclaration(c, found);
+          }
+
+          @Override
+          public J.NewClass visitNewClass(J.NewClass n, Set<String> found) {
+            JavaType.FullyQualified created = TypeUtils.asFullyQualified(n.getType());
+            if (n.getBody() != null && created != null) {
+              Stream.concat(Stream.of(created), ancestors(created, 0))
+                  .flatMap(ReplaceVoidSuccessWithUnitRecipe::fieldNames)
+                  .forEach(found::add);
+            }
+            return super.visitNewClass(n, found);
+          }
+        }.reduce(cu, new HashSet<>());
+    cu.getImports().stream()
+        .filter(J.Import::isStatic)
+        .flatMap(ReplaceVoidSuccessWithUnitRecipe::importedNames)
+        .forEach(names::add);
+    return names;
+  }
+
+  /**
+   * The names a static import brings in: its own, or, for {@code import static a.B.*}, those of the
+   * fields of {@code B} and its supertypes.
+   */
+  private static Stream<String> importedNames(J.Import imported) {
+    String name = imported.getQualid().getSimpleName();
+    if (!"*".equals(name)) {
+      return Stream.of(name);
+    }
+    JavaType.FullyQualified owner =
+        TypeUtils.asFullyQualified(imported.getQualid().getTarget().getType());
+    return owner == null
+        ? Stream.empty()
+        : Stream.concat(Stream.of(owner), ancestors(owner, 0))
+            .flatMap(ReplaceVoidSuccessWithUnitRecipe::fieldNames);
+  }
+
+  /** The names of a type's fields that a subclass or a static import can see. */
+  private static Stream<String> fieldNames(JavaType.FullyQualified type) {
+    return type.getMembers().stream()
+        .filter(field -> !field.hasFlags(Flag.Private))
+        .map(JavaType.Variable::getName);
   }
 
   private static String simpleName(JavaType.FullyQualified type) {

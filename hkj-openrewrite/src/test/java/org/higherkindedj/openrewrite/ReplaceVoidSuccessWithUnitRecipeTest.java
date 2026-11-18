@@ -829,6 +829,141 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
     }
 
     @Test
+    @DisplayName("Unit in full where an inherited or statically imported field named Unit hides it")
+    void unitInFullBesideAFieldTheFileDoesNotDeclare() {
+      rewriteRun(
+          java(
+              """
+              package com.example.names;
+
+              public final class Names {
+                  public static final int Unit = 1;
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              class Parent {
+                  protected int Unit;
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              class Secret {
+                  private int Unit;
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Child extends Parent {
+                  Either<String, Void> reset() {
+                      return Either.right(null);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Child extends Parent {
+                  Either<String, org.higherkindedj.hkt.Unit> reset() {
+                      return Either.right(org.higherkindedj.hkt.Unit.INSTANCE);
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import static com.example.names.Names.*;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Starred {
+                  Either<String, Void> reset() {
+                      return Either.right(null);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import static com.example.names.Names.*;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Starred {
+                  Either<String, org.higherkindedj.hkt.Unit> reset() {
+                      return Either.right(org.higherkindedj.hkt.Unit.INSTANCE);
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Quiet extends Secret {
+                  Either<String, Void> reset() {
+                      return Either.right(null);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+
+              class Quiet extends Secret {
+                  Either<String, Unit> reset() {
+                      return Either.right(Unit.INSTANCE);
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Anonymous {
+                  Object make() {
+                      return new Parent() {
+                          Either<String, Void> reset() {
+                              return Either.right(null);
+                          }
+                      };
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Anonymous {
+                  Object make() {
+                      return new Parent() {
+                          Either<String, org.higherkindedj.hkt.Unit> reset() {
+                              return Either.right(org.higherkindedj.hkt.Unit.INSTANCE);
+                          }
+                      };
+                  }
+              }
+              """));
+    }
+
+    @Test
     @DisplayName("Keeping the line breaks and comments around a replaced null")
     void keepingTheLayoutAroundAReplacedNull() {
       rewriteRun(
@@ -1103,7 +1238,7 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
     }
 
     @Test
-    @DisplayName("A null that another overload could take once it is a Unit")
+    @DisplayName("A null that another overload could take once it is a Unit, which is marked")
     void aNullAnotherOverloadCouldTakeAsAUnit() {
       rewriteRun(
           java(
@@ -1136,6 +1271,36 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
                       return new Object[] {moved, picked};
                   }
               }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+
+              class Moves {
+                  static <T> Either<String, T> ok(T value) {
+                      return Either.right(value);
+                  }
+
+                  static Either<String, Unit> ok(Unit value) {
+                      return Either.left("different");
+                  }
+
+                  static <T> Either<String, T> pick(T value, Object label) {
+                      return Either.right(value);
+                  }
+
+                  static <E extends Enum<E>> Either<String, E> pick(E value, String label) {
+                      return Either.left("different");
+                  }
+
+                  Object[] both() {
+                      var moved = ok(/*~~(A success always holds a value, and Unit.INSTANCE here could call another overload: pass it, and check which overload the call then reaches)~~>*/(Void) null);
+                      var picked = pick(/*~~(A success always holds a value, and Unit.INSTANCE here could call another overload: pass it, and check which overload the call then reaches)~~>*/(Void) null, "label");
+                      return new Object[] {moved, picked};
+                  }
+              }
               """));
     }
 
@@ -1143,6 +1308,48 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
     @DisplayName("A file where a variable named org and another Unit leave no way to write Unit")
     void aFileWhereUnitCannotBeWritten() {
       rewriteRun(
+          java(
+              """
+              package com.example.names;
+
+              public final class Names {
+                  public static final int org = 2;
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              class Base {
+                  protected String org;
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Inherits extends Base {
+                  Either<String, Void> reset(int Unit) {
+                      return Either.right(null);
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import static com.example.names.Names.org;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Imports {
+                  Either<String, Void> reset(int Unit) {
+                      return Either.right(null);
+                  }
+              }
+              """),
           java(
               """
               package com.example;
