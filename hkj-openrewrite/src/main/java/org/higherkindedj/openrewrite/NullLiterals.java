@@ -9,6 +9,7 @@ import java.util.function.UnaryOperator;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.Expression;
 import org.openrewrite.java.tree.J;
+import org.openrewrite.java.tree.JRightPadded;
 import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.marker.SearchResult;
 
@@ -25,6 +26,54 @@ final class NullLiterals {
     return bare(expression) instanceof J.Literal literal
         && literal.getValue() == null
         && literal.getType() == JavaType.Primitive.Null;
+  }
+
+  /**
+   * Whether an expression can only be {@code null}: a {@code null} literal, as {@link
+   * #isNullLiteral} finds it, or a value typed {@code Void}, such as a call to a method that
+   * returns {@code Void}.
+   */
+  static boolean isAlwaysNull(Expression expression) {
+    return isNullLiteral(expression) || isVoidType(expression.getType());
+  }
+
+  /** Whether a type is {@code Void} itself, not an array of it, as isOfClassType would accept. */
+  static boolean isVoidType(JavaType type) {
+    return type instanceof JavaType.FullyQualified named
+        && !(type instanceof JavaType.Parameterized)
+        && "java.lang.Void".equals(named.getFullyQualifiedName());
+  }
+
+  /**
+   * The expression inside any brackets around it, but not a cast, as the lambda is inside {@code
+   * (() -> null)}.
+   */
+  static Expression unbracketed(Expression expression) {
+    return expression instanceof J.Parentheses<?> brackets
+            && brackets.getTree() instanceof Expression inner
+        ? unbracketed(inner)
+        : expression;
+  }
+
+  /**
+   * The expression with what is inside its brackets put through {@code map}, keeping the brackets;
+   * the expression itself put through {@code map} where it has none.
+   */
+  static Expression inBrackets(Expression expression, UnaryOperator<Expression> map) {
+    if (!(expression instanceof J.Parentheses<?> brackets)
+        || !(brackets.getTree() instanceof Expression inner)) {
+      return map.apply(expression);
+    }
+    Expression mapped = inBrackets(inner, map);
+    if (mapped == inner) {
+      return expression;
+    }
+    JRightPadded<?> padded = brackets.getPadding().getTree();
+    return new J.Parentheses<>(
+        brackets.getId(),
+        brackets.getPrefix(),
+        brackets.getMarkers(),
+        new JRightPadded<>(mapped, padded.getAfter(), padded.getMarkers()));
   }
 
   /**

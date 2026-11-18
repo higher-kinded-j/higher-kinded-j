@@ -100,6 +100,7 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                     Kind<EitherKind.Witness<String>, Integer> typed = errors.raiseError(null);
                     Kind<OptionalKind.Witness, Integer> empty = optional.raiseError(null);
                     Either<String, Integer> blanked = found.mapLeft(e -> null);
+                    Either<String, Integer> bracketed = found.mapLeft((e -> null));
                     Either<String, String> both = found.bimap(e -> {
                         System.out.println(e);
                         return null;
@@ -146,6 +147,7 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                     Kind<EitherKind.Witness<String>, Integer> typed = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/errors.raiseError(null);
                     Kind<OptionalKind.Witness, Integer> empty = /*~~(An error is never null: pass one that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/optional.raiseError(null);
                     Either<String, Integer> blanked = found.mapLeft(e -> /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null);
+                    Either<String, Integer> bracketed = found.mapLeft((e -> /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null));
                     Either<String, String> both = found.bimap(e -> {
                         System.out.println(e);
                         return /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null;

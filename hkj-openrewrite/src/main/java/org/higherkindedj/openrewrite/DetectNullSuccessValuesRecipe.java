@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.openrewrite;
 
+import static org.higherkindedj.openrewrite.NullLiterals.inBrackets;
 import static org.higherkindedj.openrewrite.NullLiterals.markNullReturns;
 import static org.higherkindedj.openrewrite.NullLiterals.returnsNull;
+import static org.higherkindedj.openrewrite.NullLiterals.unbracketed;
 
 import java.util.List;
 import java.util.Optional;
@@ -32,12 +34,15 @@ import org.openrewrite.marker.SearchResult;
  *       {@code Lazy.now} or {@code Context.succeed}, its {@code KindHelper} or context form, an
  *       {@code iterate} seed, the {@code StateTuple} or {@code Writer} constructor, or a {@code
  *       Path} factory such as {@code Path.right}, {@code Path.ioPure} and {@code Path.id}. These
- *       throw {@code NullPointerException}.
+ *       throw {@code NullPointerException}. A value typed {@code Void} there, such as {@code
+ *       Either.right(purge())} where {@code purge()} returns {@code Void}, is marked too, since it
+ *       can only be {@code null}.
  *   <li>A {@code null} element given to {@code VStream.of}, {@code Path.vstreamOf} or {@code
  *       StreamPath.of}, since a stream holds no null element.
- *   <li>A lambda given to {@code Try.of}, {@code Try.attempt}, {@code Path.tryOf}, {@code
- *       TryKindHelper.tryOf} or the {@code map} of a {@code Try} or {@code TryPath}, that returns a
- *       {@code null} literal. It gives a {@code Failure} rather than a {@code Success}.
+ *   <li>A lambda, in brackets or not, given to {@code Try.of}, {@code Try.attempt}, {@code
+ *       Path.tryOf}, {@code TryKindHelper.tryOf} or the {@code map} of a {@code Try} or {@code
+ *       TryPath}, that returns a {@code null} literal. It gives a {@code Failure} rather than a
+ *       {@code Success}.
  *   <li>A lambda given to a deferred factory, such as {@code VTask.of}, {@code IO.delay}, {@code
  *       Lazy.defer} or {@code Path.io}, or to the {@code map} of a lazy type or a lazy {@code
  *       Path}, that returns a {@code null} literal. The computation fails when it runs.
@@ -318,7 +323,7 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
   @Override
   public String getDescription() {
     return "Marks a null passed to Either.right, Try.success, the lazy value factories and the Path"
-        + " factories, a null stream element, a Try.of supplier or a deferred or map lambda that"
+        + " factories, or a Void value passed there, a null stream element, a Try.of supplier or a deferred or map lambda that"
         + " returns null, a CompletableFuture<Void> wrapped in a Path, and an Either, Try, lazy"
         + " type or Path typed with Void. From 0.5.0 a Right or a Success always holds a value,"
         + " a lazy computation always gives one, and Unit replaces Void.";
@@ -338,7 +343,7 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
           J.MethodInvocation method, ExecutionContext ctx) {
         J.MethodInvocation mi = super.visitMethodInvocation(method, ctx);
         List<Expression> args = mi.getArguments();
-        if (valueArguments(mi).stream().anyMatch(NullLiterals::isNullLiteral)) {
+        if (valueArguments(mi).stream().anyMatch(NullLiterals::isAlwaysNull)) {
           return SearchResult.found(
               mi,
               ELEMENT_FACTORIES.stream().anyMatch(m -> m.matches(mi))
@@ -350,7 +355,7 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
           return SearchResult.found(mi, VOID_FUTURE);
         }
         if (args.isEmpty()
-            || !(args.getFirst() instanceof J.Lambda lambda)
+            || !(unbracketed(args.getFirst()) instanceof J.Lambda lambda)
             || !returnsNull(lambda)) {
           return mi;
         }
@@ -358,14 +363,16 @@ public class DetectNullSuccessValuesRecipe extends Recipe {
             .map(
                 message ->
                     mi.withArguments(
-                        ListUtils.mapFirst(args, first -> markNullReturns(lambda, message))))
+                        ListUtils.mapFirst(
+                            args,
+                            first -> inBrackets(first, inner -> markNullReturns(lambda, message)))))
             .orElse(mi);
       }
 
       @Override
       public J.NewClass visitNewClass(J.NewClass newClass, ExecutionContext ctx) {
         J.NewClass nc = super.visitNewClass(newClass, ctx);
-        if (valueArguments(nc).stream().anyMatch(NullLiterals::isNullLiteral)) {
+        if (valueArguments(nc).stream().anyMatch(NullLiterals::isAlwaysNull)) {
           return SearchResult.found(nc, holdsVoid(nc.getType()) ? NULL_VALUE : NULL_TYPED_VALUE);
         }
         return nc;

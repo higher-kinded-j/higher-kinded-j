@@ -352,6 +352,190 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
     }
 
     @Test
+    @DisplayName("A null given to the overload the call resolves to, not to another of its arity")
+    void aNullGivenToTheOverloadTheCallResolvesTo() {
+      rewriteRun(
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Overloads {
+                  static <T> Either<String, T> ok(T value, Void ignored, int tag) {
+                      return Either.right(value);
+                  }
+
+                  static <T> Either<String, T> ok(String note, T value, int tag) {
+                      return Either.right(value);
+                  }
+
+                  Either<String, Void> first() {
+                      return Overloads.<Void>ok((Void) null, null, 0);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+
+              class Overloads {
+                  static <T> Either<String, T> ok(T value, Void ignored, int tag) {
+                      return Either.right(value);
+                  }
+
+                  static <T> Either<String, T> ok(String note, T value, int tag) {
+                      return Either.right(value);
+                  }
+
+                  Either<String, Unit> first() {
+                      return Overloads.<Unit>ok(Unit.INSTANCE, null, 0);
+                  }
+              }
+              """));
+    }
+
+    @Test
+    @DisplayName("The type, but not a null that another overload of the same shape may take")
+    void theTypeButNotANullAnotherOverloadMayTake() {
+      rewriteRun(
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Overloads {
+                  static Either<String, Void> ok(Void nothing) {
+                      return Either.left("nothing");
+                  }
+
+                  static <T> Either<String, T> ok(T value) {
+                      return Either.right(value);
+                  }
+
+                  Object done() {
+                      var result = ok(null);
+                      return result;
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+
+              class Overloads {
+                  static Either<String, Unit> ok(Void nothing) {
+                      return Either.left("nothing");
+                  }
+
+                  static <T> Either<String, T> ok(T value) {
+                      return Either.right(value);
+                  }
+
+                  Object done() {
+                      var result = ok(null);
+                      return result;
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Reversed {
+                  static <T> Either<String, T> ok(T value) {
+                      return Either.right(value);
+                  }
+
+                  static Either<String, Void> ok(Void nothing) {
+                      return Either.left("nothing");
+                  }
+
+                  Object done() {
+                      var result = ok(null);
+                      return result;
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+
+              class Reversed {
+                  static <T> Either<String, T> ok(T value) {
+                      return Either.right(value);
+                  }
+
+                  static Either<String, Unit> ok(Void nothing) {
+                      return Either.left("nothing");
+                  }
+
+                  Object done() {
+                      var result = ok(null);
+                      return result;
+                  }
+              }
+              """));
+    }
+
+    @Test
+    @DisplayName("A null in brackets or given by a conditional, and a lambda in brackets")
+    void aNullInBracketsOrAConditional() {
+      rewriteRun(
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+              import org.higherkindedj.hkt.vtask.VTask;
+
+              class Bracketed {
+                  VTask<Void> wrapped() {
+                      return VTask.of((() -> null));
+                  }
+
+                  VTask<Void> chosen(boolean ready) {
+                      return () -> ready ? null : (null);
+                  }
+
+                  Either<String, Void> picked(boolean ready) {
+                      return Either.right(ready ? (null) : null);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Unit;
+              import org.higherkindedj.hkt.either.Either;
+              import org.higherkindedj.hkt.vtask.VTask;
+
+              class Bracketed {
+                  VTask<Unit> wrapped() {
+                      return VTask.of((() -> Unit.INSTANCE));
+                  }
+
+                  VTask<Unit> chosen(boolean ready) {
+                      return () -> ready ? Unit.INSTANCE : (Unit.INSTANCE);
+                  }
+
+                  Either<String, Unit> picked(boolean ready) {
+                      return Either.right(ready ? (Unit.INSTANCE) : Unit.INSTANCE);
+                  }
+              }
+              """));
+    }
+
+    @Test
     @DisplayName("A null given to a success type's own method, whose type variable is its class's")
     void aNullGivenToASuccessTypesOwnMethod() {
       rewriteRun(
@@ -473,7 +657,9 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
     }
 
     @Test
-    @DisplayName("A method overriding a success's own, and a lambda typed by an interface over one")
+    @DisplayName(
+        "A method overriding a success's own, directly or through a class, and a lambda typed by an"
+            + " interface over one")
     void anOverridingMethodAndASubInterfaceLambda() {
       rewriteRun(
           java(
@@ -510,6 +696,20 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
                   }
 
                   static final class Flush implements VTask<Void> {
+                      @Override
+                      public Void execute() throws Throwable {
+                          return null;
+                      }
+                  }
+
+                  static class BaseJob implements VTask<Void> {
+                      @Override
+                      public Void execute() throws Throwable {
+                          return null;
+                      }
+                  }
+
+                  static final class Purge extends BaseJob {
                       @Override
                       public Void execute() throws Throwable {
                           return null;
@@ -556,6 +756,20 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
                   }
 
                   static final class Flush implements VTask<Unit> {
+                      @Override
+                      public Unit execute() throws Throwable {
+                          return Unit.INSTANCE;
+                      }
+                  }
+
+                  static class BaseJob implements VTask<Unit> {
+                      @Override
+                      public Unit execute() throws Throwable {
+                          return Unit.INSTANCE;
+                      }
+                  }
+
+                  static final class Purge extends BaseJob {
                       @Override
                       public Unit execute() throws Throwable {
                           return Unit.INSTANCE;
@@ -661,7 +875,8 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
     }
 
     @Test
-    @DisplayName("Unit in full where the file uses another type named Unit")
+    @DisplayName(
+        "Unit in full where the file uses another type, a variable or a constant named Unit")
     void unitInFullBesideAnotherUnit() {
       rewriteRun(
           java(
@@ -740,6 +955,56 @@ class ReplaceVoidSuccessWithUnitRecipeTest implements RewriteTest {
                   <Unit> Unit same(Unit value) {
                       return value;
                   }
+
+                  Either<String, org.higherkindedj.hkt.Unit> reset() {
+                      return Either.right(org.higherkindedj.hkt.Unit.INSTANCE);
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Shadowed {
+                  Either<String, Void> reset(int Unit) {
+                      return Either.right(null);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              class Shadowed {
+                  Either<String, org.higherkindedj.hkt.Unit> reset(int Unit) {
+                      return Either.right(org.higherkindedj.hkt.Unit.INSTANCE);
+                  }
+              }
+              """),
+          java(
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              enum Pack {
+                  Unit, Pair;
+
+                  Either<String, Void> reset() {
+                      return Either.right(null);
+                  }
+              }
+              """,
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.either.Either;
+
+              enum Pack {
+                  Unit, Pair;
 
                   Either<String, org.higherkindedj.hkt.Unit> reset() {
                       return Either.right(org.higherkindedj.hkt.Unit.INSTANCE);

@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.openrewrite;
 
+import static org.higherkindedj.openrewrite.NullLiterals.inBrackets;
 import static org.higherkindedj.openrewrite.NullLiterals.isNullLiteral;
 import static org.higherkindedj.openrewrite.NullLiterals.markNullReturns;
 import static org.higherkindedj.openrewrite.NullLiterals.returnsNull;
+import static org.higherkindedj.openrewrite.NullLiterals.unbracketed;
 
 import java.util.List;
 import java.util.Map;
@@ -33,9 +35,9 @@ import org.openrewrite.marker.SearchResult;
  *       {@code getEither}, {@code getValidated}, {@code modifyEither} and {@code modifyValidated}
  *       helpers of {@code LensExtensions} and {@code PrismExtensions}. These now throw {@code
  *       NullPointerException}.
- *   <li>A lambda given as the error function of {@code Either.mapLeft} or {@code Either.bimap} that
- *       returns a {@code null} literal. It now throws, where it built a {@code Left(null)}. The
- *       mark sits on the {@code null} it returns, not on the call.
+ *   <li>A lambda, in brackets or not, given as the error function of {@code Either.mapLeft} or
+ *       {@code Either.bimap} that returns a {@code null} literal. It now throws, where it built a
+ *       {@code Left(null)}. The mark sits on the {@code null} it returns, not on the call.
  *   <li>An {@code Either}, {@code EitherT}, {@code EitherMonad} or {@code EitherTMonad} whose error
  *       type is {@code Void}, which has no value for a {@code Left} to hold.
  * </ul>
@@ -137,10 +139,13 @@ public class DetectNullErrorValuesRecipe extends Recipe {
           return SearchResult.found(mi, NULL_RAISED_ERROR);
         }
         if (ERROR_MAPPERS.stream().anyMatch(m -> m.matches(mi))
-            && args.getFirst() instanceof J.Lambda lambda
+            && unbracketed(args.getFirst()) instanceof J.Lambda lambda
             && returnsNull(lambda)) {
           return mi.withArguments(
-              ListUtils.mapFirst(args, first -> markNullReturns(lambda, NULL_ERROR_FUNCTION)));
+              ListUtils.mapFirst(
+                  args,
+                  first ->
+                      inBrackets(first, inner -> markNullReturns(lambda, NULL_ERROR_FUNCTION))));
         }
         return mi;
       }

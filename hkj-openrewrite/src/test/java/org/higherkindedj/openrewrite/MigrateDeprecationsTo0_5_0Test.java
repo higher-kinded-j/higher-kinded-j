@@ -150,6 +150,15 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
                     return Either.right(null);
                 }
 
+                Void flush() {
+                    return null;
+                }
+
+                Object flushed() {
+                    var done = Either.right(flush());
+                    return done;
+                }
+
                 CompletableFuturePath<Void> sent(CompletableFuture<Void> sending) {
                     return Path.future(sending);
                 }
@@ -184,6 +193,15 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
 
                 Either<String, String> missing() {
                     return /*~~(A success always holds a value: use a Maybe for a value that may be missing, or an error that says why)~~>*/Either.right(null);
+                }
+
+                Void flush() {
+                    return null;
+                }
+
+                Object flushed() {
+                    var done = /*~~(A success always holds a value: pass Unit.INSTANCE for a step with nothing to return)~~>*/Either.right(flush());
+                    return done;
                 }
 
                 CompletableFuturePath<Unit> sent(CompletableFuture<Void> sending) {
