@@ -1,0 +1,126 @@
+name: Bug Report
+description: Something in Higher-Kinded-J does not work as it should, or as its docs say. A reproduction you have run matters most.
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. What matters most is a reproduction you have run: the smallest code that shows the bug, and what it printed. It is the quickest way to get a bug confirmed, and it becomes the test for the fix.
+
+        For a mistake in the book, the Javadoc, an example or a skill, use the Documentation Problem form instead.
+
+        **Using an AI assistant?** Bugs found with one are welcome. Before you file, ask it:
+
+        > Using higher-kinded-j version X.Y.Z, the one in my build, on JDK 25 with `--enable-preview`, write the smallest JUnit test or `main` method that shows this bug. For a bug in generated code, make it a small project that the annotation processor compiles. Run it, and give me the code and its full output. If you cannot run it, say so, and do not write the output you expect. If it passes, say so: the bug may not be real.
+
+        If your build applies the HKJ Gradle or Maven plugin, `./gradlew hkjInstallSkills` or `mvn hkj:install-skills` installs the HKJ skills, so your assistant can also check what the docs promise.
+
+        Not sure it is a bug, or want help using the library? Ask in [Q&A](https://github.com/higher-kinded-j/higher-kinded-j/discussions/categories/q-a) instead.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened
+      description: One or two sentences on what you called and what went wrong.
+      placeholder: I called … with …, and it … instead of ….
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: |
+        The smallest code that shows the bug: a JUnit test, a `main` method or a jshell session, with the imports and any records it uses, so it compiles as pasted. For a bug in generated code, include the annotated types. This box is shown as Java, so there is no need for backticks. If it will not get smaller, link a repository under "Anything else".
+      render: java
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: What it printed
+      description: The output when you ran the reproduction, whole, such as a failing assertion, an exception with its stack trace, or a compiler error. For a bug that shows only sometimes, such as a race, say how often it fails.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen
+      description: |
+        What you expected instead. If a page of the [book](https://higher-kinded-j.github.io/latest/home.html), a Javadoc comment or a skill describes the behaviour, link or quote it.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Higher-Kinded-J version
+      placeholder: 0.5.0, or 0.6.0-SNAPSHOT and the date you fetched it
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where is the bug?
+      options:
+        - "Core types and type classes: Either, Maybe, Try, Validated and the rest"
+        - "Effect Paths: EitherPath, MaybePath, IOPath and the rest"
+        - "Concurrency and resilience: VTask, VStream, Scope, retry, circuit breakers"
+        - "Optics and the Focus DSL: @GenerateLenses, @GenerateFocus and the rest"
+        - "Mapping and assembly: @GenerateMapping, @GenerateAssembly, @GenerateMerge"
+        - "Effect handlers: @EffectAlgebra, Free programs and interpreters"
+        - "hkj-test assertions and law harnesses"
+        - "Spring Boot starter"
+        - "Build plugins, the BOM, hkj-checker or the OpenRewrite recipes"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: JDK, build tool and operating system
+      placeholder: Temurin 25.0.1, Gradle 9.4 or Maven 3.9, macOS; say if only an IDE's build fails
+    validations:
+      required: true
+
+  - type: dropdown
+    id: found-with
+    attributes:
+      label: How did you find it?
+      description: Every route is welcome. This helps us triage, and shows us which routes find real bugs.
+      options:
+        - Running my own code
+        - With an AI assistant
+        - With another tool, such as a static analyser or a fuzzer
+        - Reading the source or the docs
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: A link to a repository that reproduces the bug, your build file, or anything else that helps.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the open and closed issues, and this bug is not one of them.
+          required: true
+        - label: I ran the reproduction above, and pasted the output it really printed.
+          required: true
+
+  - type: checkboxes
+    id: fix
+    attributes:
+      label: Would you like to fix it?
+      description: |
+        Tick this, and we will reply with where to look and what a finished fix looks like, and assign the issue to you: start once we reply. Your reproduction becomes the fix's test. [CONTRIBUTING.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md) says how to open the pull request, and [AGENTS.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/AGENTS.md) guides an AI assistant through it.
+      options:
+        - label: I would like to fix this bug myself.

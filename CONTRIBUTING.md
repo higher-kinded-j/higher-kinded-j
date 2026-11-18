@@ -13,8 +13,8 @@ This project and everyone participating in it is governed by the [Code of Conduc
 ### Reporting Bugs
 
 * Ensure the bug was not already reported by searching on GitHub under [Issues](https://github.com/higher-kinded-j/higher-kinded-j/issues).
-* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/higher-kinded-j/higher-kinded-j/issues/new). Be sure to include a **title and clear description**, as much relevant information as possible, and a **code sample or an executable test case** demonstrating the expected behaviour that is not occurring.
-* Use the "Bug Report" issue template if available.
+* If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/higher-kinded-j/higher-kinded-j/issues/new/choose) with the **Bug Report** form. It asks for the smallest code that shows the bug, which you have run, and the output it printed. Bugs found with an AI assistant are welcome on the same terms.
+* For a mistake in the book, the Javadoc, an example or a skill, use the **Documentation Problem** form instead.
 
 ### Suggesting Enhancements
 
@@ -24,6 +24,8 @@ This project and everyone participating in it is governed by the [Code of Conduc
 ### Your First Code Contribution
 
 Unsure where to begin contributing? You can start by looking through `good first issue` or `help wanted` issues (you can add these labels yourself to issues you think fit). Once you have a first change merged, `good second issue` marks the next step up: still one module and a clear model to copy, but with a judgement call or two to make along the way.
+
+Working with an AI coding agent? [AGENTS.md](AGENTS.md) points it to what this file asks, and to the project's skills, and changes with this file.
 
 ### Pull Requests
 
