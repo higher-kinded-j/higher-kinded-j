@@ -17,8 +17,10 @@ documents the library for its users; [CONTRIBUTING.md](CONTRIBUTING.md#project-m
 
 ## Setup and commands
 
-The build compiles and tests on JDK 25, because it uses preview features. Gradle itself runs on
-JDK 17 or later, and downloads a JDK 25 toolchain when none is installed, which needs network access.
+Run Gradle on JDK 25, as [Development Setup](CONTRIBUTING.md#development-setup) asks. The build
+compiles and tests on JDK 25 because it uses preview features, and Spotless runs its formatter,
+which needs Java 21 or later, inside Gradle's own JVM. When JDK 25 is missing, Gradle downloads it
+for compiling and testing, but that does not change the JVM Gradle itself runs on.
 
 ```bash
 ./gradlew :hkj-core:test --tests "EitherPathTest"   # one test class
