@@ -1,0 +1,56 @@
+name: Documentation Problem
+description: A mistake or a gap in the book, the Javadoc, an example or a skill.
+title: "[DOCS] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a documentation problem. Where it is and what is wrong are enough.
+
+  - type: input
+    id: location
+    attributes:
+      label: Where is it?
+      description: A link to the book page, or the name of the class, method, example or skill.
+      placeholder: https://higher-kinded-j.github.io/latest/quickstart.html#gradle-setup
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing
+      description: Quote the text if it helps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: should-say
+    attributes:
+      label: What it should say
+      description: If you know. Leave it empty if you are not sure.
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Error or output
+      description: For an example that fails to compile or run, what it printed.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the open and closed issues, and this problem is not one of them.
+          required: true
+
+  - type: checkboxes
+    id: fix
+    attributes:
+      label: Would you like to fix it?
+      description: |
+        Tick this, and we will reply with where to look and assign the issue to you: start once we reply. [CONTRIBUTING.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/CONTRIBUTING.md#previewing-the-book) says how to preview the book, and [AGENTS.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/AGENTS.md) guides an AI assistant through the change.
+      options:
+        - label: I would like to fix this myself.
