@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ask a question
+    url: https://github.com/higher-kinded-j/higher-kinded-j/discussions/categories/q-a
+    about: Not sure it is a bug, or want help using the library? Ask in the Discussions Q&A.
