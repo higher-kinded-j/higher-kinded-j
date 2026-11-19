@@ -22,7 +22,7 @@ The order in which patterns wrap the underlying call determines their behaviour.
     ─────────────────────────────────────
     Retry sees each attempt individually.
     Circuit breaker records each attempt's outcome.
-    If the circuit opens, retry stops (CircuitOpenException is not retryable).
+    If the circuit opens, retry stops at the first attempt it turns away.
 
     ┌─────────────────────────────────────────────┐
     │ Retry                                       │
@@ -86,7 +86,7 @@ This ordering ensures:
 - The **timeout** cancels the entire operation, including all retries and wait times, when its time runs out
 - The **bulkhead** prevents too many concurrent operations from even starting
 - **Retry** re-attempts the inner operation, each attempt independently
-- The **circuit breaker** evaluates each attempt, and `CircuitOpenException` naturally stops retry (since it is not a retryable exception by default)
+- The **circuit breaker** evaluates each attempt, and the first `CircuitOpenException` stops the retry. `ResilienceBuilder`, `Resilience.withCircuitBreakerAndRetry` and `Resilience.protect` decline it whatever the retry policy says. The caller gets it at once, not a `RetryExhaustedException` after more waits. A `Retry` you wrap round a breaker yourself needs `.retryIf(ex -> !(ex instanceof CircuitOpenException))`, as [Circuit Breaker](circuit_breaker.md#combining-with-retry) shows
 
 ## Using ResilienceBuilder
 

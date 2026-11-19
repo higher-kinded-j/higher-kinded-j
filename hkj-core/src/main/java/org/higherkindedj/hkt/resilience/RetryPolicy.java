@@ -399,6 +399,17 @@ public final class RetryPolicy {
   }
 
   /**
+   * Returns a copy of this policy that also declines a {@link CircuitOpenException}, for a retry
+   * placed round a circuit breaker: once the circuit turns an attempt away, the retry stops.
+   *
+   * @return a new RetryPolicy that does not retry a {@link CircuitOpenException}
+   */
+  RetryPolicy stoppingAtOpenCircuit() {
+    Predicate<Throwable> retries = retryPredicate;
+    return retryIf(ex -> !(ex instanceof CircuitOpenException) && retries.test(ex));
+  }
+
+  /**
    * Returns the retry event listener, or {@code null} if none is set.
    *
    * @return the retry event listener, or null

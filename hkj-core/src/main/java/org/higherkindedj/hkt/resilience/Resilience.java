@@ -24,9 +24,11 @@ import org.higherkindedj.hkt.vtask.VTask;
  *   <li><b>Circuit Breaker</b> (innermost) each attempt checks circuit state
  * </ol>
  *
- * <p>This ordering ensures that a retry attempt that fails due to {@link CircuitOpenException} is
- * not retried (circuit breaker failure is not retryable by default), and that the circuit breaker
- * sees each retry attempt individually.
+ * <p>This ordering ensures that the circuit breaker sees each retry attempt individually. When
+ * these helpers place a circuit breaker inside a retry, they stop the retry at the first attempt
+ * the open circuit turns away, so the caller gets its {@link CircuitOpenException} at once, and no
+ * later attempt waits out its backoff. A {@link Retry} you build yourself retries one unless its
+ * policy declines it.
  *
  * <h2>Example</h2>
  *
@@ -52,6 +54,8 @@ public final class Resilience {
   /**
    * Wraps a task with circuit breaker protection and retry.
    *
+   * <p>The retry stops at a {@link CircuitOpenException}, whatever {@code retryPolicy} says of it.
+   *
    * @param task the task to protect
    * @param circuitBreaker the circuit breaker
    * @param retryPolicy the retry policy
@@ -63,11 +67,13 @@ public final class Resilience {
     Objects.requireNonNull(task, "task must not be null");
     Objects.requireNonNull(circuitBreaker, "circuitBreaker must not be null");
     Objects.requireNonNull(retryPolicy, "retryPolicy must not be null");
-    return Retry.retryTask(circuitBreaker.protect(task), retryPolicy);
+    return Retry.retryTask(circuitBreaker.protect(task), retryPolicy.stoppingAtOpenCircuit());
   }
 
   /**
    * Wraps a task with all three core resilience patterns.
+   *
+   * <p>The retry stops at a {@link CircuitOpenException}, whatever {@code retryPolicy} says of it.
    *
    * @param task the task to protect
    * @param circuitBreaker the circuit breaker
@@ -83,7 +89,8 @@ public final class Resilience {
     Objects.requireNonNull(retryPolicy, "retryPolicy must not be null");
     Objects.requireNonNull(bulkhead, "bulkhead must not be null");
     // Order: bulkhead -> retry -> circuit breaker -> task
-    return bulkhead.protect(Retry.retryTask(circuitBreaker.protect(task), retryPolicy));
+    return bulkhead.protect(
+        Retry.retryTask(circuitBreaker.protect(task), retryPolicy.stoppingAtOpenCircuit()));
   }
 
   /**

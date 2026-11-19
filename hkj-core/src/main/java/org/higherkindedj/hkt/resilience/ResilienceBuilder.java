@@ -22,6 +22,10 @@ import org.jspecify.annotations.Nullable;
  *   <li><b>Circuit Breaker</b> (innermost) each attempt checks circuit state
  * </ol>
  *
+ * <p>A retry round a circuit breaker stops once the open circuit turns an attempt away: the caller
+ * gets the {@link CircuitOpenException}, rather than a {@link RetryExhaustedException} after each
+ * remaining attempt has waited out its backoff.
+ *
  * <p>Optionally, a fallback function is applied after all other patterns.
  *
  * <h2>Example</h2>
@@ -90,6 +94,10 @@ public final class ResilienceBuilder<A> {
 
   /**
    * Adds retry with the given policy.
+   *
+   * <p>With a circuit breaker, the retry stops at the first attempt the open circuit turns away,
+   * whatever {@code policy} says of a {@link CircuitOpenException}, and the caller gets that
+   * exception.
    *
    * @param policy the retry policy; must not be null
    * @return this builder
@@ -175,8 +183,11 @@ public final class ResilienceBuilder<A> {
       result = circuitBreaker.protect(result);
     }
 
-    if (retryPolicy != null) {
-      result = Retry.retryTask(result, retryPolicy);
+    @Nullable RetryPolicy policy = retryPolicy;
+    if (policy != null) {
+      // A retry round a circuit breaker stops once the open circuit turns an attempt away
+      result =
+          Retry.retryTask(result, circuitBreaker != null ? policy.stoppingAtOpenCircuit() : policy);
     }
 
     if (bulkhead != null) {
