@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.resilience;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -91,12 +92,12 @@ class ResilienceBuilderTest {
       VTask<String> resilient =
           Resilience.<String>builder(task).withCircuitBreaker(cb).withRetry(retry).build();
 
-      assertThatThrownBy(resilient::run).isInstanceOf(RuntimeException.class);
+      assertThatThrownBy(resilient::run).isInstanceOf(CircuitOpenException.class);
 
-      // The circuit breaker opens after 3 failures. Subsequent attempts see CircuitOpenException.
-      // Since the default retry policy retries all exceptions, it retries CircuitOpenException too.
-      // All 5 attempts are made (3 real + 2 rejected by open circuit).
+      // The circuit breaker opens after 3 failures. The 4th attempt sees CircuitOpenException,
+      // which stops the retry, so the 5th is never made.
       assertThat(attempts.get()).isEqualTo(3);
+      assertThat(cb.metrics().rejectedCalls()).isEqualTo(1);
       assertThat(cb.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
     }
 
@@ -339,6 +340,121 @@ class ResilienceBuilderTest {
       // Only 2 real task attempts + 1 circuit-rejected attempt (which throws CircuitOpenException)
       assertThat(attempts.get()).isEqualTo(2);
       assertThat(cb.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    // The reproduction from #1506: a retry with the default predicate, round a breaker that opens
+    // after two failures
+    private static CircuitBreaker opensAfterTwo() {
+      return CircuitBreaker.create(
+          CircuitBreakerConfig.builder()
+              .failureThreshold(2)
+              .openDuration(Duration.ofSeconds(30))
+              .build());
+    }
+
+    private static VTask<String> down(AtomicInteger reached) {
+      return VTask.of(
+          () -> {
+            reached.incrementAndGet();
+            throw new IOException("down");
+          });
+    }
+
+    private static RetryPolicy fiveAttempts(AtomicInteger retries) {
+      return RetryPolicy.fixed(5, Duration.ofMillis(1)).onRetry(_ -> retries.incrementAndGet());
+    }
+
+    private static void assertStoppedAtOpenCircuit(
+        VTask<String> resilient,
+        CircuitBreaker breaker,
+        AtomicInteger reached,
+        AtomicInteger retries) {
+      assertThatThrownBy(resilient::run).isInstanceOf(CircuitOpenException.class);
+      // Two attempts reach the dependency and open the circuit; the third is turned away, and the
+      // retry stops there rather than waiting out two more attempts
+      assertThat(reached.get()).isEqualTo(2);
+      assertThat(retries.get()).isEqualTo(2);
+      assertThat(breaker.metrics().rejectedCalls()).isEqualTo(1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.OPEN);
+    }
+
+    @Test
+    @DisplayName("ResilienceBuilder stops the retry once the open circuit turns an attempt away")
+    void builderStopsRetryAtOpenCircuit() {
+      AtomicInteger reached = new AtomicInteger();
+      AtomicInteger retries = new AtomicInteger();
+      CircuitBreaker breaker = opensAfterTwo();
+
+      VTask<String> resilient =
+          Resilience.<String>builder(down(reached))
+              .withRetry(fiveAttempts(retries))
+              .withCircuitBreaker(breaker)
+              .build();
+
+      assertStoppedAtOpenCircuit(resilient, breaker, reached, retries);
+    }
+
+    @Test
+    @DisplayName("withCircuitBreakerAndRetry() stops the retry once the circuit opens")
+    void withCircuitBreakerAndRetryStopsAtOpenCircuit() {
+      AtomicInteger reached = new AtomicInteger();
+      AtomicInteger retries = new AtomicInteger();
+      CircuitBreaker breaker = opensAfterTwo();
+
+      VTask<String> resilient =
+          Resilience.withCircuitBreakerAndRetry(down(reached), breaker, fiveAttempts(retries));
+
+      assertStoppedAtOpenCircuit(resilient, breaker, reached, retries);
+    }
+
+    @Test
+    @DisplayName("protect() stops the retry once the circuit opens")
+    void protectStopsAtOpenCircuit() {
+      AtomicInteger reached = new AtomicInteger();
+      AtomicInteger retries = new AtomicInteger();
+      CircuitBreaker breaker = opensAfterTwo();
+
+      VTask<String> resilient =
+          Resilience.protect(
+              down(reached), breaker, fiveAttempts(retries), Bulkhead.withMaxConcurrent(1));
+
+      assertStoppedAtOpenCircuit(resilient, breaker, reached, retries);
+    }
+
+    @Test
+    @DisplayName("The helpers still honour a policy that declines other exceptions")
+    void helpersKeepThePolicysOwnPredicate() {
+      AtomicInteger reached = new AtomicInteger();
+      CircuitBreaker breaker = opensAfterTwo();
+
+      VTask<String> resilient =
+          Resilience.withCircuitBreakerAndRetry(
+              down(reached),
+              breaker,
+              RetryPolicy.fixed(5, Duration.ofMillis(1)).retryOn(IllegalStateException.class));
+
+      assertThatThrownBy(resilient::execute).isInstanceOf(IOException.class);
+      assertThat(reached.get()).isEqualTo(1);
+      assertThat(breaker.currentStatus()).isEqualTo(CircuitBreaker.Status.CLOSED);
+    }
+
+    @Test
+    @DisplayName("Without a circuit breaker, the builder's retry keeps its policy as given")
+    void builderWithoutCircuitBreakerKeepsThePolicy() {
+      AtomicInteger reached = new AtomicInteger();
+      VTask<String> task =
+          VTask.of(
+              () -> {
+                if (reached.incrementAndGet() < 3) {
+                  throw new CircuitOpenException(CircuitBreaker.Status.OPEN, Duration.ofMillis(1));
+                }
+                return "ok";
+              });
+
+      VTask<String> resilient = Resilience.<String>builder(task).withRetry(shortRetry(3)).build();
+
+      assertThat(resilient.run()).isEqualTo("ok");
+      assertThat(reached.get()).isEqualTo(3);
     }
 
     @Test

@@ -110,6 +110,31 @@ class RetryPolicyTest {
   class ConfigurationMethodsTests {
 
     @Test
+    @DisplayName("stoppingAtOpenCircuit() declines a CircuitOpenException and keeps the rest")
+    void stoppingAtOpenCircuitDeclinesOnlyAnOpenCircuit() {
+      List<RetryEvent> events = new ArrayList<>();
+      RetryPolicy original =
+          RetryPolicy.exponentialBackoff(4, Duration.ofMillis(10))
+              .retryOn(IOException.class)
+              .onRetry(events::add);
+      RetryPolicy stopping = original.stoppingAtOpenCircuit();
+
+      CircuitOpenException open =
+          new CircuitOpenException(CircuitBreaker.Status.OPEN, Duration.ofSeconds(1));
+      assertThat(stopping.shouldRetry(open)).isFalse();
+      assertThat(stopping.shouldRetry(new IOException("io"))).isTrue();
+      assertThat(stopping.shouldRetry(new IllegalStateException("other"))).isFalse();
+
+      assertThat(stopping.maxAttempts()).isEqualTo(original.maxAttempts());
+      assertThat(stopping.delayForAttempt(2)).isEqualTo(original.delayForAttempt(2));
+      assertThat(stopping.retryListener()).isSameAs(original.retryListener());
+      // A policy that retries anything still declines an open circuit once stopping
+      RetryPolicy anything = RetryPolicy.fixed(3, Duration.ZERO);
+      assertThat(anything.shouldRetry(open)).isTrue();
+      assertThat(anything.stoppingAtOpenCircuit().shouldRetry(open)).isFalse();
+    }
+
+    @Test
     @DisplayName("withMaxAttempts() creates new policy with updated attempts")
     void withMaxAttemptsCreatesNewPolicy() {
       RetryPolicy original = RetryPolicy.fixed(3, Duration.ofMillis(100));
