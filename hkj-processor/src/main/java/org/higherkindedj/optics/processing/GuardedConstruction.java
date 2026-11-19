@@ -16,6 +16,7 @@ import java.util.stream.IntStream;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -216,6 +217,32 @@ final class GuardedConstruction {
      */
     static LegType converted(TypeMirror type) {
       return new LegType(type, !NullableAnnotations.hasNullableTypeArgument(type));
+    }
+
+    /**
+     * A leg holding a map whose values a leaf or a nested spec converts and whose keys it hands on
+     * as the wire holds them: truthful wherever {@link #converted} finds it so, and besides where
+     * the values carry no nullable type argument and the keys, which no conversion touches, declare
+     * the wire's nullness at every position inside them. A key declared nullable itself is not,
+     * since the bulk form hands on no {@code null} key, so a checker reads the map's as non-null.
+     *
+     * @param type the component's type: the map, or a bridge's {@code Optional} of it
+     * @param wireMap the map the wire holds
+     * @param domainMap the map the domain holds
+     * @return the leg's type
+     */
+    static LegType keysPassedThrough(
+        TypeMirror type, DeclaredType wireMap, DeclaredType domainMap) {
+      TypeMirror key = domainMap.getTypeArguments().getFirst();
+      TypeMirror value = domainMap.getTypeArguments().get(1);
+      TypeMirror wireKey = wireMap.getTypeArguments().getFirst();
+      return new LegType(
+          type,
+          converted(type).truthful()
+              || (!NullableAnnotations.nullableHere(value)
+                  && !NullableAnnotations.hasNullableTypeArgument(value)
+                  && !NullableAnnotations.nullableHere(key)
+                  && ContainerCopy.retyping(null, wireKey, key) == ContainerCopy.Retyping.AS_IS));
     }
   }
 

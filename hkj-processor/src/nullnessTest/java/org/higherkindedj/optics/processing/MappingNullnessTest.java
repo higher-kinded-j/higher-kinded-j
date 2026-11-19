@@ -668,7 +668,9 @@ class MappingNullnessTest {
 
   @Test
   @DisplayName(
-      "a nullable type argument, through parse's ladder and into a wire whose elements may be null")
+      "a nullable type argument, through parse's ladder and into a wire whose elements may be"
+          + " null, and a sparse update over an array of nullable elements, sent as it is or"
+          + " through a JsonNullable")
   void aNullableTypeArgumentPassesTheChecker() {
     Compilation compilation =
         compile(
@@ -676,6 +678,7 @@ class MappingNullnessTest {
             List.of(
                 new MappingProcessor(), new MergeProcessor(), new CompanionAnnotationProcessor()),
             List.of("-Xep:NullableOptional:ERROR"),
+            JSON_NULLABLE,
             source(
                 "com.example.Arguments",
                 """
@@ -693,6 +696,7 @@ class MappingNullnessTest {
                 import org.higherkindedj.optics.annotations.UpdateSpec;
                 import org.higherkindedj.optics.validated.ValidatedPrism;
                 import org.jspecify.annotations.Nullable;
+                import org.openapitools.jackson.nullable.JsonNullable;
 
                 public final class Arguments {
                   private Arguments() {}
@@ -876,6 +880,42 @@ class MappingNullnessTest {
                   @GenerateMapping
                   public interface SparsePatch extends UpdateSpec<Sparse, SparseRequest> {}
 
+                  // A sparse update over an array whose elements may be null, beside one whose
+                  // elements the domain declares non-null.
+                  public record Grid(String id, @Nullable String[] cells, String[] plain) {}
+
+                  public static final class GridPatch {
+                    private @Nullable String @Nullable [] cells;
+                    private @Nullable String @Nullable [] plain;
+
+                    public @Nullable String @Nullable [] getCells() { return cells; }
+
+                    public void setCells(@Nullable String @Nullable [] cells) { this.cells = cells; }
+
+                    public @Nullable String @Nullable [] getPlain() { return plain; }
+
+                    public void setPlain(@Nullable String @Nullable [] plain) { this.plain = plain; }
+                  }
+
+                  @GenerateMapping
+                  public interface GridPatchMapping extends UpdateSpec<Grid, GridPatch> {}
+
+                  @SuppressWarnings("NullableOptional")
+                  public static final class GridSent {
+                    private @Nullable JsonNullable<@Nullable String @Nullable []> cells;
+
+                    public @Nullable JsonNullable<@Nullable String @Nullable []> getCells() {
+                      return cells;
+                    }
+
+                    public void setCells(@Nullable JsonNullable<@Nullable String @Nullable []> cells) {
+                      this.cells = cells;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface GridSentMapping extends UpdateSpec<Grid, GridSent> {}
+
                   // Chunked, beside a wildcard-typed leg a copy reads as its capture, and ending in a
                   // primitive the ladder hands on boxed.
                   public record Wide(
@@ -920,6 +960,363 @@ class MappingNullnessTest {
 
                   @GenerateMapping
                   public interface WideMapping extends MappingSpec<Wide, WideDto> {}
+                }
+                """));
+
+    assertThat(compilation).succeeded();
+  }
+
+  @Test
+  @DisplayName(
+      "a key that is itself a container, copied or passed through beside converted values, on"
+          + " every tier that parses, a parse-only view whose keys may hold a null inside, values"
+          + " whose type argument may be null, an array of nullable elements in any position, a"
+          + " passed-through key both sides declare holding a nullable type argument, sent"
+          + " through a JsonNullable too, and a key the domain narrows beside a list that may hold"
+          + " a null")
+  void aKeyScannedInsidePassesTheChecker() {
+    Compilation compilation =
+        compile(
+            configuration,
+            List.of(
+                new MappingProcessor(), new MergeProcessor(), new CompanionAnnotationProcessor()),
+            List.of("-Xep:NullableOptional:ERROR"),
+            JSON_NULLABLE,
+            source(
+                "com.example.Paths",
+                """
+                package com.example;
+
+                import java.util.List;
+                import java.util.Map;
+                import java.util.Optional;
+                import java.util.Set;
+                import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+                import org.higherkindedj.hkt.validated.FieldError;
+                import org.higherkindedj.hkt.validated.Validated;
+                import org.higherkindedj.optics.annotations.GenerateMapping;
+                import org.higherkindedj.optics.annotations.GenerateMerge;
+                import org.higherkindedj.optics.annotations.MappingSpec;
+                import org.higherkindedj.optics.annotations.OptionalBridge;
+                import org.higherkindedj.optics.annotations.UpdateSpec;
+                import org.higherkindedj.optics.validated.ValidatedPrism;
+                import org.jspecify.annotations.Nullable;
+                import org.openapitools.jackson.nullable.JsonNullable;
+
+                public final class Paths {
+                  private Paths() {}
+
+                  public record Code(String value) {}
+
+                  static ValidatedPrism<String, Code> code() {
+                    return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                  }
+
+                  // Both ways, the sides agreeing, over each kind of key and both value forms.
+                  public record Shelf(
+                      Map<List<String>, String> byPath,
+                      Map<List<@Nullable String>, List<@Nullable String>> holed,
+                      List<Map<Set<String>, String>> rows,
+                      Map<String[], String> arrays,
+                      Map<Optional<List<String>>, String> optionals,
+                      Map<List<String>, Code> coded,
+                      Optional<Map<List<String>, Code>> bridged) {}
+
+                  public record ShelfDto(
+                      Map<List<String>, String> byPath,
+                      Map<List<@Nullable String>, List<@Nullable String>> holed,
+                      List<Map<Set<String>, String>> rows,
+                      Map<String[], String> arrays,
+                      Map<Optional<List<String>>, String> optionals,
+                      Map<List<String>, String> coded,
+                      @Nullable Map<List<String>, String> bridged) {}
+
+                  @GenerateMapping
+                  public interface ShelfMapping extends MappingSpec<Shelf, ShelfDto> {
+                    default ValidatedPrism<String, Code> coded() { return code(); }
+
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> bridged() { return code(); }
+                  }
+
+                  // A view that only parses, whose keys may hold a null inside, which parse reports.
+                  public record Narrow(Map<List<String>, String> byPath, Map<List<String>, Code> coded) {}
+
+                  public static final class NarrowView {
+                    private final Map<List<@Nullable String>, String> byPath;
+                    private final Map<List<@Nullable String>, String> coded;
+
+                    public NarrowView(
+                        Map<List<@Nullable String>, String> byPath,
+                        Map<List<@Nullable String>, String> coded) {
+                      this.byPath = byPath;
+                      this.coded = coded;
+                    }
+
+                    public Map<List<@Nullable String>, String> getByPath() { return byPath; }
+
+                    public Map<List<@Nullable String>, String> getCoded() { return coded; }
+                  }
+
+                  @GenerateMapping
+                  public interface NarrowViewMapping extends MappingSpec<Narrow, NarrowView> {
+                    default ValidatedPrism<String, Code> coded() { return code(); }
+                  }
+
+                  // A projection's patch, a sparse update and a fallible merge.
+                  public record Rack(
+                      String id, Map<List<String>, String> byPath, Map<List<String>, Code> coded) {}
+
+                  public record RackView(Map<List<String>, String> byPath, Map<List<String>, String> coded) {}
+
+                  @GenerateMapping
+                  public interface RackViewMapping extends MappingSpec<Rack, RackView> {
+                    default ValidatedPrism<String, Code> coded() { return code(); }
+                  }
+
+                  public static final class RackPatch {
+                    private @Nullable Map<List<String>, String> byPath;
+                    private @Nullable Map<List<String>, String> coded;
+
+                    public @Nullable Map<List<String>, String> getByPath() { return byPath; }
+
+                    public void setByPath(@Nullable Map<List<String>, String> byPath) {
+                      this.byPath = byPath;
+                    }
+
+                    public @Nullable Map<List<String>, String> getCoded() { return coded; }
+
+                    public void setCoded(@Nullable Map<List<String>, String> coded) {
+                      this.coded = coded;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface RackPatchMapping extends UpdateSpec<Rack, RackPatch> {
+                    default ValidatedPrism<String, Code> coded() { return code(); }
+                  }
+
+                  public record Source(Map<List<String>, String> byPath) {}
+
+                  public record Note(String note) {}
+
+                  public record Merged(Map<List<String>, String> byPath, String note) {}
+
+                  @GenerateMerge
+                  public interface MergedAssembly {
+                    Validated<NonEmptyList<FieldError>, Merged> merge(Source source, Note note);
+
+                    default ValidatedPrism<String, String> note() {
+                      return ValidatedPrism.of(Validated::validNel, note -> note);
+                    }
+                  }
+
+                  // Values a leaf converts from a wire type whose argument may be null, beside
+                  // list keys, dense, bridged and sparse.
+                  static ValidatedPrism<List<@Nullable String>, Code> joined() {
+                    return ValidatedPrism.of(
+                        raw -> Validated.validNel(new Code(String.valueOf(raw))),
+                        code -> List.of(code.value()));
+                  }
+
+                  public record Joined(
+                      Map<List<String>, Code> byPath, Optional<Map<List<String>, Code>> bridged) {}
+
+                  public record JoinedDto(
+                      Map<List<String>, List<@Nullable String>> byPath,
+                      @Nullable Map<List<String>, List<@Nullable String>> bridged) {}
+
+                  @GenerateMapping
+                  public interface JoinedMapping extends MappingSpec<Joined, JoinedDto> {
+                    default ValidatedPrism<List<@Nullable String>, Code> byPath() { return joined(); }
+
+                    @OptionalBridge
+                    default ValidatedPrism<List<@Nullable String>, Code> bridged() {
+                      return joined();
+                    }
+                  }
+
+                  public static final class JoinedPatch {
+                    private @Nullable Map<List<String>, List<@Nullable String>> byPath;
+
+                    public @Nullable Map<List<String>, List<@Nullable String>> getByPath() {
+                      return byPath;
+                    }
+
+                    public void setByPath(@Nullable Map<List<String>, List<@Nullable String>> byPath) {
+                      this.byPath = byPath;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface JoinedPatchMapping extends UpdateSpec<Joined, JoinedPatch> {
+                    default ValidatedPrism<List<@Nullable String>, Code> byPath() { return joined(); }
+                  }
+
+                  // An array whose elements may be null, as a key, a value and an element.
+                  public record Cells(
+                      @Nullable String[] holed,
+                      Map<@Nullable String[], String> keys,
+                      Map<String, @Nullable String[]> values,
+                      List<@Nullable String[]> rows,
+                      Map<String[], String> plainKeys) {}
+
+                  public record CellsDto(
+                      @Nullable String[] holed,
+                      Map<@Nullable String[], String> keys,
+                      Map<String, @Nullable String[]> values,
+                      List<@Nullable String[]> rows,
+                      Map<String[], String> plainKeys) {}
+
+                  @GenerateMapping
+                  public interface CellsMapping extends MappingSpec<Cells, CellsDto> {}
+
+                  // Keys passed through beside converted values, both sides declaring a nullable
+                  // type argument inside them: scanned containers, an array and a generic key,
+                  // dense, bridged and sparse.
+                  public record Tag<T extends @Nullable Object>(T value) {}
+
+                  public record Agreed(
+                      Map<List<@Nullable String>, Code> byPath,
+                      Optional<Map<List<@Nullable String>, Code>> bridged,
+                      Map<@Nullable String[], Code> byCell,
+                      Map<Tag<@Nullable String>, Code> byTag,
+                      Optional<Map<Tag<@Nullable String>, Code>> tags) {}
+
+                  public record AgreedDto(
+                      Map<List<@Nullable String>, String> byPath,
+                      @Nullable Map<List<@Nullable String>, String> bridged,
+                      Map<@Nullable String[], String> byCell,
+                      Map<Tag<@Nullable String>, String> byTag,
+                      @Nullable Map<Tag<@Nullable String>, String> tags) {}
+
+                  @GenerateMapping
+                  public interface AgreedMapping extends MappingSpec<Agreed, AgreedDto> {
+                    default ValidatedPrism<String, Code> byPath() { return code(); }
+
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> bridged() { return code(); }
+
+                    default ValidatedPrism<String, Code> byCell() { return code(); }
+
+                    default ValidatedPrism<String, Code> byTag() { return code(); }
+
+                    @OptionalBridge
+                    default ValidatedPrism<String, Code> tags() { return code(); }
+                  }
+
+                  public static final class AgreedPatch {
+                    private @Nullable Map<List<@Nullable String>, String> byPath;
+
+                    public @Nullable Map<List<@Nullable String>, String> getByPath() { return byPath; }
+
+                    public void setByPath(@Nullable Map<List<@Nullable String>, String> byPath) {
+                      this.byPath = byPath;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface AgreedPatchMapping extends UpdateSpec<Agreed, AgreedPatch> {
+                    default ValidatedPrism<String, Code> byPath() { return code(); }
+                  }
+
+                  @SuppressWarnings("NullableOptional")
+                  public static final class AgreedHeld {
+                    private @Nullable JsonNullable<Map<List<@Nullable String>, String>> byPath;
+                    private @Nullable JsonNullable<Map<List<@Nullable String>, String>> bridged;
+                    private @Nullable JsonNullable<Map<Tag<@Nullable String>, String>> tags;
+
+                    public @Nullable JsonNullable<Map<List<@Nullable String>, String>> getByPath() {
+                      return byPath;
+                    }
+
+                    public void setByPath(
+                        @Nullable JsonNullable<Map<List<@Nullable String>, String>> byPath) {
+                      this.byPath = byPath;
+                    }
+
+                    public @Nullable JsonNullable<Map<List<@Nullable String>, String>> getBridged() {
+                      return bridged;
+                    }
+
+                    public void setBridged(
+                        @Nullable JsonNullable<Map<List<@Nullable String>, String>> bridged) {
+                      this.bridged = bridged;
+                    }
+
+                    public @Nullable JsonNullable<Map<Tag<@Nullable String>, String>> getTags() {
+                      return tags;
+                    }
+
+                    public void setTags(@Nullable JsonNullable<Map<Tag<@Nullable String>, String>> tags) {
+                      this.tags = tags;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface AgreedHeldMapping extends UpdateSpec<Agreed, AgreedHeld> {
+                    default ValidatedPrism<String, Code> byPath() { return code(); }
+
+                    default ValidatedPrism<String, Code> bridged() { return code(); }
+
+                    default ValidatedPrism<String, Code> tags() { return code(); }
+                  }
+
+                  // The sent map declared nullable inside its holder.
+                  @SuppressWarnings("NullableOptional")
+                  public static final class AgreedLoose {
+                    private @Nullable JsonNullable<@Nullable Map<List<@Nullable String>, String>> byPath;
+                    private @Nullable JsonNullable<@Nullable Map<List<@Nullable String>, String>> bridged;
+
+                    public @Nullable JsonNullable<@Nullable Map<List<@Nullable String>, String>> getByPath() {
+                      return byPath;
+                    }
+
+                    public void setByPath(
+                        @Nullable JsonNullable<@Nullable Map<List<@Nullable String>, String>> byPath) {
+                      this.byPath = byPath;
+                    }
+
+                    public @Nullable JsonNullable<@Nullable Map<List<@Nullable String>, String>> getBridged() {
+                      return bridged;
+                    }
+
+                    public void setBridged(
+                        @Nullable JsonNullable<@Nullable Map<List<@Nullable String>, String>> bridged) {
+                      this.bridged = bridged;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface AgreedLooseMapping extends UpdateSpec<Agreed, AgreedLoose> {
+                    default ValidatedPrism<String, Code> byPath() { return code(); }
+
+                    default ValidatedPrism<String, Code> bridged() { return code(); }
+                  }
+
+                  // A key the domain narrows, beside a list that may hold a null, on a view that only
+                  // parses: the list keeps the nullness its leg declares.
+                  public record Beside(Map<List<String>, Code> byPath, List<@Nullable String> notes) {}
+
+                  public static final class BesideView {
+                    private final Map<List<@Nullable String>, String> byPath;
+                    private final List<@Nullable String> notes;
+
+                    public BesideView(
+                        Map<List<@Nullable String>, String> byPath, List<@Nullable String> notes) {
+                      this.byPath = byPath;
+                      this.notes = notes;
+                    }
+
+                    public Map<List<@Nullable String>, String> getByPath() { return byPath; }
+
+                    public List<@Nullable String> getNotes() { return notes; }
+                  }
+
+                  @GenerateMapping
+                  public interface BesideMapping extends MappingSpec<Beside, BesideView> {
+                    default ValidatedPrism<String, Code> byPath() { return code(); }
+                  }
                 }
                 """));
 

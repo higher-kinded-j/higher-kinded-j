@@ -459,7 +459,7 @@ interface ReaderMapping extends MappingSpec<Reader, ReaderBean> {}"""),
         dict(id="nullable-elements-copied-into-non-null",
              heading="domain field 'X.y' declares its elements @Nullable, and build copies them to the record component 'XDto.y'",
              fragment="@Nullable, and build copies them to",
-             meaning="A same-typed container is copied as it is, so a `null` element or key the domain may hold would land where the wire's element or key type rules it out.",
+             meaning="A same-typed container is copied as it is, and so is a key a map passes through as it converts its values. So a `null` element or key the domain may hold, or one inside a key, would land where the wire's type rules it out.",
              fix="Mark the wire's element or key type `@Nullable`, or declare the domain's non-null.",
              rule=("Nullable elements are not copied into ones declared non-null", "rules.md#nullable-elements-into-non-null"),
              code="""record Reader(String name, List<@Nullable String> tags) {}

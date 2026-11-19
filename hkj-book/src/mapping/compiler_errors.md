@@ -64,7 +64,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`and build copies it to`](#nullable-copied-into-non-null) | A `@Nullable` component is copied into one declared non-null |
 | [`and build converts`](#nullable-where-build-throws) | A `@Nullable` component reaches a leaf, a spec or a container that throws on `null` |
 | [`and build hands it to`](#nullable-handed-to-a-throwing-site) | A `@Nullable` component reaches a getter-only list, a `@Singular` method or a protobuf setter |
-| [`@Nullable, and build copies them to`](#nullable-elements-copied-into-non-null) | `@Nullable` elements or keys are copied into a container that rules them out |
+| [`@Nullable, and build copies them to`](#nullable-elements-copied-into-non-null) | `@Nullable` elements or keys, or what a key holds, are copied into a container that rules them out |
 | [`and build maps the value it holds`](#nullable-optional-into-build) | A `@Nullable` `Optional` reaches `build`, which maps the value it holds |
 | [`and build passes them through`](#nullable-passed-through-a-lifted-map) | A lifted map passes a `@Nullable` key or value through to a bulk build that throws on it |
 | [`declares the type argument`](#nullable-argument-into-a-spec) | A `@Nullable` type argument reaches a nested spec that rules it out |
@@ -987,7 +987,7 @@ interface ReaderMapping extends MappingSpec<Reader, ReaderBean> {}
 
 ### `domain field 'X.y' declares its elements @Nullable, and build copies them to the record component 'XDto.y'` {#nullable-elements-copied-into-non-null}
 
-A same-typed container is copied as it is, so a `null` element or key the domain may hold would land where the wire's element or key type rules it out.
+A same-typed container is copied as it is, and so is a key a map passes through as it converts its values. So a `null` element or key the domain may hold, or one inside a key, would land where the wire's type rules it out.
 
 **Fix.** Mark the wire's element or key type `@Nullable`, or declare the domain's non-null.
 

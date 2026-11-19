@@ -119,16 +119,17 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * binder leaves a missing record component null just the same — so a component-level null is a
  * located, accumulated invalid, never an exception. The doctrine reaches inside containers too,
  * identity-copied ones included: a null <em>element</em> or map <em>value</em> locates by its index
- * or key ({@code emails.1: must not be null}), and a null map <em>key</em>, which has nothing to
- * locate by, is the unlocated {@code must not contain a null key}. What stays the caller-contract
- * {@code requireNonNull}: a null wire itself. What stays bean-only is the <em>absence</em>
- * contract: only a bean property is legitimately unset, so only bean guards cost the Iso tier —
- * {@code asIso()} is truthful for an all-primitive bean, while a lossless record mapping keeps it
- * with the parse-iso coherence law scoped to wires whose reference components are non-null and
- * whose values the domain accepts. A record wire whose declaration says a component, or an element
- * or map key its copy scans, may be null, where the domain's says it may not, is the exception:
- * {@code parse} refuses that null, so the mapping offers no total optic that would hand it over
- * ({@link #readsNullableIntoNonNull}).
+ * or key ({@code emails.1: must not be null}), a null map <em>key</em>, which has nothing to locate
+ * by, is the unlocated {@code must not contain a null key}, and a null inside a key that is itself
+ * a container locates under the key's rendering. What stays the caller-contract {@code
+ * requireNonNull}: a null wire itself. What stays bean-only is the <em>absence</em> contract: only
+ * a bean property is legitimately unset, so only bean guards cost the Iso tier — {@code asIso()} is
+ * truthful for an all-primitive bean, while a lossless record mapping keeps it with the parse-iso
+ * coherence law scoped to wires whose reference components are non-null and whose values the domain
+ * accepts. A record wire whose declaration says a component, or an element or map key its copy
+ * scans, may be null, where the domain's says it may not, is the exception: {@code parse} refuses
+ * that null, so the mapping offers no total optic that would hand it over ({@link
+ * #readsNullableIntoNonNull}).
  *
  * <p>Once every component has parsed, the domain's canonical constructor runs inside a {@link
  * GuardedConstruction guard}: a {@code RuntimeException} it throws (the record's own invariant)
@@ -1466,6 +1467,23 @@ public class MappingProcessor extends AbstractProcessor {
   private static TypeName wildcardWitness(TypeMirror type, String targetPackage) {
     return type.getKind() == TypeKind.DECLARED && hasWildcardArgument((DeclaredType) type)
         ? ProcessorUtils.typeNameOf(type, targetPackage)
+        : null;
+  }
+
+  /**
+   * The key type a lifted map's {@code parseValues} is given where it is called outright, rather
+   * than let a nullness checker infer it: the wire's key, where a type inside it is declared
+   * nullable, which inference would drop, leaving a key type the wire's map then does not fit. The
+   * key's own nullness is left off, since the bulk form's key variable is non-null; a {@code null}
+   * key is reported, never handed on. Null for any other key, and for one naming a type variable,
+   * which the generated class may not have in scope. The key is never a wildcard itself, since the
+   * keys pass through only where both sides declare the same type, which a wildcard is not; a key
+   * holding one, as {@code List<? extends @Nullable String>}, is named as it stands.
+   */
+  private static TypeName keyArgument(TypeMirror wireKey, String targetPackage) {
+    return NullableAnnotations.hasNullableTypeArgument(wireKey)
+            && !ProcessorUtils.namesTypeVariable(wireKey)
+        ? ProcessorUtils.typeNameOf(wireKey, targetPackage).withoutAnnotations()
         : null;
   }
 
@@ -5838,6 +5856,13 @@ public class MappingProcessor extends AbstractProcessor {
       return held == null ? scan : held.valueScan();
     }
 
+    /** Whether the edit parses a map whose keys are scanned around the bulk form. */
+    boolean scansLiftedKeys() {
+      return held == null
+          ? kind == Kind.MAP && scan != null
+          : MappingProcessor.scansLiftedKeys(held);
+    }
+
     /** The copy the edit's value is written through: its own, or its sent value's. */
     ContainerCopy valueCopy() {
       return held == null ? copy : held.valueCopy();
@@ -6044,6 +6069,23 @@ public class MappingProcessor extends AbstractProcessor {
         argument == null
             ? resolved.correspondence()
             : bridgedCorrespondence(resolved.correspondence(), target, implPackage(spec)));
+  }
+
+  /**
+   * The parameter a {@code JsonNullable} holder's edit takes its holder as: declared with the
+   * holder's type where the sent value is a map whose keys pass through holding a nullable type
+   * argument, since a nullness checker types an implicit one without that nullness, which the key
+   * that {@code parseValues} is given ({@link #keyArgument}) would then not fit; implicit
+   * everywhere else.
+   */
+  private static CodeBlock heldParameter(UpdateEdit edit, WireShape wire, String targetPackage) {
+    Correspondence held = edit.held();
+    Correspondence parsed = held.kind() == Kind.OPTIONAL_BRIDGE ? held.present() : held;
+    return parsed.kind() == Kind.MAP && parsed.domainElement() != null
+        ? CodeBlock.of(
+            "($T hkj$$held)",
+            ProcessorUtils.typeNameOf(wireType(wire, held), targetPackage).withoutAnnotations())
+        : CodeBlock.of("hkj$$held");
   }
 
   /**
@@ -6450,7 +6492,7 @@ public class MappingProcessor extends AbstractProcessor {
       body.addStatement(
           "edits.add($T.parseIfPresent($L, $L ? wire : null, _ -> $L).at($S))",
           EDIT,
-          setterExpr(componentsClass, written, c.name()),
+          setterExpr(componentsClass, written, c.name(), null),
           masked(c),
           asComponent(
               legValue(c, wireRead(wire, c.wireName()), guardedRead(c, wire)),
@@ -6997,7 +7039,12 @@ public class MappingProcessor extends AbstractProcessor {
                 componentsLens(domainName, componentsClass, domain, written));
     for (UpdateEdit edit : edits) {
       call.add(",\n");
-      CodeBlock setter = setterExpr(componentsClass, written, edit.domainName());
+      TypeName focus =
+          typedFocus(
+              edit,
+              componentType(domainDeclared, componentNamed(domain, edit.domainName())),
+              implName.packageName());
+      CodeBlock setter = setterExpr(componentsClass, written, edit.domainName(), focus);
       // A present value is written as a copy, so the patched domain shares nothing with the wire;
       // a JsonNullable holder is present once sent, which hkj$sent says, and its value is copied as
       // it parses.
@@ -7007,10 +7054,11 @@ public class MappingProcessor extends AbstractProcessor {
               : ContainerCopy.through(edit.copy(), wireRead(wire, edit.wireName()), SCAN_SCOPE);
       if (edit.held() != null) {
         call.add(
-            "    $T.parseIfPresent($L, $L, hkj$$held -> $L).at($S)",
+            "    $T.parseIfPresent($L, $L, $L -> $L).at($S)",
             EDIT,
             setter,
             read,
+            heldParameter(edit, wire, implName.packageName()),
             asComponent(
                 legValue(
                     edit.held(), CodeBlock.of("hkj$$held.get()"), guardedRead(edit.held(), wire)),
@@ -7023,8 +7071,12 @@ public class MappingProcessor extends AbstractProcessor {
         CodeBlock parser =
             switch (edit.kind()) {
               case OPTIONAL -> elementOfOptionalParser(edit.prism());
-              // An identity edit parses only through its null scan.
-              case IDENTITY -> edit.scan().asFunction(implName, SCAN_SCOPE);
+              // An identity edit parses only through its null scan, in a lambda where its setter
+              // is given the focus, which the lambda then takes as its result.
+              case IDENTITY ->
+                  focus == null
+                      ? edit.scan().asFunction(implName, SCAN_SCOPE)
+                      : edit.scan().asLambda(SCAN_SCOPE);
               // LEAF and the container kinds, through the call the dense leg makes; OPTIONAL_BRIDGE
               // reaches a sparse edit only as a JsonNullable's sent value, which parses above,
               // DERIVED never does, ONEOF is found only on a message, whose update is a
@@ -7114,6 +7166,9 @@ public class MappingProcessor extends AbstractProcessor {
     implBuilder.addMethods(
         NullScan.helpers(
             edits.stream().map(UpdateEdit::valueScan).filter(Objects::nonNull), marks));
+    if (edits.stream().anyMatch(UpdateEdit::scansLiftedKeys)) {
+      implBuilder.addMethod(NullScan.keysScannedHelper(marks));
+    }
     implBuilder.addMethods(
         ContainerCopy.helpers(
             edits.stream().map(UpdateEdit::valueCopy).filter(Objects::nonNull), marks));
@@ -7149,16 +7204,46 @@ public class MappingProcessor extends AbstractProcessor {
    * one component of the sparse update's {@link #componentsRecord Components} record: the getter is
    * the component accessor, and the writer rebuilds the record positionally with the focused slot
    * taken from {@code v}. Type inference fixes the focus type, so no explicit generics are needed
-   * (a wrapper {@code v} auto-unboxes into a primitive slot).
+   * (a wrapper {@code v} auto-unboxes into a primitive slot), except where {@code focus} names it
+   * ({@link #typedFocus}).
    */
   private static CodeBlock setterExpr(
-      ClassName componentsClass, List<String> written, String focusedName) {
-    return CodeBlock.of(
-        "$T.fromGetSet($T::$L, (c, v) -> $L)",
-        SETTER,
-        componentsClass,
-        focusedName,
-        newComponents(componentsClass, written, "c", focusedName));
+      ClassName componentsClass, List<String> written, String focusedName, TypeName focus) {
+    CodeBlock writer = newComponents(componentsClass, written, "c", focusedName);
+    return focus == null
+        ? CodeBlock.of(
+            "$T.fromGetSet($T::$L, (c, v) -> $L)", SETTER, componentsClass, focusedName, writer)
+        : CodeBlock.of(
+            "$T.<$T, $T>fromGetSet($T::$L, (c, v) -> $L)",
+            SETTER,
+            componentsClass,
+            focus,
+            componentsClass,
+            focusedName,
+            writer);
+  }
+
+  /**
+   * The focus type a sparse identity edit's setter is given, where the edit scans an array whose
+   * elements may be null: the array's helper takes its element type from the array it is handed,
+   * and a nullness checker infers the setter's focus without that element's nullness, so the two
+   * would disagree. Given the focus, the scan rides in a lambda, which takes the focus as its
+   * result; a {@code JsonNullable} holder's sent value parses in one already. Null for every other
+   * edit. A sparse update takes no generic domain, so the focus names no type variable.
+   *
+   * @param edit the edit
+   * @param type the focus as the {@link #componentsRecord Components} record declares it
+   * @param targetPackage the package the generated class is written into
+   * @return the focus to name, or null
+   */
+  private static TypeName typedFocus(UpdateEdit edit, TypeMirror type, String targetPackage) {
+    NullScan scan = edit.valueScan();
+    return edit.kind() == Kind.IDENTITY
+            && scan != null
+            && scan.shape() == NullScan.Shape.ARRAY
+            && NullableAnnotations.hasNullableTypeArgument(type)
+        ? ProcessorUtils.typeNameOf(type, targetPackage)
+        : null;
   }
 
   /**
@@ -7860,11 +7945,13 @@ public class MappingProcessor extends AbstractProcessor {
    * present} is the correspondence an {@code OPTIONAL_BRIDGE}'s present value takes, resolved as
    * the same pair unbridged would be; null for every other kind. {@code scan} is the {@link
    * NullScan} the leg's identity-copied part carries: the whole value for {@code IDENTITY}, the
-   * values for {@code MAP_KEYS}; null where that part holds no container. {@code copy} is the
-   * {@link ContainerCopy} the leg reads and writes its value through: the whole value's for {@code
-   * IDENTITY}, and for {@code MAP_KEYS} the map's, when its values copy; null where there is none.
-   * {@code oneof} is the sealed component a {@code ONEOF} correspondence is an arm of; null for
-   * every other kind.
+   * values for {@code MAP_KEYS}, the keys for {@code MAP}; null where that part holds no container.
+   * {@code copy} is the {@link ContainerCopy} the leg reads and writes its value through: the whole
+   * value's for {@code IDENTITY}, and for {@code MAP_KEYS} the map's, when its values copy; null
+   * where there is none. {@code oneof} is the sealed component a {@code ONEOF} correspondence is an
+   * arm of; null for every other kind. {@code domainElement} is a type the leg names rather than
+   * let javac infer ({@link #withDomainElement}): the domain's, except on a {@code MAP}, where it
+   * is the wire's key, which the domain may declare otherwise.
    *
    * <p>{@code built} and {@code builtValues} are what {@code build} calls in place of {@code prism}
    * and {@code valuePrism}: the same prisms, except where a mapping that builds and parses nests a
@@ -7990,9 +8077,11 @@ public class MappingProcessor extends AbstractProcessor {
      * rather than let it be inferred: {@code ARRAY}, because a generic array cannot be created
      * without its constructor ({@code Domain[]::new}); a wildcard-carrying {@code OPTIONAL_BRIDGE},
      * whose {@code Optional} would otherwise close over a capture (see {@link
-     * MappingProcessor#bridgeValue}); and, for the same reason, a scanned {@code MAP_KEYS} whose
-     * value type carries a wildcard, where the element is the value type (see {@link
-     * MappingProcessor#parseCall}). Null wherever inference suffices.
+     * MappingProcessor#bridgeValue}); for the same reason, a scanned {@code MAP_KEYS} whose value
+     * type carries a wildcard, where the element is the value type (see {@link
+     * MappingProcessor#parseCall}); and a {@code MAP} whose keys pass through holding a nullable
+     * type argument, where the element is the key type its {@code parseValues} is given ({@link
+     * MappingProcessor#keyArgument}). Null wherever inference suffices.
      */
     Correspondence withDomainElement(TypeName element) {
       return new Correspondence(
@@ -11651,20 +11740,26 @@ public class MappingProcessor extends AbstractProcessor {
     return switch (leg.kind()) {
       case IDENTITY ->
           reportedNullableCopiedElements(member, arguments, domainSide, wireType, levels, through);
+      // The key leaf converts the keys, so only the values are handed on as they are.
       case MAP_KEYS ->
           reportedNullableKeys(lifted, domainSide, levels)
               || reportedNullablePassedThrough(
                   lifted, domainSide.element(levels, types, elements), levels, false)
               || reportedNullableCopiedElements(
-                  member, arguments, domainSide, wireType, levels, through);
+                  member, arguments, domainSide, wireType, levels.valuesAlone(), through);
       case MAP_ENTRIES ->
           reportedNullableKeys(lifted, domainSide, levels)
               || reportedNullableLifted(
                   lifted, domainSide.element(levels, types, elements), levels);
-      // A lifted map is named exactly, with its arguments, so it always names its key.
+      // A lifted map is named exactly, with its arguments, so it always names its key. A key that
+      // holds containers is handed on as it is, so what it holds is read as a copy's would be. A
+      // protobuf-java map's key is a scalar, which holds none, so no message reaches that check.
       case MAP ->
           reportedNullablePassedThrough(
                   lifted, domainSide.key(levels, types, elements), levels, true)
+              || (levels.keys() != null
+                  && reportedNullableCopiedLevel(
+                      member, arguments, domainSide, wireType, levels.keysAlone(), through, true))
               || reportedNullableLifted(
                   lifted, domainSide.element(levels, types, elements), levels);
       case ELEMENTS, ARRAY ->
@@ -11701,7 +11796,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     reportNullableLiftedParts(
         lifted,
-        NullnessReading.parts(NullnessReading.append(lifted.through(), level.shape())),
+        NullnessReading.parts(NullnessReading.append(lifted.through(), level.shape()), false),
         "converts them through "
             + converter(
                 lifted.member(),
@@ -11854,6 +11949,28 @@ public class MappingProcessor extends AbstractProcessor {
           "Declare the " + parts + " of " + spelt + " non-null, if build never meets a null one.");
       return true;
     }
+    return reportedNullableCopiedLevel(
+        member, arguments, domainSide, wireType, levels, through, false);
+  }
+
+  /**
+   * Refuses a copy into a site of the wire's that rules out a {@code null} the domain declares at a
+   * level {@code levels} reaches, as {@link #reportedNullableCopiedElements} does on a wire that is
+   * no protobuf-java message, and answers whether it did. Where {@code passedKeys}, the copy is the
+   * keys a lifted map passes through beside the values it converts, which {@code levels} reaches
+   * alone ({@link NullScan#keysAlone}).
+   */
+  private boolean reportedNullableCopiedLevel(
+      MemberSite member,
+      Element arguments,
+      Written domainSide,
+      TypeMirror wireType,
+      NullScan levels,
+      List<NullScan.Shape> through,
+      boolean passedKeys) {
+    Types types = processingEnv.getTypeUtils();
+    Elements elements = processingEnv.getElementUtils();
+    String spelt = "'" + member.domain().getSimpleName() + "." + member.name() + "'";
     Optional<CopySite> written = copySite(member, wireType);
     Optional<NullnessReading.Copied> copied =
         written.flatMap(
@@ -11871,8 +11988,10 @@ public class MappingProcessor extends AbstractProcessor {
     NullableLevel level = copied.get().level();
     CopySite site =
         copied.get().toParameter() ? written.get().parameter().orElseThrow() : written.get();
-    List<NullScan.Shape> path = Stream.concat(through.stream(), level.path().stream()).toList();
-    String parts = NullnessReading.parts(path, level.key());
+    List<NullnessReading.Step> path =
+        Stream.concat(NullnessReading.Step.of(through, false).stream(), level.path().stream())
+            .toList();
+    String parts = NullnessReading.parts(path);
     List<NonNullSite> ruling =
         NullnessReading.rulingSites(
             level, site.member(), site.declaration(), site.declaredBy(), member.spec());
@@ -11891,8 +12010,10 @@ public class MappingProcessor extends AbstractProcessor {
             + ", and build copies them to "
             + site.member()
             + ".",
-        "A same-typed component is copied as it is, null "
-            + NullnessReading.parts(List.of(path.getLast()), level.key())
+        (passedKeys
+                ? "A map whose values convert hands its keys on as they are, null "
+                : "A same-typed component is copied as it is, null ")
+            + NullnessReading.parts(List.of(path.getLast()))
             + " included, and "
             + element.declaration()
             + " "
@@ -12558,6 +12679,8 @@ public class MappingProcessor extends AbstractProcessor {
         return PairResolution.of(
             keyLeaf == null
                 ? Correspondence.nesting(name, wireName, Kind.MAP, lifted)
+                    .withIdentity(nullScan(domainKey), null)
+                    .withDomainElement(keyArgument(wireKey, implPackage(spec)))
                 : new Correspondence(
                         name, wireName, Kind.MAP_ENTRIES, leafCall(spec, keyLeaf.getSimpleName()))
                     .withValues(lifted));
@@ -13468,8 +13591,12 @@ public class MappingProcessor extends AbstractProcessor {
     ExecutableElement keyLeaf = findKeyLeaf(spec, name, wireKey, domainKey);
     ExecutableElement valueLeaf = findLeaf(spec, name, wireValue, domainValue);
     if (keyLeaf == null) {
+      // The keys pass through as they are, so they carry the null scan an identity component of
+      // their type would, which the leg runs around the bulk form.
       return valueLeaf != null && processingEnv.getTypeUtils().isSameType(wireKey, domainKey)
           ? new Correspondence(name, wireName, Kind.MAP, leafCall(spec, valueLeaf.getSimpleName()))
+              .withIdentity(nullScan(domainKey), null)
+              .withDomainElement(keyArgument(wireKey, implPackage(spec)))
           : null;
     }
     if (valueLeaf != null) {
@@ -14197,21 +14324,40 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * One {@code ValidatedPrism} call a converting correspondence makes: the prism, the method, and
    * the argument that follows the value in the two-argument bulk forms (an array constructor, or a
-   * {@code Map}'s value prism), null in the one-argument forms. A leg applies the call to a value
-   * it holds ({@link #on}) or hands it on as a function ({@link #asFunction}), and both render from
-   * here, so a bridged leg makes exactly the call its unbridged pair makes, on either tier.
+   * {@code Map}'s value prism), null in the one-argument forms. {@code keys} is the scan a map's
+   * passed-through keys take around its {@code parseValues}, a one-argument form, where they hold
+   * containers ({@link NullScan#aroundParse}); null for every other call. {@code key} is the key
+   * type that {@code parseValues} is given where it is called outright and the keys pass through
+   * holding a nullable type argument ({@link #keyArgument}); null for every other call. A leg
+   * applies the call to a value it holds ({@link #on}) or hands it on as a function ({@link
+   * #asFunction}), and both render from here, so a bridged leg makes exactly the call its unbridged
+   * pair makes, on either tier.
    */
-  private record PrismCall(CodeBlock prism, String method, CodeBlock trailing) {
+  private record PrismCall(
+      CodeBlock prism, String method, CodeBlock trailing, NullScan keys, TypeName key) {
 
-    CodeBlock on(CodeBlock value) {
-      return trailing == null
-          ? CodeBlock.of("$L.$L($L)", prism, method, value)
-          : CodeBlock.of("$L.$L($L, $L)", prism, method, value, trailing);
+    PrismCall(CodeBlock prism, String method, CodeBlock trailing) {
+      this(prism, method, trailing, null, null);
     }
 
-    /** A two-argument form cannot be a bare method reference, so it rides in a lambda. */
+    CodeBlock on(CodeBlock value) {
+      CodeBlock call =
+          trailing != null
+              ? CodeBlock.of("$L.$L($L, $L)", prism, method, value, trailing)
+              : key != null
+                  ? CodeBlock.of("$L.<$T>$L($L)", prism, key, method, value)
+                  : CodeBlock.of("$L.$L($L)", prism, method, value);
+      // The helper takes the bulk form's result as its first argument, so the parse runs first.
+      return keys == null ? call : keys.aroundParse(value, call, SCAN_SCOPE);
+    }
+
+    /**
+     * A two-argument form, or one whose keys are scanned around it, cannot be a bare method
+     * reference, so it rides in a lambda. A method reference needs no key type: a nullness checker
+     * infers it from the map the reference is applied to.
+     */
     CodeBlock asFunction() {
-      return trailing == null
+      return trailing == null && keys == null
           ? CodeBlock.of("$L::$L", prism, method)
           : CodeBlock.of("v -> $L", on(CodeBlock.of("v")));
     }
@@ -14271,7 +14417,7 @@ public class MappingProcessor extends AbstractProcessor {
     return switch (kind) {
       case ELEMENTS -> new PrismCall(prism, "parseAll", null);
       case ARRAY -> new PrismCall(prism, "parseAll", arrayConstructor(domainElement));
-      case MAP -> new PrismCall(prism, "parseValues", null);
+      case MAP -> new PrismCall(prism, "parseValues", null, scan, domainElement);
       case MAP_KEYS ->
           scan == null
               ? new PrismCall(prism, "parseKeys", null)
@@ -14594,6 +14740,16 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Whether a leg parses a map whose keys pass through as they are and hold containers, so it scans
+   * them around the bulk form ({@link NullScan#aroundParse}): its own value, or a bridge's present
+   * one.
+   */
+  private static boolean scansLiftedKeys(Correspondence c) {
+    Correspondence parsed = c.kind() == Kind.OPTIONAL_BRIDGE ? c.present() : c;
+    return parsed.kind() == Kind.MAP && parsed.scan() != null;
+  }
+
+  /**
    * Whether a leg parses an absent value as an empty {@code Optional} through the {@code
    * hkj$parsePresent} guard: a lifted {@code Optional}, and a bridge whose present value parses.
    */
@@ -14632,8 +14788,8 @@ public class MappingProcessor extends AbstractProcessor {
    * reads the domain's for {@code build}, where the domain's is declared non-null, read as that
    * check reads its write site ({@link NullnessReading#nonNullComponent}). Or an element, at a
    * level the copy's null scan reaches ({@link NullScan}), may be declared nullable where the
-   * domain's element at that level rules a null out, and so may a map's key at its level, which
-   * {@code parse} reports too, though the scan does not look inside it ({@link
+   * domain's element at that level rules a null out, and so may a map's key at its level, or an
+   * element inside a key that is itself a container, which {@code parse} reports too ({@link
    * NullnessReading#copiedInto}).
    *
    * <p>Each type is read as the record declares it and as it is instantiated ({@link Written}):
@@ -14699,7 +14855,9 @@ public class MappingProcessor extends AbstractProcessor {
    * overload resolution — which is why the collision sweep needs no reservation for it. Shared with
    * {@link MergeProcessor}, whose fallible merge legs carry the same guard, like {@link
    * #scanRegistry}. It takes the read declared {@code @Nullable}, where the marks are written,
-   * since a null is what it guards against.
+   * since a null is what it guards against, and hands {@code parse} only a present value, which the
+   * function takes declared {@code @NonNull}: a checker then reads it as present even where it
+   * infers the read's own type as nullable, as from a {@code JsonNullable<@Nullable Map<...>>}.
    */
   static MethodSpec ifPresentHelper(NullnessMarks marks) {
     TypeVariableName s = TypeVariableName.get("S");
@@ -14709,7 +14867,7 @@ public class MappingProcessor extends AbstractProcessor {
     TypeName parseFn =
         ParameterizedTypeName.get(
             ClassName.get("java.util.function", "Function"),
-            WildcardTypeName.supertypeOf(s),
+            WildcardTypeName.supertypeOf(marks.nonNull(s)),
             validatedOfA);
     return MethodSpec.methodBuilder("hkj$ifPresent")
         .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
@@ -14735,8 +14893,8 @@ public class MappingProcessor extends AbstractProcessor {
    * parses in the {@code Optional} itself, so a leg that names the {@code Optional}'s argument
    * names it there. Unlike a chain over {@code Optional}, whose {@code orElseGet} a nullness
    * checker given the JDK's JSpecify models reads as nullable, it says what it does with a {@code
-   * null}: it takes the read declared {@code @Nullable}, where the marks are written, as {@link
-   * #ifPresentHelper} does.
+   * null}: it takes the read declared {@code @Nullable}, where the marks are written, and hands
+   * {@code parse} a present value declared {@code @NonNull}, as {@link #ifPresentHelper} does.
    */
   private static MethodSpec parsePresentHelper(NullnessMarks marks) {
     TypeVariableName s = TypeVariableName.get("S");
@@ -14750,7 +14908,7 @@ public class MappingProcessor extends AbstractProcessor {
     TypeName parseFn =
         ParameterizedTypeName.get(
             ClassName.get("java.util.function", "Function"),
-            WildcardTypeName.supertypeOf(s),
+            WildcardTypeName.supertypeOf(marks.nonNull(s)),
             validatedOfOptional);
     return MethodSpec.methodBuilder("hkj$parsePresent")
         .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
@@ -15193,6 +15351,9 @@ public class MappingProcessor extends AbstractProcessor {
     implBuilder.addMethods(
         NullScan.helpers(
             comps.stream().map(Correspondence::valueScan).filter(Objects::nonNull), marks));
+    if (comps.stream().anyMatch(MappingProcessor::scansLiftedKeys)) {
+      implBuilder.addMethod(NullScan.keysScannedHelper(marks));
+    }
     implBuilder.addMethod(GuardedConstruction.helper());
     implBuilder.addMethods(oneofParsers(comps, wire));
     implBuilder.addMethods(copyHelpers(comps, marks));
@@ -15334,15 +15495,37 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The type a terminal's parameter would declare {@code c}'s component with, and whether its leg's
    * value holds it truthfully: a copy unless it can be typed as the component neither as it stands
-   * nor by a cast, and a converted value only where the type carries no nullable type argument.
+   * nor by a cast, and a converted value only where the type carries no nullable type argument, or,
+   * for a map whose keys pass through, also where the keys declare the wire's nullness and the
+   * values carry no nullable type argument.
    */
   private static GuardedConstruction.LegType legType(
       Types types, WireShape wire, TypeElement domain, Correspondence c) {
     TypeMirror type = takenType(types, c, domain);
     TypeMirror copied = held(c, type);
-    return copied == null
+    if (copied != null) {
+      return GuardedConstruction.LegType.copied(type, c.valueCopy(), wireType(wire, c), copied);
+    }
+    DeclaredType[] keyed = passedThroughMaps(c, type, wireType(wire, c));
+    return keyed == null
         ? GuardedConstruction.LegType.converted(type)
-        : GuardedConstruction.LegType.copied(type, c.valueCopy(), wireType(wire, c), copied);
+        : GuardedConstruction.LegType.keysPassedThrough(type, keyed[0], keyed[1]);
+  }
+
+  /**
+   * The (wire, domain) maps of a leg whose keys pass through as they are while a leaf or a nested
+   * spec converts its values: a {@code MAP} leg, or a bridge whose present value is one, over an
+   * {@code Optional} that names the map outright, rather than through a wildcard or a type
+   * variable. Null for every other leg.
+   */
+  private static DeclaredType[] passedThroughMaps(
+      Correspondence c, TypeMirror type, TypeMirror wireType) {
+    boolean bridged = c.kind() == Kind.OPTIONAL_BRIDGE;
+    if ((bridged ? c.present() : c).kind() != Kind.MAP) {
+      return null;
+    }
+    DeclaredType domainMap = asMapType(bridged ? optionalArgument(type) : type);
+    return domainMap == null ? null : new DeclaredType[] {asMapType(wireType), domainMap};
   }
 
   /** The type the wire declares {@code c}'s component with. */

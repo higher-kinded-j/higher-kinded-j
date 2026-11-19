@@ -26,6 +26,7 @@ import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.edit.Edit;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -111,7 +112,7 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
    */
   private static <S, A> Validated<NonEmptyList<FieldError>, Optional<A>> hkj$parsePresent(
       @Nullable S value,
-      Function<? super S, Validated<NonEmptyList<FieldError>, Optional<A>>> parse) {
+      Function<? super @NonNull S, Validated<NonEmptyList<FieldError>, Optional<A>>> parse) {
     return value == null ? Validated.validNel(Optional.empty()) : parse.apply(value);
   }
 

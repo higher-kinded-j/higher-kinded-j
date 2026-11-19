@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -90,7 +91,7 @@ public final class WideProfileMappingImpl implements WideProfileMapping {
    * Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the value is parsed.
    */
   private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
-      Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
+      Function<? super @NonNull S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
   }
 

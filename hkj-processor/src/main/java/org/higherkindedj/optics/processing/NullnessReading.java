@@ -537,21 +537,43 @@ final class NullnessReading {
   }
 
   /**
-   * Where a copy hands on a {@code null} its target rules out: the levels walked to reach it,
-   * whether it is the last level's map {@code key}, not its elements, the source's and the target's
+   * One level a walk passes: its container's shape, and, at a map, whether the walk goes on into
+   * its {@code key}s rather than its values. A key that is itself a container is walked as a value
+   * is, so a path can pass through keys at any depth: the keys' elements of a {@code
+   * Map<List<String>, V>}.
+   */
+  record Step(NullScan.Shape shape, boolean key) {
+
+    /**
+     * The steps of a path that passes through elements and values only, its last at {@code key}.
+     */
+    static List<Step> of(List<NullScan.Shape> shapes, boolean key) {
+      return IntStream.range(0, shapes.size())
+          .mapToObj(i -> new Step(shapes.get(i), key && i == shapes.size() - 1))
+          .toList();
+    }
+  }
+
+  /**
+   * Where a copy hands on a {@code null} its target rules out: the levels walked to reach it, the
+   * last of them a map's keys where the null is a key ({@link #key}), the source's and the target's
    * element or key there, and how many of those levels lie above the target's type argument, where
    * its type argument is what counts ({@code within}): the levels below it are inside the argument.
    * Empty {@code within} where the target's declaration counts.
    */
-  record NullableLevel(
-      List<NullScan.Shape> path, boolean key, Written from, Written to, OptionalInt within) {
+  record NullableLevel(List<Step> path, Written from, Written to, OptionalInt within) {
 
     NullableLevel {
       path = List.copyOf(path);
     }
 
+    /** Whether the null is a map's key, not an element or a value. */
+    boolean key() {
+      return path.getLast().key();
+    }
+
     /** The levels walked inside the target's type argument. */
-    private List<NullScan.Shape> inArgument() {
+    private List<Step> inArgument() {
       return path.subList(within.orElseThrow(), path.size());
     }
   }
@@ -563,7 +585,9 @@ final class NullnessReading {
    * plain merge from its sources into the target, through {@link #copiedInto}, and {@code parse}
    * from the wire into the domain, through {@link #ruledOutIn}. Each side reads its own type
    * arguments where they are written. A raw container names no element type, so it says nothing
-   * either way, and an {@code Optional} cannot hold a null, so its own level counts for nothing.
+   * either way, and an {@code Optional} cannot hold a null, so its own level counts for nothing. A
+   * map's key that is itself a container is walked into before its values, as {@link NullScan}
+   * scans it, since a copy hands it on as it is.
    */
   private static Optional<NullableLevel> nullableLevel(
       Written from, Written to, NullScan levels, Types types, Elements elements) {
@@ -581,24 +605,62 @@ final class NullnessReading {
       Predicate<NullableLevel> excused,
       Types types,
       Elements elements) {
-    List<NullScan.Shape> path = new ArrayList<>();
-    Written source = from;
-    Written target = to;
     // Below a type variable, the levels are its argument's.
     OptionalInt within = to.namesNoLevels() ? OptionalInt.of(0) : OptionalInt.empty();
+    return nullableLevel(List.of(), from, to, levels, within, excused, types, elements);
+  }
+
+  /**
+   * {@link #nullableLevel(Written, Written, NullScan, Predicate, Types, Elements)} below the levels
+   * {@code above}, which a map's keys are walked under.
+   */
+  private static Optional<NullableLevel> nullableLevel(
+      List<Step> above,
+      Written from,
+      Written to,
+      NullScan levels,
+      OptionalInt within,
+      Predicate<NullableLevel> excused,
+      Types types,
+      Elements elements) {
+    List<Step> path = new ArrayList<>(above);
+    Written source = from;
+    Written target = to;
+    OptionalInt argument = within;
     for (NullScan level = levels; level != null; level = level.inner()) {
-      path.add(level.shape());
       // A map's keys are read at its own level, before the sides move on to its values. javac
       // takes Map<?, V> and Map<? extends Object, V> for one type, so one side may name a key
       // the other does not: a key a side does not name says nothing either way.
       Written sourceKey = source.key(level, types, elements);
       Written targetKey = target.key(level, types, elements);
-      if (sourceKey != null && targetKey != null && sourceKey.nullable() && targetKey.nonNull()) {
-        NullableLevel found = levelAt(path, true, sourceKey, targetKey, within);
-        if (!excused.test(found)) {
-          return Optional.of(found);
+      if (sourceKey != null && targetKey != null) {
+        List<Step> toKeys = append(path, new Step(level.shape(), true));
+        if (sourceKey.nullable() && targetKey.nonNull()) {
+          NullableLevel found = levelAt(toKeys, sourceKey, targetKey, argument);
+          if (!excused.test(found)) {
+            return Optional.of(found);
+          }
+        }
+        // A key that holds containers is copied as it is too, so its levels are walked as well.
+        Optional<NullableLevel> inside =
+            level.keys() == null
+                ? Optional.empty()
+                : nullableLevel(
+                    toKeys,
+                    sourceKey,
+                    targetKey,
+                    level.keys(),
+                    argument.isEmpty() && targetKey.namesNoLevels()
+                        ? OptionalInt.of(toKeys.size())
+                        : argument,
+                    excused,
+                    types,
+                    elements);
+        if (inside.isPresent()) {
+          return inside;
         }
       }
+      path.add(new Step(level.shape(), false));
       source = source.element(level, types, elements);
       target = target.element(level, types, elements);
       // A raw container names no element type, so it says nothing either way, and holds no level
@@ -607,13 +669,13 @@ final class NullnessReading {
         break;
       }
       if (level.shape() != NullScan.Shape.OPTIONAL && source.nullable() && target.nonNull()) {
-        NullableLevel found = levelAt(path, false, source, target, within);
+        NullableLevel found = levelAt(path, source, target, argument);
         if (!excused.test(found)) {
           return Optional.of(found);
         }
       }
-      if (within.isEmpty() && target.namesNoLevels()) {
-        within = OptionalInt.of(path.size());
+      if (argument.isEmpty() && target.namesNoLevels()) {
+        argument = OptionalInt.of(path.size());
       }
     }
     return Optional.empty();
@@ -624,11 +686,11 @@ final class NullnessReading {
    * inside one {@code within} levels down, and counts as its argument says.
    */
   private static NullableLevel levelAt(
-      List<NullScan.Shape> path, boolean key, Written source, Written target, OptionalInt within) {
+      List<Step> path, Written source, Written target, OptionalInt within) {
     OptionalInt argument =
         within.isEmpty() && target.namesNoLevels() ? OptionalInt.of(path.size()) : within;
     return new NullableLevel(
-        path, key, source, target, target.fromArgument() ? argument : OptionalInt.empty());
+        path, source, target, target.fromArgument() ? argument : OptionalInt.empty());
   }
 
   /**
@@ -689,22 +751,25 @@ final class NullnessReading {
             .isPresent();
   }
 
-  /** {@code type} at the level {@code level} reached, its element or its key, or empty. */
+  /**
+   * {@code type} at the level {@code level} reached, its element or its key, or empty, following
+   * the keys or the values at each map the path passes, as the walk did.
+   */
   private static Optional<Written> reached(
       Written type, NullScan levels, NullableLevel level, Types types, Elements elements) {
     Optional<Written> reached = Optional.of(type);
     NullScan scan = levels;
-    for (int depth = 1; depth < level.path().size(); depth++) {
+    for (Step step : level.path()) {
       NullScan at = scan;
-      reached = reached.map(written -> written.element(at, types, elements));
-      scan = scan.inner();
+      reached =
+          reached.map(
+              written ->
+                  step.key()
+                      ? written.key(at, types, elements)
+                      : written.element(at, types, elements));
+      scan = step.key() ? scan.keys() : scan.inner();
     }
-    NullScan last = scan;
-    return reached.map(
-        written ->
-            level.key()
-                ? written.key(last, types, elements)
-                : written.element(last, types, elements));
+    return reached;
   }
 
   /**
@@ -720,12 +785,12 @@ final class NullnessReading {
       String declaration,
       TypeElement declaredBy,
       TypeElement spec) {
-    String what = typeOf(level.path().getLast(), level.key());
+    String what = typeOf(level.path().getLast());
     Written to = level.to();
     Optional<NullableAnnotations.NonNullReason> reason = to.nonNullReason();
     NonNullSite asWritten;
     if (level.within().isPresent()) {
-      List<NullScan.Shape> inArgument = level.inArgument();
+      List<Step> inArgument = level.inArgument();
       String type = ProcessorUtils.simpleTypeName(to.counted());
       String named =
           switch (inArgument.size()) {
@@ -737,7 +802,7 @@ final class NullnessReading {
                     + " "
                     + type
                     + " at the "
-                    + parts(inArgument, level.key())
+                    + parts(inArgument)
                     + " of the type argument";
           };
       asWritten =
@@ -756,9 +821,7 @@ final class NullnessReading {
                   + what
                   + " "
                   + type
-                  + (level.path().size() == 1
-                      ? " in "
-                      : " at the " + parts(level.path(), level.key()) + " of ")
+                  + (level.path().size() == 1 ? " in " : " at the " + parts(level.path()) + " of ")
                   + declaration,
               to.declared(),
               declaredBy,
@@ -840,8 +903,8 @@ final class NullnessReading {
         .map(
             copied ->
                 new NullableElement(
-                    parts(copied.level().path(), copied.level().key()),
-                    parts(List.of(copied.level().path().getLast()), copied.level().key()),
+                    parts(copied.level().path()),
+                    parts(List.of(copied.level().path().getLast())),
                     copied.level().key(),
                     rulingSites(
                             copied.level(),
@@ -1094,28 +1157,25 @@ final class NullnessReading {
         : List.of();
   }
 
-  /** {@code path} with {@code shape} after it. */
-  static List<NullScan.Shape> append(List<NullScan.Shape> path, NullScan.Shape shape) {
-    return Stream.concat(path.stream(), Stream.of(shape)).toList();
+  /** {@code path} with {@code last} after it. */
+  static <T> List<T> append(List<T> path, T last) {
+    return Stream.concat(path.stream(), Stream.of(last)).toList();
   }
 
   /**
    * The parts of a container a level path reaches, as a refusal names them: {@code elements},
-   * {@code values' elements}, {@code value's elements}. An array's and a collection's are its
-   * elements, a {@code Map}'s its values, and an {@code Optional}'s its one value.
+   * {@code values' elements}, {@code value's elements}, {@code keys' elements}. An array's and a
+   * collection's are its elements, a {@code Map}'s its values, or its keys where the step goes into
+   * them, and an {@code Optional}'s its one value.
    */
-  static String parts(List<NullScan.Shape> path) {
-    return parts(path, false);
-  }
-
-  /** {@link #parts(List)}, naming the last level's map keys where {@code key}, not its values. */
-  static String parts(List<NullScan.Shape> path, boolean key) {
+  static String parts(List<Step> path) {
     StringJoiner parts = new StringJoiner(" ");
     for (int i = 0; i < path.size(); i++) {
       boolean last = i == path.size() - 1;
+      Step step = path.get(i);
       parts.add(
-          switch (path.get(i)) {
-            case MAP -> last ? (key ? "keys" : "values") : "values'";
+          switch (step.shape()) {
+            case MAP -> (step.key() ? "keys" : "values") + (last ? "" : "'");
             case OPTIONAL -> "value's";
             case COLLECTION, ARRAY -> last ? "elements" : "elements'";
           });
@@ -1124,10 +1184,20 @@ final class NullnessReading {
   }
 
   /**
-   * What a level's parts are typed by, as a fix names it: a {@code Map}'s key type, where {@code
-   * key}, or its value type, or else the element type.
+   * {@link #parts(List)} for a path through elements and values only, naming the last level's map
+   * keys where {@code key}, not its values.
    */
-  private static String typeOf(NullScan.Shape shape, boolean key) {
-    return key ? "key type" : shape == NullScan.Shape.MAP ? "value type" : "element type";
+  static String parts(List<NullScan.Shape> shapes, boolean key) {
+    return parts(Step.of(shapes, key));
+  }
+
+  /**
+   * What a level's parts are typed by, as a fix names it: a {@code Map}'s key type, where the step
+   * goes into its keys, or its value type, or else the element type.
+   */
+  private static String typeOf(Step step) {
+    return step.key()
+        ? "key type"
+        : step.shape() == NullScan.Shape.MAP ? "value type" : "element type";
   }
 }

@@ -479,16 +479,22 @@ matter: it maps build-only whatever its width, derived fields included.
   `Map<String, List<String>>`), an `Optional` holding a container included, and however it is
   declared: any `Collection` or `Map` subtype or supertype (`ArrayList`, `Collection`,
   `LinkedHashMap`), raw, wildcard-argument, or a type variable bounded by one. A `@MapKey` map's
-  copied values are scanned too. A class that
-  fixes its own element (`class Bundle extends ArrayList<Bundle>`) is scanned one level into itself.
+  copied values are scanned too, and so is a key that is itself a container, whether the map copies
+  or its values convert: a failure inside it locates under the key's rendering
+  (`byPath.[a, null].1` in a `Map<List<String>, String>`), a path the value under that key can
+  share. A copied map reports in entry order, each key before its value; a map whose values a leaf
+  converts reports every key's failures before the values', so an order-sensitive assertion such
+  as `hasFieldErrors` lists them so. A key is never copied: both sides hold the same key object.
+  A class that fixes its own element (`class Bundle extends ArrayList<Bundle>`) is scanned one
+  level into itself.
   `Iterable`, `Stream`, `Maybe` and `NonEmptyList` are not looked inside yet. A primitive array
   carries no element scan. What stays the caller's `NullPointerException`: a null *wire* itself. A
   null container *component* is guarded like any reference read
   (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
   list/map is the caller's error. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
   parse-iso coherence scoped to non-null wires the domain accepts), unless its wire declares
-  `@Nullable` what the domain declares non-null, a map's key (`Map<@Nullable String, V>`)
-  included; a bean's guarded reads still cost the Iso tier,
+  `@Nullable` what the domain declares non-null, a map's key (`Map<@Nullable String, V>`) or
+  what a key holds (`Map<List<@Nullable String>, V>`) included; a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
   merge stays total by its declaration).
@@ -556,9 +562,12 @@ matter: it maps build-only whatever its width, derived fields included.
   String>`). NullAway still reports any component of a generic record, an array of arrays, a
   generic spec (or a generic mix-in's leaf whose wire type names its type variable) lifted over
   nullable elements, a leg that widens and narrows at once, a narrowing
-  leg in a record of more than 16 components or in a `@MapKey` map's copied values, and a
-  container handed over as it is (an `ArrayList`) whose nullness differs; no declaration clears
-  the first five yet.
+  leg in a record of more than 16 components or in a `@MapKey` map's copied values, a
+  component a leaf or spec converts whose domain type holds a `@Nullable` inside it (a
+  `List<@Nullable String>` from a leaf; a key both sides declare alike passes), and a
+  container handed over as it is (an `ArrayList`), or a map key, whose nullness differs,
+  though where the domain narrows a key, `parse`'s leg may pass; no declaration clears the
+  first six yet.
 - **A `@Nullable` component is not handed to anything that throws on it.** The processor refuses
   one that a leaf, a nested spec or a lifted container converts (a `@MapKey` map included), a
   lifted or bridged `Optional`, a flattened record or a oneof's sealed component, and one copied
@@ -572,17 +581,17 @@ matter: it maps build-only whatever its width, derived fields included.
   is copied as before, since it keeps no `@Singular`. The processor refuses a lifted container's
   `@Nullable` elements, a lifted map's keys, or a key or value a lifted map passes through, the
   same way. It also refuses `@Nullable` elements a copy hands to a site whose elements are
-  non-null (`List<@Nullable String>` into `List<String>`, a map's values or keys, an array's
-  elements, every level a copy reaches), for `build` and a plain merge: give both sides one
-  nullness. A type argument declared `@Nullable` (`One<@Nullable String>`) is refused where a
+  non-null (`List<@Nullable String>` into `List<String>`, a map's values or keys, what a key that
+  is a container holds, an array's elements, every level a copy reaches), for `build` and a plain
+  merge: give both sides one nullness. A type argument declared `@Nullable` (`One<@Nullable String>`) is refused where a
   nested spec takes it non-null (over `One<String>`, a use annotated `@NonNull`, a type variable
   whose bound rules it out, or one its leaf converts), or builds it `@Nullable` into a wire site
   declared non-null.
 - **A `@Nullable` record wire component costs the optics where the domain says non-null.** Where
   a record wire declares a component `@Nullable`, or an element type that `parse`'s null scan
-  reaches (`List<@Nullable String>`, a map's values or keys, an array's elements, a wildcard's
-  bound), and the domain declares its own non-null, `parse` refuses the `null` and no total optic
-  can hand it over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not
+  reaches (`List<@Nullable String>`, a map's values or keys, what a key holds, an array's
+  elements, a wildcard's bound), and the domain declares its own non-null, `parse` refuses the
+  `null` and no total optic can hand it over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not
   `asLens()`. A type argument counts where an unannotated type variable leaves the nullness to it
   (`Page<@Nullable String>` for `Page<T extends @Nullable Object>`), and an annotated use
   (`@NonNull T`) decides alone for the value itself. What any type variable holds, annotated or
