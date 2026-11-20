@@ -1621,6 +1621,10 @@ public final class ProcessorUtils {
   /**
    * One naming walk: the supertype clauses a variable may be bound through, and which annotations
    * the file being written can carry.
+   *
+   * <p>hkj-spring's client processor keeps a copy of this walk and of the {@code typeNameOf} forms
+   * that name a type for a target package, in its {@code TypeNames}; a change here belongs there
+   * too.
    */
   private record Naming(
       Map<Element, TypeMirror> clauses, Predicate<? super AnnotationMirror> writable) {

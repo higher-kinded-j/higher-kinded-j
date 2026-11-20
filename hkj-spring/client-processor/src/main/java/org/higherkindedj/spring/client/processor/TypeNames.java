@@ -43,13 +43,16 @@ import javax.lang.model.util.Types;
  * {@code @Nullable} does not leave the contract unstated - it states the opposite of what the
  * author wrote, on a facade that is meant to mirror their interface exactly.
  *
- * <p>This is a copy of the {@code typeNameOf} forms in {@code hkj-processor}'s {@code
+ * <p>Both {@code typeNameOf} forms are copies of the ones in {@code hkj-processor}'s {@code
  * ProcessorUtils} that name a type for a known package, kept rather than shared. Sharing would mean
  * depending on that module, which is an annotation processor: it would join this one on the
- * consumer's processor path and generate optics they never asked for. The copies are small, and the
- * walk they perform is javapoet's own; if one changes, the other should. Both forms are needed: a
- * client restates each method as a member of the client interface, read under the type arguments
- * the client gives the interfaces it extends, and that reading drops what the plain form keeps.
+ * consumer's processor path and generate optics they never asked for. The walk they perform is
+ * javapoet's own; if one copy changes, the other should, and {@code ProcessorUtils} points back
+ * here. Both forms are needed: a client restates each method as a member of the client interface,
+ * read under the type arguments the client gives the interfaces it extends, and that reading drops
+ * what the plain form keeps. The member form of {@link #typeVariableOf(TypeVariable,
+ * TypeParameterElement, DeclaredType, String)} has no counterpart there: it is the loop {@code
+ * PathProcessor} writes a bridge's type parameters with.
  */
 final class TypeNames {
 
@@ -360,16 +363,18 @@ final class TypeNames {
             ? ((IntersectionType) upperBound).getBounds()
             : List.of(upperBound);
     List<? extends TypeMirror> declaredBounds = declared.getBounds();
-    // The two line up bound for bound, as substitution keeps the declaration's bounds in order.
-    // Should they ever not, each bound is named from itself, as the plain form names one.
-    boolean paired = declaredBounds.size() == bounds.size();
+    // Substitution keeps the declaration's bounds in order, but javac rebuilds an intersection of
+    // interfaces alone with Object in front, so the two are paired from the end. A bound with no
+    // counterpart is that Object, named from itself, which javapoet leaves off the declaration.
+    int offset = bounds.size() - declaredBounds.size();
     Naming naming = new Naming(clausesOf(owner), targetPackage);
     TypeName[] names =
         IntStream.range(0, bounds.size())
             .mapToObj(
                 index ->
                     naming.name(
-                        bounds.get(index), paired ? declaredBounds.get(index) : bounds.get(index)))
+                        bounds.get(index),
+                        index >= offset ? declaredBounds.get(index - offset) : bounds.get(index)))
             .toArray(TypeName[]::new);
     return TypeVariableName.get(declared.getSimpleName().toString(), names);
   }
