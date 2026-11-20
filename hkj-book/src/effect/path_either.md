@@ -10,6 +10,7 @@ right, as the mnemonic goes.)
 - Bifunctor operations
 - Extraction patterns
 - Railway-aware resilience with the static step combinators (`withRetry`, `withTimeout`, `withCircuitBreaker`, `withBulkhead`)
+- When to lift an `Either` to an `EitherPath`, and how to take it back
 - When to use (and when not to)
 ~~~
 
@@ -179,6 +180,25 @@ pipeline.via(order ->
 ```
 
 `withRetry(step, policy)` (without the predicate) retries thrown exceptions only: the pure railway default. Do not wrap non-idempotent steps (a payment) in retry: the whole supplier is re-invoked. See [Resilience Patterns](../resilience/ch_intro.md) for the full treatment, including the per-carrier availability table.
+
+---
+
+## Either or EitherPath {#either-or-eitherpath}
+
+An `Either` holds a result. Return it from a method, store it, or pass it on. To run steps along it, lift it to an `EitherPath` with `Path.either`, chain the steps, and take the `Either` back with `run()`:
+
+<!-- verify -->
+```java
+Either<String, Config> loaded = loadConfig();
+
+Either<String, Config> checked = Path.either(loaded)
+    .peek(config -> System.out.println("loaded " + config.name()))
+    .ensure(config -> !config.name().isBlank(), config -> "config has no name")
+    .peekLeft(error -> System.out.println("no config: " + error))
+    .run();
+```
+
+`Either`'s own `ifRight` and `ifLeft` return nothing, so a chain ends at them. `peek` and `peekLeft` run the same action and hand the path on.
 
 ---
 

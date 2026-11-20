@@ -120,6 +120,8 @@ A `Right` and a `Left` always hold a value. `Either.right(null)`, `Either.left(n
 
 A `Maybe` becomes an `Either` with `toEither(error)`, a `Validated` with `toEither()`, and an `Optional` with `Either.fromOptional(optional, error)`.
 
+`ifLeft` and `ifRight` return nothing, so a chain ends at them. To run an action and carry on, lift the `Either` to an `EitherPath`, as [Either or EitherPath](../effect/path_either.md#either-or-eitherpath) shows.
+
 ## Working with Kind {#working-with-kind}
 
 Generic code, written once for any container, takes `Either` through its `MonadError` instance, as [MonadError](../functional/monad_error.md) shows. The instance works over `Kind<EitherKind.Witness<L>, R>`, so you widen an `Either` to pass it in, and narrow the result to read it. These are the extra imports:
