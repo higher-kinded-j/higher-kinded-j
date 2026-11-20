@@ -29,7 +29,9 @@ import org.junit.jupiter.api.Test;
  * type only a container's declaration names, the fallible merge, the sparse {@code UpdateSpec}
  * tier, a mapping wider than one {@code fields()} ladder, and a flattened group. Each locates a
  * null at its full path, however deep. A map's null key, which has no rendering to locate by, is
- * reported unlocated under the map, at any depth, and the value under it is not scanned.
+ * reported unlocated under the map, at any depth, and the value under it is not scanned. A key that
+ * is itself a container is scanned as a value is, its failures located under its rendering, whether
+ * the map is copied or passes its keys through beside the values a leaf or spec converts.
  *
  * <p>Every fixture compiles in one javac run, under {@code -Xlint:all -Werror}, which also holds
  * every emitted scan helper and every call to one clean. Each case calls one static method of the
@@ -61,6 +63,7 @@ class NullScanTest {
                     import java.util.ArrayList;
                     import java.util.Deque;
                     import java.util.EnumMap;
+                    import java.util.HashMap;
                     import java.util.LinkedHashMap;
                     import java.util.List;
                     import java.util.Map;
@@ -318,6 +321,131 @@ class NullScanTest {
                       @GenerateMapping
                       public interface WideMapping extends MappingSpec<Wide, WideDto> {}
 
+                      // Keys that are themselves containers, scanned as values are.
+                      public static class Index extends HashMap<Index, String> {
+                        private static final long serialVersionUID = 1L;
+                      }
+
+                      // A raw key only the map's own declaration names, which the key scan infers.
+                      @SuppressWarnings("rawtypes")
+                      public static class RawIndex extends HashMap<List, String> {
+                        private static final long serialVersionUID = 1L;
+                      }
+
+                      public record Paths(
+                          Map<List<String>, String> byPath,
+                          Map<List<String>, List<String>> both,
+                          List<Map<Set<String>, String>> rows,
+                          Map<String[], String> arrays,
+                          Map<Optional<List<String>>, String> optionals,
+                          Index index,
+                          RawIndex rawIndex) {}
+
+                      public record PathsDto(
+                          Map<List<String>, String> byPath,
+                          Map<List<String>, List<String>> both,
+                          List<Map<Set<String>, String>> rows,
+                          Map<String[], String> arrays,
+                          Map<Optional<List<String>>, String> optionals,
+                          Index index,
+                          RawIndex rawIndex) {}
+
+                      @GenerateMapping
+                      public interface PathsMapping extends MappingSpec<Paths, PathsDto> {}
+
+                      static ValidatedPrism<String, Key> checked() {
+                        return ValidatedPrism.of(
+                            raw ->
+                                raw.equals("bad")
+                                    ? Validated.invalidNel(FieldError.of("not a key"))
+                                    : Validated.validNel(new Key(raw)),
+                            Key::value);
+                      }
+
+                      public record Item(String name) {}
+
+                      public record ItemDto(String name) {}
+
+                      @GenerateMapping
+                      public interface ItemMapping extends MappingSpec<Item, ItemDto> {}
+
+                      public record Coded(
+                          Map<List<String>, Key> byPath,
+                          Optional<Map<List<String>, Key>> bridged,
+                          Map<List<String>, Item> items,
+                          Map<Key, Map<List<String>, String>> nested) {}
+
+                      public record CodedDto(
+                          Map<List<String>, String> byPath,
+                          Map<List<String>, String> bridged,
+                          Map<List<String>, ItemDto> items,
+                          Map<String, Map<List<String>, String>> nested) {}
+
+                      @GenerateMapping
+                      public interface CodedMapping extends MappingSpec<Coded, CodedDto> {
+                        default ValidatedPrism<String, Key> byPath() {
+                          return checked();
+                        }
+
+                        @OptionalBridge
+                        default ValidatedPrism<String, Key> bridged() {
+                          return checked();
+                        }
+
+                        @MapKey("nested")
+                        default ValidatedPrism<String, Key> nestedKey() {
+                          return key();
+                        }
+                      }
+
+                      public record PathSource(Map<List<String>, String> byPath) {}
+
+                      public record PathNote(String note) {}
+
+                      public record Pathed(Map<List<String>, String> byPath, String note) {}
+
+                      @GenerateMerge
+                      public interface PathedAssembly {
+                        Validated<NonEmptyList<FieldError>, Pathed> merge(
+                            PathSource source, PathNote note);
+
+                        default ValidatedPrism<String, String> note() {
+                          return ValidatedPrism.of(Validated::validNel, note -> note);
+                        }
+                      }
+
+                      public record Racked(Map<List<String>, String> byPath, Map<List<String>, Key> coded) {}
+
+                      public static class RackPatch {
+                        private Map<List<String>, String> byPath;
+                        private Map<List<String>, String> coded;
+
+                        public Map<List<String>, String> getByPath() { return byPath; }
+                        public void setByPath(Map<List<String>, String> byPath) { this.byPath = byPath; }
+                        public Map<List<String>, String> getCoded() { return coded; }
+                        public void setCoded(Map<List<String>, String> coded) { this.coded = coded; }
+                      }
+
+                      @GenerateMapping
+                      public interface RackPatchMapping extends UpdateSpec<Racked, RackPatch> {
+                        default ValidatedPrism<String, Key> coded() {
+                          return key();
+                        }
+                      }
+
+                      public record Catalogue(
+                          String id, Map<List<String>, Key> coded, Map<List<String>, String> byPath) {}
+
+                      public record CatalogueView(
+                          Map<List<String>, String> coded, Map<List<String>, String> byPath) {}
+
+                      @GenerateMapping
+                      public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueView> {
+                        default ValidatedPrism<String, Key> coded() {
+                          return key();
+                        }
+                      }
+
                       public record Inner(List<List<String>> grid) {}
 
                       public record Outer(String id, Inner inner) {}
@@ -342,7 +470,9 @@ class NullScanTest {
                     import java.util.Arrays;
                     import java.util.Collections;
                     import java.util.EnumMap;
+                    import java.util.IdentityHashMap;
                     import java.util.LinkedHashMap;
+                    import java.util.LinkedHashSet;
                     import java.util.LinkedList;
                     import java.util.List;
                     import java.util.Map;
@@ -493,6 +623,99 @@ class NullScanTest {
                             new WideDto(
                                 f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], f[9], f[10],
                                 f[11], f[12], f[13], f[14], f[15], List.of(holed("a"))));
+                      }
+
+                      public static Validated<NonEmptyList<FieldError>, Paths> paths() {
+                        Map<List<String>, List<String>> both = new LinkedHashMap<>();
+                        both.put(holed("a"), Arrays.asList((String) null));
+                        Index inner = new Index();
+                        inner.put(null, "x");
+                        Index index = new Index();
+                        index.put(inner, "v");
+                        // A null key first, which is reported unlocated and its value not scanned.
+                        Map<List<String>, String> byPath = new LinkedHashMap<>();
+                        byPath.put(null, null);
+                        byPath.put(holed("p"), "v");
+                        return FixturesPathsMappingImpl.INSTANCE.parse(
+                            new PathsDto(
+                                byPath,
+                                both,
+                                List.of(Map.of(new LinkedHashSet<>(holed("s")), "v")),
+                                Map.of(),
+                                Map.of(Optional.of(holed("o")), "v"),
+                                index,
+                                new RawIndex()));
+                      }
+
+                      public static Validated<NonEmptyList<FieldError>, Paths> arrayKeyed() {
+                        return FixturesPathsMappingImpl.INSTANCE.parse(
+                            new PathsDto(
+                                Map.of(),
+                                Map.of(),
+                                List.of(),
+                                Map.of(new String[] {"r", null}, "v"),
+                                Map.of(),
+                                new Index(),
+                                new RawIndex()));
+                      }
+
+                      public static Validated<NonEmptyList<FieldError>, Coded> coded() {
+                        // The bulk form reports the bad value and the null key, after every key's own.
+                        Map<List<String>, String> byPath = new LinkedHashMap<>();
+                        byPath.put(List.of("a"), "bad");
+                        byPath.put(holed("b"), "x");
+                        byPath.put(null, "y");
+                        return FixturesCodedMappingImpl.INSTANCE.parse(
+                            new CodedDto(
+                                byPath,
+                                Map.of(holed("c"), "y"),
+                                Map.of(holed("d"), new ItemDto("i")),
+                                Map.of("k", Map.of(holed("e"), "z"))));
+                      }
+
+                      // Two keys equal by equals() but not the same object, which the map keeps,
+                      // each under its own object with its own parsed value.
+                      public static boolean codedKeepsAnIdentityMap() {
+                        List<String> first = new ArrayList<>(List.of("x"));
+                        List<String> second = new ArrayList<>(List.of("x"));
+                        Map<List<String>, String> byPath = new IdentityHashMap<>();
+                        byPath.put(first, "a");
+                        byPath.put(second, "b");
+                        Map<List<String>, Key> parsed =
+                            FixturesCodedMappingImpl.INSTANCE
+                                .parse(new CodedDto(byPath, null, Map.of(), Map.of()))
+                                .get()
+                                .byPath();
+                        return parsed instanceof IdentityHashMap<?, ?>
+                            && parsed.size() == 2
+                            && new Key("a").equals(parsed.get(first))
+                            && new Key("b").equals(parsed.get(second));
+                      }
+
+                      // Every key is clean, so the bulk form's failure is all there is.
+                      public static Validated<NonEmptyList<FieldError>, Coded> codedCleanKeys() {
+                        return FixturesCodedMappingImpl.INSTANCE.parse(
+                            new CodedDto(Map.of(List.of("a"), "bad"), null, Map.of(), Map.of()));
+                      }
+
+                      public static Validated<NonEmptyList<FieldError>, Pathed> pathed() {
+                        return FixturesPathedAssemblyImpl.INSTANCE.merge(
+                            new PathSource(Map.of(holed("m"), "v")), new PathNote("n"));
+                      }
+
+                      public static Validated<NonEmptyList<FieldError>, Racked> racked() {
+                        RackPatch patch = new RackPatch();
+                        patch.setByPath(Map.of(holed("s"), "v"));
+                        patch.setCoded(Map.of(holed("t"), "w"));
+                        return FixturesRackPatchMappingImpl.INSTANCE
+                            .updateFrom(patch)
+                            .apply(new Racked(Map.of(), Map.of()));
+                      }
+
+                      public static Validated<NonEmptyList<FieldError>, Catalogue> catalogue() {
+                        return FixturesCatalogueMappingImpl.INSTANCE.patch(
+                            new Catalogue("c1", Map.of(), Map.of()),
+                            new CatalogueView(Map.of(holed("u"), "v"), Map.of(holed("w"), "x")));
                       }
 
                       public static Validated<NonEmptyList<FieldError>, Outer> flattened() {
@@ -651,6 +874,70 @@ class NullScanTest {
     // member holding the scan answers for it.
     Assertions.assertThat(generated("FixturesShapesMappingImpl"))
         .containsPattern("@SuppressWarnings\\(\"rawtypes\"\\)\\s+public [^(]* parse\\(");
+  }
+
+  @Test
+  @DisplayName(
+      "a key that is itself a container is scanned as a value is, of any kind and at each level"
+          + " its type declares, a class recurring through its own key followed once, its failures"
+          + " located under its rendering, an entry's key before its value")
+  void aKeyIsScannedInside() throws ReflectiveOperationException {
+    assertThatValidated(probe("paths"))
+        .hasFieldErrors(
+            "byPath: must not contain a null key",
+            "byPath.[p, null].1: must not be null",
+            "both.[a, null].1: must not be null",
+            "both.[a, null].0: must not be null",
+            "rows.0.[s, null]: must not contain a null element",
+            "optionals.Optional[[o, null]].1: must not be null",
+            "index.{null=x}: must not contain a null key");
+    // An array renders by its identity, so only the path's ends are fixed.
+    FieldError arrayKey = probe("arrayKeyed").getError().head();
+    Assertions.assertThat(arrayKey.path()).hasSize(3).startsWith("arrays").endsWith("1");
+    Assertions.assertThat(arrayKey.message()).isEqualTo("must not be null");
+    Assertions.assertThat(generated("FixturesPathsMappingImpl"))
+        .contains(
+            ".field(\"both\", hkj$entriesPresent(hkj$both, e -> hkj$allPresent(e), e ->"
+                + " hkj$allPresent(e)))")
+        // A class that recurs through its own key is followed once.
+        .contains(".field(\"index\", hkj$entriesPresent(wire.index(), e -> hkj$valuesPresent(e)))")
+        // The raw key a map's own declaration names reaches the key scan's lambda.
+        .containsPattern("@SuppressWarnings\\(\"rawtypes\"\\)\\s+public [^(]* parse\\(");
+  }
+
+  @Test
+  @DisplayName(
+      "a map whose values a leaf or spec converts reports the keys it passes through before the"
+          + " values, bridged and beside a @MapKey map too, hands back the bulk form's result"
+          + " when every key is clean, and keeps an IdentityHashMap")
+  void aLiftedMapScansTheKeysItPassesThrough() throws ReflectiveOperationException {
+    assertThatValidated(probe("coded"))
+        .hasFieldErrors(
+            "byPath.[b, null].1: must not be null",
+            "byPath.[a]: not a key",
+            "byPath: must not contain a null key",
+            "bridged.[c, null].1: must not be null",
+            "items.[d, null].1: must not be null",
+            "nested.k.[e, null].1: must not be null");
+    assertThatValidated(probe("codedCleanKeys")).hasFieldErrors("byPath.[a]: not a key");
+    Assertions.assertThat(compiled.invokeStatic(PKG + ".Probes", "codedKeepsAnIdentityMap"))
+        .isEqualTo(true);
+    Assertions.assertThat(generated("FixturesCodedMappingImpl"))
+        .contains(
+            "hkj$ifPresent(wire.byPath(), v -> hkj$keysScanned(byPath().parseValues(v), v,"
+                + " e -> hkj$allPresent(e)))");
+  }
+
+  @Test
+  @DisplayName("a fallible merge, the sparse tier and the patch scan inside a key too")
+  void everyParsingTierScansInsideAKey() throws ReflectiveOperationException {
+    assertThatValidated(probe("pathed")).hasFieldErrors("byPath.[m, null].1: must not be null");
+    assertThatValidated(probe("racked"))
+        .hasFieldErrors(
+            "byPath.[s, null].1: must not be null", "coded.[t, null].1: must not be null");
+    assertThatValidated(probe("catalogue"))
+        .hasFieldErrors(
+            "coded.[u, null].1: must not be null", "byPath.[w, null].1: must not be null");
   }
 
   @Test

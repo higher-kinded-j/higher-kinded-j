@@ -966,8 +966,8 @@ class MappingProcessorTest {
           .contains("var hkj$tags = hkj$copyOrNull(wire.tags(), e -> e.clone());")
           .contains(".field(\"tags\", hkj$allPresent(hkj$tags))")
           .containsPattern(
-              "Validated<NonEmptyList<FieldError>, E\\[\\]> hkj\\$allPresent\\(\\s+E @Nullable \\[\\]"
-                  + " values\\)")
+              "Validated<NonEmptyList<FieldError>, E\\[\\]> hkj\\$allPresent\\(\\s+@Nullable E"
+                  + " @Nullable \\[\\] values\\)")
           // a primitive array cannot hold a null element, so it takes the plain identity leg
           .contains("var hkj$counts = hkj$copyOrNull(wire.counts(), e -> e.clone());")
           .contains(".field(\"counts\", hkj$ifPresent(hkj$counts, Validated::validNel))");

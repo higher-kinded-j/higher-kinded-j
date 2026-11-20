@@ -153,7 +153,7 @@ public final class CrewMappingImpl implements CrewMapping {
    * Guards a nullable read: a null becomes a located {@code FieldError}, otherwise the value is parsed.
    */
   private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(@Nullable S value,
-      Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
+      Function<? super @NonNull S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
   }
 
@@ -182,7 +182,7 @@ public final class CrewMappingImpl implements CrewMapping {
    * Guards an identity-copied array: a null element is a located invalid at its index, accumulating.
    */
   private static <E extends @Nullable Object> Validated<NonEmptyList<FieldError>, E[]> hkj$allPresent(
-      E @Nullable [] values) {
+      @Nullable E @Nullable [] values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }

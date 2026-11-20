@@ -32,8 +32,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * projection maps as the validated {@code patch}, with no {@code asLens()}, as a bean's guarded
  * read does. The same holds where the {@code null} sits inside the value, at any level the copy
  * reaches: a list's element, a map's value or key, an array's element, or one inside an {@code
- * Optional}. A map's key is read at its level, and {@code parse} reports a {@code null} one, though
- * it does not look inside a key.
+ * Optional}. A map's key is read at its level, and {@code parse} reports a {@code null} one, and a
+ * key that is itself a container is read inside, as {@code parse} scans it.
  *
  * <p>A type is read as the record declares it and as it is instantiated. A type variable with no
  * nullness of its own stands for its type argument, read where that argument is written and in the
@@ -195,6 +195,7 @@ class NullableReadIntoNonNullTest {
           import java.util.Map;
           import java.util.Optional;
           import java.util.RandomAccess;
+          import java.util.Set;
           import org.higherkindedj.optics.annotations.Flatten;
           import org.higherkindedj.optics.annotations.GenerateMapping;
           import org.higherkindedj.optics.annotations.MappingSpec;
@@ -383,6 +384,26 @@ class NullableReadIntoNonNullTest {
 
             @GenerateMapping
             public interface HoledKeysViewMapping extends MappingSpec<Shelf, HoledKeys> {}
+
+            // Inside a key that is itself a container, at any level the copy reaches.
+            public record PathKeyed(Map<List<String>, String> byPath) {}
+
+            public record HoledPathKeys(Map<List<@Nullable String>, String> byPath) {}
+
+            @GenerateMapping
+            public interface HoledPathKeysMapping extends MappingSpec<PathKeyed, HoledPathKeys> {}
+
+            public record PathRows(List<Map<Set<String>, String>> rows) {}
+
+            public record HoledPathRows(List<Map<Set<@Nullable String>, String>> rows) {}
+
+            @GenerateMapping
+            public interface HoledPathRowsMapping extends MappingSpec<PathRows, HoledPathRows> {}
+
+            public record PathShelf(String id, Map<List<String>, String> byPath) {}
+
+            @GenerateMapping
+            public interface HoledPathKeysViewMapping extends MappingSpec<PathShelf, HoledPathKeys> {}
 
             // A key a type variable leaves to its argument, which the spec supplies.
             public record KeyedBy<K extends @Nullable Object>(Map<K, String> byKey) {}
@@ -619,6 +640,20 @@ class NullableReadIntoNonNullTest {
             @GenerateMapping
             public interface HoledSuperKeysMapping extends MappingSpec<SuperKeys, HoledSuperKeys> {}
 
+            public record NullablePathKeys(Map<List<@Nullable String>, String> byPath) {}
+
+            @GenerateMapping
+            public interface NullablePathKeysMapping
+                extends MappingSpec<NullablePathKeys, HoledPathKeys> {}
+
+            public record SuperPathKeys(Map<List<? super String>, String> byPath) {}
+
+            public record HoledSuperPathKeys(Map<List<? super @Nullable String>, String> byPath) {}
+
+            @GenerateMapping
+            public interface HoledSuperPathKeysMapping
+                extends MappingSpec<SuperPathKeys, HoledSuperPathKeys> {}
+
             @SuppressWarnings("rawtypes")
             public record RawKeys(Map byKey) {}
 
@@ -814,6 +849,8 @@ class NullableReadIntoNonNullTest {
         "HoledKeyRowsMapping",
         "HoledMaybeKeysMapping",
         "HoledWildKeysMapping",
+        "HoledPathKeysMapping",
+        "HoledPathRowsMapping",
         "KeyedByMapping",
         "SlotMapping",
         "PinnedKeysMapping",
@@ -848,6 +885,8 @@ class NullableReadIntoNonNullTest {
         "HolesMapping",
         "NullableKeysMapping",
         "HoledSuperKeysMapping",
+        "NullablePathKeysMapping",
+        "HoledSuperPathKeysMapping",
         "RawKeysMapping",
         "HoldingMapping",
         "AnyKeysMapping",
@@ -879,7 +918,11 @@ class NullableReadIntoNonNullTest {
   }
 
   static Stream<String> aProjectionMapsAsThePatch() {
-    return Stream.of("AccountViewMapping", "HoledTagsMapping", "HoledKeysViewMapping");
+    return Stream.of(
+        "AccountViewMapping",
+        "HoledTagsMapping",
+        "HoledKeysViewMapping",
+        "HoledPathKeysViewMapping");
   }
 
   @Test
@@ -932,8 +975,8 @@ class NullableReadIntoNonNullTest {
 
   @Test
   @DisplayName(
-      "parse and the patch report the null the optics would have handed over, a map's key"
-          + " included")
+      "parse and the patch report the null the optics would have handed over, a map's key, and"
+          + " one inside a key, included")
   void parseAndThePatchReportTheNull() throws ReflectiveOperationException {
     Object customers = compiled.instance(implOf("CustomerMapping"));
     Object empty =
@@ -975,6 +1018,27 @@ class NullableReadIntoNonNullTest {
                 invoke(compiled.instance(implOf("HoledKeysViewMapping")), "patch", shelf, keyless)))
         .isInvalid()
         .hasFieldErrors("byKey: must not contain a null key");
+
+    Object holedPath = wire("HoledPathKeys", Map.class, Map.of(Arrays.asList("a", null), "v"));
+    assertThatValidated(
+            validated(
+                invoke(compiled.instance(implOf("HoledPathKeysMapping")), "parse", holedPath)))
+        .isInvalid()
+        .hasFieldErrors("byPath.[a, null].1: must not be null");
+    Object pathShelf =
+        compiled
+            .loadClass(PKG + ".Wires$PathShelf")
+            .getDeclaredConstructor(String.class, Map.class)
+            .newInstance("s1", Map.of(List.of("a"), "b"));
+    assertThatValidated(
+            validated(
+                invoke(
+                    compiled.instance(implOf("HoledPathKeysViewMapping")),
+                    "patch",
+                    pathShelf,
+                    holedPath)))
+        .isInvalid()
+        .hasFieldErrors("byPath.[a, null].1: must not be null");
   }
 
   @Test

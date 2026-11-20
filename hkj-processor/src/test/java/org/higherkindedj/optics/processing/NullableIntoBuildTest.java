@@ -1911,6 +1911,167 @@ class NullableIntoBuildTest {
 
   @Test
   @DisplayName(
+      "a key that is itself a container is read inside, copied or passed through beside the values"
+          + " a leaf converts, at any depth, and in a plain merge")
+  void aNullableInsideAKeyIsRefused() {
+    JavaFileObject inside =
+        JavaFileObjects.forSourceString(
+            "com.marked.Inside",
+            """
+            package com.marked;
+
+            import com.marked.Codes.Code;
+            import java.util.List;
+            import java.util.Map;
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.GenerateMerge;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+            import org.jspecify.annotations.Nullable;
+
+            public final class Inside {
+              private Inside() {}
+
+              public record Loose(Map<List<@Nullable String>, String> byPath) {}
+
+              public record StrictDto(Map<List<String>, String> byPath) {}
+
+              @GenerateMapping
+              public interface LooseMapping extends MappingSpec<Loose, StrictDto> {}
+
+              public record LooseCoded(Map<List<@Nullable String>, Code> byPath) {}
+
+              @GenerateMapping
+              public interface LooseCodedMapping extends MappingSpec<LooseCoded, StrictDto> {
+                default ValidatedPrism<String, Code> byPath() { return Codes.CODE; }
+              }
+
+              public record Kept(Optional<Map<List<@Nullable String>, Code>> byPath) {}
+
+              public record KeptDto(@Nullable Map<List<String>, String> byPath) {}
+
+              @GenerateMapping
+              public interface KeptMapping extends MappingSpec<Kept, KeptDto> {
+                @OptionalBridge
+                default ValidatedPrism<String, Code> byPath() { return Codes.CODE; }
+              }
+
+              public record Rows(List<Map<List<@Nullable String>, String>> rows) {}
+
+              public record RowsDto(List<Map<List<String>, String>> rows) {}
+
+              @GenerateMapping
+              public interface RowsMapping extends MappingSpec<Rows, RowsDto> {}
+
+              public record Deep(Map<Map<List<@Nullable String>, String>, String> byPath) {}
+
+              public record DeepDto(Map<Map<List<String>, String>, String> byPath) {}
+
+              @GenerateMapping
+              public interface DeepMapping extends MappingSpec<Deep, DeepDto> {}
+
+              // A type argument, the domain's and the wire's, around a key and inside one.
+              public record Keyed<K extends @Nullable Object>(Map<List<K>, String> byPath) {}
+
+              @GenerateMapping
+              public interface KeyedMapping extends MappingSpec<Keyed<@Nullable String>, StrictDto> {}
+
+              public record ElementsDto<K extends @Nullable Object>(Map<List<K>, String> byPath) {}
+
+              @GenerateMapping
+              public interface ElementsMapping extends MappingSpec<Loose, ElementsDto<String>> {}
+
+              public record KeysDto<K extends @Nullable Object>(Map<K, String> byPath) {}
+
+              @GenerateMapping
+              public interface KeysMapping extends MappingSpec<Loose, KeysDto<List<String>>> {}
+
+              public record RowsOfDto<T extends @Nullable Object>(List<T> rows) {}
+
+              @GenerateMapping
+              public interface RowsOfMapping
+                  extends MappingSpec<Rows, RowsOfDto<Map<List<String>, String>>> {}
+
+              public record Target(Map<List<String>, String> byPath, String name) {}
+
+              public record Named(String name) {}
+
+              @GenerateMerge
+              public interface TargetMerge {
+                Target merge(Loose loose, Named named);
+              }
+            }
+            """);
+
+    Compilation compilation = compile(inside);
+
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'Loose.byPath' declares its keys' elements @Nullable, and build copies"
+                + " them to the record component 'StrictDto.byPath'. A same-typed component is"
+                + " copied as it is, null elements included, and the element type String at the"
+                + " keys' elements of 'StrictDto.byPath' carries no @Nullable inside @NullMarked"
+                + " package 'com.marked', so build would hand the wire a null its type says it"
+                + " cannot hold. Give the two one nullness: mark the element type String at the"
+                + " keys' elements of 'StrictDto.byPath' @Nullable; or declare the keys' elements"
+                + " of 'Loose.byPath' non-null, if build never meets a null one.")
+        .inFile(inside)
+        .onLineContaining("interface LooseMapping");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'LooseCoded.byPath' declares its keys' elements @Nullable, and build"
+                + " copies them to the record component 'StrictDto.byPath'. A map whose values"
+                + " convert hands its keys on as they are, null elements included, and the element"
+                + " type String at the keys' elements of 'StrictDto.byPath'");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'Kept.byPath' declares its value's keys' elements @Nullable, and build"
+                + " copies them to the record component 'KeptDto.byPath'. A map whose values"
+                + " convert hands its keys on as they are");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'Rows.rows' declares its elements' keys' elements @Nullable, and build"
+                + " copies them to the record component 'RowsDto.rows'.");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'Deep.byPath' declares its keys' keys' elements @Nullable, and build"
+                + " copies them to the record component 'DeepDto.byPath'.");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "domain field 'Keyed.byPath' declares its keys' elements @Nullable through its type"
+                + " argument, and build copies them to the record component 'StrictDto.byPath'.");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "or declare them non-null in the type argument the spec gives 'Keyed.byPath', if build"
+                + " never meets a null one.");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "mark the type argument String the spec gives 'ElementsDto.byPath' @Nullable");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "mark the element type String of the type argument the spec gives 'KeysDto.byPath'"
+                + " @Nullable");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "mark the element type String at the keys' elements of the type argument the spec"
+                + " gives 'RowsOfDto.rows' @Nullable");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "source component 'Loose.byPath' declares its keys' elements @Nullable, and the merge"
+                + " copies them to the record component 'Target.byPath'.")
+        .inFile(inside)
+        .onLineContaining("Target merge(");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "so the merge, now fallible, reports a null element as a located error.");
+    Assertions.assertThat(compilation.errors()).hasSize(10);
+  }
+
+  @Test
+  @DisplayName(
       "a lifted map that converts its values passes its keys through, and one that converts its"
           + " keys passes its values, to a bulk build that throws on a null either way")
   void aLiftedMapRefusesTheNullItPassesThrough() {
@@ -2074,6 +2235,18 @@ class NullableIntoBuildTest {
               @GenerateMapping
               public interface GridMapping extends MappingSpec<Grid, GridDto> {}
 
+              // The same inside a key, below the level the parameter is reached at.
+              public record PathGrid(List<Map<List<@Nullable String>, String>> rows) {}
+
+              public record PathGridDto(List<Map<List<String>, String>> rows) {
+                public PathGridDto(List<Map<List<@NonNull String>, String>> rows) {
+                  this.rows = rows;
+                }
+              }
+
+              @GenerateMapping
+              public interface PathGridMapping extends MappingSpec<PathGrid, PathGridDto> {}
+
               public record Label(String name) {}
 
               public record Tagged(List<String> tags, String name) {
@@ -2117,6 +2290,18 @@ class NullableIntoBuildTest {
               @GenerateMapping
               public interface KeyedMapping extends MappingSpec<Keyed, KeyedDto> {}
 
+              public record Paths(List<Map<List<@Nullable String>, String>> rows) {}
+
+              // The parameter takes the null inside a key, a level down, that its component rules out.
+              public record PathsDto(List<Map<List<String>, String>> rows) {
+                public PathsDto(List<Map<List<@Nullable String>, String>> rows) {
+                  this.rows = rows;
+                }
+              }
+
+              @GenerateMapping
+              public interface PathsMapping extends MappingSpec<Paths, PathsDto> {}
+
               public record Names(List<@Nullable String> names) {}
 
               public record Label(String name) {}
@@ -2156,12 +2341,17 @@ class NullableIntoBuildTest {
                 + " @NonNull");
     assertThat(compilation)
         .hadErrorContaining(
+            "and the element type String at the elements' keys' elements of the parameter 'rows'"
+                + " of the canonical constructor PathGridDto(List<Map<List<String>, String>>) is"
+                + " annotated @NonNull");
+    assertThat(compilation)
+        .hadErrorContaining(
             "source component 'Holed.tags' declares its elements @Nullable, and the merge copies"
                 + " them to the record component 'Tagged.tags'. A plain merge copies each source"
                 + " value as it is, null elements included, and the element type String in the"
                 + " parameter 'tags' of the canonical constructor Tagged(List<String>, String) is"
                 + " annotated @NonNull");
-    Assertions.assertThat(compilation.errors()).hasSize(3);
+    Assertions.assertThat(compilation.errors()).hasSize(4);
     assertThat(compile(marked)).succeededWithoutWarnings();
   }
 
@@ -2723,12 +2913,14 @@ class NullableIntoBuildTest {
             import com.marked.Codes.AddressDto;
             import com.marked.Codes.Code;
             import java.util.List;
+            import java.util.Map;
             import java.util.Optional;
             import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
             import org.higherkindedj.hkt.validated.FieldError;
             import org.higherkindedj.hkt.validated.Validated;
             import org.higherkindedj.optics.annotations.GenerateMapping;
             import org.higherkindedj.optics.annotations.GenerateMerge;
+            import org.higherkindedj.optics.annotations.MapKey;
             import org.higherkindedj.optics.annotations.MappingSpec;
             import org.higherkindedj.optics.annotations.OptionalBridge;
             import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -2944,6 +3136,37 @@ class NullableIntoBuildTest {
 
               @GenerateMapping
               public interface CountedMapping extends MappingSpec<Counted, CountedDto> {}
+
+              // Inside a key: the wire takes the null, or the domain holds none.
+              public record PathKeys(Map<List<@Nullable String>, String> byPath) {}
+
+              public record PathKeysDto(Map<List<@Nullable String>, String> byPath) {}
+
+              @GenerateMapping
+              public interface PathKeysMapping extends MappingSpec<PathKeys, PathKeysDto> {}
+
+              public record CodedPaths(Map<List<String>, Code> byPath) {}
+
+              public record CodedPathsDto(Map<List<String>, String> byPath) {}
+
+              @GenerateMapping
+              public interface CodedPathsMapping extends MappingSpec<CodedPaths, CodedPathsDto> {
+                default ValidatedPrism<String, Code> byPath() { return Codes.CODE; }
+              }
+
+              // Keys a leaf converts are built, not copied, whatever they hold.
+              public record SplitPaths(Map<List<@Nullable String>, String> byPath) {}
+
+              public record SplitPathsDto(Map<String, String> byPath) {}
+
+              @GenerateMapping
+              public interface SplitPathsMapping extends MappingSpec<SplitPaths, SplitPathsDto> {
+                @MapKey("byPath")
+                default ValidatedPrism<String, List<@Nullable String>> byPathKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(List.of(raw)), path -> String.join("/", path));
+                }
+              }
             }
             """);
     // A bound that is raw, holds a wildcard, or names another class than the argument gives

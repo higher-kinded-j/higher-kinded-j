@@ -51,7 +51,14 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * Optional} at the value itself. A null element of a set is the unlocated {@code must not contain a
  * null element}, as {@code ValidatedParse.parseAll} reports it, and a null key of a map is the
  * unlocated {@code must not contain a null key}, as {@code ValidatedParse.parseValues} reports it,
- * its value unscanned. A key is never scanned inside.
+ * its value unscanned.
+ *
+ * <p>A map's key that is itself a container is scanned too, as its value is: {@code keys} is the
+ * scan each key takes, null where the key holds no container, and {@code key} the type the keys
+ * have. A failure inside a key is located under the key's rendering, as {@code
+ * ValidatedParse.parseKeys} locates a key that fails its leaf, and an entry's key is scanned before
+ * its value. A map whose values a leaf or nested spec converts passes its keys through as they are,
+ * so its leg scans them around the bulk form ({@link #aroundParse}).
  *
  * <p>A scan only checks, it never rebuilds: it runs over the copy the leg hands over (see {@link
  * ContainerCopy}), so every helper returns its argument unchanged under the argument's own type
@@ -59,7 +66,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * declares: a subtype stays a subtype, a raw container stays raw without an unchecked conversion,
  * and a wildcard argument is inferred into the leg rather than captured against it. An element's
  * scan is a lambda, so the nested forms bound their element type from above ({@code Collection<?
- * extends E>}), which leaves a wildcard-argument container free to capture once, at the call.
+ * extends E>}), which leaves a wildcard-argument container free to capture once, at the call. The
+ * one helper handed a parse's result is the one a map's passed-through keys take beside the values
+ * a leaf or nested spec converts ({@link #aroundParse}): it is given what the bulk form answered,
+ * hands that back, and scans the keys of the map it holds.
  *
  * <p>An {@code Optional} is a level only when its value is itself a container: an {@code
  * Optional<String>} cannot hold a {@code null}, so it needs no scan, and an {@code OPTIONAL} scan
@@ -75,7 +85,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * followed once on the walk, and where it recurs its elements are checked for null but not scanned
  * inside. A type variable is followed once for the same reason ({@code T extends List<T>}).
  */
-record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
+record NullScan(
+    NullScan.Shape shape, NullScan inner, TypeMirror element, NullScan keys, TypeMirror key) {
 
   private static final ClassName VALIDATED =
       ClassName.get("org.higherkindedj.hkt.validated", "Validated");
@@ -98,6 +109,15 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
 
   /** Where {@code Map<K, V>} takes its key among its type arguments. */
   private static final int MAP_KEY = 0;
+
+  /** The helper a map level calls where its keys are scanned too, with or without its values. */
+  private static final String KEYED_MAP_HELPER = "hkj$entriesPresent";
+
+  /**
+   * The helper a lifted map's keys are scanned through, around the bulk form ({@link
+   * #aroundParse}).
+   */
+  private static final String KEYS_SCANNED_HELPER = "hkj$keysScanned";
 
   /**
    * One container level, the helper that scans it, and, for a declared container, the type it is
@@ -182,10 +202,17 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
     for (Shape shape : DECLARED) {
       DeclaredType view = view(captured, shape, types, elements);
       if (view != null) {
+        // A map's keys are walked before its values add this class, each walk taking the classes
+        // above the map alone, so neither stops the other.
+        NullScan keys =
+            shape == Shape.MAP ? keys(declaration, view, types, elements, followed) : null;
         boolean follow =
-            passesThrough(declaration, shape, types, elements) || followed.add(declaration);
+            passesThrough(declaration, shape, shape.argument, types, elements)
+                || followed.add(declaration);
         NullScan scan = level(shape, argument(view, shape), follow, types, elements, followed);
-        return shape == Shape.OPTIONAL && scan.inner() == null ? null : scan;
+        return shape == Shape.OPTIONAL && scan.inner() == null
+            ? null
+            : keys == null ? scan : scan.withKeys(keys, view.getTypeArguments().get(MAP_KEY));
       }
     }
     return null;
@@ -199,36 +226,81 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
       Types types,
       Elements elements,
       Set<Element> followed) {
-    return new NullScan(shape, follow ? of(element, types, elements, followed) : null, element);
+    return new NullScan(
+        shape, follow ? of(element, types, elements, followed) : null, element, null, null);
   }
 
   /**
-   * Whether a container class hands one of its own type arguments on as its element, as {@code
-   * ArrayList<E>} does, rather than fixing the element in its declaration. A type variable there
-   * belongs to the class or to one enclosing it, and either is bound in the type as written.
+   * The scan a map's keys take, or null where they hold no container, the map is raw, or its class
+   * recurs through its own key, as {@code class Index extends HashMap<Index, String>} does below
+   * its first level, so an {@code Index} is scanned one key deep. The keys are walked over their
+   * own copy of {@code followed}, so the classes they follow do not count against the values' walk.
+   */
+  private static NullScan keys(
+      TypeElement declaration,
+      DeclaredType view,
+      Types types,
+      Elements elements,
+      Set<Element> followed) {
+    if (view.getTypeArguments().isEmpty()) {
+      return null;
+    }
+    Set<Element> walked = new HashSet<>(followed);
+    boolean follow =
+        passesThrough(declaration, Shape.MAP, MAP_KEY, types, elements) || walked.add(declaration);
+    return follow ? of(view.getTypeArguments().get(MAP_KEY), types, elements, walked) : null;
+  }
+
+  /**
+   * This map level, its keys scanned by {@code keyScan}, the keys being of type {@code keyType}.
+   */
+  private NullScan withKeys(NullScan keyScan, TypeMirror keyType) {
+    return new NullScan(shape, inner, element, keyScan, keyType);
+  }
+
+  /**
+   * This map level read for its keys alone: what a map whose values a leaf or nested spec converts
+   * hands on as it is. It is a reading for {@link NullnessReading}'s walk, which reads a level with
+   * no element type as naming no values, and is never rendered as a scan: its helper would check
+   * the values for null, which the bulk form already does.
+   *
+   * @return this level over its keys alone
+   */
+  NullScan keysAlone() {
+    return new NullScan(shape, null, null, keys, key);
+  }
+
+  /**
+   * This map level read with its keys left unread inside: what a map whose keys a {@code @MapKey}
+   * leaf converts hands on as it is, which is its values. Like {@link #keysAlone}, it is a reading
+   * for {@link NullnessReading}'s walk, never rendered. The walk still reads each key itself at the
+   * map's level, which says nothing new there, since the key leaf's own check refuses a nullable
+   * key first.
+   *
+   * @return this level over its values alone
+   */
+  NullScan valuesAlone() {
+    return new NullScan(shape, inner, element, null, null);
+  }
+
+  /**
+   * Whether a container class hands one of its own type arguments on as the argument at {@code
+   * index} of its view as {@code shape}, as {@code ArrayList<E>} does its element, rather than
+   * fixing it in its declaration. A type variable there belongs to the class or to one enclosing
+   * it, and either is bound in the type as written.
    */
   private static boolean passesThrough(
-      TypeElement declaration, Shape shape, Types types, Elements elements) {
-    return elementArgument(declaration, shape, types, elements) instanceof TypeVariable;
-  }
-
-  /**
-   * The element a container class names for {@code shape}, in terms of its own type parameters:
-   * {@code E} for {@code ArrayList<E>}, {@code String} for a class that fixes it, and null for one
-   * that extends the container raw.
-   */
-  private static TypeMirror elementArgument(
-      TypeElement declaration, Shape shape, Types types, Elements elements) {
-    return namedArgument(declaration, shape, shape.argument, types, elements);
+      TypeElement declaration, Shape shape, int index, Types types, Elements elements) {
+    return namedArgument(declaration, shape, index, types, elements) instanceof TypeVariable;
   }
 
   /**
    * The argument a container class passes its view as {@code shape} at {@code index}, in terms of
-   * its own type parameters, as {@link #elementArgument} reads the element: null for a class that
-   * extends the container raw, or is no such container at all, as a type variable's bound such as
-   * {@code Object} need not be. A bound may name a collection's element as an {@code Iterable}'s,
-   * as {@code L extends Iterable<String>} does, so a collection level reads one through that view
-   * where it has no other.
+   * its own type parameters: {@code E} for {@code ArrayList<E>}'s element, {@code String} for a
+   * class that fixes it, and null for a class that extends the container raw, or is no such
+   * container at all, as a type variable's bound such as {@code Object} need not be. A bound may
+   * name a collection's element as an {@code Iterable}'s, as {@code L extends Iterable<String>}
+   * does, so a collection level reads one through that view where it has no other.
    */
   private static TypeMirror namedArgument(
       TypeElement declaration, Shape shape, int index, Types types, Elements elements) {
@@ -298,10 +370,10 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    * #writtenElement} reads its values: the key the map class names, with the type's own arguments
    * put in for its type variables, read through its bound where it is a wildcard, so {@code
    * Map<@Nullable String, V>} and {@code HashMap<? extends @Nullable String, V>} both name
-   * {@code @Nullable String}. The scan does not look inside a key, so it keeps no key type of its
-   * own to fall back on: where this level is no map, the class names no key, or the type is used
-   * raw, is written another way, such as a type variable, or has a wildcard with no upper bound,
-   * the result is null, a key that says nothing either way.
+   * {@code @Nullable String}. Unlike {@link #writtenElement}, it falls back on no key type of the
+   * scan's own: where this level is no map, the class names no key, or the type is used raw, is
+   * written another way, such as a type variable, or has a wildcard with no upper bound, the result
+   * is null, a key that says nothing either way, and whose levels are not read either.
    *
    * @param written the type this level scans, as a declaration writes it
    * @param types the round's type utilities
@@ -380,7 +452,11 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    * them, so a raw type among them is a warning the Impl member holding the scan answers for.
    */
   Stream<TypeMirror> inferred() {
-    return inner == null ? Stream.empty() : Stream.concat(Stream.of(element), inner.inferred());
+    Stream<TypeMirror> values =
+        inner == null ? Stream.empty() : Stream.concat(Stream.of(element), inner.inferred());
+    return keys == null
+        ? values
+        : Stream.concat(Stream.concat(Stream.of(key), keys.inferred()), values);
   }
 
   /** A container view's element argument; null for a raw container, which names none. */
@@ -398,9 +474,30 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   }
 
   private CodeBlock on(CodeBlock value, Set<String> taken, int depth) {
-    return inner == null
-        ? CodeBlock.of("$L($L)", shape.helper, value)
-        : CodeBlock.of("$L($L, $L)", shape.helper, value, inner.asLambda(taken, depth + 1));
+    CodeBlock.Builder call = CodeBlock.builder().add("$L($L", form().helper(), value);
+    // The two lambdas are siblings, so each may take the same name.
+    if (keys != null) {
+      call.add(", $L", keys.asLambda(taken, depth + 1));
+    }
+    if (inner != null) {
+      call.add(", $L", inner.asLambda(taken, depth + 1));
+    }
+    return call.add(")").build();
+  }
+
+  /**
+   * The parse of a map whose keys pass through as they are: {@code parsed}, the {@code parseValues}
+   * of a leaf or a nested spec's parse over {@code value}, with this scan, the keys' own, run over
+   * the keys the domain receives: the {@code hkj$keysScanned} helper ({@link #keysScannedHelper}).
+   * The parse is the helper's first argument, so it runs before the scan.
+   *
+   * @param value the map, never null, read once more by the helper
+   * @param parsed the bulk form's call over {@code value}
+   * @param taken the names the lambda's parameter must stay clear of
+   * @return the call
+   */
+  CodeBlock aroundParse(CodeBlock value, CodeBlock parsed, Set<String> taken) {
+    return CodeBlock.of("$L($L, $L, $L)", KEYS_SCANNED_HELPER, parsed, value, asLambda(taken));
   }
 
   /** This scan as a lambda over a fresh parameter, clear of every name in {@code taken}. */
@@ -420,15 +517,31 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
    * deep, otherwise the lambda that carries the levels below it.
    */
   CodeBlock asFunction(ClassName owner, Set<String> taken) {
-    return inner == null ? CodeBlock.of("$T::$L", owner, shape.helper) : asLambda(taken);
+    return inner == null && keys == null
+        ? CodeBlock.of("$T::$L", owner, shape.helper)
+        : asLambda(taken);
   }
 
-  /** Each level's helper, as the scan calls it: the one-level form, or the one taking a lambda. */
-  private record Form(Shape shape, boolean nested) {}
+  /**
+   * Each level's helper, as the scan calls it: the one-level form, or the one taking a lambda over
+   * its elements ({@code nested}), and, for a map, the one taking a lambda over its keys too
+   * ({@code keyed}).
+   */
+  private record Form(Shape shape, boolean nested, boolean keyed) {
+
+    String helper() {
+      return keyed ? KEYED_MAP_HELPER : shape.helper;
+    }
+  }
+
+  private Form form() {
+    return new Form(shape, inner != null, keys != null);
+  }
 
   private Stream<Form> forms() {
-    Form form = new Form(shape, inner != null);
-    return inner == null ? Stream.of(form) : Stream.concat(Stream.of(form), inner.forms());
+    return Stream.concat(
+        Stream.of(form()),
+        Stream.of(keys, inner).filter(Objects::nonNull).flatMap(NullScan::forms));
   }
 
   /**
@@ -442,7 +555,13 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   static List<MethodSpec> helpers(Stream<NullScan> scans, NullnessMarks marks) {
     Set<Form> used = scans.flatMap(NullScan::forms).collect(Collectors.toSet());
     return Stream.of(Shape.values())
-        .flatMap(shape -> Stream.of(new Form(shape, false), new Form(shape, true)))
+        .flatMap(
+            shape ->
+                Stream.of(
+                    new Form(shape, false, false),
+                    new Form(shape, true, false),
+                    new Form(shape, false, true),
+                    new Form(shape, true, true)))
         .filter(used::contains)
         .map(form -> helper(form, marks))
         .toList();
@@ -452,7 +571,10 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
     return switch (form.shape()) {
       case COLLECTION -> form.nested() ? nestedCollectionHelper(marks) : collectionHelper(marks);
       case ARRAY -> form.nested() ? nestedArrayHelper(marks) : arrayHelper(marks);
-      case MAP -> form.nested() ? nestedMapHelper(marks) : mapHelper(marks);
+      case MAP ->
+          form.keyed()
+              ? keyedMapHelper(form.nested(), marks)
+              : form.nested() ? nestedMapHelper(marks) : mapHelper(marks);
       // An Optional is a level only when its value is one, so it only ever takes the lambda.
       case OPTIONAL -> optionalHelper(marks);
     };
@@ -620,7 +742,10 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
             "Guards an identity-copied array: a null element is a located invalid at its index,"
                 + " accumulating.\n",
             e)
-        .addParameter(marks.nullable(ArrayTypeName.of(e)), "values")
+        // Its elements are declared nullable, since a null element is what it reports, so an array
+        // whose elements a declaration marks nullable passes inside a lambda, where a nullness
+        // checker infers E without the mark.
+        .addParameter(marks.nullable(ArrayTypeName.of(marks.nullable(e))), "values")
         .addCode(nullGuard("values"))
         .addStatement("$L", declareFailures())
         .beginControlFlow("for (int i = 0; i < values.length; i++)")
@@ -727,6 +852,83 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   }
 
   /**
+   * A map's present key passing its own scan: its failures, if any, located under its rendering and
+   * added to the accumulated ones. Unlike {@link #scannedElement}, it never {@code continue}s,
+   * since the entry's value is still to be looked at.
+   */
+  private static CodeBlock scannedKey(String key) {
+    return CodeBlock.builder()
+        .addStatement("$T<$T, ?> scannedKey = keys.apply($L)", VALIDATED, FAILURES, key)
+        .beginControlFlow("if (!scannedKey.isValid())")
+        .addStatement("String keyAt = String.valueOf($L)", key)
+        .addStatement(
+            "failures.addAll(scannedKey.getError().map(error -> error.at(keyAt)).toJavaList())")
+        .endControlFlow()
+        .build();
+  }
+
+  /**
+   * The map helper whose keys hold containers: a null key, which has nothing to locate by, is the
+   * unlocated {@code must not contain a null key}, its value unlooked at; a present key passes its
+   * own scan, located under its rendering; and then the value is looked at, as {@link #mapHelper}
+   * or, {@code nested}, as {@link #nestedMapHelper} looks at it.
+   */
+  private static MethodSpec keyedMapHelper(boolean nested, NullnessMarks marks) {
+    TypeVariableName k = marks.nullableBounded("K");
+    TypeVariableName v = marks.nullableBounded("V");
+    TypeName values = nested ? WildcardTypeName.subtypeOf(v) : ANY;
+    TypeVariableName c =
+        TypeVariableName.get(
+            "C", ParameterizedTypeName.get(MAP, WildcardTypeName.subtypeOf(k), values));
+    MethodSpec.Builder helper =
+        helperBuilder(
+            KEYED_MAP_HELPER,
+            c,
+            "Guards an identity-copied map whose keys are containers: a null key, which has nothing"
+                + " to locate by, is the unlocated {@code must not contain a null key}, its value"
+                + " unscanned; a present key passes its own scan, its failures located under its"
+                + " rendering; and a null value is a located invalid under its key"
+                + (nested ? ", while a present one passes its own scan, located under its key" : "")
+                + ", accumulating, an entry's key before its value.\n",
+            nested ? new TypeVariableName[] {c, k, v} : new TypeVariableName[] {c, k});
+    helper.addParameter(marks.nullable(c), "values").addParameter(elementScan(k), "keys");
+    if (nested) {
+      helper.addParameter(elementScan(v), "each");
+    }
+    helper
+        .addCode(nullGuard("values"))
+        .addStatement("$L", declareFailures())
+        .beginControlFlow(
+            "for ($T entry : values.entrySet())",
+            ParameterizedTypeName.get(
+                MAP.nestedClass("Entry"), WildcardTypeName.subtypeOf(k), values))
+        .addStatement("$T key = entry.getKey()", k)
+        .beginControlFlow("if (key == null)")
+        .addStatement("failures.add($L)", nullKey())
+        .addStatement("continue")
+        .endControlFlow()
+        .addCode(scannedKey("key"));
+    if (nested) {
+      helper
+          .addStatement("$T value = entry.getValue()", v)
+          .addStatement("$T located", FAILURES)
+          .beginControlFlow("if (value == null)")
+          .addStatement("located = $L", nullAt("String.valueOf(key)"))
+          .nextControlFlow("else")
+          .addCode(scannedElement("value", "String.valueOf(key)"))
+          .endControlFlow()
+          .addStatement("$L", accumulate());
+    } else {
+      helper
+          .beginControlFlow("if (entry.getValue() == null)")
+          .addStatement("$T located = $L", FAILURES, nullAt("String.valueOf(key)"))
+          .addStatement("$L", accumulate())
+          .endControlFlow();
+    }
+    return helper.endControlFlow().addStatement("$L", returnScanned("values")).build();
+  }
+
+  /**
    * The {@code Optional} the guard takes, declared {@code @Nullable} like every guarded read, since
    * a JSON binding leaves a missing {@code Optional} component {@code null}. Error Prone's {@code
    * NullableOptional} check, which most builds run, warns at such a declaration, so it is
@@ -767,6 +969,65 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
             "return scanned.isValid() ? $T.valid(value) : $T.invalid(scanned.getError())",
             VALIDATED,
             VALIDATED)
+        .build();
+  }
+
+  // The helper a map whose values a leaf or nested spec converts passes its keys through, where
+  // they hold containers. Unlike the scans above it is handed a parse's result as well as the map,
+  // which the leg's guard has already found present, and merges its failures into that result.
+
+  /**
+   * The helper a map whose values a leaf or nested spec converts, and whose keys hold containers,
+   * parses through ({@link #aroundParse}): it takes what {@code parseValues} answered, so the bulk
+   * form runs first, and then scans each present key of the map that hands back, or, where it
+   * refuses the map, each of the map's own. So the keys scanned are the domain's, and a key's
+   * failures, located under its rendering, come before every failure the bulk form reports, a null
+   * key among them. The bulk form runs whatever the keys hold, so a value's failure is reported
+   * with theirs. Its result's key type is the bulk form's, which the leg names where the key holds
+   * a nullable type argument, rather than one a nullness checker infers without it.
+   *
+   * @param marks the nullness annotations the helper is written with
+   * @return the helper method to declare
+   */
+  static MethodSpec keysScannedHelper(NullnessMarks marks) {
+    TypeVariableName k = marks.nullableBounded("K");
+    TypeVariableName a = TypeVariableName.get("A");
+    TypeName parsed =
+        ParameterizedTypeName.get(VALIDATED, FAILURES, ParameterizedTypeName.get(MAP, k, a));
+    return helperBuilder(
+            KEYS_SCANNED_HELPER,
+            ParameterizedTypeName.get(MAP, k, a),
+            "Scans each present key of the map {@code parsed} holds, or, where {@code parsed}"
+                + " refused {@code values}, each of {@code values}' own: keys that pass through as"
+                + " they are and are containers. A key's failures are located under its rendering,"
+                + " ahead of every failure {@code parsed} reports; with none, {@code parsed} is"
+                + " returned as it is.\n",
+            k,
+            a)
+        .addParameter(parsed, "parsed")
+        .addParameter(
+            ParameterizedTypeName.get(MAP, WildcardTypeName.subtypeOf(marks.nullable(k)), ANY),
+            "values")
+        .addParameter(elementScan(k), "keys")
+        .addStatement(
+            "$T scanned = parsed.isValid() ? parsed.get() : values",
+            ParameterizedTypeName.get(MAP, WildcardTypeName.subtypeOf(marks.nullable(k)), ANY))
+        .addStatement("$L", declareFailures())
+        .beginControlFlow("for ($T key : scanned.keySet())", k)
+        .beginControlFlow("if (key != null)")
+        .addCode(scannedKey("key"))
+        .endControlFlow()
+        .endControlFlow()
+        .beginControlFlow("if (failures.isEmpty())")
+        .addStatement("return parsed")
+        .endControlFlow()
+        .beginControlFlow("if (!parsed.isValid())")
+        .addStatement("failures.addAll(parsed.getError().toJavaList())")
+        .endControlFlow()
+        .addStatement(
+            "return $T.invalid($T.of(failures.getFirst(), failures.subList(1, failures.size())))",
+            VALIDATED,
+            NEL)
         .build();
   }
 }

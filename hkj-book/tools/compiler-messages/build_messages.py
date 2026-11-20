@@ -82,7 +82,7 @@ SHORT = {
     "merge-nullable-into-non-null": "A plain merge copies a `@Nullable` source into a non-null target",
     "nullable-where-build-throws": "A `@Nullable` component reaches a leaf, a spec or a container that throws on `null`",
     "nullable-handed-to-a-throwing-site": "A `@Nullable` component reaches a getter-only list, a `@Singular` method or a protobuf setter",
-    "nullable-elements-copied-into-non-null": "`@Nullable` elements or keys are copied into a container that rules them out",
+    "nullable-elements-copied-into-non-null": "`@Nullable` elements or keys, or what a key holds, are copied into a container that rules them out",
     "nullable-optional-into-build": "A `@Nullable` `Optional` reaches `build`, which maps the value it holds",
     "nullable-passed-through-a-lifted-map": "A lifted map passes a `@Nullable` key or value through to a bulk build that throws on it",
     "nullable-argument-into-a-spec": "A `@Nullable` type argument reaches a nested spec that rules it out",
