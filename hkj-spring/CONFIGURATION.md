@@ -444,7 +444,7 @@ Configure Jackson serialisation for higher-kinded-j types.
 
 ### `hkj.json.custom-serializers-enabled`
 
-Enable or disable the custom Jackson serialisers for `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`.
+Enable or disable the custom Jackson serialisers for `Either`, `Validated`, `EitherOrBoth`, `NonEmptyList`, and `Unit`.
 
 - **Type:** `boolean`
 - **Default:** `true`
@@ -712,6 +712,7 @@ hkj:
 
 **Effect:**
 - Nested Either/Validated in DTOs will use default Jackson serialisation
+- A nested `Unit` writes as `"()"`, or as `"INSTANCE"` under Jackson 2's defaults, rather than `null`
 - Will likely fail with serialisation errors
 
 ### Disable Virtual Thread Support

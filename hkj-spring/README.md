@@ -205,7 +205,7 @@ envelope. Against a server that doesn't emit it (or an empty/foreign body) it ra
 `ResponseErrorDecodeException`; supply a custom `ResponseErrorDecoder` (or `ResponseErrorDecoderFactory`
 bean) that maps the status/body to your error type instead. A client-only app without the server-side
 auto-configuration should register `HkjJacksonModule` on its `JsonMapper` so nested `Either`/`Validated`
-errors deserialise.
+errors deserialise. A `Unit` error type reads no body, so it never raises this and needs no module.
 
 **Per-status error types.** Map individual statuses to distinct error subtypes with `@OnStatus`
 (each subtype must be assignable to the method's declared error type):

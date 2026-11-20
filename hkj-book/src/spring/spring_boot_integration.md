@@ -828,7 +828,7 @@ When a controller returns a functional type directly, the return-value handler s
 - **Validated errors** produce `{"valid": false, "errors": [...], "errorCount": n}`.
 - **EitherOrBoth `Both`** produces the unwrapped value plus the `X-Hkj-Warnings` header (see [above](#eitherorboth-success-with-warnings)).
 
-### Nested values (the Jackson module)
+### Nested values (the Jackson module) {#nested-values-the-jackson-module}
 
 When an `Either`, `Validated`, `EitherOrBoth`, or `NonEmptyList` appears **inside** a DTO (for example a batch result containing `List<Either<DomainError, User>>`), the `HkjJacksonModule` serialises it with a tagged shape:
 
@@ -846,7 +846,12 @@ When an `Either`, `Validated`, `EitherOrBoth`, or `NonEmptyList` appears **insid
 // Nested EitherOrBoth
 {"kind": "right", "right": ...}
 {"kind": "both", "left": [...warnings...], "right": ...}
+
+// Nested Either.right(Unit.INSTANCE)
+{"isRight": true, "right": null}
 ```
+
+The module writes a `Unit` as `null` wherever it sits, as a `Void` success was written, whatever `spring.jackson.use-jackson2-defaults` says. It reads a value typed `Unit` from `null`, or from the `"()"` or `"INSTANCE"` that a mapper without the module writes.
 
 These shapes are fixed: there is no format-toggle property. The only Jackson-related switch is:
 
@@ -857,7 +862,7 @@ hkj:
 ```
 
 ~~~admonish warning title="No Maybe or Try Jackson support"
-The Jackson module covers `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`. `Maybe` and `Try` have **no** nested-serialisation support; return them at the top level (where the handlers apply) or convert them to a supported type before embedding them in a DTO.
+The Jackson module covers `Either`, `Validated`, `EitherOrBoth`, `NonEmptyList`, and `Unit`. `Maybe` and `Try` have **no** nested-serialisation support; return them at the top level (where the handlers apply) or convert them to a supported type before embedding them in a DTO.
 ~~~
 
 For complete serialisation details, see [hkj-spring/JACKSON_SERIALIZATION.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/JACKSON_SERIALIZATION.md).

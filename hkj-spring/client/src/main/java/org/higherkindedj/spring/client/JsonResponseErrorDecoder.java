@@ -4,6 +4,7 @@ package org.higherkindedj.spring.client;
 
 import java.util.Objects;
 import java.util.Optional;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -20,6 +21,10 @@ import tools.jackson.databind.json.JsonMapper;
  * polymorphic type information ({@code @JsonTypeInfo}/{@code @JsonSubTypes}) on the hierarchy so
  * Jackson can pick the subtype. Anything that cannot be bound raises {@link
  * ResponseErrorDecodeException}.
+ *
+ * <p>A {@link Unit} error type carries nothing to decode, so the body is not parsed: every error
+ * response decodes to {@code Unit.INSTANCE}, whatever its body, just as a {@code Unit} success
+ * ignores its body in {@link HkjClientExchange#eitherUnit}.
  *
  * @param <E> the typed error this decoder produces
  */
@@ -42,6 +47,9 @@ public final class JsonResponseErrorDecoder<E> implements ResponseErrorDecoder<E
 
   @Override
   public E decode(ClientErrorResponse response) {
+    if (errorType == Unit.class) {
+      return errorType.cast(Unit.INSTANCE);
+    }
     String body = response.body();
     if (body == null || body.isBlank()) {
       throw new ResponseErrorDecodeException(response.status(), body, null);

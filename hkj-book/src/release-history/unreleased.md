@@ -105,6 +105,8 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Spring {#spring}
 
+- **A `Unit` inside a JSON body writes `null`, as `Void` did** ([#1522](https://github.com/higher-kinded-j/higher-kinded-j/issues/1522)). A `Unit` in a field or a list element wrote as `"()"`, or as `"INSTANCE"` under `spring.jackson.use-jackson2-defaults=true`, so its JSON changed on a move from `Void`. `HkjJacksonModule` now reads all three, so a service reads what an older peer sends. See [Nested values](../spring/spring_boot_integration.md#nested-values-the-jackson-module).
+- **An `@HkjHttpClient` method with a `Unit` error type reads no error body** ([#1522](https://github.com/higher-kinded-j/higher-kinded-j/issues/1522)). With the default decoder, every error response decodes to `Unit.INSTANCE`, whatever its body, as a `Unit` success already ignores its body. Such a client needs no `HkjJacksonModule` for it. See [Decoding Errors](../spring/declarative_http_clients.md#decoding-errors).
 - **A `VTaskPath` response timeout interrupts its task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). When `hkj.virtual-threads.default-timeout-ms` runs out, the starter answers 504 and interrupts the task, without waiting for it to stop. The task used to run on after the response had gone. See [VTaskPath](../spring/spring_boot_integration.md#vtaskpath-virtual-thread-async).
 
 ---
@@ -220,6 +222,8 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 #### Spring {#runtime-spring}
 
+- **A `Unit` inside a JSON body writes `null`, not `"()"`** ([#1522](https://github.com/higher-kinded-j/higher-kinded-j/issues/1522)). A client that read that string, or `"INSTANCE"` under `spring.jackson.use-jackson2-defaults=true`, now gets `null`. Upgrade the services that read it first: before 0.6.0, a reader refuses the `null` or takes it as a Java `null`, and an `@HkjHttpClient` throws on a `Unit` error.
+- **A `Unit` error no longer fails to decode** ([#1522](https://github.com/higher-kinded-j/higher-kinded-j/issues/1522)). With the default decoder, an `@HkjHttpClient` method whose error type is `Unit` threw `ResponseErrorDecodeException` for an empty or foreign error body. It now gives `Left(Unit.INSTANCE)`, so code that caught that exception, and a retry or circuit breaker that counted it, sees the `Left` instead.
 - **A `VTaskPath` request that times out interrupts its task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). The 504 goes out as before. The task used to run on in the background, and is now interrupted, as [Effect Paths](#runtime-effect-paths) says.
 - **Start work that must outlive a `VTaskPath` response with its own `runAsync()`** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). Started inside the `VTaskPath` the controller returns, it keeps running when the timeout interrupts the request's task. Or raise `hkj.virtual-threads.default-timeout-ms`.
 - **A timed-out `CompletableFuturePath` request over `runAsync()` interrupts its task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). When `hkj.async.default-timeout-ms` runs out, the starter cancels the path's future, which now reaches the task.

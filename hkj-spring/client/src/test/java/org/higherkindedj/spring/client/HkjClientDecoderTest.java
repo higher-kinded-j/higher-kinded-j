@@ -9,9 +9,14 @@ import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
+import org.higherkindedj.hkt.Unit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -96,8 +101,41 @@ class HkjClientDecoderTest {
   }
 
   @Nested
+  @DisplayName("JsonResponseErrorDecoder for a Unit error")
+  class UnitErrorDecoder {
+
+    // No HkjJacksonModule on the mapper: a Unit error needs nothing from the body
+    private final JsonResponseErrorDecoder<Unit> decoder =
+        new JsonResponseErrorDecoder<>(mapper, Unit.class);
+
+    @ParameterizedTest(name = "body {0}")
+    @NullAndEmptySource
+    @ValueSource(
+        strings = {
+          "{\"success\":false,\"error\":null}",
+          "{\"success\":false,\"error\":\"()\"}",
+          "{\"success\":false,\"error\":{\"code\":\"X\"}}",
+          "   ",
+          "not json"
+        })
+    @DisplayName("decodes every error response to Unit, without parsing its body")
+    void decodesEveryResponseToUnit(String body) {
+      assertThat(decoder.decode(response(body))).isEqualTo(Unit.INSTANCE);
+    }
+  }
+
+  @Nested
   @DisplayName("JsonResponseErrorDecoderFactory")
   class Factory {
+
+    @Test
+    @DisplayName("builds a Unit decoder that parses no body, a status mapping to Unit included")
+    void buildsUnitDecoder() {
+      var factory = new JsonResponseErrorDecoderFactory(mapper, Map.of(404, Unit.class));
+
+      assertThat(factory.create(Unit.class).decode(response(""))).isEqualTo(Unit.INSTANCE);
+      assertThat(factory.plain(Unit.class).decode(response(null))).isEqualTo(Unit.INSTANCE);
+    }
 
     @Test
     @DisplayName("creates a working decoder for the requested error type")

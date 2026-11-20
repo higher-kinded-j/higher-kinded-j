@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.json;
 
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -18,6 +19,8 @@ import tools.jackson.databind.module.SimpleModule;
  *   <li>{@link Validated} - Serialised as {"valid": boolean, "value"|"errors": value}
  *   <li>{@link EitherOrBoth} - Serialised as {"kind": "left"|"right"|"both", "left"?, "right"?}
  *   <li>{@link NonEmptyList} - Serialised as a JSON array; an empty array is rejected on read
+ *   <li>{@link Unit} - Serialised as JSON null, whatever the mapper's enum settings; null, "()" and
+ *       "INSTANCE" all read as {@link Unit#INSTANCE}
  * </ul>
  *
  * <p>The module is automatically registered when using Spring Boot's auto-configuration. For manual
@@ -62,6 +65,10 @@ public class HkjJacksonModule extends SimpleModule {
     // Raw type cast needed because NonEmptyList<?> is generic
     addSerializer((Class) NonEmptyList.class, new NonEmptyListSerializer());
     addDeserializer((Class) NonEmptyList.class, new NonEmptyListDeserializer());
+
+    // Unit serialisation/deserialisation, as JSON null
+    addSerializer(Unit.class, new UnitSerializer());
+    addDeserializer(Unit.class, new UnitDeserializer());
   }
 
   @Override

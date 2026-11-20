@@ -30,6 +30,9 @@ import tools.jackson.databind.json.JsonMapper;
  * <ul>
  *   <li>{@link org.higherkindedj.hkt.either.Either}
  *   <li>{@link org.higherkindedj.hkt.validated.Validated}
+ *   <li>{@link org.higherkindedj.hkt.eitherorboth.EitherOrBoth}
+ *   <li>{@link org.higherkindedj.hkt.nonemptylist.NonEmptyList}
+ *   <li>{@link org.higherkindedj.hkt.Unit}
  * </ul>
  *
  * <p>The module is automatically picked up by Spring Boot's JsonMapper auto-configuration and

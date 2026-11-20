@@ -1,6 +1,6 @@
 # Jackson Serialisation for Higher-Kinded-J Types
 
-This document explains how higher-kinded-j types (Either, Validated) are serialised to JSON using Jackson.
+This document explains how higher-kinded-j types (Either, Validated, EitherOrBoth, NonEmptyList and Unit) are serialised to JSON using Jackson.
 
 ## Overview
 
@@ -9,6 +9,7 @@ The `hkj-spring-autoconfigure` module provides custom Jackson serialisers and de
 - `Validated<E, A>` - Validation with error accumulation
 - `EitherOrBoth<W, A>` - Inclusive-or (success that may carry warnings)
 - `NonEmptyList<A>` - Non-empty list (serialised as a plain JSON array)
+- `Unit` - The value that carries no information (serialised as JSON `null`)
 
 These serialisers are **automatically registered** when using Spring Boot auto-configuration. The shapes below are fixed — there are no format-toggle properties. `Maybe` and `Try` have **no** Jackson support: return them at the top level (where the return-value handlers apply) rather than nesting them in DTOs.
 
@@ -79,6 +80,32 @@ Validated<List<String>, User> errors = Validated.invalid(List.of("Invalid email"
 ```
 
 This applies to **nested** `EitherOrBoth` values. A top-level `EitherOrBoth` / `EitherOrBothPath` controller return value is shaped by `EitherOrBothPathReturnValueHandler` instead: the success body is the bare value, `Both` warnings travel JSON-encoded in the `X-Hkj-Warnings` response header, and a `Left` produces the `{"success": false, "error": ...}` envelope (see [CONFIGURATION.md](CONFIGURATION.md#hkjwebeither-or-both-path-enabled)).
+
+### Unit Serialisation
+
+A `Unit` writes as JSON `null` wherever it sits: the `right` of an `Either<E, Unit>`, a list element, or a record component. Without the module, Jackson writes it as an enum: `"()"`, its `toString()`, under Jackson 3's defaults, or `"INSTANCE"`, its name, under Jackson 2's (`spring.jackson.use-jackson2-defaults=true`). `null` is also what a `Void` success wrote, so moving an `Either<E, Void>` or a `Validated<E, Void>` to `Unit` leaves its JSON as it was.
+
+A record component typed `Unit` writes `null` even under `@JsonInclude(NON_NULL)` or `spring.jackson.default-property-inclusion=non_null`, which left out a `null` `Void`: its Java value is `Unit.INSTANCE`, not `null`.
+
+Two shapes meet that `null` in a way to know about:
+
+- **An `Optional<Unit>` cannot tell its values apart.** `Optional.empty()` and `Optional.of(Unit.INSTANCE)` both write `null`, and both read back as `Optional.of(Unit.INSTANCE)`. Use a `boolean` where presence is the information.
+- **A null-handling setting applies before the module.** Under `@JsonSetter(nulls = Nulls.FAIL)`, or a mapper-wide `Nulls.SKIP`, a record component typed `Unit` refuses, or skips, the `null` it was written as.
+
+```java
+record Outcome(String id, Either<String, Unit> result) {}
+
+new Outcome("a1", Either.right(Unit.INSTANCE));
+// JSON: {"id": "a1", "result": {"isRight": true, "right": null}}
+```
+
+A value typed `Unit` reads `null`, `"()"` and `"INSTANCE"` as `Unit.INSTANCE`, so a service reads what a `Void` success, or a mapper without the module, wrote. Any other value is refused with a `MismatchedInputException`, such as `Unit JSON must be null, "()" or "INSTANCE", not ...`, which names what it found. A mapper that unwraps single-element arrays, or reads an empty array as null, reads those as a `Unit` too. A record component typed `Unit` that the JSON leaves out reads as `Unit.INSTANCE`, but an `Either`, `Validated` or `EitherOrBoth` still needs its field: `{"isRight": true}` is refused with `Either with isRight=true must have 'right' field`.
+
+A `null` reads as `Unit` only where the declared type says `Unit`. A raw `Either.class` read does not know the type, so it refuses `{"isRight": true, "right": null}` with `Either 'right' must not be null`, as does a slot typed `Either<String, String>`.
+
+A service without this module's `Unit` support, such as one on 0.5.x, refuses the `null` in an `Either`, `Validated` or `EitherOrBoth`, and reads a bare `Unit` field or list element as a Java `null`. Upgrade the services that read a `Unit` before those that write one.
+
+A controller's own `Unit` success is not written by the module: its return-value handler sends no body.
 
 ## When Jackson Serialisers Are Used
 
@@ -244,6 +271,8 @@ not get the server-side auto-configuration, so it must register `HkjJacksonModul
 ```java
 JsonMapper mapper = JsonMapper.builder().addModule(new HkjJacksonModule()).build();
 ```
+
+A `Unit` error type needs nothing, since the default decoder reads no body for it.
 
 Which type the body decodes into is the method's declared error type, narrowed by any `@OnStatus`
 override or `hkj.client.status-error-mappings` entry. See the
