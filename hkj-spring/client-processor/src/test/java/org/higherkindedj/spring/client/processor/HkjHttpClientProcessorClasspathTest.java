@@ -398,7 +398,7 @@ class HkjHttpClientProcessorClasspathTest {
     assertThat(compilation)
         .hadErrorContaining(
             "'getUser', inherited from 'BaseApi': @OnStatus error type com.upstream.Unrelated is"
-                + " not assignable to the method's declared error type com.upstream.ApiErr.")
+                + " not assignable to the method's error type com.upstream.ApiErr.")
         .inFile(CHILD);
     assertThat(compilation)
         .hadWarningContaining(

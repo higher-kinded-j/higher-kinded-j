@@ -9,8 +9,10 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -746,29 +748,84 @@ class HkjHttpClientProcessorTest {
 
       assertThat(compilation).succeeded();
     }
+
+    @Test
+    @DisplayName("a method two interfaces map differently is refused, as it is implemented once")
+    void diamondMappedDifferentlyIsRefused() {
+      JavaFileObject diamond =
+          JavaFileObjects.forSourceLines(
+              "com.example.DiamondApi",
+              "package com.example;",
+              "import org.higherkindedj.spring.client.HkjHttpClient;",
+              "import org.springframework.web.service.annotation.HttpExchange;",
+              "@HttpExchange(\"/users\")",
+              "@HkjHttpClient",
+              "public interface DiamondApi extends AApi, BApi {}");
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceLines(
+                  "com.example.AApi",
+                  "package com.example;",
+                  "import org.higherkindedj.hkt.effect.EitherPath;",
+                  "import org.springframework.web.bind.annotation.PathVariable;",
+                  "import org.springframework.web.service.annotation.GetExchange;",
+                  "public interface AApi {",
+                  "  @GetExchange(\"/a/{id}\")",
+                  "  EitherPath<UserError, UserDto> getUser(@PathVariable String id);",
+                  "}"),
+              JavaFileObjects.forSourceLines(
+                  "com.example.BApi",
+                  "package com.example;",
+                  "import org.higherkindedj.hkt.effect.EitherPath;",
+                  "import org.springframework.web.bind.annotation.PathVariable;",
+                  "import org.springframework.web.service.annotation.GetExchange;",
+                  "public interface BApi {",
+                  "  @GetExchange(\"/b/{id}\")",
+                  "  EitherPath<UserError, UserDto> getUser(@PathVariable String id);",
+                  "}"),
+              diamond,
+              USER_DTO,
+              USER_ERROR);
+
+      // Generated once, the client would send every call to one of the two paths.
+      assertThat(compilation)
+          .hadErrorContaining("@HkjHttpClient implements 'getUser' once for two methods DiamondApi")
+          .inFile(diamond);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "which map it differently. Redeclare 'getUser' on DiamondApi with the mapping it"
+                  + " should have.");
+      Assertions.assertThat(compilation.errors())
+          .singleElement()
+          .satisfies(
+              error ->
+                  Assertions.assertThat(error.getMessage(null))
+                      .contains("AApi.getUser(java.lang.String)")
+                      .contains("BApi.getUser(java.lang.String)"));
+    }
   }
 
   @Nested
   @DisplayName("reads the methods of a generic base as the client instantiates it")
   class GenericBase {
 
-    private static final String[] IMPORTS = {
-      "package com.example;",
-      "import java.util.List;",
-      "import java.util.Map;",
-      "import org.higherkindedj.hkt.Unit;",
-      "import org.higherkindedj.hkt.effect.EitherPath;",
-      "import org.higherkindedj.hkt.effect.MaybePath;",
-      "import org.higherkindedj.hkt.effect.VTaskPath;",
-      "import org.higherkindedj.hkt.either.Either;",
-      "import org.higherkindedj.spring.client.HkjHttpClient;",
-      "import org.higherkindedj.spring.client.OnStatus;",
-      "import org.jspecify.annotations.Nullable;",
-      "import org.springframework.web.bind.annotation.PathVariable;",
-      "import org.springframework.web.bind.annotation.RequestParam;",
-      "import org.springframework.web.service.annotation.GetExchange;",
-      "import org.springframework.web.service.annotation.HttpExchange;"
-    };
+    private static final List<String> IMPORTS =
+        List.of(
+            "package com.example;",
+            "import java.util.List;",
+            "import java.util.Map;",
+            "import org.higherkindedj.hkt.Unit;",
+            "import org.higherkindedj.hkt.effect.EitherPath;",
+            "import org.higherkindedj.hkt.effect.MaybePath;",
+            "import org.higherkindedj.hkt.effect.VTaskPath;",
+            "import org.higherkindedj.hkt.either.Either;",
+            "import org.higherkindedj.spring.client.HkjHttpClient;",
+            "import org.higherkindedj.spring.client.OnStatus;",
+            "import org.jspecify.annotations.Nullable;",
+            "import org.springframework.web.bind.annotation.PathVariable;",
+            "import org.springframework.web.bind.annotation.RequestParam;",
+            "import org.springframework.web.service.annotation.GetExchange;",
+            "import org.springframework.web.service.annotation.HttpExchange;");
 
     /** An open error type and a subtype of it, for an override to narrow to. */
     private static final JavaFileObject API_ERR =
@@ -782,10 +839,8 @@ class HkjHttpClientProcessorTest {
             "public record NotFound(String message) implements ApiErr {}");
 
     private static JavaFileObject source(String simpleName, String... body) {
-      String[] lines = new String[IMPORTS.length + body.length];
-      System.arraycopy(IMPORTS, 0, lines, 0, IMPORTS.length);
-      System.arraycopy(body, 0, lines, IMPORTS.length, body.length);
-      return JavaFileObjects.forSourceLines("com.example." + simpleName, lines);
+      return JavaFileObjects.forSourceLines(
+          "com.example." + simpleName, Stream.concat(IMPORTS.stream(), Stream.of(body)).toList());
     }
 
     private static JavaFileObject base(String declaration, String... members) {
@@ -930,7 +985,21 @@ class HkjHttpClientProcessorTest {
           "<T>",
           "<X extends T> EitherPath<UserError, X> find(@RequestParam X example);",
           "ChildApi extends Repo<UserDto>",
-          "<X extends UserDto> EitherPath<UserError, X> find(@RequestParam X example);");
+          "<X extends UserDto> EitherPath<UserError, X> find(@RequestParam X example);"),
+      INTERFACE_BOUNDS(
+          "inside a bound of interfaces alone, which javac rebuilds with Object in front",
+          "<T>",
+          "<X extends Comparable<@Nullable T> & java.io.Serializable>"
+              + " EitherPath<UserError, X> find(@RequestParam X example);",
+          "ChildApi extends Repo<UserDto>",
+          "<X extends Comparable<@Nullable UserDto> & java.io.Serializable>"
+              + " EitherPath<UserError, X> find(@RequestParam X example);"),
+      UNUSED_HIDDEN_NAME(
+          "beside a type variable of the method's own that hides a name the signature never uses",
+          "<T>",
+          "<X> EitherPath<UserError, X> find(@RequestParam String query);",
+          "ChildApi<X> extends Repo<X>",
+          "<X> EitherPath<UserError, X> find(@RequestParam String query);");
 
       private final String description;
       private final String typeParameters;
@@ -989,6 +1058,21 @@ class HkjHttpClientProcessorTest {
     }
 
     @Test
+    @DisplayName("an error type the client binds to Void is refused, naming Unit")
+    void errorTypeBoundToVoidIsRefused() {
+      JavaFileObject child = client("ChildApi extends Repo<Void>");
+      Compilation compilation =
+          compileWith(
+              base("Repo<E>", "EitherPath<E, UserDto> get(@PathVariable String id);"), child);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'get', inherited from 'Repo': @HkjHttpClient error type Void cannot hold a value")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
     @DisplayName("an @OnStatus override is checked against the error type the client binds")
     void overrideCheckedAgainstTheBoundErrorType() {
       JavaFileObject child = client("ChildApi extends Repo<UserError>");
@@ -1003,7 +1087,7 @@ class HkjHttpClientProcessorTest {
       assertThat(compilation)
           .hadErrorContaining(
               "'get', inherited from 'Repo': @OnStatus error type com.example.NotFound is not"
-                  + " assignable to the method's declared error type com.example.UserError.")
+                  + " assignable to the method's error type com.example.UserError.")
           .inFile(child);
       assertThat(compilation).hadErrorCount(1);
     }
@@ -1027,22 +1111,125 @@ class HkjHttpClientProcessorTest {
     }
 
     @Test
-    @DisplayName("a base the client extends raw is reported as read through a raw type")
-    void rawBaseIsReported() {
-      // Its members are erased: the EitherPath<UserError, T> Repo declares is read as a bare
-      // EitherPath, which "Unsupported return type" alone would leave the author looking for.
-      JavaFileObject child = client("ChildApi extends Repo");
+    @DisplayName("a raw base's method that names none of its type variables is read as declared")
+    void rawBaseMethodWithoutVariables() {
+      // javac reads a member reached through a raw type erased, the types the declaration writes
+      // out in full included; the declaration itself is what the client means.
       Compilation compilation =
           compileWith(
-              base("Repo<T>", "EitherPath<UserError, T> get(@PathVariable String id);"), child);
+              base("Repo<T>", "EitherPath<UserError, UserDto> get(@PathVariable String id);"),
+              client("ChildApi extends Repo"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              contents(compilation.generatedSourceFile("com.example.ChildApiClient").get()))
+          .contains("EitherPath<UserError, UserDto> get(String id)");
+    }
+
+    @Test
+    @DisplayName("a raw base's method that names a type variable is refused, naming the raw type")
+    void rawBaseMethodWithAVariableIsRefused() {
+      JavaFileObject child = client("ChildApi extends Mid");
+      Compilation compilation =
+          compileWith(
+              base("Repo<T>", "EitherPath<UserError, T> get(@PathVariable String id);"),
+              source("Mid", "public interface Mid<M> extends Repo<M> {}"),
+              child);
+
+      // The client gave Repo nothing to bind because it named Mid raw, so Mid is the clause to fix.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'get', inherited from 'Repo': @HkjHttpClient reads this method through the raw type"
+                  + " Mid, which leaves Repo's type variable T unbound. Write Mid's type arguments"
+                  + " in the extends clause that names it.")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a raw type argument is an unsupported return type, not a raw read")
+    void rawTypeArgumentIsUnsupported() {
+      JavaFileObject child = client("ChildApi extends Repo<EitherPath>");
+      Compilation compilation =
+          compileWith(base("Repo<R>", "R get(@PathVariable String id);"), child);
 
       assertThat(compilation)
           .hadErrorContaining(
-              "'get', inherited from 'Repo': @HkjHttpClient reads this method through a raw type,"
-                  + " which erases its return type to org.higherkindedj.hkt.effect.EitherPath."
-                  + " Give each interface the client extends its type arguments.")
+              "'get', inherited from 'Repo': Unsupported @HkjHttpClient return type.")
           .inFile(child);
       assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a type variable of the method's own that hides one the signature needs is refused")
+    void hiddenClientVariableIsRefused() {
+      // Restated, find(T) becomes <X> find(X), where X has come to mean the method's.
+      JavaFileObject child = client("ChildApi<X> extends Repo<X>");
+      Compilation compilation =
+          compileWith(
+              base("Repo<T>", "<X> EitherPath<UserError, X> find(@RequestParam T example);"),
+              child);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'find', inherited from 'Repo': @HkjHttpClient cannot restate this method: its type"
+                  + " parameter X hides ChildApi's X, which the method's signature names once"
+                  + " ChildApi's type arguments are in place. Rename one of the two.")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a client that gives a generic client its type arguments gets a bean")
+    void clientOfAGenericClientGetsABean() {
+      Compilation compilation =
+          compileWith(
+              source(
+                  "Repo",
+                  "@HttpExchange(\"/items\")",
+                  "@HkjHttpClient",
+                  "public interface Repo<T> {",
+                  "  @GetExchange(\"/{id}\") EitherPath<UserError, T> get(@PathVariable String id);",
+                  "}"),
+              client("ChildApi extends Repo<UserDto>"));
+
+      assertThat(compilation).succeeded();
+      // The generic client itself stays codegen-only.
+      Assertions.assertThat(generatedSources(compilation).keySet())
+          .anyMatch(name -> name.endsWith("/ChildApiClientConfiguration.java"))
+          .noneMatch(name -> name.endsWith("/RepoClientConfiguration.java"));
+    }
+
+    @Test
+    @DisplayName(
+        "two methods the client's type arguments make one, mapped differently, are refused")
+    void methodsMadeOneButMappedDifferentlyAreRefused() {
+      // Erased, get(A) and get(B) are get(Number) and get(Comparable); as the client has them, both
+      // are get(Integer), and the client implements that once.
+      JavaFileObject child = client("ChildApi extends Repo<Integer, Integer>");
+      Compilation compilation =
+          compileWith(
+              source(
+                  "Repo",
+                  "public interface Repo<A extends Number, B extends Comparable<B>> {",
+                  "  @GetExchange(\"/a/{id}\")"
+                      + " EitherPath<UserError, UserDto> get(@PathVariable A id);",
+                  "  @GetExchange(\"/b/{id}\")"
+                      + " EitherPath<UserError, UserDto> get(@PathVariable B id);",
+                  "}"),
+              child);
+
+      assertThat(compilation)
+          .hadErrorContaining("@HkjHttpClient implements 'get' once for two methods ChildApi")
+          .inFile(child);
+      Assertions.assertThat(compilation.errors())
+          .singleElement()
+          .satisfies(
+              error ->
+                  Assertions.assertThat(error.getMessage(null))
+                      .contains("Repo.get(A)")
+                      .contains("Repo.get(B)"));
     }
 
     @Test

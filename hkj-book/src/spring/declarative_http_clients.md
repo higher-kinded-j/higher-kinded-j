@@ -344,7 +344,13 @@ The streaming case is consumed through this translator rather than through a gen
 
 ## Generic Clients
 
-A client can share its endpoints with others by extending a generic base interface with concrete type arguments. The processor reads each inherited method with the client's arguments in place of the base's type variables. `UserCrudApi` gets the client that redeclaring `get` and `create` for `ApiError`, `UserDto` and `String` would give it, bean wiring included:
+A shared base interface is the natural home for endpoints that several clients have in common. What the processor generates for a client with type parameters depends on where they end up:
+
+| Your client | What the processor generates |
+|---|---|
+| `UserCrudApi extends CrudApi<ApiError, UserDto, String>` | The client and its bean, as if `UserCrudApi` redeclared each inherited method with `ApiError`, `UserDto` and `String` in place of `E`, `T` and `ID` |
+| `AnyUserApi<T> extends CrudApi<ApiError, T, String>` | The client without a bean, as for any generic client |
+| `AnyErrorApi<E> extends CrudApi<E, UserDto, String>` | Nothing: it reports `@HkjHttpClient error type cannot be a type variable` |
 
 <!-- verify -->
 ```java
@@ -362,7 +368,13 @@ interface CrudApi<E, T, ID> {
 interface UserCrudApi extends CrudApi<ApiError, UserDto, String> {}
 ```
 
-The error type must still be a concrete class, because the decoder binds it with `E.class`. A client that passes a type variable of its own on as the error type is refused, with `@HkjHttpClient error type cannot be a type variable`:
+Put the type-level `@HttpExchange` on each client. The processor copies only the client's own class-level annotations onto the interface Spring proxies, so Spring never sees one written on the base.
+
+The client implements a method once, however many declarations it inherits it from. Two bases can each declare `getUser(String)`, and type arguments can make two methods of one base the same. The processor refuses such a method when its declarations map it differently, as it could call only one of their endpoints. Redeclare it on the client with the mapping it should have.
+
+A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a generic client cannot be a singleton bean. Instantiate the facade for a concrete type argument yourself. Alternatively, extend the generic client from a non-generic `@HkjHttpClient` interface that gives its type arguments, which gets a bean.
+
+The error type must be a concrete class wherever the client gets it from, because the decoder binds it with `E.class`. The processor refuses a client that passes one of its own type variables on as the error type, with `@HkjHttpClient error type cannot be a type variable`:
 
 <!-- verify:rejects "error type cannot be a type variable" -->
 ```java
@@ -370,8 +382,6 @@ The error type must still be a concrete class, because the decoder binds it with
 @HkjHttpClient
 interface AnyErrorApi<E> extends CrudApi<E, UserDto, String> {}
 ```
-
-A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a generic client cannot be a singleton bean. You instantiate the facade for a concrete type argument yourself.
 
 ~~~admonish warning title="Common Mistakes"
 - **The starter without the processor.** The interface compiles, nothing is generated, and startup fails with `required a bean of type 'com.example.UserClientApi' that could not be found`. Add `hkj-spring-boot-client-processor` to the processor path, as [Step 1](#step-1-add-the-starter) shows.
