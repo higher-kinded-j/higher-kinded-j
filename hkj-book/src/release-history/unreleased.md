@@ -143,6 +143,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **The `VTask` javadoc says which thread runs a task** ([#1396](https://github.com/higher-kinded-j/higher-kinded-j/pull/1396)). `run()` runs it on the calling thread, and `runAsync()`, `Par` and `Scope` run tasks on virtual threads. It said every task ran on a virtual thread, as did the VTaskPath page and two glossary entries.
 - **You can have NullAway flag a null returned through `VTask.of` or `Try.of`** ([#1371](https://github.com/higher-kinded-j/higher-kinded-j/issues/1371)). In JSpecify mode alone, NullAway never checks what a lambda returns when passed as a JDK `Supplier`, `Callable` or `BiFunction`, as to `VTask.of`, `Try.of` or `IO.delay`, so the computation fails only when it runs. Two NullAway options make it check them. See [What a nullness checker sees](../hkts/core-concepts.md#what-a-nullness-checker-sees).
 - **You can learn the type classes from one tested example.** Most Foundations pages and Tutorial 00 use the order service the Optics and Mapping chapters share. Each core type's page opens with a card saying when to reach for it, Supported Types is rebuilt around those cards, and a new page lists where an instance bends a law. See [Foundations](../hkts/foundations_intro.md).
+- **The Type Classes glossary gains `MonadReader`, `MonadState` and `MonadWriter`** ([#1527](https://github.com/higher-kinded-j/higher-kinded-j/issues/1527)). Each gives a definition, its core operations and a link to its page in the MTL chapter.
 
 ---
 
