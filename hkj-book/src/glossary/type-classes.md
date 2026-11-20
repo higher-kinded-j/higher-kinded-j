@@ -388,6 +388,86 @@ Kind<EitherKind.Witness<String>, Double> result =
 
 ---
 
+## MonadReader
+
+**Definition:** A type class that extends Monad with read access to an environment of type `R`, such as configuration or a set of dependencies, that every step of a computation can see.
+
+**Core Operations:**
+- `ask()` - The environment itself
+- `asks(Function<R, A> f)` - A value read from the environment; `reader(f)` is the same
+- `local(Function<R, R> f, Kind<F, A> ma)` - Run `ma` in an environment that `f` has changed
+
+**Example:**
+<!-- verify -->
+```java
+record AppConfig(String baseUrl) {}
+
+// Reads the configuration on any stack that provides a MonadReader
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, String> ordersUrl(
+    MonadReader<F, AppConfig> reader) {
+  return reader.asks(config -> config.baseUrl() + "/orders");
+}
+```
+
+**When To Use:** Code that reads configuration or dependencies without passing them to every method. Written against `MonadReader`, it runs on any stack that provides one, such as `ReaderT`.
+
+**Related:** [Monad](#monad), [Monad Transformer](#monad-transformer), [Reader](data-effects.md#reader), [MonadReader Documentation](../transformers/mtl_reader.md)
+
+---
+
+## MonadState
+
+**Definition:** A type class that extends Monad with a state of type `S` that each step can read and replace, threaded through the computation without a mutable variable.
+
+**Core Operations:**
+- `get()` - The current state
+- `put(S s)` - Replace the state
+- `modify(Function<S, S> f)` - Update the state with a function
+- `gets(Function<S, A> f)` - A value read from the state; `inspect(f)` is the same
+
+**Example:**
+<!-- verify -->
+```java
+record Counter(int count) {}
+
+// Counts one more, on any stack that provides a MonadState
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, Unit> countOne(
+    MonadState<F, Counter> state) {
+  return state.modify(counter -> new Counter(counter.count() + 1));
+}
+```
+
+**When To Use:** Code that keeps a counter, a cache or an accumulator from step to step. Written against `MonadState`, it runs on any stack that provides one, such as `StateT`.
+
+**Related:** [Monad](#monad), [Monad Transformer](#monad-transformer), [State](data-effects.md#state), [MonadState Documentation](../transformers/mtl_state.md)
+
+---
+
+## MonadWriter
+
+**Definition:** A type class that extends Monad with an output of type `W`, such as a log or an audit trail, that each step can add to. A `Monoid` for `W` combines the additions.
+
+**Core Operations:**
+- `tell(W w)` - Add to the output
+- `listen(Kind<F, A> ma)` - Run `ma`, and pair its result with the output it produced
+- `censor(Function<W, W> f, Kind<F, A> ma)` - Run `ma`, and change the output it produced
+
+**Example:**
+<!-- verify -->
+```java
+// Records an event, on any stack that provides a MonadWriter
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, Unit> logEvent(
+    MonadWriter<F, List<String>> writer, String event) {
+  return writer.tell(List.of(event));
+}
+```
+
+**When To Use:** Code that records what it did beside what it computes. Written against `MonadWriter`, it runs on any stack that provides one, such as `WriterT`.
+
+**Related:** [Monad](#monad), [Monoid](#monoid), [Writer](data-effects.md#writer), [MonadWriter Documentation](../transformers/mtl_writer.md)
+
+---
+
 ## MonadZero
 
 **Definition:** A type class that extends Monad and Alternative with a zero value, the failed or empty computation that absorbs the rest of a chain.
