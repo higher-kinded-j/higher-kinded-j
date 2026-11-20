@@ -314,7 +314,7 @@ Jackson support: return them at the top level, where the handlers apply.
 |------|------------|
 | `EitherOrBoth<L, R>` | tag-based: `{"kind":"left","left":…}` / `{"kind":"right","right":…}` / `{"kind":"both","left":…,"right":…}` |
 | `NonEmptyList<A>` | a plain JSON array: `["a","b"]`. Deserialising `[]` or a non-array is an error (the type's non-emptiness is enforced on the wire); so is a `null` element, except in a `NonEmptyList<Unit>`, where it reads as `Unit.INSTANCE` |
-| `Unit` | `null`, whatever the mapper's enum settings, as a `Void` success wrote: `{"isRight":true,"right":null}`. Reads `null`, `"()"` and `"INSTANCE"`; any other value is an error |
+| `Unit` | `null`, whatever the mapper's enum settings, as a `Void` success wrote: `{"isRight":true,"right":null}`. Reads `null`, `"()"` and `"INSTANCE"`. Any other value is an error, unless the mapper enables `UNWRAP_SINGLE_VALUE_ARRAYS`, which reads one of those three in a one-element array, such as `["()"]`, or `ACCEPT_EMPTY_ARRAY_AS_NULL_OBJECT`, which reads `[]` as `Unit.INSTANCE` |
 
 None adds a config key; each follows `hkj.json.custom-serializers-enabled`. `EitherOrBoth` has no
 `*-format` toggle; it is always tagged, because three branches cannot be told apart untagged.
@@ -400,7 +400,7 @@ hkj:                                       # the client analogue of hkj.web.erro
       429: com.example.RateLimitError       # applies to a method only if assignable to its declared E
 ```
 
-Wholesale: define a `ResponseErrorDecoder` / `ResponseErrorDecoderFactory` bean (e.g. for a non-HKJ server that does not emit the envelope; an undecodable body raises `ResponseErrorDecodeException`, never for a `Unit` error type).
+Wholesale: define a `ResponseErrorDecoder` / `ResponseErrorDecoderFactory` bean (e.g. for a non-HKJ server that does not emit the envelope). Without one, an undecodable body raises `ResponseErrorDecodeException`, unless the error type is `Unit`, whose body the default decoder never reads. A custom decoder decides for itself.
 
 ### Resilience, Retry-After, SSE
 

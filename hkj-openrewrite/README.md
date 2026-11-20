@@ -201,7 +201,9 @@ writes a `Unit` success as a JSON string, where a `Void` one wrote `null`, which
 to move to 0.5.0 in the same change. On 0.5.0, a 200 response that answered `Right(null)` sends no
 body, and a `Unit` nested in a body, as in a list of `Either`, writes as `"()"`, its `toString()`,
 where `Void` wrote `null` (`"INSTANCE"` with `spring.jackson.use-jackson2-defaults=true`);
-0.6.0 writes `null` again, as `Void` did. A project already on 0.5.0 can run `ReplaceVoidSuccessWithUnitRecipe` on its own, with
+0.6.0 writes `null` again, as `Void` did. A 0.5.x reader refuses that `null` or reads it as a Java
+`null`, so upgrade the services that read it first. A project already on 0.5.0 can run
+`ReplaceVoidSuccessWithUnitRecipe` on its own, with
 `DetectNullSuccessValuesRecipe` after it to mark what it leaves. A `Void` value that reaches a
 success through a lambda or a wrapper of your own is neither rewritten nor marked. Migrate a
 library typed with `Void` before the builds that use it.
