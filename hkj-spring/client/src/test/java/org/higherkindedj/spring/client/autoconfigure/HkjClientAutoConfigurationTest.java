@@ -10,6 +10,8 @@ import org.higherkindedj.spring.client.ResponseErrorDecoder;
 import org.higherkindedj.spring.client.ResponseErrorDecoderFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -83,5 +85,24 @@ class HkjClientAutoConfigurationTest {
     runner
         .withPropertyValues("hkj.client.status-error-mappings.404=com.example.DoesNotExist")
         .run(context -> assertThat(context).hasFailed());
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"java.lang.Void", "void"})
+  @DisplayName("fails fast when a configured error type is Void, naming Unit")
+  void failsFastOnVoid(String className) {
+    runner
+        .withPropertyValues("hkj.client.status-error-mappings.404=" + className)
+        .run(
+            context ->
+                assertThat(context)
+                    .getFailure()
+                    .rootCause()
+                    .hasMessage(
+                        "hkj.client.status-error-mappings: error type '"
+                            + className
+                            + "' for status 404 cannot hold a value, but a Left always holds"
+                            + " one. Map the status to org.higherkindedj.hkt.Unit, the error type"
+                            + " that carries nothing, or remove the mapping."));
   }
 }

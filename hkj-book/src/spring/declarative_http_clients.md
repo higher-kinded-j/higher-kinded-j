@@ -213,6 +213,7 @@ Each method picks how the call is run and what shape the result takes. (`Right`/
 | `EitherPath<E, Unit>` | Eager, blocks the calling thread | `Right(Unit.INSTANCE)`, body ignored | `Left(decoded error)` | The endpoint sends no body, such as a `DELETE` answered with 204 |
 | `VTaskPath<Either<E, Unit>>` | Deferred onto a virtual thread | `Right(Unit.INSTANCE)`, body ignored | `Left(decoded error)` | As above, with retries or a timeout |
 | `MaybePath<Unit>` | Eager, blocks the calling thread | `Just(Unit.INSTANCE)`, body ignored | 404 → `Nothing` | The endpoint sends no body and may answer 404 |
+| `EitherPath<Unit, T>` or `VTaskPath<Either<Unit, T>>` | As `EitherPath<E, T>` or `VTaskPath<Either<E, T>>` | `Right(body)` | `Left(Unit.INSTANCE)`, body ignored | The caller needs to know only that the call failed |
 
 ~~~admonish note title="Semantics worth pinning"
 - **Empty 2xx body.** A `Right` always holds a value, so `EitherPath` throws an `EmptyResponseBodyException` for an empty body, and `VTaskPath` fails its task with one. The request has been made by then, so exclude that type from a retry policy. `MaybePath` yields `Nothing`. For an endpoint that sends no body, declare `Unit`; `Void` is refused when the client is generated.
@@ -230,7 +231,7 @@ Only an HTTP **error response** (`RestClientResponseException`) is folded into t
 
 The default decoder reads the server's `{"success":false,"error":…}` envelope and binds the `error` node to your method's declared error type.
 
-A `Unit` error type reads no body. Every error response decodes to `Unit.INSTANCE`, whatever its body, just as a `Unit` success ignores its body. Declare it where the caller needs to know only that the call failed.
+A `Unit` error type reads no body. Every error response decodes to `Unit.INSTANCE`, whatever its body, just as a `Unit` success ignores its body. Declare it where the caller needs to know only that the call failed. The processor refuses `Void` as a method's error type, and as an `@OnStatus` error type, because no `Left` can hold one; `Unit` is the type to declare.
 
 A **concrete** error type binds with no extra annotations. A **sealed** `DomainError` hierarchy needs Jackson polymorphic type information so the decoder can pick the subtype:
 
@@ -292,7 +293,7 @@ hkj:
       429: com.example.RateLimitError
 ```
 
-For each method, a configured status whose type is **assignable** to that method's declared error type decodes into the subtype; non-assignable and unmapped statuses fall back to the declared type. An unresolvable class name fails fast at startup.
+For each method, a configured status whose type is **assignable** to that method's declared error type decodes into the subtype; non-assignable and unmapped statuses fall back to the declared type. An unresolvable class name, or `java.lang.Void`, fails fast at startup.
 
 #### 3. Wholesale: a custom decoder bean
 

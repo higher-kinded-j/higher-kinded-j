@@ -106,6 +106,7 @@ signature, and sorted), so repeated builds produce byte-identical sources.
 | `MaybePath<T>` | `Just(body)` on 2xx, `Nothing` on 404 or empty body | Other failures propagate as the original exception. |
 | `EitherPath<E, Unit>`, `VTaskPath<Either<E, Unit>>` | `Right(Unit.INSTANCE)` on 2xx, whatever the body | For an endpoint that sends no body. The native method returns `ResponseEntity<Void>`; declaring `Void` itself is a compile error. |
 | `MaybePath<Unit>` | `Just(Unit.INSTANCE)` on 2xx, whatever the body, `Nothing` on 404 | For an endpoint that sends no body and may answer 404. |
+| `EitherPath<Unit, T>`, `VTaskPath<Either<Unit, T>>` | `Left(Unit.INSTANCE)` on a 4xx/5xx, whatever the body | For an endpoint whose errors carry nothing, with the default decoder. Declaring `Void` as the error type, or in an `@OnStatus`, is a compile error. |
 
 A `Right` always holds a value, so `EitherPath<E, T>` and `VTaskPath<Either<E, T>>` refuse a 2xx
 response with no body: it propagates as an `EmptyResponseBodyException`, a `RestClientException`
@@ -150,7 +151,9 @@ The default bean is `JsonResponseErrorDecoderFactory`, backed by the application
 closed `@JsonTypeInfo`/`@JsonSubTypes` discriminator (see
 [Jackson Serialisation](JACKSON_SERIALIZATION.md#client-side-deserialisation-hkjhttpclient)).
 A `Unit` error type reads no body: every error response decodes to `Unit.INSTANCE`, whatever its
-body, just as a `Unit` success ignores its body.
+body, just as a `Unit` success ignores its body. A `Void` error type cannot hold a value: the
+processor refuses it, and so does the decoder when it is built, with `IllegalArgumentException`.
+Declare `Unit` instead.
 
 **Talking to non-HKJ servers.** Against a server that does not emit the envelope (or returns an empty
 or foreign body) the default decoder raises `ResponseErrorDecodeException`, for any error type but
@@ -190,7 +193,8 @@ hkj:
 
 For each method, a configured status whose type is **assignable** to that method's declared error
 type decodes into the subtype; non-assignable mappings and unmapped statuses fall back to the
-declared type. A class that cannot be resolved fails fast at startup. Full key reference:
+declared type. A class that cannot be resolved, or `java.lang.Void`, fails fast at startup. Full key
+reference:
 [CONFIGURATION.md](CONFIGURATION.md#hkjclientstatus-error-mappings).
 
 **Precedence (highest first):** `@OnStatus` (per-method) → `hkj.client.status-error-mappings`

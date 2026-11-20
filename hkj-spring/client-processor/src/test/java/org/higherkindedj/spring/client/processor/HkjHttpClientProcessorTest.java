@@ -234,6 +234,126 @@ class HkjHttpClientProcessorTest {
   }
 
   @Nested
+  @DisplayName("an endpoint whose errors carry nothing")
+  class NoErrorBody {
+
+    private static final String VOID_ERROR =
+        "@HkjHttpClient error type Void cannot hold a value, but a Left always holds one. Replace"
+            + " Void with org.higherkindedj.hkt.Unit: the default decoder then reads no error body,"
+            + " and every error response gives Left(Unit.INSTANCE).";
+
+    @Test
+    @DisplayName("Unit is decoded by its own class, declared or named by an @OnStatus")
+    void unitErrorGenerates() {
+      Compilation compilation =
+          compile(
+              userApi(
+                  "  @GetExchange(\"/{id}\")",
+                  "  EitherPath<org.higherkindedj.hkt.Unit, UserDto> get(@PathVariable String id);",
+                  "  @GetExchange(\"/{id}/later\")",
+                  "  VTaskPath<Either<org.higherkindedj.hkt.Unit, UserDto>> getLater(",
+                  "      @PathVariable String id);",
+                  "  @GetExchange(\"/{id}/any\")",
+                  "  @org.higherkindedj.spring.client.OnStatus(",
+                  "      value = 404, error = org.higherkindedj.hkt.Unit.class)",
+                  "  EitherPath<Object, UserDto> getAny(@PathVariable String id);"),
+              USER_DTO);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClient")
+          .contentsAsUtf8String()
+          .contains("this.getDecoder = decoderFactory.create(Unit.class)");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClient")
+          .contentsAsUtf8String()
+          .contains("this.getLaterDecoder = decoderFactory.create(Unit.class)");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClient")
+          .contentsAsUtf8String()
+          .contains(".on(404, Unit.class)");
+    }
+
+    @Test
+    @DisplayName("a class of your own named Void is not java.lang.Void, and generates")
+    void ownVoidGenerates() {
+      Compilation compilation =
+          compile(
+              userApi(
+                  "  @GetExchange(\"/{id}\")",
+                  "  EitherPath<Void, UserDto> get(@PathVariable String id);"),
+              USER_DTO,
+              JavaFileObjects.forSourceLines(
+                  "com.example.Void",
+                  "package com.example;",
+                  "public record Void(String code) {}"));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClient")
+          .contentsAsUtf8String()
+          .contains("decoderFactory.create(Void.class)");
+    }
+
+    @Test
+    @DisplayName("a Void error is refused, with a fix line naming Unit")
+    void voidErrorIsRefused() {
+      JavaFileObject source =
+          userApi(
+              "  @GetExchange(\"/{id}\")",
+              "  EitherPath<Void, UserDto> get(@PathVariable String id);");
+      Compilation compilation = compile(source, USER_DTO);
+
+      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation)
+          .hadErrorContaining(VOID_ERROR)
+          .inFile(source)
+          .onLineContaining("get(");
+    }
+
+    @Test
+    @DisplayName("a VTaskPath with Void on both sides hears about each")
+    void voidOnBothSidesOfAVTaskPath() {
+      Compilation compilation =
+          compile(
+              userApi(
+                  "  @GetExchange(\"/{id}\")",
+                  "  VTaskPath<Either<Void, Void>> delete(@PathVariable String id);"));
+
+      assertThat(compilation).hadErrorCount(2);
+      assertThat(compilation).hadErrorContaining(VOID_ERROR);
+      assertThat(compilation).hadErrorContaining("@HkjHttpClient success type Void");
+    }
+
+    @Test
+    @DisplayName("a Void @OnStatus is refused, naming Unit only where a Unit would be assignable")
+    void voidOnStatusIsRefused() {
+      JavaFileObject source =
+          userApi(
+              "  @GetExchange(\"/{id}\")",
+              "  @org.higherkindedj.spring.client.OnStatus(value = 404, error = Void.class)",
+              "  EitherPath<Object, UserDto> anyError(@PathVariable String id);",
+              "  @GetExchange(\"/{id}/typed\")",
+              "  @org.higherkindedj.spring.client.OnStatus(value = 404, error = Void.class)",
+              "  EitherPath<UserError, UserDto> typedError(@PathVariable String id);");
+      Compilation compilation = compile(source, USER_DTO, USER_ERROR);
+
+      assertThat(compilation).hadErrorCount(2);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@OnStatus error type Void cannot hold a value, but a Left always holds one. Replace"
+                  + " Void with org.higherkindedj.hkt.Unit: the default decoder then reads no error"
+                  + " body, and every 404 response gives Left(Unit.INSTANCE).")
+          .inFile(source)
+          .onLineContaining("anyError(");
+      assertThat(compilation)
+          .hadErrorContaining("@OnStatus error type java.lang.Void is not assignable")
+          .inFile(source)
+          .onLineContaining("typedError(");
+    }
+  }
+
+  @Nested
   @DisplayName("copies arbitrary mapping-annotation attributes through faithfully")
   class CopyThrough {
 

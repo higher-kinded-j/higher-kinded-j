@@ -22,8 +22,9 @@ import java.lang.annotation.Target;
  * EitherPath<DomainError, UserDto> getUser(@PathVariable String id);
  * }</pre>
  *
- * <p>Each {@code error()} type must be assignable to the method's declared error type. Statuses
- * with no override fall back to decoding into the declared type.
+ * <p>Each {@code error()} type must be assignable to the method's declared error type, and cannot
+ * be {@code Void}, which no {@code Left} can hold: {@code Unit} is the error type that carries
+ * nothing. Statuses with no override fall back to decoding into the declared type.
  *
  * <p>Retained in the class file so that a client interface extending a base interface from a jar
  * keeps the base's overrides. A method read from a class file would otherwise carry none, and the
@@ -45,7 +46,8 @@ public @interface OnStatus {
   /**
    * The error type to decode for this status.
    *
-   * @return the error type, which must be assignable to the method's declared error type
+   * @return the error type, which must be assignable to the method's declared error type, and
+   *     cannot be {@code Void}
    */
   Class<?> error();
 }

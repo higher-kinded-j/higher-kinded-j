@@ -98,6 +98,23 @@ class HkjClientDecoderTest {
       assertThatThrownBy(() -> new JsonResponseErrorDecoder<>(mapper, null))
           .isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    @DisplayName("refuses a Void or void error type when built, naming Unit")
+    void refusesVoid() {
+      assertThatThrownBy(() -> new JsonResponseErrorDecoder<>(mapper, Void.class))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(
+              "JsonResponseErrorDecoder error type Void cannot hold a value, but a Left always"
+                  + " holds one. Replace Void with org.higherkindedj.hkt.Unit: the decoder then"
+                  + " reads no error body and gives Unit.INSTANCE.");
+      assertThatThrownBy(() -> new JsonResponseErrorDecoder<>(mapper, void.class))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(
+              "JsonResponseErrorDecoder error type void cannot hold a value, but a Left always"
+                  + " holds one. Replace void with org.higherkindedj.hkt.Unit: the decoder then"
+                  + " reads no error body and gives Unit.INSTANCE.");
+    }
   }
 
   @Nested

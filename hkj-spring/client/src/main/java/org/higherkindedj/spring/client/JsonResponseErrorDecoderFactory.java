@@ -17,6 +17,10 @@ import tools.jackson.databind.json.JsonMapper;
  * statuses decode into {@code E}. This is the client-side analogue of the server's {@code
  * hkj.web.error-status-mappings}. Per-method {@link OnStatus} overrides take precedence over this
  * global baseline (they use {@link #plain}).
+ *
+ * <p>Neither the mapping nor {@link #create} or {@link #plain} takes {@code Void} or {@code void}:
+ * no {@code Left} can hold one, so the factory and the decoder refuse it when built, with {@link
+ * IllegalArgumentException}. {@code Unit} is the error type that carries nothing.
  */
 public final class JsonResponseErrorDecoderFactory implements ResponseErrorDecoderFactory {
 
@@ -38,12 +42,31 @@ public final class JsonResponseErrorDecoderFactory implements ResponseErrorDecod
    *
    * @param mapper the Jackson 3.x mapper
    * @param statusErrorTypes the global mapping from HTTP status code to error type
+   * @throws IllegalArgumentException if a status maps to {@code Void} or {@code void}
    */
   public JsonResponseErrorDecoderFactory(
       JsonMapper mapper, Map<Integer, Class<?>> statusErrorTypes) {
     this.mapper = Objects.requireNonNull(mapper, "mapper");
     this.statusErrorTypes =
-        Map.copyOf(Objects.requireNonNull(statusErrorTypes, "statusErrorTypes"));
+        requireNoVoid(Map.copyOf(Objects.requireNonNull(statusErrorTypes, "statusErrorTypes")));
+  }
+
+  private static Map<Integer, Class<?>> requireNoVoid(Map<Integer, Class<?>> statusErrorTypes) {
+    statusErrorTypes.entrySet().stream()
+        .filter(entry -> JsonResponseErrorDecoder.holdsNoValue(entry.getValue()))
+        .findFirst()
+        .ifPresent(
+            entry -> {
+              throw new IllegalArgumentException(
+                  "JsonResponseErrorDecoderFactory: status "
+                      + entry.getKey()
+                      + " maps to error type "
+                      + entry.getValue().getSimpleName()
+                      + ", which cannot hold a value, but a Left always holds one. Map it to"
+                      + " org.higherkindedj.hkt.Unit, the error type that carries nothing, or"
+                      + " remove the mapping.");
+            });
+    return statusErrorTypes;
   }
 
   @Override
