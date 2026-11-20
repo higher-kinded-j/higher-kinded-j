@@ -640,6 +640,23 @@ class NullableTypeArgumentTest {
                 }
                 """));
 
+    // Each apply's copy names the array's type on its guard, and casts any other copy to its
+    // own type, where a type inside it is declared nullable.
+    Assertions.assertThat(generated(result.compilation(), "GriddedGridPatchMappingImpl"))
+        .contains(
+            "(c, v) -> new Components(GriddedGridPatchMappingImpl.<@Nullable"
+                + " String[]>hkj$copyOrNull(v, e -> e.clone()), c.plain(),")
+        .contains("(c, v) -> new Components(c.cells(), hkj$copyOrNull(v, e -> e.clone()),");
+    Assertions.assertThat(generated(result.compilation(), "GriddedSentPatchMappingImpl"))
+        .contains(
+            "GriddedSentPatchMappingImpl.<@Nullable String[]>hkj$copyOrNull(v, e -> e.clone())")
+        .contains(
+            "(Map<List<@Nullable String>, Gridded.Code>) (v instanceof IdentityHashMap<?, ?> ?"
+                + " hkj$copyOf(v) : v)")
+        .contains(
+            "(Optional<Map<List<@Nullable String>, Gridded.Code>>) hkj$copyOf(v, e -> (e"
+                + " instanceof IdentityHashMap<?, ?> ? hkj$copyOf(e) : e))")
+        .contains("c.bridged(), (v instanceof IdentityHashMap<?, ?> ? hkj$copyOf(v) : v)))");
     Assertions.assertThat(generated(result.compilation(), "GriddedGridPatchMappingImpl"))
         .contains("Setter.<Components, @Nullable String[]>fromGetSet(Components::cells, (c, v) ->")
         .contains("e -> hkj$allPresent(e)).at(\"cells\")")
@@ -1263,6 +1280,133 @@ class NullableTypeArgumentTest {
     Assertions.assertThat(generated(result.compilation(), "UnliftedBoundMappingImpl"))
         .contains("hkj$copyOf(domain.tags().orElse(null))")
         .doesNotContain("(@Nullable List");
+  }
+
+  @Test
+  @DisplayName(
+      "a sparse update's copy on each apply of an array of arrays whose elements may be null names"
+          + " every level's type, sent as it is or through a JsonNullable")
+  void aCopyOnEachApplyNamesEveryArrayLevel() throws ReflectiveOperationException {
+    var result =
+        compileClean(
+            JsonNullableStub.SOURCE,
+            source(
+                "Deep",
+                """
+                import org.higherkindedj.optics.annotations.UpdateSpec;
+                import org.openapitools.jackson.nullable.JsonNullable;
+
+                public final class Deep {
+                  private Deep() {}
+
+                  public record Grid(@Nullable String[][] cells, @Nullable String[][] sent) {}
+
+                  public static final class GridPatch {
+                    private @Nullable String @Nullable [][] cells;
+                    private @Nullable JsonNullable<@Nullable String[][]> sent;
+
+                    public @Nullable String @Nullable [][] getCells() { return cells; }
+
+                    public void setCells(@Nullable String @Nullable [][] cells) { this.cells = cells; }
+
+                    public @Nullable JsonNullable<@Nullable String[][]> getSent() { return sent; }
+
+                    public void setSent(@Nullable JsonNullable<@Nullable String[][]> sent) {
+                      this.sent = sent;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface GridPatchMapping extends UpdateSpec<Grid, GridPatch> {}
+                }
+                """));
+
+    String rows =
+        "DeepGridPatchMappingImpl.<@Nullable String[][]>hkj$copyOrNull(v, e ->"
+            + " DeepGridPatchMappingImpl.<@Nullable String[]>hkj$copyOf(e, e2 ->"
+            + " DeepGridPatchMappingImpl.<@Nullable String[]>hkj$copyOrNull(e2, e3 -> e3.clone())))";
+    Assertions.assertThat(generated(result.compilation(), "DeepGridPatchMappingImpl"))
+        .contains("(c, v) -> new Components(" + rows + ", c.sent())")
+        .contains("(c, v) -> new Components(c.cells(), " + rows + ")");
+
+    // Each apply hands over rows of its own.
+    Object patch =
+        result.loadClass("com.example.Deep$GridPatch").getDeclaredConstructor().newInstance();
+    invoke(patch, "setCells", (Object) new String[][] {{"a", "b"}});
+    Object grid = record(result, "Deep$Grid", new String[0][], new String[0][]);
+    Object accumulated =
+        invoke(result.instance("com.example.DeepGridPatchMappingImpl"), "updateFrom", patch);
+    String[][] first =
+        (String[][]) invoke(validated(invoke(accumulated, "apply", grid)).get(), "cells");
+    String[][] second =
+        (String[][]) invoke(validated(invoke(accumulated, "apply", grid)).get(), "cells");
+    Assertions.assertThat(first[0]).isNotSameAs(second[0]).containsExactly("a", "b");
+  }
+
+  @Test
+  @DisplayName(
+      "a sparse update's copy on each apply writes out no type whose nullable annotation its class"
+          + " cannot write")
+  void aCopyOnEachApplyLeavesAnUnwritableAnnotationOut() {
+    var result =
+        compileClean(
+            JsonNullableStub.SOURCE,
+            JavaFileObjects.forSourceString(
+                "com.example.wire.Nullable",
+                """
+                package com.example.wire;
+
+                import java.lang.annotation.ElementType;
+                import java.lang.annotation.Target;
+
+                // Named as a nullness checker reads it, and not writable from com.example.
+                @Target(ElementType.TYPE_USE)
+                @interface Nullable {}
+                """),
+            JavaFileObjects.forSourceString(
+                "com.example.wire.Shelf",
+                """
+                package com.example.wire;
+
+                import java.util.Map;
+
+                public record Shelf(Map<String, @Nullable String> labels, @Nullable String[] cells) {}
+                """),
+            JavaFileObjects.forSourceString(
+                "com.example.wire.ShelfPatch",
+                """
+                package com.example.wire;
+
+                import java.util.Map;
+
+                public class ShelfPatch {
+                  private Map<String, @Nullable String> labels;
+                  private @Nullable String[] cells;
+
+                  public Map<String, @Nullable String> getLabels() { return labels; }
+
+                  public void setLabels(Map<String, @Nullable String> labels) { this.labels = labels; }
+
+                  public @Nullable String[] getCells() { return cells; }
+
+                  public void setCells(@Nullable String[] cells) { this.cells = cells; }
+                }
+                """),
+            source(
+                "ShelfPatchMapping",
+                """
+                import org.higherkindedj.optics.annotations.UpdateSpec;
+
+                @GenerateMapping
+                public interface ShelfPatchMapping
+                    extends UpdateSpec<com.example.wire.Shelf, com.example.wire.ShelfPatch> {}
+                """));
+
+    Assertions.assertThat(generated(result.compilation(), "ShelfPatchMappingImpl"))
+        .contains(
+            "(c, v) -> new Components((v instanceof IdentityHashMap<?, ?> ? hkj$copyOf(v) : v),")
+        .contains("(c, v) -> new Components(c.labels(), hkj$copyOrNull(v, e -> e.clone())))")
+        .doesNotContain("ShelfPatchMappingImpl.<");
   }
 
   @Test
