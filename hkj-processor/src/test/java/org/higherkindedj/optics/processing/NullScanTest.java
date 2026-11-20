@@ -673,17 +673,23 @@ class NullScanTest {
                                 Map.of("k", Map.of(holed("e"), "z"))));
                       }
 
-                      // Two keys equal by equals() but not the same object, which the map keeps.
+                      // Two keys equal by equals() but not the same object, which the map keeps,
+                      // each under its own object with its own parsed value.
                       public static boolean codedKeepsAnIdentityMap() {
+                        List<String> first = new ArrayList<>(List.of("x"));
+                        List<String> second = new ArrayList<>(List.of("x"));
                         Map<List<String>, String> byPath = new IdentityHashMap<>();
-                        byPath.put(new ArrayList<>(List.of("x")), "a");
-                        byPath.put(new ArrayList<>(List.of("x")), "b");
+                        byPath.put(first, "a");
+                        byPath.put(second, "b");
                         Map<List<String>, Key> parsed =
                             FixturesCodedMappingImpl.INSTANCE
                                 .parse(new CodedDto(byPath, null, Map.of(), Map.of()))
                                 .get()
                                 .byPath();
-                        return parsed instanceof IdentityHashMap<?, ?> && parsed.size() == 2;
+                        return parsed instanceof IdentityHashMap<?, ?>
+                            && parsed.size() == 2
+                            && new Key("a").equals(parsed.get(first))
+                            && new Key("b").equals(parsed.get(second));
                       }
 
                       // Every key is clean, so the bulk form's failure is all there is.
@@ -872,8 +878,9 @@ class NullScanTest {
 
   @Test
   @DisplayName(
-      "a key that is itself a container is scanned as a value is, at any depth and of any kind,"
-          + " its failures located under its rendering, an entry's key before its value")
+      "a key that is itself a container is scanned as a value is, of any kind and at each level"
+          + " its type declares, a class recurring through its own key followed once, its failures"
+          + " located under its rendering, an entry's key before its value")
   void aKeyIsScannedInside() throws ReflectiveOperationException {
     assertThatValidated(probe("paths"))
         .hasFieldErrors(
