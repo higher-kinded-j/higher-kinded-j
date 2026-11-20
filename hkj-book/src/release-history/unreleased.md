@@ -104,6 +104,7 @@ To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Spring {#spring}
 
+- **The starter depends on `spring-boot-starter-webmvc`** ([#1377](https://github.com/higher-kinded-j/higher-kinded-j/issues/1377)). Spring Boot 4 deprecates `spring-boot-starter-web`, which the starter put on every application's classpath. The new starter brings the same modules, so nothing changes at runtime.
 - **A `VTaskPath` response timeout interrupts its task** ([#1412](https://github.com/higher-kinded-j/higher-kinded-j/issues/1412)). When `hkj.virtual-threads.default-timeout-ms` runs out, the starter answers 504 and interrupts the task, without waiting for it to stop. The task used to run on after the response had gone. See [VTaskPath](../spring/spring_boot_integration.md#vtaskpath-virtual-thread-async).
 
 ---

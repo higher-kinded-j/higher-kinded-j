@@ -9,7 +9,7 @@ that calls the `hkj-spring/example` server.
 ## Setup
 
 Add the starter (it bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and
-applies the base URL; it is not pulled in by `spring-boot-starter-web` alone) and the processor that
+applies the base URL; it is not pulled in by `spring-boot-starter-webmvc` alone) and the processor that
 generates the clients. A dependency never adds to the processor path, so the starter alone generates
 nothing. The HKJ build plugin's `spring = true` (Maven: `<spring>true</spring>`) adds both:
 

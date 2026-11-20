@@ -15,8 +15,8 @@ dependencies {
   annotationProcessor(project(":hkj-processor"))
   annotationProcessor(project(":hkj-processor-plugins"))
 
-  // Spring Boot Web
-  implementation(libs.spring.boot.starter.web)
+  // Spring Boot Webmvc
+  implementation(libs.spring.boot.starter.webmvc)
 
   // Spring Boot Actuator for metrics and health endpoints
   implementation(libs.spring.boot.starter.actuator)

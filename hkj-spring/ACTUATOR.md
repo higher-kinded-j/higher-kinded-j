@@ -738,21 +738,25 @@ class MetricsIntegrationTest {
 
 ### Testing Health Indicators
 
+These tests need spring-boot-starter-webmvc-test on the test classpath, which brings spring-boot-resttestclient.
+
 ```java
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@AutoConfigureRestTestClient
 class HealthCheckIntegrationTest {
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private RestTestClient client;
 
     @Test
     void shouldReportAsyncHealthAsUp() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-            "/actuator/health", Map.class);
+        Map<String, Object> health = client.get().uri("/actuator/health")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(Map.class)
+                .returnResult()
+                .getResponseBody();
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-        Map<String, Object> health = response.getBody();
         assertThat(health.get("status")).isEqualTo("UP");
 
         Map<String, Object> components = (Map) health.get("components");
@@ -766,19 +770,21 @@ class HealthCheckIntegrationTest {
 
 ```java
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@AutoConfigureRestTestClient
 class HkjEndpointIntegrationTest {
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private RestTestClient client;
 
     @Test
     void shouldExposeHkjMetrics() {
-        ResponseEntity<Map> response = restTemplate.getForEntity(
-            "/actuator/hkj", Map.class);
+        Map<String, Object> health = client.get().uri("/actuator/hkj")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody(Map.class)
+                .returnResult()
+                .getResponseBody();
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-
-        Map<String, Object> body = response.getBody();
         assertThat(body).containsKeys("configuration", "metrics");
 
         Map<String, Object> metrics = (Map) body.get("metrics");
