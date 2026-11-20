@@ -226,9 +226,11 @@ Only an HTTP **error response** (`RestClientResponseException`) is folded into t
 
 ---
 
-## Decoding Errors
+## Decoding Errors {#decoding-errors}
 
 The default decoder reads the server's `{"success":false,"error":…}` envelope and binds the `error` node to your method's declared error type.
+
+A `Unit` error type reads no body. Every error response decodes to `Unit.INSTANCE`, whatever its body, just as a `Unit` success ignores its body. Declare it where the caller needs to know only that the call failed.
 
 A **concrete** error type binds with no extra annotations. A **sealed** `DomainError` hierarchy needs Jackson polymorphic type information so the decoder can pick the subtype:
 
@@ -296,7 +298,7 @@ For each method, a configured status whose type is **assignable** to that method
 
 **The problem:** you call a non-HKJ server that does not emit the envelope.
 
-**The solution:** supply a `ResponseErrorDecoder` (or replace the `ResponseErrorDecoderFactory` bean) that maps the status and body to your error type however you like. Without one, a foreign or empty body raises `ResponseErrorDecodeException`.
+**The solution:** supply a `ResponseErrorDecoder` (or replace the `ResponseErrorDecoderFactory` bean) that maps the status and body to your error type however you like. Without one, a foreign or empty body raises `ResponseErrorDecodeException`, unless the error type is `Unit`.
 
 ---
 

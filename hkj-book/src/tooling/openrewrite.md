@@ -197,7 +197,7 @@ Delete each mark an earlier run left on a site the rewrite has fixed, such as `/
 The rewrite changes what a running program, or another build, sees:
 
 - **A 200 response that answered `Right(null)` now sends no body.** On 0.4.x the handler wrote a JSON `null`, and on 0.5.0 a `Unit` success writes none, as the [0.5.0 notes](../release-history/v0_5_0.md#runtime-spring) say. A client parsing it notices.
-- **A `Unit` inside a response body writes as a string.** Only a handler's own success writes no body. A `Unit` in a field or a list element writes as `"()"`, its `toString()`, where `Void` wrote `null`. With `spring.jackson.use-jackson2-defaults=true` it writes `"INSTANCE"`.
+- **On 0.5.x, a nested `Unit` writes as a string.** Jackson writes `"()"`, or `"INSTANCE"` with `spring.jackson.use-jackson2-defaults=true`, where `Void` wrote `null`. 0.6.0 writes `null`, which a 0.5.x reader refuses or reads as Java `null`, so upgrade that reader first. See [Nested values](../spring/spring_boot_integration.md#nested-values-the-jackson-module).
 - **A library typed with `Void` changes its signature for its own consumers.** Each caller and implementer in the run changes with it. Migrate the library first, or the builds that use it stop compiling where they call it.
 
 The recipe adds the `Unit` import, or writes `org.higherkindedj.hkt.Unit` in full in a file that uses another type, or a variable, named `Unit`. It leaves these for you:

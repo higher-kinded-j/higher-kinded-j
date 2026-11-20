@@ -852,7 +852,10 @@ public class HkjProperties {
 
   /** Jackson JSON serialisation configuration properties. */
   public static class Jackson {
-    /** Enable custom Jackson serialisers for Either, Validated types. Default: true */
+    /**
+     * Enable custom Jackson serialisers for Either, Validated, EitherOrBoth, NonEmptyList and Unit.
+     * Default: true
+     */
     private boolean customSerializersEnabled = true;
 
     /** Creates a new Jackson configuration with default values. */

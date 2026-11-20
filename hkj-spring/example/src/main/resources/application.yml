@@ -35,7 +35,7 @@ hkj:
   # JSON serialisation configuration
   json:
     # Enable custom Jackson serialisers for Either, Validated,
-    # EitherOrBoth, and NonEmptyList (default: true).
+    # EitherOrBoth, NonEmptyList, and Unit (default: true).
     # Nested Either values serialise as {"isRight": true/false, "right"/"left": value}
     custom-serializers-enabled: true
 

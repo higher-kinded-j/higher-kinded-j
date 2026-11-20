@@ -27,6 +27,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.databind.json.JsonMapper;
 
 @DisplayName("HkjClientExchange translators")
 class HkjClientExchangeTest {
@@ -209,6 +210,25 @@ class HkjClientExchangeTest {
                   .unsafeRun())
           .isLeft()
           .hasLeftSatisfying(e -> assertThat(e.code()).isEqualTo("409"));
+    }
+
+    @Test
+    @DisplayName("a Unit error decodes to Left(Unit.INSTANCE), whatever the body")
+    void unitErrorLeftUnit() {
+      // No HkjJacksonModule on the mapper: the default decoder parses no body for a Unit error
+      var decoder = new JsonResponseErrorDecoder<>(JsonMapper.builder().build(), Unit.class);
+
+      assertThatEither(
+              HkjClientExchange.eitherUnit(
+                      fails(HttpStatus.NOT_FOUND, "{\"success\":false,\"error\":null}"), decoder)
+                  .run())
+          .isLeft()
+          .hasLeft(Unit.INSTANCE);
+      assertThatEither(
+              HkjClientExchange.eitherVTaskUnit(fails(HttpStatus.SERVICE_UNAVAILABLE, ""), decoder)
+                  .unsafeRun())
+          .isLeft()
+          .hasLeft(Unit.INSTANCE);
     }
   }
 

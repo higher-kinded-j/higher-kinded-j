@@ -149,10 +149,13 @@ The default bean is `JsonResponseErrorDecoderFactory`, backed by the application
 `<E>`. A concrete error type decodes with no annotations; a sealed `DomainError` hierarchy needs a
 closed `@JsonTypeInfo`/`@JsonSubTypes` discriminator (see
 [Jackson Serialisation](JACKSON_SERIALIZATION.md#client-side-deserialisation-hkjhttpclient)).
+A `Unit` error type reads no body: every error response decodes to `Unit.INSTANCE`, whatever its
+body, just as a `Unit` success ignores its body.
 
 **Talking to non-HKJ servers.** Against a server that does not emit the envelope (or returns an empty
-or foreign body) the default decoder raises `ResponseErrorDecodeException`. Register a custom
-`ResponseErrorDecoder` (or a whole `ResponseErrorDecoderFactory` bean, replacing the default) that
+or foreign body) the default decoder raises `ResponseErrorDecodeException`, for any error type but
+`Unit`. Register a custom `ResponseErrorDecoder` (or a whole `ResponseErrorDecoderFactory` bean,
+replacing the default) that
 maps the status and body to your error type. Each failure is presented to the decoder as a
 `ClientErrorResponse` record exposing the status (`statusValue()`), headers, body, and a parsed
 `retryAfter()`.

@@ -4,9 +4,13 @@ package org.higherkindedj.spring.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.either.Either;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -155,6 +159,28 @@ class HkjAutoConfigurationTest {
                 // JsonMapper should still exist from JacksonAutoConfiguration
                 assertThat(context).hasSingleBean(JsonMapper.class);
               });
+    }
+  }
+
+  @Nested
+  @DisplayName("Unit in a body")
+  class UnitInABodyTests {
+
+    record Outcome(String id, Either<String, Unit> result) {}
+
+    @ParameterizedTest(name = "spring.jackson.use-jackson2-defaults={0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("writes a nested Unit as null whatever spring.jackson.use-jackson2-defaults says")
+    void writesNestedUnitAsNull(boolean useJackson2Defaults) {
+      contextRunner
+          .withPropertyValues("spring.jackson.use-jackson2-defaults=" + useJackson2Defaults)
+          .run(
+              context ->
+                  assertThat(
+                          context
+                              .getBean(JsonMapper.class)
+                              .writeValueAsString(new Outcome("a1", Either.right(Unit.INSTANCE))))
+                      .isEqualTo("{\"id\":\"a1\",\"result\":{\"isRight\":true,\"right\":null}}"));
     }
   }
 
