@@ -7,11 +7,17 @@ import static com.google.testing.compile.Compiler.javac;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.util.Map;
+import java.util.stream.Collectors;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 @DisplayName("HkjHttpClientProcessor")
 class HkjHttpClientProcessorTest {
@@ -743,6 +749,320 @@ class HkjHttpClientProcessorTest {
   }
 
   @Nested
+  @DisplayName("reads the methods of a generic base as the client instantiates it")
+  class GenericBase {
+
+    private static final String[] IMPORTS = {
+      "package com.example;",
+      "import java.util.List;",
+      "import java.util.Map;",
+      "import org.higherkindedj.hkt.Unit;",
+      "import org.higherkindedj.hkt.effect.EitherPath;",
+      "import org.higherkindedj.hkt.effect.MaybePath;",
+      "import org.higherkindedj.hkt.effect.VTaskPath;",
+      "import org.higherkindedj.hkt.either.Either;",
+      "import org.higherkindedj.spring.client.HkjHttpClient;",
+      "import org.higherkindedj.spring.client.OnStatus;",
+      "import org.jspecify.annotations.Nullable;",
+      "import org.springframework.web.bind.annotation.PathVariable;",
+      "import org.springframework.web.bind.annotation.RequestParam;",
+      "import org.springframework.web.service.annotation.GetExchange;",
+      "import org.springframework.web.service.annotation.HttpExchange;"
+    };
+
+    /** An open error type and a subtype of it, for an override to narrow to. */
+    private static final JavaFileObject API_ERR =
+        JavaFileObjects.forSourceLines(
+            "com.example.ApiErr", "package com.example;", "public interface ApiErr {}");
+
+    private static final JavaFileObject NOT_FOUND =
+        JavaFileObjects.forSourceLines(
+            "com.example.NotFound",
+            "package com.example;",
+            "public record NotFound(String message) implements ApiErr {}");
+
+    private static JavaFileObject source(String simpleName, String... body) {
+      String[] lines = new String[IMPORTS.length + body.length];
+      System.arraycopy(IMPORTS, 0, lines, 0, IMPORTS.length);
+      System.arraycopy(body, 0, lines, IMPORTS.length, body.length);
+      return JavaFileObjects.forSourceLines("com.example." + simpleName, lines);
+    }
+
+    private static JavaFileObject base(String declaration, String... members) {
+      String[] body = new String[members.length + 2];
+      body[0] = "public interface " + declaration + " {";
+      for (int i = 0; i < members.length; i++) {
+        body[i + 1] = "  @GetExchange(\"/{id}\") " + members[i];
+      }
+      body[body.length - 1] = "}";
+      return source(declaration.replaceAll("<.*", ""), body);
+    }
+
+    private static JavaFileObject client(String declaration, String... redeclared) {
+      String[] body = new String[redeclared.length + 4];
+      body[0] = "@HttpExchange(\"/users\")";
+      body[1] = "@HkjHttpClient";
+      body[2] = "public interface " + declaration + " {";
+      for (int i = 0; i < redeclared.length; i++) {
+        body[i + 3] = "  @Override @GetExchange(\"/{id}\") " + redeclared[i];
+      }
+      body[body.length - 1] = "}";
+      return source("ChildApi", body);
+    }
+
+    private static Compilation compileWith(JavaFileObject... sources) {
+      JavaFileObject[] all = new JavaFileObject[sources.length + 4];
+      System.arraycopy(sources, 0, all, 0, sources.length);
+      all[sources.length] = USER_DTO;
+      all[sources.length + 1] = USER_ERROR;
+      all[sources.length + 2] = API_ERR;
+      all[sources.length + 3] = NOT_FOUND;
+      return compile(all);
+    }
+
+    private static Map<String, String> generatedSources(Compilation compilation) {
+      return compilation.generatedSourceFiles().stream()
+          .collect(Collectors.toMap(JavaFileObject::getName, GenericBase::contents));
+    }
+
+    private static String contents(JavaFileObject file) {
+      try {
+        return file.getCharContent(true).toString();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    /**
+     * Where a base's type variable can stand, with the method the client would otherwise redeclare
+     * in its place, its type arguments substituted by hand.
+     */
+    enum Position {
+      ERROR_TYPE(
+          "the error type",
+          "<E>",
+          "EitherPath<E, UserDto> get(@PathVariable String id);",
+          "ChildApi extends Repo<UserError>",
+          "EitherPath<UserError, UserDto> get(@PathVariable String id);"),
+      SUCCESS_TYPE(
+          "the success type",
+          "<T>",
+          "EitherPath<UserError, T> get(@PathVariable String id);",
+          "ChildApi extends Repo<UserDto>",
+          "EitherPath<UserError, UserDto> get(@PathVariable String id);"),
+      PARAMETER_TYPE(
+          "a parameter type",
+          "<ID>",
+          "EitherPath<UserError, UserDto> get(@PathVariable ID id);",
+          "ChildApi extends Repo<String>",
+          "EitherPath<UserError, UserDto> get(@PathVariable String id);"),
+      RETURN_TYPE(
+          "the whole return type",
+          "<R>",
+          "R get(@PathVariable String id);",
+          "ChildApi extends Repo<EitherPath<UserError, UserDto>>",
+          "EitherPath<UserError, UserDto> get(@PathVariable String id);"),
+      NESTED(
+          "an argument of the success type",
+          "<T>",
+          "EitherPath<UserError, List<T>> list();",
+          "ChildApi extends Repo<UserDto>",
+          "EitherPath<UserError, List<UserDto>> list();"),
+      VTASK(
+          "both sides of a VTaskPath's Either",
+          "<E, T>",
+          "VTaskPath<Either<E, T>> load(@PathVariable String id);",
+          "ChildApi extends Repo<UserError, UserDto>",
+          "VTaskPath<Either<UserError, UserDto>> load(@PathVariable String id);"),
+      MAYBE(
+          "a MaybePath's value",
+          "<T>",
+          "MaybePath<T> find(@PathVariable String id);",
+          "ChildApi extends Repo<UserDto>",
+          "MaybePath<UserDto> find(@PathVariable String id);"),
+      UNIT(
+          "a success type bound to Unit, whose body is ignored",
+          "<T>",
+          "EitherPath<UserError, T> delete(@PathVariable String id);",
+          "ChildApi extends Repo<Unit>",
+          "EitherPath<UserError, Unit> delete(@PathVariable String id);"),
+      ON_STATUS(
+          "an error type an @OnStatus override narrows",
+          "<E>",
+          "@OnStatus(value = 404, error = NotFound.class)"
+              + " EitherPath<E, UserDto> get(@PathVariable String id);",
+          "ChildApi extends Repo<ApiErr>",
+          "@OnStatus(value = 404, error = NotFound.class)"
+              + " EitherPath<ApiErr, UserDto> get(@PathVariable String id);"),
+      ANNOTATED_USE(
+          "a use of the variable the base annotates",
+          "<T>",
+          "EitherPath<UserError, @Nullable T> get(@PathVariable String id, @Nullable T fallback);",
+          "ChildApi extends Repo<UserDto>",
+          "EitherPath<UserError, @Nullable UserDto> get("
+              + "@PathVariable String id, @Nullable UserDto fallback);"),
+      ANNOTATED_ARGUMENT(
+          "a type argument the client annotates",
+          "<T>",
+          "EitherPath<UserError, T> get(@PathVariable String id);",
+          "ChildApi extends Repo<@Nullable UserDto>",
+          "EitherPath<UserError, @Nullable UserDto> get(@PathVariable String id);"),
+      AGGREGATE_BINDER(
+          "a parameter bound to a Map, which stays unnamed",
+          "<P>",
+          "EitherPath<UserError, UserDto> search(@RequestParam P filters);",
+          "ChildApi extends Repo<Map<String, String>>",
+          "EitherPath<UserError, UserDto> search(@RequestParam Map<String, String> filters);"),
+      GENERIC_CLIENT(
+          "a type variable of a generic client",
+          "<T>",
+          "EitherPath<UserError, T> get(@PathVariable String id);",
+          "ChildApi<X> extends Repo<X>",
+          "EitherPath<UserError, X> get(@PathVariable String id);"),
+      METHOD_TYPE_VARIABLE(
+          "beside a type variable of the method's own",
+          "<T>",
+          "<X> EitherPath<UserError, X> find(@RequestParam T example);",
+          "ChildApi extends Repo<UserDto>",
+          "<X> EitherPath<UserError, X> find(@RequestParam UserDto example);"),
+      METHOD_TYPE_VARIABLE_BOUND(
+          "inside the bound of a type variable of the method's own",
+          "<T>",
+          "<X extends T> EitherPath<UserError, X> find(@RequestParam X example);",
+          "ChildApi extends Repo<UserDto>",
+          "<X extends UserDto> EitherPath<UserError, X> find(@RequestParam X example);");
+
+      private final String description;
+      private final String typeParameters;
+      private final String inherited;
+      private final String client;
+      private final String redeclared;
+
+      Position(
+          String description,
+          String typeParameters,
+          String inherited,
+          String client,
+          String redeclared) {
+        this.description = description;
+        this.typeParameters = typeParameters;
+        this.inherited = inherited;
+        this.client = client;
+        this.redeclared = redeclared;
+      }
+
+      @Override
+      public String toString() {
+        return description;
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Position.class)
+    @DisplayName("generates the client that redeclaring each method with the arguments would")
+    void sameAsRedeclaring(Position position) {
+      JavaFileObject repo = base("Repo" + position.typeParameters, position.inherited);
+      Compilation inherited = compileWith(repo, client(position.client));
+      Compilation redeclared = compileWith(repo, client(position.client, position.redeclared));
+
+      // Each is compiled with its generated sources, so either failing to build fails here.
+      assertThat(inherited).succeeded();
+      assertThat(redeclared).succeeded();
+      Assertions.assertThat(generatedSources(inherited))
+          .isNotEmpty()
+          .isEqualTo(generatedSources(redeclared));
+    }
+
+    @Test
+    @DisplayName("an error type a generic client leaves a type variable is still refused")
+    void errorTypeLeftAVariableIsRefused() {
+      JavaFileObject child = client("ChildApi<E> extends Repo<E>");
+      Compilation compilation =
+          compileWith(
+              base("Repo<E>", "EitherPath<E, UserDto> get(@PathVariable String id);"), child);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'get', inherited from 'Repo': @HkjHttpClient error type cannot be a type variable")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an @OnStatus override is checked against the error type the client binds")
+    void overrideCheckedAgainstTheBoundErrorType() {
+      JavaFileObject child = client("ChildApi extends Repo<UserError>");
+      Compilation compilation =
+          compileWith(
+              base(
+                  "Repo<E>",
+                  "@OnStatus(value = 404, error = NotFound.class)"
+                      + " EitherPath<E, UserDto> get(@PathVariable String id);"),
+              child);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'get', inherited from 'Repo': @OnStatus error type com.example.NotFound is not"
+                  + " assignable to the method's declared error type com.example.UserError.")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a variable an interface in between binds keeps what that clause writes")
+    void intermediateClauseKeepsItsAnnotation() {
+      // Substitution drops the annotation Mid writes on its use of M; the walk follows Repo's T to
+      // Mid's clause, and Mid's M to the client's, to put it back.
+      Compilation compilation =
+          compileWith(
+              base("Repo<E, T>", "EitherPath<E, T> get(@PathVariable String id);"),
+              source(
+                  "Mid", "public interface Mid<M> extends Repo<UserError, List<@Nullable M>> {}"),
+              client("ChildApi extends Mid<UserDto>"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              contents(compilation.generatedSourceFile("com.example.ChildApiClient").get()))
+          .contains("EitherPath<UserError, List<@Nullable UserDto>> get(String id)");
+    }
+
+    @Test
+    @DisplayName("a base the client extends raw is reported as read through a raw type")
+    void rawBaseIsReported() {
+      // Its members are erased: the EitherPath<UserError, T> Repo declares is read as a bare
+      // EitherPath, which "Unsupported return type" alone would leave the author looking for.
+      JavaFileObject child = client("ChildApi extends Repo");
+      Compilation compilation =
+          compileWith(
+              base("Repo<T>", "EitherPath<UserError, T> get(@PathVariable String id);"), child);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'get', inherited from 'Repo': @HkjHttpClient reads this method through a raw type,"
+                  + " which erases its return type to org.higherkindedj.hkt.effect.EitherPath."
+                  + " Give each interface the client extends its type arguments.")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a method two bases declare alike once substituted is generated once")
+    void diamondOnceSubstituted() {
+      // Read as declared, the two erase to get(Object) and get(String), and would both be kept.
+      Compilation compilation =
+          compileWith(
+              base("Repo<ID>", "EitherPath<UserError, UserDto> get(@PathVariable ID id);"),
+              base("Lookup", "EitherPath<UserError, UserDto> get(@PathVariable String id);"),
+              client("ChildApi extends Repo<String>, Lookup"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              contents(compilation.generatedSourceFile("com.example.ChildApiHttpExchange").get()))
+          .containsOnlyOnce(" get(");
+    }
+  }
+
+  @Nested
   @DisplayName("handles parameter names that shadow generated fields")
   class ParameterNameShadowing {
 
@@ -951,6 +1271,41 @@ class HkjHttpClientProcessorTest {
           .generatedSourceFile("com.example.NullRepoClient")
           .contentsAsUtf8String()
           .containsMatch("class NullRepoClient<T extends @Nullable Object>");
+    }
+
+    @Test
+    @DisplayName("a generic client's own method keeps it on a use of the client's type variable")
+    void typeVariableUseKeepsIt() {
+      // A method read as a member of the interface that declares it still has each type variable
+      // substituted, by itself, and javac's substitution drops the annotation on the use.
+      Compilation generic =
+          compile(
+              JavaFileObjects.forSourceLines(
+                  "com.example.NullRepo",
+                  "package com.example;",
+                  "import org.higherkindedj.hkt.effect.EitherPath;",
+                  "import org.higherkindedj.spring.client.HkjHttpClient;",
+                  "import org.jspecify.annotations.Nullable;",
+                  "import org.springframework.web.bind.annotation.PathVariable;",
+                  "import org.springframework.web.service.annotation.GetExchange;",
+                  "import org.springframework.web.service.annotation.HttpExchange;",
+                  "@HttpExchange(\"/items\")",
+                  "@HkjHttpClient",
+                  "public interface NullRepo<T extends @Nullable Object> {",
+                  "  @GetExchange(\"/{id}\")",
+                  "  EitherPath<UserError, @Nullable T> get(@PathVariable String id, @Nullable T or);",
+                  "}"),
+              USER_ERROR);
+
+      assertThat(generic).succeeded();
+      assertThat(generic)
+          .generatedSourceFile("com.example.NullRepoHttpExchange")
+          .contentsAsUtf8String()
+          .contains("ResponseEntity<@Nullable T> get(");
+      assertThat(generic)
+          .generatedSourceFile("com.example.NullRepoClient")
+          .contentsAsUtf8String()
+          .contains("EitherPath<UserError, @Nullable T> get(String id, @Nullable T or)");
     }
   }
 

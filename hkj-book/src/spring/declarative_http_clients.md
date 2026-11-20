@@ -344,6 +344,33 @@ The streaming case is consumed through this translator rather than through a gen
 
 ## Generic Clients
 
+A client can share its endpoints with others by extending a generic base interface with concrete type arguments. The processor reads each inherited method with the client's arguments in place of the base's type variables. `UserCrudApi` gets the client that redeclaring `get` and `create` for `ApiError`, `UserDto` and `String` would give it, bean wiring included:
+
+<!-- verify -->
+```java
+interface CrudApi<E, T, ID> {
+
+  @GetExchange("/{id}")
+  EitherPath<E, T> get(@PathVariable ID id);
+
+  @PostExchange
+  EitherPath<E, T> create(@RequestBody T body);
+}
+
+@HttpExchange("/users")
+@HkjHttpClient
+interface UserCrudApi extends CrudApi<ApiError, UserDto, String> {}
+```
+
+The error type must still be a concrete class, because the decoder binds it with `E.class`. A client that passes a type variable of its own on as the error type is refused, with `@HkjHttpClient error type cannot be a type variable`:
+
+<!-- verify:rejects "error type cannot be a type variable" -->
+```java
+@HttpExchange("/users")
+@HkjHttpClient
+interface AnyErrorApi<E> extends CrudApi<E, UserDto, String> {}
+```
+
 A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a generic client cannot be a singleton bean. You instantiate the facade for a concrete type argument yourself.
 
 ~~~admonish warning title="Common Mistakes"

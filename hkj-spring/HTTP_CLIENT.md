@@ -247,6 +247,12 @@ against a hostile or buggy upstream.
 
 ## Generic Clients
 
+A client may extend a generic base interface with concrete type arguments, such as
+`interface UserCrudApi extends CrudApi<ApiError, UserDto, String>`. Each inherited method is read
+with the client's arguments in place of the base's type variables, so the client is the one that
+redeclaring each method would give, bean wiring included. The error type must still be a concrete
+class: a client that passes a type variable of its own on as the error type is refused.
+
 A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and the
 facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a
 generic client cannot be registered as a singleton bean. Instantiate the generated facade for a
