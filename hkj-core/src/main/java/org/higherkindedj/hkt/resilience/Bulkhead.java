@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.hkt.util.HeldPermits;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
@@ -83,6 +84,19 @@ public final class Bulkhead {
    * thrown, so a checked exception, such as an {@code IOException} or the {@code
    * InterruptedException} of a cancelled task, is not wrapped.
    *
+   * <p>A guard of this bulkhead that a call reaches again while it holds a permit runs on that
+   * permit, without waiting. A repository and the service that calls it may each guard one
+   * dependency with this bulkhead, as in {@code io.withBulkhead(b).map(f).withBulkhead(b)}, and the
+   * call takes one permit. That holds on the call's own thread, and inside a {@link VTask#timeout},
+   * a {@link CircuitBreaker}'s call timeout included, since the call does nothing else until the
+   * timed task stops. A thread that runs beside the call takes a permit of its own, so the bulkhead
+   * still bounds how many run at once. That covers a thread the call starts, as {@code Par}, {@code
+   * Scope}, {@code parEvalMap} and {@link VTask#runAsync} do, and one that runs a task detached
+   * with {@link VTask#detachOnCancel}, which a circuit breaker asks for around a call that can
+   * hang. The call keeps its own permit while it waits for such a thread. So once calls hold every
+   * permit, each of their guarded forks waits {@code waitTimeout} and is turned away, whatever
+   * {@code maxConcurrent} is. Guard the forks, not the call that starts them.
+   *
    * @param task the task to protect; must not be null
    * @param <A> the result type
    * @return a new VTask protected by this bulkhead
@@ -106,44 +120,45 @@ public final class Bulkhead {
   public <A> VTask<A> protectWithTimeout(VTask<A> task, Duration waitTimeout) {
     Objects.requireNonNull(task, "task must not be null");
     Objects.requireNonNull(waitTimeout, "waitTimeout must not be null");
-    return () -> {
-      // Atomically check-and-increment to prevent TOCTOU race on waitingCount.
-      // Multiple threads could otherwise pass the check simultaneously and all increment,
-      // exceeding the maxWait limit.
-      if (config.maxWait() > 0) {
-        int observed =
-            waitingCount.getAndUpdate(
-                cur -> {
-                  if (cur >= config.maxWait()) {
-                    return cur; // Don't increment — will be rejected
-                  }
-                  return cur + 1;
-                });
-        if (observed >= config.maxWait()) {
-          throw new BulkheadFullException(config.maxConcurrent(), observed);
-        }
-      } else {
-        waitingCount.incrementAndGet();
-      }
-      try {
-        boolean acquired =
-            semaphore.tryAcquire(TimeUnit.NANOSECONDS.convert(waitTimeout), TimeUnit.NANOSECONDS);
-        if (!acquired) {
-          throw new BulkheadFullException(config.maxConcurrent(), waitingCount.get() - 1);
-        }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new BulkheadFullException(config.maxConcurrent(), waitingCount.get() - 1);
-      } finally {
-        waitingCount.decrementAndGet();
-      }
+    return () -> HeldPermits.onPermit(semaphore, () -> acquire(waitTimeout), task::execute);
+  }
 
-      try {
-        return task.execute();
-      } finally {
-        semaphore.release();
+  /**
+   * Takes a permit, waiting up to {@code waitTimeout} for one, or throws {@link
+   * BulkheadFullException} when the wait queue is full, the time runs out or the wait is
+   * interrupted.
+   */
+  private void acquire(Duration waitTimeout) {
+    // Atomically check-and-increment to prevent TOCTOU race on waitingCount.
+    // Multiple threads could otherwise pass the check simultaneously and all increment,
+    // exceeding the maxWait limit.
+    if (config.maxWait() > 0) {
+      int observed =
+          waitingCount.getAndUpdate(
+              cur -> {
+                if (cur >= config.maxWait()) {
+                  return cur; // Don't increment — will be rejected
+                }
+                return cur + 1;
+              });
+      if (observed >= config.maxWait()) {
+        throw new BulkheadFullException(config.maxConcurrent(), observed);
       }
-    };
+    } else {
+      waitingCount.incrementAndGet();
+    }
+    try {
+      boolean acquired =
+          semaphore.tryAcquire(TimeUnit.NANOSECONDS.convert(waitTimeout), TimeUnit.NANOSECONDS);
+      if (!acquired) {
+        throw new BulkheadFullException(config.maxConcurrent(), waitingCount.get() - 1);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new BulkheadFullException(config.maxConcurrent(), waitingCount.get() - 1);
+    } finally {
+      waitingCount.decrementAndGet();
+    }
   }
 
   // ===== Metrics =====
