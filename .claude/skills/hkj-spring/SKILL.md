@@ -374,12 +374,13 @@ The starter bundles `spring-boot-restclient`, which binds `spring.http.servicecl
 | `MaybePath<T>` | eager, blocks the caller | 404 -> `Nothing` (others propagate) | absence is normal and untyped |
 | `EitherPath<E, Unit>` / `VTaskPath<Either<E, Unit>>` | as above | `Left(decoded)` | the endpoint sends no body: 2xx gives `Right(Unit.INSTANCE)` |
 | `MaybePath<Unit>` | eager, blocks the caller | 404 -> `Nothing` | no body, may be missing: 2xx gives `Just(Unit.INSTANCE)` |
+| `EitherPath<Unit, T>` / `VTaskPath<Either<Unit, T>>` | as above | `Left(Unit.INSTANCE)`, body ignored | the caller needs to know only that the call failed |
 
 Empty 2xx body: a `Right` always holds a value, so `EitherPath`/`VTaskPath` refuse it with an `EmptyResponseBodyException` (the request has already been made, so exclude it from retries); `MaybePath` yields `Nothing`. Declare `Unit`, never `Void`, for an endpoint with no body. Transport failures (connection refused, timeout) and undecodable bodies are **not** typed errors: they propagate synchronously from the eager variants, and as a failed task from the deferred ones. The generated client is a stateless, thread-safe singleton.
 
 ### Decoding errors: concrete vs sealed
 
-With the default decoder, a `Unit` error type reads no body: every error response gives `Left(Unit.INSTANCE)`, whatever its body. A **concrete** error type binds with no extra annotations. A **sealed** `DomainError` needs `@JsonTypeInfo(use = Id.NAME, property = "type")` + `@JsonSubTypes` so Jackson can pick the subtype. **Never use `Id.CLASS` / `Id.MINIMAL_CLASS` or `ObjectMapper` default typing** on a mapper that decodes responses from a server you do not fully trust: those put a class name on the wire that Jackson loads and instantiates (the classic deserialisation-gadget vector). `Id.NAME` only resolves your registered subtype names.
+With the default decoder, a `Unit` error type reads no body: every error response gives `Left(Unit.INSTANCE)`, whatever its body. Declare `Unit`, never `Void`, for errors that carry nothing: a `Void` error type is a compile error, as is `@OnStatus(error = Void.class)` where the error type is `Object`. An `@OnStatus` type must still be assignable to the declared error type, so `Unit.class` fits there only on an `Object` error type; on a typed error, map the status to a subtype. A **concrete** error type binds with no extra annotations. A **sealed** `DomainError` needs `@JsonTypeInfo(use = Id.NAME, property = "type")` + `@JsonSubTypes` so Jackson can pick the subtype. **Never use `Id.CLASS` / `Id.MINIMAL_CLASS` or `ObjectMapper` default typing** on a mapper that decodes responses from a server you do not fully trust: those put a class name on the wire that Jackson loads and instantiates (the classic deserialisation-gadget vector). `Id.NAME` only resolves your registered subtype names.
 
 ### Overriding status -> error type
 

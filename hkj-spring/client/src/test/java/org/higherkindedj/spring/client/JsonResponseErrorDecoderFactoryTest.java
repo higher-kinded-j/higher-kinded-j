@@ -3,6 +3,7 @@
 package org.higherkindedj.spring.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -91,5 +92,20 @@ class JsonResponseErrorDecoderFactoryTest {
             .build();
 
     assertThat(decoder.decode(response(HttpStatus.NOT_FOUND))).isInstanceOf(NotFound.class);
+  }
+
+  @Test
+  @DisplayName("refuses a Void or void mapping when built, naming the status and Unit")
+  void refusesVoidMapping() {
+    assertThatThrownBy(() -> new JsonResponseErrorDecoderFactory(mapper, Map.of(404, Void.class)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            "JsonResponseErrorDecoderFactory: status 404 maps to error type Void, which cannot"
+                + " hold a value, but a Left always holds one. Map it to org.higherkindedj.hkt.Unit,"
+                + " the error type that carries nothing, or remove the mapping.");
+    assertThatThrownBy(() -> new JsonResponseErrorDecoderFactory(mapper, Map.of(410, void.class)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageStartingWith(
+            "JsonResponseErrorDecoderFactory: status 410 maps to error type void,");
   }
 }

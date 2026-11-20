@@ -65,7 +65,10 @@ import org.jspecify.annotations.Nullable;
  * <p>Supported return types: {@code EitherPath<E, T>}, {@code VTaskPath<Either<E, T>>}, and {@code
  * MaybePath<T>}. For an endpoint that sends no body, {@code T} is {@code Unit}: the body is ignored
  * and a 2xx gives {@code Right(Unit.INSTANCE)}, or {@code Just(Unit.INSTANCE)} on a {@code
- * MaybePath}. {@code Void} is refused, since a success always holds a value.
+ * MaybePath}. For an endpoint whose errors carry nothing, {@code E} is {@code Unit}: the default
+ * decoder reads no error body and gives {@code Left(Unit.INSTANCE)}. {@code Void} is refused as
+ * either type, and as an {@code @OnStatus} error type, since a success and an error always hold a
+ * value.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.spring.client.HkjHttpClient")
@@ -77,6 +80,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   private static final String VSTREAM_PATH = "org.higherkindedj.hkt.effect.VStreamPath";
   private static final String EITHER = "org.higherkindedj.hkt.either.Either";
   private static final String UNIT = "org.higherkindedj.hkt.Unit";
+  private static final String VOID = "java.lang.Void";
   private static final String HKJ_HTTP_CLIENT = "org.higherkindedj.spring.client.HkjHttpClient";
   private static final String ON_STATUS = "org.higherkindedj.spring.client.OnStatus";
   private static final String ON_STATUSES = "org.higherkindedj.spring.client.OnStatuses";
@@ -467,6 +471,15 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             method);
         continue;
       }
+      // After the assignability check, so the fix line names Unit only where a Unit fits: Void is
+      // assignable only to Object, which takes a Unit too.
+      if (isVoid(errorType)) {
+        error(
+            voidErrorMessage("@OnStatus", "every " + annotation.value() + " response"),
+            iface,
+            method);
+        continue;
+      }
       if (!seen.add(annotation.value())) {
         warn(
             "Duplicate @OnStatus for status " + annotation.value() + "; the last one wins.",
@@ -649,7 +662,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         break;
       case MAYBE_PATH:
         if (args.size() == 1) {
-          return refusesVoid(args.get(0), iface, method)
+          return refusesVoidSuccess(args.get(0), iface, method)
               ? null
               : new ReturnInfo(PathKind.MAYBE, null, args.get(0));
         }
@@ -681,7 +694,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
   /**
    * Builds an Either-flavoured {@link ReturnInfo}, rejecting an error type that is itself a type
-   * variable — the decoder needs a concrete {@code E.class}, which a type variable cannot provide.
+   * variable — the decoder needs a concrete {@code E.class}, which a type variable cannot provide —
+   * and a {@code Void} on either side, which no {@code Left} or {@code Right} can hold.
    */
   private @Nullable ReturnInfo eitherInfo(
       PathKind kind,
@@ -713,16 +727,19 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           method);
       return null;
     }
-    return refusesVoid(success, iface, method) ? null : new ReturnInfo(kind, error, success);
+    // Both are checked, so a method that declares Void on each side hears about each.
+    boolean voidError = refusesVoidError(error, iface, method);
+    boolean voidSuccess = refusesVoidSuccess(success, iface, method);
+    return voidError || voidSuccess ? null : new ReturnInfo(kind, error, success);
   }
 
   /**
    * Reports a {@code Void} success type, which has no value for a {@code Right} or a {@code Just}
    * to hold, and names {@code Unit} as the type that says the endpoint sends no body.
    */
-  private boolean refusesVoid(TypeMirror success, TypeElement iface, ExecutableElement method) {
-    if (success instanceof DeclaredType declared
-        && qualifiedName(declared).equals("java.lang.Void")) {
+  private boolean refusesVoidSuccess(
+      TypeMirror success, TypeElement iface, ExecutableElement method) {
+    if (isVoid(success)) {
       error(
           "@HkjHttpClient success type Void cannot hold a value, but a success always holds one."
               + " Replace Void with org.higherkindedj.hkt.Unit: the client then ignores the response"
@@ -732,6 +749,30 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Reports a {@code Void} error type, which has no value for a {@code Left} to hold, and names
+   * {@code Unit} as the type that says the endpoint's errors carry nothing.
+   */
+  private boolean refusesVoidError(TypeMirror error, TypeElement iface, ExecutableElement method) {
+    if (isVoid(error)) {
+      error(voidErrorMessage("@HkjHttpClient", "every error response"), iface, method);
+      return true;
+    }
+    return false;
+  }
+
+  private static String voidErrorMessage(String annotation, String responses) {
+    return annotation
+        + " error type Void cannot hold a value, but a Left always holds one. Replace Void with"
+        + " org.higherkindedj.hkt.Unit: the default decoder then reads no error body, and "
+        + responses
+        + " gives Left(Unit.INSTANCE).";
+  }
+
+  private static boolean isVoid(TypeMirror type) {
+    return type.getKind() == TypeKind.DECLARED && qualifiedName((DeclaredType) type).equals(VOID);
   }
 
   /** A concrete, non-generic class/interface — bindable as {@code E.class} by the decoder. */

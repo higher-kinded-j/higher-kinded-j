@@ -206,6 +206,7 @@ envelope. Against a server that doesn't emit it (or an empty/foreign body) it ra
 bean) that maps the status/body to your error type instead. A client-only app without the server-side
 auto-configuration should register `HkjJacksonModule` on its `JsonMapper` so nested `Either`/`Validated`
 errors deserialise. A `Unit` error type reads no body, so it never raises this and needs no module.
+Declare `Unit`, not `Void`, for errors that carry nothing: a `Void` error type is a compile error.
 
 **Per-status error types.** Map individual statuses to distinct error subtypes with `@OnStatus`
 (each subtype must be assignable to the method's declared error type):
@@ -232,7 +233,8 @@ hkj:
 For each method, a configured status whose type is **assignable** to that method's declared error
 type decodes into the subtype; non-assignable mappings and unmapped statuses fall back to the declared
 type. Precedence is **`@OnStatus` (per-method) → global config → declared type**, so a method's
-explicit `@OnStatus` always wins. A configured class that can't be resolved fails fast at startup.
+explicit `@OnStatus` always wins. A configured class that can't be resolved, or `java.lang.Void`,
+fails fast at startup.
 
 **Generics.** A generic `@HkjHttpClient` interface is supported codegen-only — the native interface
 and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped (a

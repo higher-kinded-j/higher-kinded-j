@@ -24,7 +24,8 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>A {@link Unit} error type carries nothing to decode, so the body is not parsed: every error
  * response decodes to {@code Unit.INSTANCE}, whatever its body, just as a {@code Unit} success
- * ignores its body in {@link HkjClientExchange#eitherUnit}.
+ * ignores its body in {@link HkjClientExchange#eitherUnit}. A {@code Void} error type is refused
+ * when the decoder is built: its only value is {@code null}, so it could decode no response.
  *
  * @param <E> the typed error this decoder produces
  */
@@ -39,10 +40,35 @@ public final class JsonResponseErrorDecoder<E> implements ResponseErrorDecoder<E
    * @param mapper the Jackson 3.x mapper (ideally the application's, carrying {@code
    *     HkjJacksonModule})
    * @param errorType the declared error type to bind the {@code error} node to
+   * @throws IllegalArgumentException if {@code errorType} is {@code Void} or {@code void}, which
+   *     hold no value a decoded error could be; declare {@code Unit} for an error that carries
+   *     nothing
    */
   public JsonResponseErrorDecoder(JsonMapper mapper, Class<E> errorType) {
     this.mapper = Objects.requireNonNull(mapper, "mapper");
-    this.errorType = Objects.requireNonNull(errorType, "errorType");
+    this.errorType = requireNonVoid(errorType);
+  }
+
+  private static <E> Class<E> requireNonVoid(Class<E> errorType) {
+    Objects.requireNonNull(errorType, "errorType");
+    if (holdsNoValue(errorType)) {
+      throw new IllegalArgumentException(
+          "JsonResponseErrorDecoder error type "
+              + errorType.getSimpleName()
+              + " cannot hold a value, but a Left always holds one. Replace "
+              + errorType.getSimpleName()
+              + " with org.higherkindedj.hkt.Unit: the decoder then reads no error body and gives"
+              + " Unit.INSTANCE.");
+    }
+    return errorType;
+  }
+
+  /**
+   * Whether {@code type} is {@code Void} or {@code void}, which hold no value a decoded error could
+   * be. Shared with {@link JsonResponseErrorDecoderFactory}, which refuses such a status mapping.
+   */
+  static boolean holdsNoValue(Class<?> type) {
+    return type == Void.class || type == void.class;
   }
 
   @Override

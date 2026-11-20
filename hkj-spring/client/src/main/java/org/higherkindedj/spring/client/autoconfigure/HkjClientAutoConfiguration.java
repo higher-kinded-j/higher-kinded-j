@@ -65,9 +65,10 @@ public class HkjClientAutoConfiguration implements BeanClassLoaderAware {
   }
 
   /**
-   * Resolves a single configured error class, failing fast with context if it cannot be loaded.
-   * Resolution uses the application's bean classloader ({@link BeanClassLoaderAware}), not this
-   * auto-config's loader, so user error types load under devtools/layered loaders.
+   * Resolves a single configured error class, failing fast with context if it cannot be loaded, or
+   * if it is {@code Void} or {@code void}, which no decoded error can be. Resolution uses the
+   * application's bean classloader ({@link BeanClassLoaderAware}), not this auto-config's loader,
+   * so user error types load under devtools/layered loaders.
    */
   private Class<?> resolveErrorType(int status, String className) {
     return Try.<Class<?>, ClassNotFoundException>attempt(
@@ -81,6 +82,24 @@ public class HkjClientAutoConfiguration implements BeanClassLoaderAware {
                       + status,
                   failure);
             },
-            type -> type);
+            type -> requireNonVoid(status, className, type));
+  }
+
+  /**
+   * Refuses a {@code Void} or {@code void} mapping here rather than in the factory, so the message
+   * names the property the value came from.
+   */
+  private static Class<?> requireNonVoid(int status, String className, Class<?> type) {
+    if (type == Void.class || type == void.class) {
+      throw new IllegalStateException(
+          "hkj.client.status-error-mappings: error type '"
+              + className
+              + "' for status "
+              + status
+              + " cannot hold a value, but a Left always holds one. Map the status to"
+              + " org.higherkindedj.hkt.Unit, the error type that carries nothing, or remove the"
+              + " mapping.");
+    }
+    return type;
   }
 }
