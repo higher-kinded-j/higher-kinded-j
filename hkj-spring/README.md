@@ -233,8 +233,8 @@ hkj:
 For each method, a configured status whose type is **assignable** to that method's declared error
 type decodes into the subtype; non-assignable mappings and unmapped statuses fall back to the declared
 type. Precedence is **`@OnStatus` (per-method) → global config → declared type**, so a method's
-explicit `@OnStatus` always wins. A configured class that can't be resolved, or `java.lang.Void`,
-fails fast at startup.
+explicit `@OnStatus` always wins. A configured class that can't be resolved, `java.lang.Void` or a
+primitive such as `int` fails fast at startup.
 
 **Generics.** A generic `@HkjHttpClient` interface is supported codegen-only — the native interface
 and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped (a
