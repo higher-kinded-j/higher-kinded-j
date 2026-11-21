@@ -1002,13 +1002,17 @@ class HkjHttpClientProcessorTest {
     @CsvSource(
         delimiter = '|',
         value = {
-          "the same value under renamed variables is alike | X | X | ",
-          "different values are told apart | X | Y | the method's return type differs."
+          "the same value under renamed variables is alike | \"X\" | \"X\" | ",
+          "different values are told apart | \"X\" | \"Y\" | the method's return type differs.",
+          "the same member under renamed variables is alike | X = \"same\" | X = \"same\" | ",
+          "different members are told apart | X = \"same\" | Y = \"same\" | the method's return"
+              + " type differs."
         })
-    @DisplayName("a type-use annotation's value is compared as written, not renumbered")
-    void diamondAnnotationValuesAreComparedAsWritten(
-        String description, String aValue, String bValue, String differs) {
-      // The values equal the method's own type variables' names, which are renumbered elsewhere.
+    @DisplayName("a type-use annotation is compared as written, its values and member names kept")
+    void diamondAnnotationsAreComparedAsWritten(
+        String description, String aArguments, String bArguments, String differs) {
+      // The values and member names equal the method's own type variables' names, which are
+      // renumbered elsewhere in the type.
       JavaFileObject tag =
           JavaFileObjects.forSourceLines(
               "com.example.Tag",
@@ -1016,17 +1020,19 @@ class HkjHttpClientProcessorTest {
               "import java.lang.annotation.ElementType;",
               "import java.lang.annotation.Target;",
               "@Target(ElementType.TYPE_USE)",
-              "public @interface Tag { String value(); }");
+              "public @interface Tag {",
+              "  String value() default \"\";",
+              "  String X() default \"\";",
+              "  String Y() default \"\";",
+              "}");
       Compilation compilation =
           compileDiamond(
-              "@GetExchange(\"/{id}\") <X> MaybePath<@Tag(\""
-                  + aValue
-                  + "\") String>"
-                  + " getUser(@PathVariable String id);",
-              "@GetExchange(\"/{id}\") <Y> MaybePath<@Tag(\""
-                  + bValue
-                  + "\") String>"
-                  + " getUser(@PathVariable String id);",
+              "@GetExchange(\"/{id}\") <X> MaybePath<@Tag("
+                  + aArguments
+                  + ") String> getUser(@PathVariable String id);",
+              "@GetExchange(\"/{id}\") <Y> MaybePath<@Tag("
+                  + bArguments
+                  + ") String> getUser(@PathVariable String id);",
               tag);
 
       if (differs == null) {

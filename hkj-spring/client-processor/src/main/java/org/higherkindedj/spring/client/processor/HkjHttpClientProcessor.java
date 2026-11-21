@@ -826,8 +826,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * A type written out with each of the method's own type variables replaced by its position, so a
    * renamed variable reads the same. A variable is written bare, and a class name never is:
    * javapoet qualifies every class it writes, so a name preceded by a dot is a class's, not a
-   * variable's. A string or character literal, which a type-use annotation's value is written as,
-   * is left as it is, so {@code @Tag("X")} keeps its value under {@code <X>}.
+   * variable's. A type-use annotation's arguments are left as they are: a string or character
+   * literal, which a value is written as, and a member name, which is followed by {@code =} where
+   * no variable ever is. So {@code @Tag("X")} and {@code @Tag(X = "same")} keep their value and
+   * member under {@code <X>}.
    */
   private static String positional(String written, List<String> ownVariables) {
     StringBuilder result = new StringBuilder();
@@ -847,7 +849,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     for (int index = 0; index < ownVariables.size(); index++) {
       result =
           result.replaceAll(
-              "(?<![\\w.$])" + Pattern.quote(ownVariables.get(index)) + "(?![\\w$])",
+              "(?<![\\w.$])" + Pattern.quote(ownVariables.get(index)) + "(?![\\w$]|\\s*=)",
               Matcher.quoteReplacement("#" + (index + 1)));
     }
     return result;
