@@ -52,6 +52,7 @@ import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.SimpleAnnotationValueVisitor14;
 import javax.lang.model.util.Types;
 import javax.tools.JavaFileObject;
 
@@ -1461,10 +1462,11 @@ public final class ProcessorUtils {
    * <p>An annotation is kept only where some generated file could write it cleanly. One javac could
    * not resolve, which is one missing from the compile classpath, one private anywhere in its
    * nesting, and one deprecated anywhere in its nesting are left off: the first two fail the build
-   * compiling the generated file, and the third draws a warning there that no one can suppress. A
-   * package-private one is kept: it can be written from its own package, which is where a generated
-   * file lands unless a target package says otherwise. A generator that knows its package names
-   * with {@link #typeNameOf(TypeMirror, String)}, which decides exactly.
+   * compiling the generated file, and the third draws a warning there that no one can suppress. So
+   * is one whose arguments name a class, an enum constant or an annotation that fails the same
+   * test. A package-private one is kept: it can be written from its own package, which is where a
+   * generated file lands unless a target package says otherwise. A generator that knows its package
+   * names with {@link #typeNameOf(TypeMirror, String)}, which decides exactly.
    *
    * @param type the type to name; must not be null
    * @return its name, annotated as the source annotated it wherever some file could say so
@@ -1472,14 +1474,14 @@ public final class ProcessorUtils {
    * @since 0.4.10
    */
   public static TypeName typeNameOf(TypeMirror type) {
-    return new Naming(Map.of(), annotation -> writableSomewhere(annotation.getAnnotationType()))
-        .name(type, type);
+    return new Naming(Map.of(), ProcessorUtils::writableSomewhere).name(type, type);
   }
 
   /**
    * {@link #typeNameOf(TypeMirror)} for a file written into {@code targetPackage}: an annotation is
    * kept only where that package can write it cleanly, resolved, with every type in its nesting
-   * public or declared in that package, and none of them private or deprecated.
+   * public or declared in that package, and none of them private or deprecated, and so is every
+   * class, enum constant and annotation its arguments name.
    *
    * @param type the type to name; must not be null
    * @param targetPackage the package the generated file is written into; must not be null
@@ -1487,8 +1489,7 @@ public final class ProcessorUtils {
    * @since 0.4.11
    */
   public static TypeName typeNameOf(TypeMirror type, String targetPackage) {
-    return new Naming(
-            Map.of(), annotation -> writableFrom(annotation.getAnnotationType(), targetPackage))
+    return new Naming(Map.of(), annotation -> writableFrom(annotation, targetPackage))
         .name(type, type);
   }
 
@@ -1523,43 +1524,86 @@ public final class ProcessorUtils {
    */
   public static TypeName typeNameOf(
       TypeMirror type, TypeMirror declared, DeclaredType owner, String targetPackage) {
-    return new Naming(
-            clausesOf(owner),
-            annotation -> writableFrom(annotation.getAnnotationType(), targetPackage))
+    return new Naming(clausesOf(owner), annotation -> writableFrom(annotation, targetPackage))
         .name(type, declared);
   }
 
   /**
-   * Whether some generated file can write this annotation type cleanly: resolved, and neither
-   * private nor deprecated anywhere in its nesting.
+   * Whether some generated file can write this annotation cleanly: its type, and every class, enum
+   * constant and annotation its arguments name, resolved, and neither private nor deprecated
+   * anywhere in its nesting.
    */
-  private static boolean writableSomewhere(DeclaredType annotationType) {
-    return writable(annotationType, element -> !element.getModifiers().contains(Modifier.PRIVATE));
+  private static boolean writableSomewhere(AnnotationMirror annotation) {
+    return writable(annotation, element -> !element.getModifiers().contains(Modifier.PRIVATE));
   }
 
   /**
-   * Whether a generated file in {@code targetPackage} can write this annotation type cleanly:
-   * resolved, and every type in its nesting public or declared in that package, and neither private
-   * nor deprecated.
+   * Whether a generated file in {@code targetPackage} can write this annotation cleanly: its type,
+   * and every class, enum constant and annotation its arguments name, resolved, and every type in
+   * its nesting public or declared in that package, and neither private nor deprecated.
+   * {@code @Tag(Internal.class)} is left off another package's file where {@code Internal} is
+   * package-private.
    */
-  private static boolean writableFrom(DeclaredType annotationType, String targetPackage) {
-    return writable(
-        annotationType, element -> visibleFrom(element, packageOf(element), targetPackage));
+  private static boolean writableFrom(AnnotationMirror annotation, String targetPackage) {
+    return writable(annotation, element -> visibleFrom(element, packageOf(element), targetPackage));
   }
 
   /**
-   * Whether an annotation type can be written, given what counts as visible to the file writing it.
+   * Whether an annotation can be written, given what counts as visible to the file writing it. Only
+   * the arguments written count, as javapoet writes no others.
+   */
+  private static boolean writable(AnnotationMirror annotation, Predicate<Element> visible) {
+    return writable(annotation.getAnnotationType(), visible)
+        && annotation.getElementValues().values().stream()
+            .allMatch(value -> writable(value, visible));
+  }
+
+  private static boolean writable(AnnotationValue value, Predicate<Element> visible) {
+    return value.accept(
+        new SimpleAnnotationValueVisitor14<Boolean, Void>(true) {
+          @Override
+          public Boolean visitType(TypeMirror type, Void unused) {
+            return writable(type, visible);
+          }
+
+          @Override
+          public Boolean visitEnumConstant(VariableElement constant, Void unused) {
+            return nestingWritable(constant, visible);
+          }
+
+          @Override
+          public Boolean visitAnnotation(AnnotationMirror nested, Void unused) {
+            return writable(nested, visible);
+          }
+
+          @Override
+          public Boolean visitArray(List<? extends AnnotationValue> values, Void unused) {
+            return values.stream().allMatch(element -> writable(element, visible));
+          }
+        },
+        null);
+  }
+
+  /**
+   * Whether a type an annotation names can be written: resolved, and visible and current throughout
+   * its nesting. A primitive can, and an array can where its component can.
    *
    * <p>A deprecation written only as a javadoc {@code @deprecated} tag is not seen: reading that
    * needs the round's {@link Elements}, which naming a type does not take. Such an annotation is
    * written, and the generated file carries javac's deprecation warning for it, as it did before
    * any of them were left off.
    */
-  private static boolean writable(DeclaredType annotationType, Predicate<Element> visible) {
-    if (annotationType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
-    for (Element current = annotationType.asElement();
+  private static boolean writable(TypeMirror type, Predicate<Element> visible) {
+    return switch (type.getKind()) {
+      case DECLARED -> nestingWritable(((DeclaredType) type).asElement(), visible);
+      case ARRAY -> writable(((ArrayType) type).getComponentType(), visible);
+      case ERROR -> false;
+      default -> true;
+    };
+  }
+
+  private static boolean nestingWritable(Element element, Predicate<Element> visible) {
+    for (Element current = element;
         current.getKind() != ElementKind.PACKAGE;
         current = current.getEnclosingElement()) {
       if (current.getAnnotation(Deprecated.class) != null || !visible.test(current)) {
