@@ -260,6 +260,13 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static final Set<String> SCAN_SCOPE = Set.of("wire", "domain", "v");
 
+  /**
+   * The names a sparse update's setter can see, which the element lambdas of the copy it makes on
+   * each apply must not shadow: {@code updateFrom}'s parameter, and the record and value the
+   * setter's own lambda binds.
+   */
+  private static final Set<String> SETTER_SCOPE = Set.of("wire", "c", "v");
+
   /** The interfaces met but not processed yet: arriving this round, or waiting for a later one. */
   private final Set<TypeKey> unprocessed = new LinkedHashSet<>();
 
@@ -6492,7 +6499,9 @@ public class MappingProcessor extends AbstractProcessor {
       body.addStatement(
           "edits.add($T.parseIfPresent($L, $L ? wire : null, _ -> $L).at($S))",
           EDIT,
-          setterExpr(componentsClass, written, c.name(), null),
+          // A message holds no array and no IdentityHashMap, so no copy a leg makes from one can
+          // be written into, and every source the update is applied to can share it.
+          setterExpr(componentsClass, written, c.name(), null, CodeBlock.of("v")),
           masked(c),
           asComponent(
               legValue(c, wireRead(wire, c.wireName()), guardedRead(c, wire)),
@@ -7037,14 +7046,25 @@ public class MappingProcessor extends AbstractProcessor {
                 domainName,
                 componentsClass,
                 componentsLens(domainName, componentsClass, domain, written));
+    // The copies the setters make on each apply, so that two sources one update is applied to
+    // never share a container either result could write into.
+    List<ContainerCopy> copiesOnApply = new ArrayList<>();
     for (UpdateEdit edit : edits) {
       call.add(",\n");
-      TypeName focus =
-          typedFocus(
-              edit,
-              componentType(domainDeclared, componentNamed(domain, edit.domainName())),
-              implName.packageName());
-      CodeBlock setter = setterExpr(componentsClass, written, edit.domainName(), focus);
+      TypeMirror componentType =
+          componentType(domainDeclared, componentNamed(domain, edit.domainName()));
+      TypeName focus = typedFocus(edit, componentType, implName.packageName());
+      ContainerCopy onApply = perApply(edit, componentType);
+      if (onApply != null) {
+        copiesOnApply.add(onApply);
+      }
+      CodeBlock setter =
+          setterExpr(
+              componentsClass,
+              written,
+              edit.domainName(),
+              focus,
+              appliedValue(onApply, componentType, implName));
       // A present value is written as a copy, so the patched domain shares nothing with the wire;
       // a JsonNullable holder is present once sent, which hkj$sent says, and its value is copied as
       // it parses.
@@ -7107,7 +7127,10 @@ public class MappingProcessor extends AbstractProcessor {
     // The element types the edits' lambdas infer, which both the method's raw types and the class's
     // deprecation are asked of.
     List<TypeMirror> inferredTypes =
-        edits.stream().flatMap(edit -> inferred(edit.valueScan(), edit.valueCopy())).toList();
+        Stream.concat(
+                edits.stream().flatMap(edit -> inferred(edit.valueScan(), edit.valueCopy())),
+                copiesOnApply.stream().flatMap(ContainerCopy::inferred))
+            .toList();
     MethodSpec updateFrom =
         MethodSpec.methodBuilder("updateFrom")
             // A sparse spec never flattens a group (checkNoFlattened).
@@ -7120,11 +7143,15 @@ public class MappingProcessor extends AbstractProcessor {
                 "Folds the present (non-null) properties of {@code wire} into an update: an absent"
                     + " property leaves the domain unchanged, a present one is set (or parsed"
                     + " through its leaf) and located on failure. The domain is constructed once,"
-                    + " from the values the update ends on.$L\n",
+                    + " from the values the update ends on.$L$L\n",
                 holders
                     ? " A {@code JsonNullable} property is the exception: it is present once sent,"
                         + " even as null, and absent while it is null or {@code undefined()}."
-                    : "")
+                    : "",
+                copiesOnApply.isEmpty()
+                    ? ""
+                    : " Each apply copies again an array or {@code IdentityHashMap} the update's"
+                        + " own copies made, so no two results of one update share it.")
             .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
             .addStatement("$L", call.build())
             .build();
@@ -7171,7 +7198,10 @@ public class MappingProcessor extends AbstractProcessor {
     }
     implBuilder.addMethods(
         ContainerCopy.helpers(
-            edits.stream().map(UpdateEdit::valueCopy).filter(Objects::nonNull), marks));
+            Stream.concat(
+                edits.stream().map(UpdateEdit::valueCopy).filter(Objects::nonNull),
+                copiesOnApply.stream()),
+            marks));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -7203,13 +7233,17 @@ public class MappingProcessor extends AbstractProcessor {
    * An inline {@code Setter.fromGetSet(Components::comp, (c, v) -> new Components(...))} focusing
    * one component of the sparse update's {@link #componentsRecord Components} record: the getter is
    * the component accessor, and the writer rebuilds the record positionally with the focused slot
-   * taken from {@code v}. Type inference fixes the focus type, so no explicit generics are needed
-   * (a wrapper {@code v} auto-unboxes into a primitive slot), except where {@code focus} names it
-   * ({@link #typedFocus}).
+   * taken as {@code value}: {@code v}, or the copy each apply makes of it ({@link #appliedValue}).
+   * Type inference fixes the focus type, so no explicit generics are needed (a wrapper {@code v}
+   * auto-unboxes into a primitive slot), except where {@code focus} names it ({@link #typedFocus}).
    */
   private static CodeBlock setterExpr(
-      ClassName componentsClass, List<String> written, String focusedName, TypeName focus) {
-    CodeBlock writer = newComponents(componentsClass, written, "c", focusedName);
+      ClassName componentsClass,
+      List<String> written,
+      String focusedName,
+      TypeName focus,
+      CodeBlock value) {
+    CodeBlock writer = newComponents(componentsClass, written, "c", focusedName, value);
     return focus == null
         ? CodeBlock.of(
             "$T.fromGetSet($T::$L, (c, v) -> $L)", SETTER, componentsClass, focusedName, writer)
@@ -7247,6 +7281,70 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * {@code v} as a sparse edit's setter writes it on each apply: as it is, or through {@code
+   * onApply}, the copy {@link #perApply} answers. Where a type inside the component is declared
+   * nullable, the copy writes that type out ({@link NullableArgumentCast#named}), since a nullness
+   * checker reads the setter's own parameter without it.
+   */
+  private static CodeBlock appliedValue(
+      ContainerCopy onApply, TypeMirror type, ClassName implName) {
+    return onApply == null
+        ? CodeBlock.of("v")
+        : ContainerCopy.again(
+            onApply,
+            CodeBlock.of("v"),
+            SETTER_SCOPE,
+            implName,
+            NullableArgumentCast.named(type, implName.packageName()));
+  }
+
+  /**
+   * The copy a sparse edit's setter makes on each apply of the value the edit holds, so that two
+   * sources one update is applied to never share a container either result could write into: an
+   * array, at any depth, an {@code IdentityHashMap}, and any container holding one ({@link
+   * ContainerCopy#perApply}). The edit parsed its value once, when {@code updateFrom} read the
+   * wire, and every apply writes that one value, so each copies what the edit's own leg made: an
+   * identity copy, an element-lifted array or map, which {@code parse} builds around the leaf's
+   * values, the copied values of a {@code @MapKey} map, and a bridge's present value inside its
+   * {@code Optional}, a wildcard's included ({@link ContainerCopy#optional}). Null where the value
+   * holds nothing writable that the leg made: what a leaf returns is the leaf's own, a lifted list,
+   * set or {@code Optional} is unmodifiable, and so is the map {@code parseEntries} builds.
+   *
+   * @param edit the edit
+   * @param type the domain component the edit writes
+   * @return the copy each apply makes, or null
+   */
+  private static ContainerCopy perApply(UpdateEdit edit, TypeMirror type) {
+    return edit.held() == null
+        ? perApply(edit.kind(), edit.copy(), null, type)
+        : perApply(edit.held().kind(), edit.held().copy(), edit.held().present(), type);
+  }
+
+  private static ContainerCopy perApply(
+      Kind kind, ContainerCopy copy, Correspondence present, TypeMirror type) {
+    return switch (kind) {
+      case IDENTITY -> copy == null ? null : copy.perApply();
+      case ARRAY, MAP -> ContainerCopy.level(type).perApply();
+      case MAP_KEYS -> copy == null ? null : copy.perApplyAroundValues();
+      case OPTIONAL_BRIDGE -> {
+        // A bridged Optional always names what it holds (bridgedArgument), and its present value
+        // resolves against a wildcard's bound, which is the type that value's copy is made at.
+        TypeMirror element = ((DeclaredType) type).getTypeArguments().getFirst();
+        ContainerCopy inside =
+            perApply(
+                present.kind(),
+                present.copy(),
+                present.present(),
+                ProcessorUtils.resolveWildcard(element));
+        yield inside == null ? null : ContainerCopy.optional(inside, element);
+      }
+      // A leaf's own value, a lifted list, set or Optional and parseEntries' map are the leaf's
+      // or unmodifiable; DERIVED and ONEOF reach no sparse edit.
+      case LEAF, ELEMENTS, OPTIONAL, MAP_ENTRIES, DERIVED, ONEOF -> null;
+    };
+  }
+
+  /**
    * The {@code Lens} from the domain to the sparse update's {@link #componentsRecord Components}
    * record, {@code Lens.of(d -> new Components(d.lo(), d.hi()), (d, c) -> new Range(c.lo(), c.hi(),
    * d.note()))}. Its setter is the update's one call to the domain's canonical constructor, and
@@ -7262,26 +7360,26 @@ public class MappingProcessor extends AbstractProcessor {
     return CodeBlock.of(
         "$T.of(\n        d -> $L,\n        (d, c) -> new $T($L))",
         LENS,
-        newComponents(componentsClass, written, "d", null),
+        newComponents(componentsClass, written, "d", null, null),
         domainName,
         args);
   }
 
   /**
    * {@code new Components(d.lo(), d.hi())} over the {@code written} components read from {@code
-   * source}, with the {@code focused} one (when not null) taken from {@code v}.
+   * source}, with the {@code focused} one (when not null) taken as {@code value}.
    */
   private static CodeBlock newComponents(
-      ClassName componentsClass, List<String> written, String source, String focused) {
+      ClassName componentsClass,
+      List<String> written,
+      String source,
+      String focused,
+      CodeBlock value) {
     return CodeBlock.of(
         "new $T($L)",
         componentsClass,
         written.stream()
-            .map(
-                name ->
-                    name.equals(focused)
-                        ? CodeBlock.of("v")
-                        : CodeBlock.of("$L.$L()", source, name))
+            .map(name -> name.equals(focused) ? value : CodeBlock.of("$L.$L()", source, name))
             .collect(CodeBlock.joining(", ")));
   }
 

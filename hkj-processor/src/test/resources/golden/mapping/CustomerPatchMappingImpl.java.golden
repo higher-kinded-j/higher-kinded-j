@@ -46,7 +46,7 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   }
 
   /**
-   * Folds the present (non-null) properties of {@code wire} into an update: an absent property leaves the domain unchanged, a present one is set (or parsed through its leaf) and located on failure. The domain is constructed once, from the values the update ends on.
+   * Folds the present (non-null) properties of {@code wire} into an update: an absent property leaves the domain unchanged, a present one is set (or parsed through its leaf) and located on failure. The domain is constructed once, from the values the update ends on. Each apply copies again an array or {@code IdentityHashMap} the update's own copies made, so no two results of one update share it.
    */
   public Edits.Accumulated<Customer> updateFrom(CustomerPatchDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
@@ -56,10 +56,10 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
                 (d, c) -> new Customer(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), c.labels())),
             Edit.setIfPresent(Setter.fromGetSet(Components::name, (c, v) -> new Components(v, c.phones(), c.speedDial(), c.fax(), c.tags(), c.labels())), wire.getName()),
             Edit.parseIfPresent(Setter.fromGetSet(Components::phones, (c, v) -> new Components(c.name(), v, c.speedDial(), c.fax(), c.tags(), c.labels())), wire.getPhones(), phones()::parseAll).at("phones"),
-            Edit.parseIfPresent(Setter.fromGetSet(Components::speedDial, (c, v) -> new Components(c.name(), c.phones(), v, c.fax(), c.tags(), c.labels())), wire.getSpeedDial(), speedDial()::parseValues).at("speedDial"),
+            Edit.parseIfPresent(Setter.fromGetSet(Components::speedDial, (c, v) -> new Components(c.name(), c.phones(), (v instanceof IdentityHashMap<?, ?> ? hkj$copyOf(v) : v), c.fax(), c.tags(), c.labels())), wire.getSpeedDial(), speedDial()::parseValues).at("speedDial"),
             Edit.parseIfPresent(Setter.fromGetSet(Components::fax, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), v, c.tags(), c.labels())), wire.getFax(), o -> hkj$parsePresent(o.orElse(null), v -> fax().parse(v).map(Optional::of))).at("fax"),
             Edit.parseIfPresent(Setter.fromGetSet(Components::tags, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), v, c.labels())), hkj$copyOf(wire.getTags()), CustomerPatchMappingImpl::hkj$allPresent).at("tags"),
-            Edit.parseIfPresent(Setter.fromGetSet(Components::labels, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), v)), hkj$copyOf(wire.getLabels()), CustomerPatchMappingImpl::hkj$valuesPresent).at("labels"));
+            Edit.parseIfPresent(Setter.fromGetSet(Components::labels, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), (v instanceof IdentityHashMap<?, ?> ? hkj$copyOf(v) : v))), hkj$copyOf(wire.getLabels()), CustomerPatchMappingImpl::hkj$valuesPresent).at("labels"));
   }
 
   /**

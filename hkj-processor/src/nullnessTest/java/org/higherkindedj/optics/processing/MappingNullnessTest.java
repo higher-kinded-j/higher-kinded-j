@@ -1630,4 +1630,161 @@ class MappingNullnessTest {
 
     assertThat(compilation).succeeded();
   }
+
+  @Test
+  @DisplayName(
+      "a sparse update's copy on each apply, of every shape it copies again, with a nullable type"
+          + " argument inside or none, an array of arrays and a wildcard bridge among them, sent as"
+          + " it is or through a JsonNullable")
+  void aCopyOnEachApplyPassesTheChecker() {
+    Compilation compilation =
+        compile(
+            configuration,
+            List.of(new MappingProcessor(), new CompanionAnnotationProcessor()),
+            List.of("-Xep:NullableOptional:ERROR"),
+            JSON_NULLABLE,
+            source(
+                "com.example.Again",
+                """
+                package com.example;
+
+                import java.util.List;
+                import java.util.Map;
+                import java.util.Optional;
+                import org.higherkindedj.hkt.validated.Validated;
+                import org.higherkindedj.optics.annotations.GenerateMapping;
+                import org.higherkindedj.optics.annotations.UpdateSpec;
+                import org.higherkindedj.optics.validated.ValidatedPrism;
+                import org.jspecify.annotations.Nullable;
+                import org.openapitools.jackson.nullable.JsonNullable;
+
+                public final class Again {
+                  private Again() {}
+
+                  public record Code(String value) {}
+
+                  static ValidatedPrism<String, Code> code() {
+                    return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                  }
+
+                  public record Shelf(
+                      String[] cells,
+                      @Nullable String[] holed,
+                      Map<String, String> byKey,
+                      Map<String, @Nullable String> holedByKey,
+                      List<Map<String, @Nullable String>> maps,
+                      Map<String, @Nullable String[]> cellsByKey,
+                      List<@Nullable String[]> rows,
+                      Optional<@Nullable String[]> maybe,
+                      Code[] codes,
+                      Map<String, Code> codeByKey,
+                      @Nullable String[][] grid) {}
+
+                  @SuppressWarnings("NullableOptional")
+                  public static final class ShelfPatch {
+                    private String @Nullable [] cells;
+                    private @Nullable String @Nullable [] holed;
+                    private @Nullable Map<String, String> byKey;
+                    private @Nullable Map<String, @Nullable String> holedByKey;
+                    private @Nullable List<Map<String, @Nullable String>> maps;
+                    private @Nullable Map<String, @Nullable String[]> cellsByKey;
+                    private @Nullable List<@Nullable String[]> rows;
+                    private @Nullable Optional<@Nullable String[]> maybe;
+                    private String @Nullable [] codes;
+                    private @Nullable Map<String, String> codeByKey;
+                    private @Nullable String @Nullable [][] grid;
+
+                    public String @Nullable [] getCells() { return cells; }
+                    public void setCells(String @Nullable [] v) { cells = v; }
+                    public @Nullable String @Nullable [] getHoled() { return holed; }
+                    public void setHoled(@Nullable String @Nullable [] v) { holed = v; }
+                    public @Nullable Map<String, String> getByKey() { return byKey; }
+                    public void setByKey(@Nullable Map<String, String> v) { byKey = v; }
+                    public @Nullable Map<String, @Nullable String> getHoledByKey() { return holedByKey; }
+                    public void setHoledByKey(@Nullable Map<String, @Nullable String> v) { holedByKey = v; }
+                    public @Nullable List<Map<String, @Nullable String>> getMaps() { return maps; }
+                    public void setMaps(@Nullable List<Map<String, @Nullable String>> v) { maps = v; }
+                    public @Nullable Map<String, @Nullable String[]> getCellsByKey() { return cellsByKey; }
+                    public void setCellsByKey(@Nullable Map<String, @Nullable String[]> v) { cellsByKey = v; }
+                    public @Nullable List<@Nullable String[]> getRows() { return rows; }
+                    public void setRows(@Nullable List<@Nullable String[]> v) { rows = v; }
+                    public @Nullable Optional<@Nullable String[]> getMaybe() { return maybe; }
+                    public void setMaybe(@Nullable Optional<@Nullable String[]> v) { maybe = v; }
+                    public String @Nullable [] getCodes() { return codes; }
+                    public void setCodes(String @Nullable [] v) { codes = v; }
+                    public @Nullable Map<String, String> getCodeByKey() { return codeByKey; }
+                    public void setCodeByKey(@Nullable Map<String, String> v) { codeByKey = v; }
+                    public @Nullable String @Nullable [][] getGrid() { return grid; }
+                    public void setGrid(@Nullable String @Nullable [][] v) { grid = v; }
+                  }
+
+                  @GenerateMapping
+                  public interface ShelfPatchMapping extends UpdateSpec<Shelf, ShelfPatch> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+
+                    default ValidatedPrism<String, Code> codeByKey() { return code(); }
+                  }
+
+                  public record Sent(
+                      @Nullable String[] holed,
+                      Code[] codes,
+                      Map<String, Code> byKey,
+                      Optional<String[]> bridged,
+                      Optional<Map<String, @Nullable String>> bridgedMap,
+                      @Nullable String[][] grid,
+                      Optional<? extends String[]> wild,
+                      Optional<? extends Map<String, String>> wildMap,
+                      Optional<? extends Map<String, @Nullable String>> wildHoled) {}
+
+                  @SuppressWarnings("NullableOptional")
+                  public static final class SentPatch {
+                    private @Nullable JsonNullable<@Nullable String @Nullable []> holed;
+                    private @Nullable JsonNullable<String[]> codes;
+                    private @Nullable JsonNullable<Map<String, String>> byKey;
+                    private @Nullable JsonNullable<String[]> bridged;
+                    private @Nullable JsonNullable<Map<String, @Nullable String>> bridgedMap;
+                    private @Nullable JsonNullable<@Nullable String[][]> grid;
+                    private @Nullable JsonNullable<String[]> wild;
+                    private @Nullable JsonNullable<Map<String, String>> wildMap;
+                    private @Nullable JsonNullable<Map<String, @Nullable String>> wildHoled;
+
+                    public @Nullable JsonNullable<@Nullable String @Nullable []> getHoled() { return holed; }
+                    public void setHoled(@Nullable JsonNullable<@Nullable String @Nullable []> v) { holed = v; }
+                    public @Nullable JsonNullable<String[]> getCodes() { return codes; }
+                    public void setCodes(@Nullable JsonNullable<String[]> v) { codes = v; }
+                    public @Nullable JsonNullable<Map<String, String>> getByKey() { return byKey; }
+                    public void setByKey(@Nullable JsonNullable<Map<String, String>> v) { byKey = v; }
+                    public @Nullable JsonNullable<String[]> getBridged() { return bridged; }
+                    public void setBridged(@Nullable JsonNullable<String[]> v) { bridged = v; }
+                    public @Nullable JsonNullable<Map<String, @Nullable String>> getBridgedMap() {
+                      return bridgedMap;
+                    }
+                    public void setBridgedMap(@Nullable JsonNullable<Map<String, @Nullable String>> v) {
+                      bridgedMap = v;
+                    }
+                    public @Nullable JsonNullable<@Nullable String[][]> getGrid() { return grid; }
+                    public void setGrid(@Nullable JsonNullable<@Nullable String[][]> v) { grid = v; }
+                    public @Nullable JsonNullable<String[]> getWild() { return wild; }
+                    public void setWild(@Nullable JsonNullable<String[]> v) { wild = v; }
+                    public @Nullable JsonNullable<Map<String, String>> getWildMap() { return wildMap; }
+                    public void setWildMap(@Nullable JsonNullable<Map<String, String>> v) { wildMap = v; }
+                    public @Nullable JsonNullable<Map<String, @Nullable String>> getWildHoled() {
+                      return wildHoled;
+                    }
+                    public void setWildHoled(@Nullable JsonNullable<Map<String, @Nullable String>> v) {
+                      wildHoled = v;
+                    }
+                  }
+
+                  @GenerateMapping
+                  public interface SentPatchMapping extends UpdateSpec<Sent, SentPatch> {
+                    default ValidatedPrism<String, Code> codes() { return code(); }
+
+                    default ValidatedPrism<String, Code> byKey() { return code(); }
+                  }
+                }
+                """));
+
+    assertThat(compilation).succeeded();
+  }
 }

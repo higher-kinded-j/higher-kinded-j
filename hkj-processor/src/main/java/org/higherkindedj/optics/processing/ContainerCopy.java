@@ -165,15 +165,16 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   }
 
   /**
-   * The one level an element-lifted leg's bulk form makes fresh, {@code type}'s own, which says to
-   * {@link #retyping} what is fresh and is never itself written as a copy. {@code buildAll}, {@code
-   * buildValues}, {@code buildKeys} and {@code buildEntries} each hand back a new container, but
-   * what it holds is what a leaf or a nested spec built, or, passed through, what the domain held,
-   * and none of that is copied. So only the container's own arguments may be typed differently, and
-   * nothing inside them.
+   * The one level an element-lifted leg's bulk form makes fresh, {@code type}'s own. {@code
+   * buildAll}, {@code buildValues}, {@code buildKeys} and {@code buildEntries} each hand back a new
+   * container, and so do {@code parseAll} and {@code parseValues}, but what it holds is what a leaf
+   * or a nested spec built, or, passed through, what the other side held, and none of that is
+   * copied. So it says to {@link #retyping} that only the container's own arguments may be typed
+   * differently, and nothing inside them; and to {@link #perApply} that a sparse update copies only
+   * the container again, where an array or an {@code IdentityHashMap} can be written into.
    *
-   * @param type the type of the container the bulk form builds: exactly {@code List}, {@code Set}
-   *     or {@code Map}, with its arguments
+   * @param type the type of the container the bulk form builds: an array, or exactly {@code List},
+   *     {@code Set} or {@code Map}, with its arguments
    * @return the one level
    */
   static ContainerCopy level(TypeMirror type) {
@@ -346,7 +347,111 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * @return the value to hand over
    */
   static CodeBlock through(ContainerCopy copy, CodeBlock value, Set<String> taken) {
-    return copy == null ? value : copy.on(value, taken);
+    return copy == null ? value : copy.on(value, taken, 0, Emission.COPY);
+  }
+
+  /**
+   * The copy of an {@code Optional} whose present value takes {@code inside}, for a bridge, whose
+   * value is the copy its present value's leg makes. An {@code Optional} declared through a
+   * wildcard, as {@code Optional<? extends String[]>}, holds a capture, which no helper typed by
+   * the {@code Optional} could hand a copy made at the wildcard's bound back as, so its value is
+   * copied through {@code Optional.map}: the result is typed by the bound, which the wildcard
+   * admits.
+   *
+   * @param inside the copy the present value takes, made at the wildcard's bound for a wildcard
+   * @param element the type the {@code Optional} holds, as it declares it
+   * @return the copy of the {@code Optional}
+   */
+  static ContainerCopy optional(ContainerCopy inside, TypeMirror element) {
+    return new ContainerCopy(Shape.OPTIONAL, inside, element);
+  }
+
+  /** Whether this level is an {@code Optional} copied through {@code map} ({@link #optional}). */
+  private boolean mapped() {
+    return shape == Shape.OPTIONAL && element.getKind() == TypeKind.WILDCARD;
+  }
+
+  /**
+   * Whether a value this copy makes can be written into, at its own level or inside it. An array
+   * always can, and a map can when its source is an {@code IdentityHashMap}, which the copy hands
+   * over as itself; every other level is unmodifiable.
+   */
+  private boolean writable() {
+    return shape == Shape.ARRAY || shape == Shape.MAP || (inner != null && inner.writable());
+  }
+
+  /**
+   * The part of this copy a sparse update makes again each time it is applied, so that two results
+   * of one update never share a container either of them could write into: every level that can be
+   * written into, and every level holding one, which is rebuilt around a fresh one. A map whose
+   * values hold nothing writable is copied again only where it is an {@code IdentityHashMap}
+   * ({@link #again}). Null where nothing the copy makes can be written into, since every result can
+   * then share it.
+   *
+   * @return the copy each apply makes, or null
+   */
+  ContainerCopy perApply() {
+    return writable()
+        ? new ContainerCopy(shape, inner == null ? null : inner.perApply(), element)
+        : null;
+  }
+
+  /**
+   * The part of a {@code @MapKey} map's copy each apply makes. {@code parseEntries} rebuilds the
+   * map around the keys, unmodifiable, and holds the values this copy made, so the map is rebuilt
+   * again around fresh values where they can be written into, and shared where they cannot. Only a
+   * copy whose values copy is asked, so a level inside it is always there.
+   *
+   * @return the copy each apply makes, or null
+   */
+  ContainerCopy perApplyAroundValues() {
+    return inner.writable() ? perApply() : null;
+  }
+
+  /**
+   * {@code value} as each apply of a sparse update hands it over, copied again through {@code copy}
+   * ({@link #perApply}). A map copied again only where it is an {@code IdentityHashMap} is guarded
+   * by that test, so every other map is shared, and the guard reads {@code value} twice, so it must
+   * be a name. Where {@code named} is given, the copy is typed as it: an array's helpers take its
+   * type, and each row's, as their type argument, given through their class, {@code owner}, since a
+   * cast would not reach the lambdas they are handed; any other copy is cast to it.
+   *
+   * @param copy the copy {@link #perApply} answers
+   * @param value the name of the value the edit holds
+   * @param taken the names the copy's element lambdas must keep clear of
+   * @param owner the class the helpers are declared in
+   * @param named the type to write the copy out as ({@link NullableArgumentCast#named}), or null
+   * @return the value to hand over
+   */
+  static CodeBlock again(
+      ContainerCopy copy, CodeBlock value, Set<String> taken, ClassName owner, TypeName named) {
+    boolean array = copy.shape == Shape.ARRAY;
+    CodeBlock copied = copy.on(value, taken, 0, new Emission(true, owner, array ? named : null));
+    return named == null || array ? copied : CodeBlock.of("($T) $L", named, copied);
+  }
+
+  /**
+   * How a copy is written out: made {@code again} for a sparse update's apply, or not, into the
+   * class {@code owner}, and the type an array's helpers take as their type argument at this level,
+   * {@code named}, or null where inference types them.
+   */
+  private record Emission(boolean again, ClassName owner, TypeName named) {
+
+    static final Emission COPY = new Emission(false, null, null);
+
+    /** The same emission one level inside an array: the type its rows have. */
+    Emission rows() {
+      return named == null
+          ? this
+          : new Emission(again, owner, ((ArrayTypeName) named).componentType());
+    }
+
+    /** {@code helper} as the copy calls it: with its type argument, where one is named. */
+    CodeBlock call(String helper, TypeName argument) {
+      return named == null
+          ? CodeBlock.of("$L", helper)
+          : CodeBlock.of("$T.<$T>$L", owner, argument, helper);
+    }
   }
 
   /**
@@ -368,44 +473,88 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
 
   /**
    * The copy of {@code value}: this level's helper, with the next level's copy riding along as a
-   * lambda, its parameter clear of every name in {@code taken}.
+   * lambda, its parameter clear of every name in {@code taken}. A {@link #perApply} copy, made
+   * {@code again} for a sparse update's apply, keeps a level with nothing inside it to copy again
+   * only where that level is a map, and copies the map only where it is an {@code IdentityHashMap}:
+   * any other is unmodifiable, and handed over as it is.
    */
-  private CodeBlock on(CodeBlock value, Set<String> taken) {
-    return on(value, taken, 0);
-  }
-
-  private CodeBlock on(CodeBlock value, Set<String> taken, int depth) {
+  private CodeBlock on(CodeBlock value, Set<String> taken, int depth, Emission emission) {
     // No helper can type an array by the array itself, so the guard hands a null one back.
     if (shape == Shape.ARRAY) {
-      return CodeBlock.of("$L($L, $L)", OR_NULL, value, arrayCopy(taken, depth + 1));
+      return CodeBlock.of(
+          "$L($L, $L)",
+          emission.call(OR_NULL, emission.named()),
+          value,
+          arrayCopy(taken, depth + 1, emission, null));
+    }
+    // Optional.map hands its function only a present value, so an array inside takes no guard.
+    // The function takes its value as the wildcard's bound: javac reads no capture as an array,
+    // and a nullness checker reads a capture's type arguments without their nullness.
+    if (mapped()) {
+      TypeName bound =
+          ProcessorUtils.typeNameOf(
+              ProcessorUtils.resolveWildcard(element), emission.owner().packageName());
+      return CodeBlock.of(
+          "$L.map($L)",
+          value,
+          inner.shape == Shape.ARRAY
+              ? inner.arrayCopy(taken, depth + 1, emission, bound)
+              : inner.asLambda(taken, depth + 1, emission, bound));
     }
     if (inner != null) {
-      return CodeBlock.of("$L($L, $L)", HELPER, value, inner.asLambda(taken, depth + 1));
+      return CodeBlock.of(
+          "$L($L, $L)", HELPER, value, inner.asLambda(taken, depth + 1, emission, null));
     }
     // A raw container reaches its helper through the wildcard view of its type, which it converts
     // to without a warning; the helper's own parameter would ask for an unchecked conversion.
-    return raw()
-        ? CodeBlock.of("$L(($T) $L)", HELPER, wildcardView(shape), value)
-        : CodeBlock.of("$L($L)", HELPER, value);
+    CodeBlock copied =
+        raw()
+            ? CodeBlock.of("$L(($T) $L)", HELPER, wildcardView(shape), value)
+            : CodeBlock.of("$L($L)", HELPER, value);
+    return emission.again()
+        ? CodeBlock.of(
+            "($L instanceof $T<?, ?> ? $L : $L)", value, IDENTITY_HASH_MAP, copied, value)
+        : copied;
   }
 
-  /** The parameter is named for its depth ({@code e}, then {@code e2}, {@code e3}). */
-  private CodeBlock asLambda(Set<String> taken, int depth) {
+  /**
+   * The parameter is named for its depth ({@code e}, then {@code e2}, {@code e3}), and declared as
+   * {@code declared} where that is given.
+   */
+  private CodeBlock asLambda(Set<String> taken, int depth, Emission emission, TypeName declared) {
     Set<String> scope = new HashSet<>(taken);
     String element = ProcessorUtils.freeName(depth == 1 ? "e" : "e" + depth, scope);
-    return CodeBlock.of("$L -> $L", element, on(CodeBlock.of("$L", element), scope, depth));
+    return CodeBlock.of(
+        "$L -> $L",
+        parameter(element, declared),
+        on(CodeBlock.of("$L", element), scope, depth, emission));
+  }
+
+  /** A lambda's one parameter: its name, or its declared type and name. */
+  private static CodeBlock parameter(String name, TypeName declared) {
+    return declared == null ? CodeBlock.of("$L", name) : CodeBlock.of("($T $L)", declared, name);
   }
 
   /**
    * The copy the guard hands a present array to: its clone, or, where its rows are arrays too, the
-   * nested helper, which copies each row through the guard in turn.
+   * nested helper, which copies each row through the guard in turn. A named array's helper takes
+   * its rows' type, and each row its own. The lambda declares its parameter as {@code declared}
+   * where that is given.
    */
-  private CodeBlock arrayCopy(Set<String> taken, int depth) {
+  private CodeBlock arrayCopy(Set<String> taken, int depth, Emission emission, TypeName declared) {
     Set<String> scope = new HashSet<>(taken);
     String array = ProcessorUtils.freeName(depth == 1 ? "e" : "e" + depth, scope);
-    return inner == null
-        ? CodeBlock.of("$L -> $L.clone()", array, array)
-        : CodeBlock.of("$L -> $L($L, $L)", array, HELPER, array, inner.asLambda(scope, depth + 1));
+    CodeBlock parameter = parameter(array, declared);
+    if (inner == null) {
+      return CodeBlock.of("$L -> $L.clone()", parameter, array);
+    }
+    Emission rows = emission.rows();
+    return CodeBlock.of(
+        "$L -> $L($L, $L)",
+        parameter,
+        emission.call(HELPER, rows.named()),
+        array,
+        inner.asLambda(scope, depth + 1, rows, null));
   }
 
   private static TypeName wildcardView(Shape shape) {
@@ -421,8 +570,19 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private record Form(Shape shape, boolean nested) {}
 
   private Stream<Form> forms() {
+    if (mapped()) {
+      // Optional.map stands in for this level's helper, and for the guard of an array inside it.
+      return inner.shape == Shape.ARRAY ? inner.rowForms() : inner.forms();
+    }
     Form form = new Form(shape, inner != null);
     return inner == null ? Stream.of(form) : Stream.concat(Stream.of(form), inner.forms());
+  }
+
+  /** An array's forms without its guard: the nested helper and its rows', where it has rows. */
+  private Stream<Form> rowForms() {
+    return inner == null
+        ? Stream.empty()
+        : Stream.concat(Stream.of(new Form(shape, true)), inner.forms());
   }
 
   /** The one order helpers are declared in, so that every Impl declares them alike. */

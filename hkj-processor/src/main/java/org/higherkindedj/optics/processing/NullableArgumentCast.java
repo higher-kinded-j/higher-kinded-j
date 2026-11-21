@@ -31,6 +31,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * the cast is written only where the type as the generated class writes it still carries one. An
  * annotation the class could not name would be left out, and the cast with it.
  *
+ * <p>A sparse update's setter copies its own lambda parameter on each apply, and a nullness checker
+ * infers that parameter's type arguments without the nullness they declare. There the copy is typed
+ * as its own type ({@link #named}): cast to it, or, for an array, through its helpers' type
+ * arguments, which a cast would not reach.
+ *
  * <p>A copy whose type names a type variable takes no cast: the variable's declaration need not say
  * what its argument is, as a record's {@code T} instantiated as {@code @Nullable String} does not,
  * so its positions cannot be read for a nullness they may hold. The type it is handed on as names
@@ -64,6 +69,26 @@ final class NullableArgumentCast {
               .annotated(ProcessorUtils.typeNameOf(from, targetPackage).annotations());
     }
     return annotated(type) ? CodeBlock.of("($T) $L", type, value) : value;
+  }
+
+  /**
+   * The type a sparse update's setter writes out the copy it makes on each apply as ({@link
+   * ContainerCopy#perApply}), where a type inside {@code type} is declared nullable. The setter
+   * copies its own lambda parameter, and a nullness checker infers that parameter's type arguments
+   * without the nullness they declare, so the copy is held to its own type only where that is
+   * written out. Null where nothing inside is declared nullable, and where the class cannot write
+   * the annotation, as {@link #on} leaves such a cast out.
+   *
+   * @param type the component the setter writes
+   * @param targetPackage the package the generated class is written into
+   * @return the type to write out, or null
+   */
+  static TypeName named(TypeMirror type, String targetPackage) {
+    if (!NullableAnnotations.hasNullableTypeArgument(type)) {
+      return null;
+    }
+    TypeName name = ProcessorUtils.typeNameOf(type, targetPackage);
+    return annotated(name) ? name : null;
   }
 
   /** Whether a type annotation is written anywhere in {@code type}. */
