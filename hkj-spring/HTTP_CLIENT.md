@@ -257,8 +257,8 @@ refuses a client that passes one of its own type variables on as the error type.
 A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and the
 facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a
 generic client cannot be registered as a singleton bean. Instantiate the generated facade for a
-concrete type rather than autowiring it, or extend the generic client from a non-generic
-`@HkjHttpClient` interface that gives its type arguments, which gets a bean.
+concrete type rather than autowiring it, or declare a non-generic `@HkjHttpClient` interface that
+extends the generic client with concrete type arguments; that interface gets a bean.
 
 ## Security
 

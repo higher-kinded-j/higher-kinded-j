@@ -51,8 +51,9 @@ import javax.lang.model.util.Types;
  * here. Both forms are needed: a client restates each method as a member of the client interface,
  * read under the type arguments the client gives the interfaces it extends, and that reading drops
  * what the plain form keeps. The member form of {@link #typeVariableOf(TypeVariable,
- * TypeParameterElement, DeclaredType, String)} has no counterpart there: it is the loop {@code
- * PathProcessor} writes a bridge's type parameters with.
+ * TypeParameterElement, DeclaredType, String)} has no counterpart there: it follows the loop {@code
+ * PathProcessor} writes a bridge's type parameters with, but pairs the bounds from the end, for the
+ * reason the method gives.
  */
 final class TypeNames {
 

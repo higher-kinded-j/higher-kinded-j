@@ -15,7 +15,6 @@ import com.palantir.javapoet.TypeSpec;
 import com.palantir.javapoet.TypeVariableName;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -23,9 +22,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -36,19 +36,12 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
-import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -151,90 +144,6 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
   }
 
-  /**
-   * A method the client must implement, as the client inherits it.
-   *
-   * <p>The declaration gives the method's name, its parameters' names and every annotation. Its
-   * types are read as a member of the client, with each type variable of an interface the client
-   * extends replaced by the type argument the client gives it: a client extending {@code
-   * Repo<UserDto>} implements a {@code get} that returns {@code EitherPath<ApiErr, UserDto>}, not
-   * the {@code EitherPath<ApiErr, T>} that {@code Repo} declares. A type variable of the method's
-   * own is not the client's to bind and stays a variable, though a bound of it that names one of
-   * {@code Repo}'s is read with the client's argument in its place.
-   *
-   * <p>A client that reaches the method's interface through a raw type has its signature read as
-   * the method declares it. javac would read it erased, losing even the types the declaration
-   * writes out in full; {@link #readsCleanly} refuses the method if the declaration names a type
-   * variable the raw type leaves unbound.
-   *
-   * @param element the method as its interface declares it
-   * @param signature the method's types as a member of the client
-   * @param owner the client interface's type, the instantiation {@code signature} was read under
-   * @param rawClause the generic interface the client names without type arguments on its way to
-   *     the method's interface, if it does
-   */
-  private record ClientMethod(
-      ExecutableElement element,
-      ExecutableType signature,
-      DeclaredType owner,
-      Optional<TypeElement> rawClause) {
-
-    TypeMirror returnType() {
-      return signature.getReturnType();
-    }
-
-    /** The return type's name, keeping the annotations the declaration wrote on what it binds. */
-    TypeName returnTypeName(String targetPackage) {
-      return TypeNames.typeNameOf(returnType(), element.getReturnType(), owner, targetPackage);
-    }
-
-    List<ClientParameter> parameters() {
-      List<? extends VariableElement> declared = element.getParameters();
-      List<? extends TypeMirror> types = signature.getParameterTypes();
-      return IntStream.range(0, declared.size())
-          .mapToObj(index -> new ClientParameter(declared.get(index), types.get(index), owner))
-          .toList();
-    }
-
-    /**
-     * The method's own type parameters, each bound read as the client has it: {@code <X extends T>}
-     * on a {@code Repo<T>} the client extends as {@code Repo<UserDto>} is {@code <X extends
-     * UserDto>}.
-     */
-    List<TypeVariableName> typeVariableNames(String targetPackage) {
-      List<? extends TypeVariable> variables = signature.getTypeVariables();
-      List<? extends TypeParameterElement> declared = element.getTypeParameters();
-      return IntStream.range(0, variables.size())
-          .mapToObj(
-              index ->
-                  TypeNames.typeVariableOf(
-                      variables.get(index), declared.get(index), owner, targetPackage))
-          .toList();
-    }
-  }
-
-  /**
-   * One parameter of a {@link ClientMethod}: its declaration, for its name and annotations, and its
-   * type as the client has it.
-   */
-  private record ClientParameter(VariableElement element, TypeMirror type, DeclaredType owner) {
-
-    String name() {
-      return element.getSimpleName().toString();
-    }
-
-    /** The type's name, keeping the annotations the declaration wrote on what it binds. */
-    TypeName typeName(String targetPackage) {
-      return TypeNames.typeNameOf(type, element.asType(), owner, targetPackage);
-    }
-  }
-
-  /**
-   * What an {@code extends} clause binds a type variable to, and the interface the clause belongs
-   * to.
-   */
-  private record Binding(TypeElement writer, TypeMirror argument) {}
-
   /** A client method's analysed return type: its path flavour and error/success type arguments. */
   private record ReturnInfo(PathKind kind, @Nullable TypeMirror error, TypeMirror success) {
 
@@ -299,14 +208,19 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     List<ClientMethod> methods = new ArrayList<>();
     List<ReturnInfo> infos = new ArrayList<>();
     boolean valid = true;
-    for (List<ClientMethod> declarations : abstractMethods(iface)) {
-      if (!declaredAlike(iface, declarations, packageName)) {
+    for (List<ClientMethod> declarations :
+        ClientMethods.inheritedBy(
+            iface, processingEnv.getElementUtils(), processingEnv.getTypeUtils())) {
+      if (refusesDivergentDeclarations(iface, declarations, packageName)) {
         valid = false;
       }
       methods.add(declarations.getFirst());
     }
     for (ClientMethod method : methods) {
-      ReturnInfo info = readsCleanly(iface, method) ? analyseReturnType(iface, method) : null;
+      ReturnInfo info =
+          refusesRawRead(iface, method) || refusesShadowedTypeParameter(iface, method)
+              ? null
+              : analyseReturnType(iface, method);
       if (info == null) {
         valid = false;
       }
@@ -344,10 +258,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
               + simpleName
               + "': bean wiring skipped (a generic client cannot be a singleton bean). Instantiate "
               + facadeName.simpleName()
-              + " for a concrete type argument, or extend '"
+              + " for a concrete type argument, or declare a non-generic @HkjHttpClient interface"
+              + " that extends '"
               + simpleName
-              + "' from a non-generic @HkjHttpClient interface that gives its type arguments, which"
-              + " gets a bean. See the Generic Clients section of the docs.",
+              + "' with concrete type arguments; that interface gets a bean. See the Generic"
+              + " Clients section of the docs.",
           iface);
     } else {
       String group = groupName(iface, simpleName);
@@ -416,7 +331,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       }
       // Copy parameters with their binding annotations (@PathVariable, @RequestBody, …).
       // ParameterSpec.get(VariableElement) drops annotations, so copy them explicitly.
-      for (ClientParameter parameter : clientMethod.parameters()) {
+      for (ClientMethod.Parameter parameter : clientMethod.parameters()) {
         nativeMethod.addParameter(copyParameter(parameter, packageName));
       }
       builder.addMethod(nativeMethod.build());
@@ -500,9 +415,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .addModifiers(Modifier.PUBLIC)
             .returns(clientMethod.returnTypeName(packageName))
             .addTypeVariables(clientMethod.typeVariableNames(packageName));
-    List<ClientParameter> parameters = clientMethod.parameters();
-    String args = parameters.stream().map(ClientParameter::name).collect(Collectors.joining(", "));
-    for (ClientParameter parameter : parameters) {
+    List<ClientMethod.Parameter> parameters = clientMethod.parameters();
+    String args =
+        parameters.stream().map(ClientMethod.Parameter::name).collect(Collectors.joining(", "));
+    for (ClientMethod.Parameter parameter : parameters) {
       facadeMethod.addParameter(
           ParameterSpec.builder(parameter.typeName(packageName), parameter.name()).build());
     }
@@ -680,13 +596,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * name gets one injected from the source parameter — the processor knows the name even when the
    * consuming build does not compile with {@code -parameters}.
    */
-  private ParameterSpec copyParameter(ClientParameter parameter, String packageName) {
+  private ParameterSpec copyParameter(ClientMethod.Parameter parameter, String packageName) {
     String parameterName = parameter.name();
     ParameterSpec.Builder builder =
         ParameterSpec.builder(parameter.typeName(packageName), parameterName);
     for (AnnotationMirror mirror : parameter.element().getAnnotationMirrors()) {
       AnnotationSpec spec = AnnotationSpec.get(mirror);
-      if (needsExplicitName(mirror, parameter.type())) {
+      if (needsExplicitName(mirror, parameter)) {
         spec = spec.toBuilder().addMember("value", "$S", parameterName).build();
       }
       builder.addAnnotation(spec);
@@ -703,12 +619,12 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * is the one the client has, so a base's {@code P} that the client binds to a {@code Map} is an
    * aggregate binder too.
    */
-  private boolean needsExplicitName(AnnotationMirror mirror, TypeMirror parameterType) {
+  private boolean needsExplicitName(AnnotationMirror mirror, ClientMethod.Parameter parameter) {
     String annotationType = mirror.getAnnotationType().toString();
     if (!NAME_BINDING_ANNOTATIONS.contains(annotationType)) {
       return false;
     }
-    if (isMapType(parameterType)) {
+    if (isMapType(ClientMethods.erasureOf(parameter, processingEnv.getTypeUtils()))) {
       return false;
     }
     return mirror.getElementValues().keySet().stream()
@@ -717,134 +633,169 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
-   * True when {@code type} is (a subtype of) {@link java.util.Map} — including {@code
+   * True when an erased type is (a subtype of) {@link java.util.Map} — including {@code
    * MultiValueMap}.
    */
-  private boolean isMapType(TypeMirror type) {
+  private boolean isMapType(TypeMirror erasure) {
     var types = processingEnv.getTypeUtils();
     TypeElement mapElement = processingEnv.getElementUtils().getTypeElement("java.util.Map");
     if (mapElement == null) {
       return false;
     }
-    return types.isAssignable(types.erasure(type), types.erasure(mapElement.asType()));
+    return types.isAssignable(erasure, types.erasure(mapElement.asType()));
   }
 
   /**
-   * The abstract methods the generated client must implement — including those inherited from
-   * super-interfaces, so a client interface that {@code extends} a shared base still generates a
-   * complete native interface and facade. Each is read as a member of the client, so a generic
-   * base's type variables come back as the type arguments the client gives it. {@code
-   * default}/{@code static}/{@link Object} methods are excluded.
-   *
-   * <p>Each entry holds every declaration of one method the client implements, grouped by erased
-   * signature: {@code getAllMembers} does NOT collapse the same method declared independently in
-   * two unrelated super-interfaces (a diamond), nor two methods of one generic interface that the
-   * client's type arguments make the same, and the client implements each only once. The
-   * declaration {@code getAllMembers} lists first comes first.
+   * Reports a method the client inherits from declarations the generated client would write
+   * differently, and returns whether it did. The client implements such a method once, so it could
+   * follow only one of them: call one of the endpoints they map, decode with one set of overrides,
+   * or promise one contract, and which one is the author's to say.
    */
-  private List<List<ClientMethod>> abstractMethods(TypeElement iface) {
-    DeclaredType owner = (DeclaredType) iface.asType();
-    // getAllMembers has no guaranteed order across compilers/runs; key the groups by a stable key
-    // so the generated sources are deterministic (reproducible builds, no spurious diffs / cache
-    // misses).
-    Map<String, List<ClientMethod>> groups = new TreeMap<>();
-    for (Element member : processingEnv.getElementUtils().getAllMembers(iface)) {
-      if (member.getKind() == ElementKind.METHOD
-          && member.getModifiers().contains(Modifier.ABSTRACT)
-          && !isObjectMethod(member)) {
-        ExecutableElement method = (ExecutableElement) member;
-        Optional<TypeElement> rawClause =
-            rawClauseTo(iface, (TypeElement) method.getEnclosingElement());
-        // Total: asMemberOf answers with an ExecutableType for a method, and every member here is
-        // one the client has, so it can always be read as one of the client's.
-        ExecutableType signature =
-            rawClause.isPresent()
-                ? (ExecutableType) method.asType()
-                : (ExecutableType) processingEnv.getTypeUtils().asMemberOf(owner, method);
-        ClientMethod clientMethod = new ClientMethod(method, signature, owner, rawClause);
-        groups
-            .computeIfAbsent(erasedSignature(clientMethod), key -> new ArrayList<>())
-            .add(clientMethod);
-      }
-    }
-    return List.copyOf(groups.values());
-  }
-
-  /**
-   * Reports a method the client inherits from two declarations that the generated client would
-   * restate differently, and returns whether they all restate alike. The client implements such a
-   * method once, so it could call only one of the endpoints they map, and which one is the author's
-   * to say.
-   */
-  private boolean declaredAlike(
+  private boolean refusesDivergentDeclarations(
       TypeElement iface, List<ClientMethod> declarations, String packageName) {
     ClientMethod first = declarations.getFirst();
-    String restated = restatement(first, packageName);
+    Map<String, String> written = writtenParts(first, packageName);
     for (ClientMethod other : declarations.subList(1, declarations.size())) {
-      if (!restatement(other, packageName).equals(restated)) {
+      Map<String, String> otherWritten = writtenParts(other, packageName);
+      Set<String> parts = new TreeSet<>(written.keySet());
+      parts.addAll(otherWritten.keySet());
+      Optional<String> differing =
+          parts.stream()
+              .filter(part -> !Objects.equals(written.get(part), otherWritten.get(part)))
+              .findFirst();
+      if (differing.isPresent()) {
+        String name = first.element().getSimpleName().toString();
         error(
             "@HkjHttpClient implements '"
-                + first.element().getSimpleName()
+                + name
                 + "' once for two methods "
                 + iface.getSimpleName()
                 + " inherits, "
                 + qualifiedMethodName(first)
                 + " and "
                 + qualifiedMethodName(other)
-                + ", which map it differently. Redeclare '"
-                + first.element().getSimpleName()
+                + ", which the generated client would write differently: "
+                + differing.get()
+                + " differs. Redeclare '"
+                + name
                 + "' on "
                 + iface.getSimpleName()
-                + " with the mapping it should have.",
+                + " as the client should have it.",
             iface);
-        return false;
+        return true;
       }
     }
-    return true;
+    return false;
   }
 
   /**
-   * What the generated client writes for a method, as text: its annotations, its return type, and
-   * each parameter's annotations, type and name.
+   * What the generated client writes for a method, part by part: its annotations, its
+   * {@code @OnStatus} overrides, its return type, its type parameters, and each parameter's type
+   * and annotations.
+   *
+   * <p>Each part is read as the generated client means it rather than as it is spelt. A parameter's
+   * name counts only where the processor injects it into a binding annotation. The overrides count
+   * as the status-to-error map the decoder builds, the last one for a status winning, whatever
+   * order they are written in. The method's own type variables count by position, so {@code <X> X
+   * get()} and {@code <Y> Y get()}, one method to javac, are alike.
    */
-  private static String restatement(ClientMethod method, String packageName) {
-    StringBuilder text = new StringBuilder();
-    method.element().getAnnotationMirrors().stream()
-        .filter(mirror -> !isOverride(mirror))
-        .forEach(mirror -> text.append(AnnotationSpec.get(mirror)).append(' '));
-    text.append(method.returnTypeName(packageName)).append('(');
-    for (ClientParameter parameter : method.parameters()) {
-      parameter
-          .element()
-          .getAnnotationMirrors()
-          .forEach(mirror -> text.append(AnnotationSpec.get(mirror)).append(' '));
-      text.append(parameter.typeName(packageName)).append(' ').append(parameter.name()).append(',');
+  private Map<String, String> writtenParts(ClientMethod method, String packageName) {
+    Map<String, String> parts = new TreeMap<>();
+    for (AnnotationMirror mirror : method.element().getAnnotationMirrors()) {
+      if (!isOverride(mirror) && !isStatusOverride(mirror)) {
+        parts.put(
+            "the method's @" + mirror.getAnnotationType().asElement().getSimpleName(),
+            normalised(mirror, null));
+      }
     }
-    return text.append(')').toString();
+    Map<Integer, String> overrides = new TreeMap<>();
+    for (OnStatus annotation : method.element().getAnnotationsByType(OnStatus.class)) {
+      overrides.put(annotation.value(), onStatusErrorType(annotation).toString());
+    }
+    parts.put("the method's @OnStatus overrides", overrides.toString());
+    List<String> ownVariables =
+        method.element().getTypeParameters().stream()
+            .map(parameter -> parameter.getSimpleName().toString())
+            .toList();
+    parts.put(
+        "the method's return type",
+        positional(method.returnTypeName(packageName).toString(), ownVariables));
+    List<TypeVariableName> typeVariables = method.typeVariableNames(packageName);
+    for (int index = 0; index < typeVariables.size(); index++) {
+      TypeVariableName variable = typeVariables.get(index);
+      parts.put(
+          "the method's type parameter " + (index + 1),
+          positional(variable + " extends " + variable.bounds(), ownVariables));
+    }
+    List<ClientMethod.Parameter> parameters = method.parameters();
+    for (int index = 0; index < parameters.size(); index++) {
+      ClientMethod.Parameter parameter = parameters.get(index);
+      String label = "parameter " + (index + 1) + "'s ";
+      parts.put(
+          label + "type", positional(parameter.typeName(packageName).toString(), ownVariables));
+      for (AnnotationMirror mirror : parameter.element().getAnnotationMirrors()) {
+        parts.put(
+            label + "@" + mirror.getAnnotationType().asElement().getSimpleName(),
+            normalised(mirror, needsExplicitName(mirror, parameter) ? parameter.name() : null));
+      }
+    }
+    return parts;
+  }
+
+  /**
+   * An annotation as the generated client applies it, for comparison: every attribute, defaults
+   * included, in name order. A name-binding annotation's {@code value} and {@code name} are one
+   * attribute, and a name the processor injects fills it.
+   */
+  private String normalised(AnnotationMirror mirror, @Nullable String injectedName) {
+    Map<String, String> values = new TreeMap<>();
+    processingEnv
+        .getElementUtils()
+        .getElementValuesWithDefaults(mirror)
+        .forEach(
+            (member, value) -> values.put(member.getSimpleName().toString(), value.toString()));
+    String type = mirror.getAnnotationType().toString();
+    if (NAME_BINDING_ANNOTATIONS.contains(type)) {
+      String unnamed = "\"\"";
+      String value = values.getOrDefault("value", unnamed);
+      String name = values.getOrDefault("name", unnamed);
+      String bound =
+          !value.equals(unnamed)
+              ? value
+              : !name.equals(unnamed)
+                  ? name
+                  : injectedName == null ? unnamed : "\"" + injectedName + "\"";
+      values.remove("value");
+      values.put("name", bound);
+    }
+    return type + values;
+  }
+
+  /**
+   * A type written out with each of the method's own type variables replaced by its position, so a
+   * renamed variable reads the same. A variable is written bare, and a class name never is:
+   * javapoet qualifies every class it writes, so a name preceded by a dot is a class's, not a
+   * variable's.
+   */
+  private static String positional(String written, List<String> ownVariables) {
+    String result = written;
+    for (int index = 0; index < ownVariables.size(); index++) {
+      result =
+          result.replaceAll(
+              "(?<![\\w.$])" + Pattern.quote(ownVariables.get(index)) + "(?![\\w$])",
+              Matcher.quoteReplacement("#" + (index + 1)));
+    }
+    return result;
+  }
+
+  private static boolean isStatusOverride(AnnotationMirror mirror) {
+    String qualified = qualifiedName((DeclaredType) mirror.getAnnotationType());
+    return qualified.equals(ON_STATUS) || qualified.equals(ON_STATUSES);
   }
 
   /** A method as its interface declares it, such as {@code Repo.get(ID)}, for a diagnostic. */
   private static String qualifiedMethodName(ClientMethod method) {
-    return method.element().getEnclosingElement().getSimpleName() + "." + method.element();
-  }
-
-  /**
-   * A name + erased-parameter-types key, so diamond-inherited duplicates collapse to one method.
-   * The parameter types are the client's: {@code get(ID)} in a {@code Repo<ID>} the client extends
-   * as {@code Repo<String>} is the same method as another base's {@code get(String)}, though the
-   * two declarations erase differently.
-   */
-  private String erasedSignature(ClientMethod method) {
-    StringBuilder key = new StringBuilder(method.element().getSimpleName().toString()).append('(');
-    for (TypeMirror parameterType : method.signature().getParameterTypes()) {
-      key.append(processingEnv.getTypeUtils().erasure(parameterType)).append(',');
-    }
-    return key.append(')').toString();
-  }
-
-  private static boolean isObjectMethod(Element method) {
-    return method.getEnclosingElement() instanceof TypeElement type
-        && type.getQualifiedName().contentEquals("java.lang.Object");
+    return method.declaring().getSimpleName() + "." + method.element();
   }
 
   private static boolean isOverride(AnnotationMirror mirror) {
@@ -918,7 +869,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     ExecutableElement method = clientMethod.element();
     TypeMirror error = typeAt(clientMethod.returnType(), kind.errorPath);
     TypeMirror success = typeAt(clientMethod.returnType(), kind.successPath);
-    if (isMissingFromClasspath(error, writerOf(clientMethod, kind.errorPath))) {
+    if (isMissingFromClasspath(error, ClientMethods.writerOf(clientMethod, kind.errorPath))) {
       error(notOnClasspath("@HkjHttpClient", error), iface, method);
       return null;
     }
@@ -1003,80 +954,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    *
    * @param type the type to check
    * @param writer where the type was written: the method, for a type its annotations name, or the
-   *     interface whose method declaration or {@code extends} clause names it, as {@link #writerOf}
-   *     finds it
+   *     interface whose method declaration or {@code extends} clause names it, as {@link
+   *     ClientMethods#writerOf} finds it
    */
   private boolean isMissingFromClasspath(TypeMirror type, Element writer) {
     return type.getKind() == TypeKind.ERROR && readFromClassFile(writer);
-  }
-
-  /**
-   * The interface that wrote the type at one position of a method's return type.
-   *
-   * <p>Where the method's declaration names a type there, the method's own interface wrote it.
-   * Where it names a type variable, the {@code extends} clause that binds the variable wrote what
-   * stands in its place, and a clause that binds it to a variable of its own interface hands the
-   * question on to the clause that binds that one. A client that binds a base's {@code E} to a type
-   * it misspells wrote that type in source, where javac reports it, though the base and its
-   * declaration were read from a class file.
-   *
-   * @param path the type-argument index at each level from the return type to the position,
-   *     outermost first
-   */
-  private static TypeElement writerOf(ClientMethod method, List<Integer> path) {
-    return writerOf(
-        method.element().getReturnType(),
-        path,
-        (TypeElement) method.element().getEnclosingElement(),
-        bindingsOf((TypeElement) method.owner().asElement()));
-  }
-
-  private static TypeElement writerOf(
-      TypeMirror type, List<Integer> path, TypeElement writer, Map<Element, Binding> bindings) {
-    if (type.getKind() == TypeKind.TYPEVAR) {
-      Binding binding = bindings.get(((TypeVariable) type).asElement());
-      return binding == null
-          ? writer
-          : writerOf(binding.argument(), path, binding.writer(), bindings);
-    }
-    if (path.isEmpty() || type.getKind() != TypeKind.DECLARED) {
-      return writer;
-    }
-    List<? extends TypeMirror> arguments = ((DeclaredType) type).getTypeArguments();
-    return path.getFirst() < arguments.size()
-        ? writerOf(arguments.get(path.getFirst()), path.subList(1, path.size()), writer, bindings)
-        : writer;
-  }
-
-  /**
-   * What each {@code extends} clause among the client's interfaces, and theirs in turn, binds each
-   * type parameter to, the first binding of a parameter kept. A raw clause binds nothing. A clause
-   * names only the variables of the interface it belongs to, which a clause nearer the client binds
-   * in turn, so following the bindings from any variable ends.
-   */
-  private static Map<Element, Binding> bindingsOf(TypeElement client) {
-    Map<Element, Binding> bindings = new HashMap<>();
-    bindClauses(client, new HashSet<>(), bindings);
-    return Map.copyOf(bindings);
-  }
-
-  private static void bindClauses(
-      TypeElement type, Set<TypeElement> visited, Map<Element, Binding> bindings) {
-    if (!visited.add(type)) {
-      return;
-    }
-    for (TypeMirror parent : type.getInterfaces()) {
-      DeclaredType clause = (DeclaredType) parent;
-      TypeElement extended = (TypeElement) clause.asElement();
-      List<? extends TypeParameterElement> parameters = extended.getTypeParameters();
-      List<? extends TypeMirror> arguments = clause.getTypeArguments();
-      if (arguments.size() == parameters.size()) {
-        for (int index = 0; index < parameters.size(); index++) {
-          bindings.putIfAbsent(parameters.get(index), new Binding(type, arguments.get(index)));
-        }
-      }
-      bindClauses(extended, visited, bindings);
-    }
   }
 
   /**
@@ -1113,151 +995,93 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
-   * Reports a method whose signature the generated client cannot restate with the meaning it has
-   * for the client, and returns whether it can.
-   *
-   * <p>Two shapes cannot be restated. Read through a raw type, a declaration that names a type
-   * variable of its interface names one nothing binds, and the generated client cannot write it. A
-   * type parameter of the method's own that has the name of one of the client's hides the client's
-   * where the generated client declares both, so a signature that names the client's would come to
-   * mean the method's. A method that hides a name its signature never uses restates as it is.
+   * Reports a method the client reaches through a raw type that the generated client cannot
+   * restate, and returns whether it did. javac reads such a member erased, and the generated client
+   * restates the declaration, which overrides the erased member only where nothing in it needed the
+   * erasure: no type variable of an interface, which nothing binds, no type parameter of the
+   * method's own, and no parameter type that differs from its erasure. A return type may stay
+   * parameterised, as it overrides covariantly.
    */
-  private boolean readsCleanly(TypeElement iface, ClientMethod method) {
-    ExecutableElement element = method.element();
-    if (method.rawClause().isPresent()) {
-      TypeElement raw = method.rawClause().get();
-      Optional<TypeVariable> unbound =
-          signatureTypes(
-                  element.getReturnType(),
-                  element.getParameters().stream().map(VariableElement::asType),
-                  element.getTypeParameters().stream()
-                      .flatMap(parameter -> parameter.getBounds().stream()))
-              .flatMap(HkjHttpClientProcessor::typeVariablesIn)
-              .filter(variable -> !declaredByMethod(variable))
-              .findFirst();
-      if (unbound.isPresent()) {
-        error(
-            "@HkjHttpClient reads this method through the raw type "
-                + raw.getSimpleName()
-                + ", which leaves "
-                + unbound.get().asElement().getEnclosingElement().getSimpleName()
-                + "'s type variable "
-                + unbound.get()
-                + " unbound. Write "
-                + raw.getSimpleName()
-                + "'s type arguments in the extends clause that names it.",
-            iface,
-            element);
-        return false;
-      }
+  private boolean refusesRawRead(TypeElement iface, ClientMethod method) {
+    if (method.rawClause().isEmpty()) {
+      return false;
     }
-    ExecutableType signature = method.signature();
-    for (TypeVariable own : signature.getTypeVariables()) {
-      Name name = own.asElement().getSimpleName();
-      Optional<? extends TypeParameterElement> hidden =
-          iface.getTypeParameters().stream()
-              .filter(parameter -> parameter.getSimpleName().contentEquals(name))
-              .filter(
-                  parameter ->
-                      signatureTypes(
-                              signature.getReturnType(),
-                              signature.getParameterTypes().stream(),
-                              signature.getTypeVariables().stream()
-                                  .map(TypeVariable::getUpperBound))
-                          .flatMap(HkjHttpClientProcessor::typeVariablesIn)
-                          .anyMatch(variable -> variable.asElement().equals(parameter)))
-              .findFirst();
-      if (hidden.isPresent()) {
-        error(
-            "@HkjHttpClient cannot restate this method: its type parameter "
-                + name
-                + " hides "
-                + iface.getSimpleName()
-                + "'s "
-                + name
-                + ", which the method's signature names once "
-                + iface.getSimpleName()
-                + "'s type arguments are in place. Rename one of the two.",
-            iface,
-            element);
-        return false;
-      }
+    Types types = processingEnv.getTypeUtils();
+    Optional<String> reason =
+        ClientMethods.interfaceVariableIn(method)
+            .map(
+                variable ->
+                    "which leaves "
+                        + variable.asElement().getEnclosingElement().getSimpleName()
+                        + "'s type variable "
+                        + variable.asElement().getSimpleName()
+                        + " unbound")
+            .or(
+                () ->
+                    method.element().getTypeParameters().isEmpty()
+                            && method.parameters().stream()
+                                .allMatch(
+                                    parameter ->
+                                        types.isSameType(
+                                            parameter.type(), types.erasure(parameter.type())))
+                        ? Optional.empty()
+                        : Optional.of(
+                            "which erases its signature, so the generated client could not"
+                                + " override it"));
+    if (reason.isEmpty()) {
+      return false;
     }
+    ClientMethod.RawClause clause = method.rawClause().get();
+    error(
+        "@HkjHttpClient reads this method through the raw type "
+            + clause.raw().getSimpleName()
+            + ", named in "
+            + clause.writer().getSimpleName()
+            + "'s extends clause, "
+            + reason.get()
+            + ". Give "
+            + clause.raw().getSimpleName()
+            + " its type arguments there, or redeclare '"
+            + method.element().getSimpleName()
+            + "' on "
+            + iface.getSimpleName()
+            + ".",
+        iface,
+        method.element());
     return true;
   }
 
-  /** A method's return type, then its parameter types, then the bounds of its type parameters. */
-  private static Stream<TypeMirror> signatureTypes(
-      TypeMirror returnType,
-      Stream<? extends TypeMirror> parameterTypes,
-      Stream<? extends TypeMirror> bounds) {
-    return Stream.of(Stream.of(returnType), parameterTypes, bounds).flatMap(stream -> stream);
-  }
-
   /**
-   * Every type variable a type names, at any depth: in its type arguments, its enclosing type, an
-   * array's component, a wildcard's bounds and an intersection's arms. A variable's own bounds are
-   * not followed, as they belong to its declaration, and a recursive bound such as {@code <X
-   * extends Comparable<X>>} would lead back to it.
+   * Reports a type parameter of the method's own that hides one of the client's its signature
+   * needs, and returns whether it did. The generated client declares both in one scope, where the
+   * method's wins, so a signature that names the client's would come to mean the method's.
    */
-  private static Stream<TypeVariable> typeVariablesIn(TypeMirror type) {
-    return switch (type.getKind()) {
-      case TYPEVAR -> Stream.of((TypeVariable) type);
-      case DECLARED -> {
-        DeclaredType declared = (DeclaredType) type;
-        yield Stream.concat(
-                Stream.of(declared.getEnclosingType()), declared.getTypeArguments().stream())
-            .flatMap(HkjHttpClientProcessor::typeVariablesIn);
-      }
-      case ARRAY -> typeVariablesIn(((ArrayType) type).getComponentType());
-      case WILDCARD -> {
-        WildcardType wildcard = (WildcardType) type;
-        yield Stream.of(wildcard.getExtendsBound(), wildcard.getSuperBound())
-            .filter(Objects::nonNull)
-            .flatMap(HkjHttpClientProcessor::typeVariablesIn);
-      }
-      case INTERSECTION ->
-          ((IntersectionType) type)
-              .getBounds().stream().flatMap(HkjHttpClientProcessor::typeVariablesIn);
-      default -> Stream.empty();
-    };
-  }
-
-  /** Whether a type variable is one a method declares, rather than a class or an interface. */
-  private static boolean declaredByMethod(TypeVariable variable) {
-    return ((TypeParameterElement) variable.asElement()).getGenericElement().getKind()
-        == ElementKind.METHOD;
-  }
-
-  /**
-   * The first generic interface the client names without type arguments on its way to the interface
-   * that declares an inherited method, if it names one. javac reads every member reached through a
-   * raw type erased. A client's own methods are reached through nothing.
-   */
-  private Optional<TypeElement> rawClauseTo(TypeElement from, TypeElement declaring) {
-    Types types = processingEnv.getTypeUtils();
-    TypeMirror target = types.erasure(declaring.asType());
-    for (TypeMirror parent : from.getInterfaces()) {
-      if (!types.isSubtype(types.erasure(parent), target)) {
-        continue;
-      }
-      TypeElement extended = (TypeElement) ((DeclaredType) parent).asElement();
-      if (isRaw(parent)) {
-        return Optional.of(extended);
-      }
-      Optional<TypeElement> deeper = rawClauseTo(extended, declaring);
-      if (deeper.isPresent()) {
-        return deeper;
-      }
+  private boolean refusesShadowedTypeParameter(TypeElement iface, ClientMethod method) {
+    Optional<TypeParameterElement> hidden = ClientMethods.hiddenClientParameter(method, iface);
+    if (hidden.isEmpty()) {
+      return false;
     }
-    return Optional.empty();
-  }
-
-  /** Whether a type names a generic class or interface without its type arguments. */
-  private static boolean isRaw(TypeMirror type) {
-    return type.getKind() == TypeKind.DECLARED
-        && ((DeclaredType) type).getTypeArguments().isEmpty()
-        && !((TypeElement) ((DeclaredType) type).asElement()).getTypeParameters().isEmpty();
+    String name = hidden.get().getSimpleName().toString();
+    String client = iface.getSimpleName().toString();
+    error(
+        "@HkjHttpClient cannot restate this method: its type parameter "
+            + name
+            + " hides "
+            + client
+            + "'s "
+            + name
+            + ", which the method's signature names once the type arguments "
+            + client
+            + " gives "
+            + method.declaring().getSimpleName()
+            + " are in place. Rename "
+            + client
+            + "'s type parameter "
+            + name
+            + ", or the method's.",
+        iface,
+        method.element());
+    return true;
   }
 
   private static String qualifiedName(DeclaredType type) {
