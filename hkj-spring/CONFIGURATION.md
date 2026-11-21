@@ -591,8 +591,8 @@ maps an error type to a status; the client maps a status back to an error type.
 - **Value:** Fully-qualified class name of the error type to decode into
 - **Effect:** For a given method, a configured status whose type is **assignable** to that method's
   declared error type decodes into the subtype. Non-assignable mappings and unmapped statuses fall
-  back to the method's declared error type. A class that cannot be loaded, or `java.lang.Void`,
-  fails fast at startup.
+  back to the method's declared error type. A class that cannot be loaded, `java.lang.Void` or a
+  primitive such as `int` fails fast at startup.
 
 **Example:**
 ```yaml
