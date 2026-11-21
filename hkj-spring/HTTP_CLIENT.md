@@ -193,7 +193,7 @@ hkj:
 
 For each method, a configured status whose type is **assignable** to that method's declared error
 type decodes into the subtype; non-assignable mappings and unmapped statuses fall back to the
-declared type. A class that cannot be resolved, or `java.lang.Void`, fails fast at startup. Full key
+declared type. A class that cannot be resolved, `java.lang.Void` or a primitive such as `int` fails fast at startup. Full key
 reference:
 [CONFIGURATION.md](CONFIGURATION.md#hkjclientstatus-error-mappings).
 
