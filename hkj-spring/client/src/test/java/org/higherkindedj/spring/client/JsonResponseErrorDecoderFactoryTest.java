@@ -108,4 +108,14 @@ class JsonResponseErrorDecoderFactoryTest {
         .hasMessageStartingWith(
             "JsonResponseErrorDecoderFactory: status 410 maps to error type void,");
   }
+
+  @Test
+  @DisplayName("refuses a primitive mapping when built, naming the status")
+  void refusesPrimitiveMapping() {
+    assertThatThrownBy(() -> new JsonResponseErrorDecoderFactory(mapper, Map.of(404, int.class)))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            "JsonResponseErrorDecoderFactory: status 404 maps to the primitive int, which no error"
+                + " can be. Map it to an error class, or remove the mapping.");
+  }
 }
