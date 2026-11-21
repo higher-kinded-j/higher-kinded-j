@@ -267,7 +267,7 @@ There are three ways to override how a status maps to an error type. They apply 
 
 **The problem:** a single endpoint returns different error subtypes for different statuses.
 
-**The solution:** annotate the method. Each `error()` must be assignable to the method's declared error type (the processor checks this at compile time):
+**The solution:** annotate the method. Each `error()` must be assignable to the method's error type (the processor checks this at compile time):
 
 <!-- verify -->
 ```java
@@ -342,9 +342,9 @@ The streaming case is consumed through this translator rather than through a gen
 
 ---
 
-## Generic Clients
+## Generic Clients {#generic-clients}
 
-A shared base interface is the natural home for endpoints that several clients have in common. What the processor generates for a client with type parameters depends on where they end up:
+A shared base interface is the natural home for endpoints that several clients have in common. What the processor generates for a client of a generic base depends on the type arguments the client passes:
 
 | Your client | What the processor generates |
 |---|---|
@@ -368,11 +368,28 @@ interface CrudApi<E, T, ID> {
 interface UserCrudApi extends CrudApi<ApiError, UserDto, String> {}
 ```
 
-Put the type-level `@HttpExchange` on each client. The processor copies only the client's own class-level annotations onto the interface Spring proxies, so Spring never sees one written on the base.
+Put the type-level `@HttpExchange` on each client. The processor copies only the client's own type-level annotations onto the interface Spring proxies, so Spring never sees one written on the base.
 
-The client implements a method once, however many declarations it inherits it from. Two bases can each declare `getUser(String)`, and type arguments can make two methods of one base the same. The processor refuses such a method when its declarations map it differently, as it could call only one of their endpoints. Redeclare it on the client with the mapping it should have.
+Give each generic interface its type arguments where the client extends it. Named raw, as in `extends CrudApi`, a base's methods lose their types, and the processor refuses each one that needs them, saying it `reads this method through the raw type CrudApi`.
 
-A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a generic client cannot be a singleton bean. Instantiate the facade for a concrete type argument yourself. Alternatively, extend the generic client from a non-generic `@HkjHttpClient` interface that gives its type arguments, which gets a bean.
+The client implements a method once, however many declarations it inherits it from. Two bases can each declare `get(String)`, and type arguments can make two methods of one base the same. The processor refuses such a method when the generated client would write its declarations differently, as it could follow only one of them. A different path, binding, override, type or type parameter counts; a parameter's name and the order of attributes do not. Here the processor reports `which the generated client would write differently: the method's @GetExchange differs`:
+
+<!-- verify:rejects "which the generated client would write differently" -->
+```java
+interface UserLookup {
+
+  @GetExchange("/lookup/{id}")
+  EitherPath<ApiError, UserDto> get(@PathVariable String id);
+}
+
+@HttpExchange("/users")
+@HkjHttpClient
+interface UserDirectoryApi extends CrudApi<ApiError, UserDto, String>, UserLookup {}
+```
+
+Redeclare the method on the client as it should be, and the processor generates that one.
+
+A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a generic client cannot be a singleton bean. Instantiate the facade for a concrete type argument yourself, or declare a non-generic `@HkjHttpClient` interface that extends the generic client with concrete type arguments; that interface gets a bean.
 
 The error type must be a concrete class wherever the client gets it from, because the decoder binds it with `E.class`. The processor refuses a client that passes one of its own type variables on as the error type, with `@HkjHttpClient error type cannot be a type variable`:
 
@@ -389,7 +406,7 @@ interface AnyErrorApi<E> extends CrudApi<E, UserDto, String> {}
 - **Client interfaces outside the component scan.** If your `@HkjHttpClient` interfaces are not under your `@SpringBootApplication`'s scanned packages, the generated configuration is not picked up and Spring never creates the proxy. Add an explicit `@ImportHttpServices(basePackages = "...")`.
 - **Expecting a transport failure to become a `Left`.** Connection-refused and timeout are not domain errors; they propagate. Use the `VTaskPath` variant and `runSafe()` to capture them as the failure arm of `Try<Either<E, T>>`.
 - **Inheriting methods from a precompiled base.** A super-interface in a dependency jar must be compiled with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. A jar built against 0.4.10 or earlier also carries none of its `@OnStatus` overrides, which were discarded when it was compiled, so its methods ignore them until it is rebuilt. Interfaces compiled in your own build are fine. Wherever the base is compiled, a module declaring `@OnStatus` should expose `hkj-spring-boot-client` to the modules that use it (Gradle's `api` configuration): its class files name the annotation, and a module compiling against them without it warns under `-Xlint:all`, which fails a `-Werror` build.
-- **An `@OnStatus` error type that is not assignable to the method's declared error type.** This is a compile error, by design.
+- **An `@OnStatus` error type that is not assignable to the method's error type.** This is a compile error, by design.
 ~~~
 
 ---
