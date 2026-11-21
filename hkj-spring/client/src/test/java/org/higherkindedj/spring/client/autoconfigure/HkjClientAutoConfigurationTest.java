@@ -105,4 +105,22 @@ class HkjClientAutoConfigurationTest {
                             + " one. Map the status to org.higherkindedj.hkt.Unit, the error type"
                             + " that carries nothing, or remove the mapping."));
   }
+
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(strings = {"int", "long", "boolean"})
+  @DisplayName("fails fast when a configured error type is a primitive, which no error can be")
+  void failsFastOnAPrimitive(String className) {
+    runner
+        .withPropertyValues("hkj.client.status-error-mappings.404=" + className)
+        .run(
+            context ->
+                assertThat(context)
+                    .getFailure()
+                    .rootCause()
+                    .hasMessage(
+                        "hkj.client.status-error-mappings: error type '"
+                            + className
+                            + "' for status 404 is a primitive, which no error can be. Map the"
+                            + " status to an error class, or remove the mapping."));
+  }
 }

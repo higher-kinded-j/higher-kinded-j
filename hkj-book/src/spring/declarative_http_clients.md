@@ -293,7 +293,7 @@ hkj:
       429: com.example.RateLimitError
 ```
 
-For each method, a configured status whose type is **assignable** to that method's declared error type decodes into the subtype; non-assignable and unmapped statuses fall back to the declared type. An unresolvable class name, or `java.lang.Void`, fails fast at startup.
+For each method, a configured status whose type is **assignable** to that method's declared error type decodes into the subtype; non-assignable and unmapped statuses fall back to the declared type. An unresolvable class name, `java.lang.Void` or a primitive such as `int` fails fast at startup.
 
 #### 3. Wholesale: a custom decoder bean
 

@@ -42,13 +42,16 @@ public final class JsonResponseErrorDecoderFactory implements ResponseErrorDecod
    *
    * @param mapper the Jackson 3.x mapper
    * @param statusErrorTypes the global mapping from HTTP status code to error type
-   * @throws IllegalArgumentException if a status maps to {@code Void} or {@code void}
+   * @throws IllegalArgumentException if a status maps to {@code Void}, {@code void} or another
+   *     primitive
    */
   public JsonResponseErrorDecoderFactory(
       JsonMapper mapper, Map<Integer, Class<?>> statusErrorTypes) {
     this.mapper = Objects.requireNonNull(mapper, "mapper");
     this.statusErrorTypes =
-        requireNoVoid(Map.copyOf(Objects.requireNonNull(statusErrorTypes, "statusErrorTypes")));
+        requireNoPrimitive(
+            requireNoVoid(
+                Map.copyOf(Objects.requireNonNull(statusErrorTypes, "statusErrorTypes"))));
   }
 
   private static Map<Integer, Class<?>> requireNoVoid(Map<Integer, Class<?>> statusErrorTypes) {
@@ -65,6 +68,24 @@ public final class JsonResponseErrorDecoderFactory implements ResponseErrorDecod
                       + ", which cannot hold a value, but a Left always holds one. Map it to"
                       + " org.higherkindedj.hkt.Unit, the error type that carries nothing, or"
                       + " remove the mapping.");
+            });
+    return statusErrorTypes;
+  }
+
+  private static Map<Integer, Class<?>> requireNoPrimitive(
+      Map<Integer, Class<?>> statusErrorTypes) {
+    statusErrorTypes.entrySet().stream()
+        .filter(entry -> entry.getValue().isPrimitive())
+        .findFirst()
+        .ifPresent(
+            entry -> {
+              throw new IllegalArgumentException(
+                  "JsonResponseErrorDecoderFactory: status "
+                      + entry.getKey()
+                      + " maps to the primitive "
+                      + entry.getValue().getName()
+                      + ", which no error can be. Map it to an error class, or remove the"
+                      + " mapping.");
             });
     return statusErrorTypes;
   }

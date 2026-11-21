@@ -82,7 +82,8 @@ public class HkjClientAutoConfiguration implements BeanClassLoaderAware {
                       + status,
                   failure);
             },
-            type -> requireNonVoid(status, className, type));
+            type ->
+                requireNonPrimitive(status, className, requireNonVoid(status, className, type)));
   }
 
   /**
@@ -99,6 +100,23 @@ public class HkjClientAutoConfiguration implements BeanClassLoaderAware {
               + " cannot hold a value, but a Left always holds one. Map the status to"
               + " org.higherkindedj.hkt.Unit, the error type that carries nothing, or remove the"
               + " mapping.");
+    }
+    return type;
+  }
+
+  /**
+   * Refuses a primitive such as {@code int}, which {@code ClassUtils.forName} loads but no error
+   * can be, so the mapping would otherwise apply to no method.
+   */
+  private static Class<?> requireNonPrimitive(int status, String className, Class<?> type) {
+    if (type.isPrimitive()) {
+      throw new IllegalStateException(
+          "hkj.client.status-error-mappings: error type '"
+              + className
+              + "' for status "
+              + status
+              + " is a primitive, which no error can be. Map the status to an error class, or"
+              + " remove the mapping.");
     }
     return type;
   }
