@@ -38,8 +38,10 @@ import org.openrewrite.marker.SearchResult;
  *   <li>A lambda, in brackets or not, given as the error function of {@code Either.mapLeft} or
  *       {@code Either.bimap} that returns a {@code null} literal. It now throws, where it built a
  *       {@code Left(null)}. The mark sits on the {@code null} it returns, not on the call.
- *   <li>An {@code Either}, {@code EitherT}, {@code EitherMonad} or {@code EitherTMonad} whose error
- *       type is {@code Void}, which has no value for a {@code Left} to hold.
+ *   <li>A type whose error type is {@code Void}, which has no value for an error to hold: {@code
+ *       Either}, {@code EitherT}, {@code Validated}, {@code EitherOrBoth}, the Paths {@code
+ *       EitherPath}, {@code ValidationPath}, {@code EitherOrBothPath} and {@code VResultPath}, and
+ *       the monads {@code EitherMonad}, {@code EitherTMonad} and {@code ValidatedMonad}.
  * </ul>
  *
  * <h2>Why this is detection-only</h2>
@@ -80,11 +82,18 @@ public class DetectNullErrorValuesRecipe extends Recipe {
 
   /** Each type whose error type argument is {@code Void}, with that argument's position. */
   private static final Map<String, Integer> ERROR_TYPES =
-      Map.of(
-          "org.higherkindedj.hkt.either.Either", 0,
-          "org.higherkindedj.hkt.either.EitherMonad", 0,
-          "org.higherkindedj.hkt.either_t.EitherT", 1,
-          "org.higherkindedj.hkt.either_t.EitherTMonad", 1);
+      Map.ofEntries(
+          Map.entry("org.higherkindedj.hkt.either.Either", 0),
+          Map.entry("org.higherkindedj.hkt.either.EitherMonad", 0),
+          Map.entry("org.higherkindedj.hkt.either_t.EitherT", 1),
+          Map.entry("org.higherkindedj.hkt.either_t.EitherTMonad", 1),
+          Map.entry("org.higherkindedj.hkt.validated.Validated", 0),
+          Map.entry("org.higherkindedj.hkt.validated.ValidatedMonad", 0),
+          Map.entry("org.higherkindedj.hkt.eitherorboth.EitherOrBoth", 0),
+          Map.entry("org.higherkindedj.hkt.effect.EitherPath", 0),
+          Map.entry("org.higherkindedj.hkt.effect.ValidationPath", 0),
+          Map.entry("org.higherkindedj.hkt.effect.EitherOrBothPath", 0),
+          Map.entry("org.higherkindedj.hkt.effect.VResultPath", 0));
 
   static final String NULL_ERROR =
       "A Left always holds an error: pass one that says what went wrong, or Unit.INSTANCE where"
@@ -109,7 +118,8 @@ public class DetectNullErrorValuesRecipe extends Recipe {
   public String getDescription() {
     return "Marks a null passed to Either.left, EitherT.left, Maybe.toEither, any MonadError's"
         + " raiseError or an optics helper's error, a mapLeft or bimap error lambda that returns"
-        + " null, and an Either typed with a Void error. From 0.5.0 an error is never null.";
+        + " null, and a type whose error is Void, such as Either<Void, A> or EitherPath<Void, A>."
+        + " From 0.5.0 an error is never null.";
   }
 
   @Override
