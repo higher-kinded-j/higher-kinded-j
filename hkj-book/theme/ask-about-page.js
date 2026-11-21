@@ -119,7 +119,9 @@
     link.className = 'ask-about-page-link';
     link.title = 'Ask about this page';
     link.setAttribute('aria-label', 'Ask about this page');
-    link.innerHTML = '<i class="fa fa-comments"></i><span class="ask-about-page-badge" hidden></span>';
+    link.innerHTML =
+      '<span class="ask-about-page-icon"><i class="fa fa-comments"></i>' +
+      '<span class="ask-about-page-badge" hidden></span></span>';
     return link;
   }
 
