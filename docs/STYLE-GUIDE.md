@@ -441,7 +441,7 @@ Entries state their rule and fix in the open. Only the reasoning and the reprodu
 
 ### Release Notes
 
-The release history is a chapter: a landing page (`release-history.md`), an upgrade guide (`release-history/upgrading.md`), the unreleased notes (`release-history/unreleased.md`) and the released notes. Those are a page per release from 0.4.0, one for 0.3 and one for 0.1 to 0.2. Never rewrite a released version's notes; the readability and spelling checks skip them.
+The release history is a chapter: a landing page (`release-history.md`), an upgrade guide (`release-history/upgrading.md`), the unreleased notes (`release-history/unreleased.md`) and the released notes. Those are a page per release from 0.4.0, one for 0.3 and one for 0.1 to 0.2. Never rewrite a released version's notes, apart from the band that opens the page at release (step 7 of "At release"); the readability and spelling checks skip them.
 
 A pull request that changes what a user sees adds its entry to `unreleased.md`:
 
@@ -460,12 +460,13 @@ At release:
 5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
 6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links with `python3 .github/scripts/chapter_footers.py reference`. The previous newest release's Previous link then names it, the one edit a released page takes.
 7. **Turn the home page's band into the version's "New in" band**, as [The Home Page Band](#the-home-page-band) says. If it shows the coming version, drop `hkj-spotlight-snapshot` from its classes, write "New in X.Y.Z" in its eyebrow, and make its head link "All changes in X.Y.Z", pointing at the version's page. Then hold its cards to the release's At a glance: up to three headlines, each linked to the page that teaches it.
+8. **Open the version's page with the same band.** Copy the home page's section into the version's page, under the `[vX.Y.Z on GitHub]` line, as the released page's first block. Write the card links relative to `release-history/` (`../optics/...`), and leave out the head link, since the page is the one it would point at. Keep the lead card's code under `<!-- verify -->`, and add a fixture named for the page, `release_history_vX_Y_Z.java`, holding the names that code uses. The page keeps its band after the home page's moves on to the next version. While the version is unreleased, `unreleased.md` carries the "Coming in" band the same way, above its At a glance, with a fixture named `release_history_unreleased.java`. The rename at release (step 2) takes the band and the fixture to the version's page, and step 7's "New in" edit applies to them too. The fresh `unreleased.md` starts without a band until `main` gains a headline.
 
 ### The Home Page Band
 
 The band under the badges in `home.md` shows what a version brings, in up to three cards. It takes one of two forms:
 
-- **"New in X.Y.Z"** shows the newest release. Step 7 of "At release" sets it, so the tag freezes it into that release's copy of the book. `/latest/` keeps showing it until `main` gains a headline of its own.
+- **"New in X.Y.Z"** shows the newest release. Step 7 of "At release" sets it, so the tag freezes it into that release's copy of the book, and step 8 puts the same cards at the top of that release's page in the release history. `/latest/` keeps showing it until `main` gains a headline of its own.
 - **"Coming in X.Y.Z"** shows what `main` adds for the next release, so only `/latest/` ever shows it. A second class on the section, `hkj-spotlight-snapshot`, turns the band's accent teal and dashes the lead card. Its head link reads "All changes so far" and points at `release-history/unreleased.md`.
 
 A headline is a change a reader would upgrade for, rather than a fix or a refinement. When `main` gains one, the pull request that adds it, or one soon after, updates the band:
