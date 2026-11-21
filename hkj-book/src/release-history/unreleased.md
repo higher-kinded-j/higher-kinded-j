@@ -27,7 +27,7 @@ A `MaybePath` step in an `EitherPath` chain: javac says `MaybePath<A> conforms t
 
 **[Deep programs run flat](../monads/free_monad.md#what-foldmap-keeps)**
 
-`Free`, `State`, `Coyoneda` and `FreeAp` programs run to any depth without overflowing the stack.
+Long `Free`, `State`, `Coyoneda` and `FreeAp` programs run without overflowing the stack, into the targets the chapter lists.
 
 </div>
 <div class="hkj-spotlight-card">
