@@ -422,7 +422,11 @@ Either<ApiError, UserDto> result =
 - The starter without `hkj-spring-boot-client-processor`: the interface compiles, nothing is generated, and startup fails with `required a bean of type '...' that could not be found`. Add the processor.
 - A sealed error type with no `@JsonTypeInfo` cannot be decoded.
 - Client interfaces outside the component scan: the generated config is not picked up, so no proxy is created. Add `@ImportHttpServices(basePackages = "...")`.
-- A generic `@HkjHttpClient` interface is **codegen-only** (no bean, since a generic client cannot be a singleton): instantiate the facade for a concrete type yourself.
+- A generic `@HkjHttpClient` interface is **codegen-only** (no bean, since a generic client cannot be a singleton): instantiate the facade for a concrete type yourself, or declare a non-generic `@HkjHttpClient` interface that extends it with concrete type arguments; that interface gets a bean.
+- A client that extends a generic base with concrete type arguments (`UserCrudApi extends CrudApi<ApiError, UserDto, String>`) is not generic itself: the processor generates it with those arguments in place of the base's type variables, bean included.
+- The error type a client passes a generic base must be a concrete class.
+- Put the type-level `@HttpExchange` on the client: the processor does not copy one from a base.
+- The processor refuses a method the client inherits from two declarations it would write differently, such as two interfaces declaring `getUser(String)` on different paths, since the client implements it once. A parameter's name counts only where it names the binding, as an unnamed `@PathVariable String id` binds `id`, and the order of attributes does not count. Redeclare the method on the client as it should be.
 - `VStreamPath` is not generated automatically; consume SSE via `HkjClientExchange.vstream(...)`.
 - A super-interface from a precompiled dependency jar must be built with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. Its `@OnStatus` overrides carry over, but a jar built against 0.4.10 or earlier has none to carry (they were discarded when it was compiled), so its methods ignore their overrides until it is rebuilt. A problem with an inherited method is reported on the client interface, naming the method and the interface it came from. A module declaring `@OnStatus` on an interface other modules use should expose `hkj-spring-boot-client` as `api`, or a consumer without it warns under `-Xlint:all` (fatal with `-Werror`).
 

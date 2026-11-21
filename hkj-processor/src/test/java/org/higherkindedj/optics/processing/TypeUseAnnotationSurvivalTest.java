@@ -1022,6 +1022,103 @@ class TypeUseAnnotationSurvivalTest {
     }
 
     @Test
+    @DisplayName("an annotation is left off elsewhere where an argument names what it cannot see")
+    void anAnnotationArgumentTheFileCannotNameIsLeftOffElsewhere() {
+      // Ref is public, but a file in com.away cannot name Hidden or Secret, however an argument
+      // reaches them: a class, an array of one, an element of an array, an enum constant or a
+      // nested annotation's argument.
+      Compilation compilation =
+          javac()
+              .withProcessors(new LensProcessor())
+              .compile(
+                  source(
+                      "com.home.Ref",
+                      """
+                      package com.home;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_USE)
+                      public @interface Ref {
+                        Class<?> value() default Object.class;
+
+                        Class<?>[] more() default {};
+
+                        Shade shade() default Shade.LIGHT;
+
+                        Secret secret() default Secret.ON;
+
+                        Note note() default @Note;
+
+                        String text() default "";
+                      }
+                      """),
+                  source(
+                      "com.home.Note",
+                      "package com.home; public @interface Note { Class<?> value() default"
+                          + " Object.class; }"),
+                  source("com.home.Shade", "package com.home; public enum Shade { LIGHT, DARK }"),
+                  source("com.home.Secret", "package com.home; enum Secret { ON, OFF }"),
+                  source("com.home.Hidden", "package com.home; class Hidden {}"),
+                  source("com.home.Shown", "package com.home; public class Shown {}"),
+                  source(
+                      "com.home.Named",
+                      """
+                      package com.home;
+
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses
+                      public record Named(@Ref(Hidden.class) String name) {}
+                      """),
+                  source(
+                      "com.home.Moved",
+                      """
+                      package com.home;
+
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses(targetPackage = "com.away")
+                      public record Moved(
+                          @Ref(Hidden.class) String hidden,
+                          @Ref(Hidden[].class) String hiddenArray,
+                          @Ref(more = {Shown.class, Hidden.class}) String hiddenElement,
+                          @Ref(secret = Secret.OFF) String secret,
+                          @Ref(note = @Note(Hidden.class)) String hiddenNote,
+                          @Ref(Shown.class) String shown,
+                          @Ref(int.class) String primitive,
+                          @Ref(shade = Shade.DARK, text = "x") String plain) {}
+                      """));
+
+      assertThat(compilation).succeeded();
+      // At home, Hidden can be named.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.home.NamedLenses",
+          "public static Lens<Named, @Ref(Hidden.class) String> name()");
+      for (String leftOff :
+          new String[] {"hidden", "hiddenArray", "hiddenElement", "secret", "hiddenNote"}) {
+        assertGeneratedCodeContains(
+            compilation,
+            "com.away.MovedLenses",
+            "public static Lens<Moved, String> " + leftOff + "()");
+      }
+      assertGeneratedCodeContains(
+          compilation,
+          "com.away.MovedLenses",
+          "public static Lens<Moved, @Ref(Shown.class) String> shown()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.away.MovedLenses",
+          "public static Lens<Moved, @Ref(int.class) String> primitive()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.away.MovedLenses",
+          "public static Lens<Moved, @Ref(shade = Shade.DARK, text = \"x\") String> plain()");
+    }
+
+    @Test
     @DisplayName(
         "@ImportOptics leaves off one private to the type it imports, and one it cannot see")
     void importOpticsLeavesOffAPrivateAnnotation() {
