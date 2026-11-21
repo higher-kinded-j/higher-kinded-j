@@ -65,6 +65,16 @@ interface UserClientApi {
   VTaskPath<Either<ApiError, UserDto>> create(@RequestBody UserDto body);
 }
 
+/** The shared base the Generic Clients section extends; the page's snippet declares its own. */
+interface CrudApi<E, T, ID> {
+
+  @GetExchange("/{id}")
+  EitherPath<E, T> get(@PathVariable ID id);
+
+  @PostExchange
+  EitherPath<E, T> create(@RequestBody T body);
+}
+
 class Fixture {
 
   static final RestClient restClient = RestClient.create();

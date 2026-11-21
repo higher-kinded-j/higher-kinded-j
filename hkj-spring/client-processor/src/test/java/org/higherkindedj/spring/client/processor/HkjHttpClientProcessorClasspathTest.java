@@ -119,6 +119,14 @@ class HkjHttpClientProcessorClasspathTest {
 
   /** The base module's sources: its types and a base interface with the given members. */
   private static List<JavaFileObject> baseSources(String members) {
+    return baseSources("", members);
+  }
+
+  /**
+   * The base module's sources: its types and a base interface with the given type parameters and
+   * members.
+   */
+  private static List<JavaFileObject> baseSources(String typeParameters, String members) {
     JavaFileObject baseApi =
         JavaFileObjects.forSourceString(
             "com.upstream.BaseApi",
@@ -131,11 +139,11 @@ class HkjHttpClientProcessorClasspathTest {
             import org.springframework.web.bind.annotation.PathVariable;
             import org.springframework.web.service.annotation.GetExchange;
 
-            public interface BaseApi {
+            public interface BaseApi%s {
             %s
             }
             """
-                .formatted(members));
+                .formatted(typeParameters, members));
     return Stream.concat(BASE_TYPES.stream(), Stream.of(baseApi)).toList();
   }
 
@@ -154,12 +162,23 @@ class HkjHttpClientProcessorClasspathTest {
    * passes {@code -parameters}, which the book requires of a base in a jar.
    */
   private Path baseModule(String members) throws IOException {
+    return baseModule("", members);
+  }
+
+  /**
+   * {@link #baseModule(String)} for a base interface with the given type parameters, and any other
+   * interfaces the module declares beside it.
+   */
+  private Path baseModule(String typeParameters, String members, JavaFileObject... others)
+      throws IOException {
     Compilation compilation =
         javac()
             .withProcessors()
             .withOptions("-parameters")
             .withClasspath(TEST_CLASSPATH)
-            .compile(baseSources(members));
+            .compile(
+                Stream.concat(baseSources(typeParameters, members).stream(), Stream.of(others))
+                    .toList());
     assertThat(compilation).succeeded();
     Path dir = Files.createTempDirectory(tmp, "base");
     for (JavaFileObject file : compilation.generatedFiles()) {
@@ -220,6 +239,138 @@ class HkjHttpClientProcessorClasspathTest {
   }
 
   @Test
+  @DisplayName("a generic base's methods are read as the client instantiates it")
+  void genericBaseCrossesTheBoundary() throws IOException {
+    String typeParameters = "<E, T, ID>";
+    // Each type variable in its own position, one use of it annotated, and an override that is
+    // assignable only to the error type the client binds.
+    String members =
+        """
+          @GetExchange("/{id}")
+          @OnStatus(value = 404, error = NotFound.class)
+          EitherPath<E, @Marked T> getUser(@PathVariable ID id);
+        """;
+    JavaFileObject child =
+        JavaFileObjects.forSourceString(
+            "com.downstream.ChildApi",
+            """
+            package com.downstream;
+
+            import com.upstream.ApiErr;
+            import com.upstream.BaseApi;
+            import com.upstream.UserDto;
+            import org.higherkindedj.spring.client.HkjHttpClient;
+            import org.springframework.web.service.annotation.HttpExchange;
+
+            @HttpExchange("/users")
+            @HkjHttpClient
+            public interface ChildApi extends BaseApi<ApiErr, UserDto, String> {}
+            """);
+
+    Compilation across = compiler(baseModule(typeParameters, members)).compile(child);
+    assertThat(across).succeeded();
+    Compilation together =
+        compiler()
+            .compile(
+                Stream.concat(baseSources(typeParameters, members).stream(), Stream.of(child))
+                    .toList());
+    assertThat(together).succeeded();
+
+    Assertions.assertThat(generatedSource(across, "com.downstream.ChildApiClient"))
+        .contains("forDefault(decoderFactory, ApiErr.class).on(404, NotFound.class).build()")
+        .contains("EitherPath<ApiErr, @Marked UserDto> getUser(String id)");
+    Assertions.assertThat(generatedSource(across, "com.downstream.ChildApiHttpExchange"))
+        .contains("ResponseEntity<@Marked UserDto> getUser(@PathVariable(\"id\") String id)");
+    for (String generated :
+        List.of("com.downstream.ChildApiClient", "com.downstream.ChildApiHttpExchange")) {
+      Assertions.assertThat(generatedSource(across, generated))
+          .isEqualTo(generatedSource(together, generated));
+    }
+  }
+
+  @Test
+  @DisplayName("an error type the client misspells is left to javac, though the base is a jar's")
+  void misspeltBoundErrorTypeIsLeftToJavac() throws IOException {
+    Path base =
+        baseModule(
+            "<E, T>",
+            """
+              @GetExchange("/{id}")
+              EitherPath<E, T> getUser(@PathVariable String id);
+            """);
+    Compilation compilation =
+        compiler(base)
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.downstream.ChildApi",
+                    """
+                    package com.downstream;
+
+                    import com.upstream.BaseApi;
+                    import com.upstream.UserDto;
+                    import org.higherkindedj.spring.client.HkjHttpClient;
+                    import org.springframework.web.service.annotation.HttpExchange;
+
+                    @HttpExchange("/users")
+                    @HkjHttpClient
+                    public interface ChildApi extends BaseApi<ApiEr, UserDto> {}
+                    """));
+
+    // The client wrote the name, in source, so javac reports it there; the advice to add a
+    // dependency is for a type a class file names, and would misdirect a typo.
+    assertThat(compilation).hadErrorContaining("cannot find symbol");
+    Assertions.assertThat(compilation.errors())
+        .noneMatch(error -> error.getMessage(null).contains("classpath"));
+  }
+
+  @Test
+  @DisplayName("an error type a jar's interface binds and the classpath lacks says so")
+  void errorTypeBoundInAJarAndMissingSaysSo() throws IOException {
+    // The jar's own UserBaseApi binds BaseApi's E: the class file names the type, as a method's
+    // declaration would, and javac reports nothing about it.
+    Path base =
+        baseModule(
+            "<E, T>",
+            """
+              @GetExchange("/{id}")
+              EitherPath<E, T> getUser(@PathVariable String id);
+            """,
+            JavaFileObjects.forSourceString(
+                "com.upstream.UserBaseApi",
+                """
+                package com.upstream;
+
+                public interface UserBaseApi
+                    extends BaseApi<com.upstream.errors.Gone, UserDto> {}
+                """));
+    Files.delete(base.resolve("com/upstream/errors/Gone.class"));
+    JavaFileObject child =
+        JavaFileObjects.forSourceString(
+            "com.downstream.ChildApi",
+            """
+            package com.downstream;
+
+            import com.upstream.UserBaseApi;
+            import org.higherkindedj.spring.client.HkjHttpClient;
+            import org.springframework.web.service.annotation.HttpExchange;
+
+            @HttpExchange("/users")
+            @HkjHttpClient
+            public interface ChildApi extends UserBaseApi {}
+            """);
+    Compilation compilation = compiler(base).compile(child);
+
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "'getUser', inherited from 'BaseApi': @HkjHttpClient error type"
+                + " com.upstream.errors.Gone is not on this compilation's classpath; add the"
+                + " dependency that declares it.")
+        .inFile(child);
+    assertThat(compilation).hadErrorCount(1);
+  }
+
+  @Test
   @DisplayName("a problem with an inherited override is reported on the client, naming the method")
   void inheritedOverrideProblemsAreReportedOnTheClient() throws IOException {
     Compilation compilation =
@@ -247,7 +398,7 @@ class HkjHttpClientProcessorClasspathTest {
     assertThat(compilation)
         .hadErrorContaining(
             "'getUser', inherited from 'BaseApi': @OnStatus error type com.upstream.Unrelated is"
-                + " not assignable to the method's declared error type com.upstream.ApiErr.")
+                + " not assignable to the method's error type com.upstream.ApiErr.")
         .inFile(CHILD);
     assertThat(compilation)
         .hadWarningContaining(

@@ -238,7 +238,9 @@ fails fast at startup.
 
 **Generics.** A generic `@HkjHttpClient` interface is supported codegen-only — the native interface
 and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped (a
-generic client can't be a singleton bean), so you instantiate the facade for a concrete type.
+generic client can't be a singleton bean), so you instantiate the facade for a concrete type. A
+non-generic client that extends a generic base with concrete type arguments is generated with its
+bean; see [Generic Clients](HTTP_CLIENT.md#generic-clients).
 
 **Retry-After.** `ClientErrorResponse.retryAfter()` exposes a server `Retry-After` hint (delta-seconds
 or HTTP-date) as an `Optional<Duration>` — read it in a custom decoder to seed `VTaskPath.withRetry`.
