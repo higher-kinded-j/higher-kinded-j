@@ -998,6 +998,74 @@ class HkjHttpClientProcessorTest {
               "'getUser', inherited from 'AApi': @OnStatus has no effect on a MaybePath method");
     }
 
+    /** A type-use annotation whose members are named as the diamond's type variables are. */
+    private static final JavaFileObject TAG =
+        JavaFileObjects.forSourceLines(
+            "com.example.Tag",
+            "package com.example;",
+            "import java.lang.annotation.ElementType;",
+            "import java.lang.annotation.Target;",
+            "@Target(ElementType.TYPE_USE)",
+            "public @interface Tag {",
+            "  String value() default \"\";",
+            "  String X() default \"\";",
+            "  String Y() default \"\";",
+            "}");
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        value = {
+          "named as a package, a variable leaves a class's name as it is | <java> | MaybePath<String>",
+          "named as a class, a variable leaves that class's name as it is | <String>"
+              + " | MaybePath<java.lang.@Tag String>"
+        })
+    @DisplayName("a type variable is renumbered where it stands, never inside a class's name")
+    void diamondClassNamesAreNotRenumbered(String description, String variable, String type) {
+      // javapoet writes java.lang.String, so a variable named java or String matches part of the
+      // written type. The parameter is a long, as String would name the variable.
+      Compilation compilation =
+          compileDiamond(
+              "@GetExchange(\"/{id}\") "
+                  + variable
+                  + " "
+                  + type
+                  + " getUser(@PathVariable long id);",
+              "@GetExchange(\"/{id}\") <Y> " + type + " getUser(@PathVariable long id);",
+              TAG);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        value = {
+          "renamed through a wildcard and an array is alike | ? super X | ? super Y | ",
+          "a wildcard's kind still counts | ? super X | ? extends Y | the method's return type"
+              + " differs."
+        })
+    @DisplayName("a type variable is renumbered inside a wildcard and an array")
+    void diamondVariablesAreRenumberedThroughWildcardsAndArrays(
+        String description, String aWildcard, String bWildcard, String differs) {
+      Compilation compilation =
+          compileDiamond(
+              "@GetExchange(\"/{id}\") <X> MaybePath<java.util.List<"
+                  + aWildcard
+                  + ">[]> getUser(@PathVariable long id);",
+              "@GetExchange(\"/{id}\") <Y> MaybePath<java.util.List<"
+                  + bWildcard
+                  + ">[]> getUser(@PathVariable long id);");
+
+      if (differs == null) {
+        assertThat(compilation).succeeded();
+      } else {
+        assertThat(compilation)
+            .hadErrorContaining("which the generated client would write differently: " + differs)
+            .inFile(DIAMOND);
+      }
+    }
+
     @ParameterizedTest(name = "{0}")
     @CsvSource(
         delimiter = '|',
@@ -1013,18 +1081,6 @@ class HkjHttpClientProcessorTest {
         String description, String aArguments, String bArguments, String differs) {
       // The values and member names equal the method's own type variables' names, which are
       // renumbered elsewhere in the type.
-      JavaFileObject tag =
-          JavaFileObjects.forSourceLines(
-              "com.example.Tag",
-              "package com.example;",
-              "import java.lang.annotation.ElementType;",
-              "import java.lang.annotation.Target;",
-              "@Target(ElementType.TYPE_USE)",
-              "public @interface Tag {",
-              "  String value() default \"\";",
-              "  String X() default \"\";",
-              "  String Y() default \"\";",
-              "}");
       Compilation compilation =
           compileDiamond(
               "@GetExchange(\"/{id}\") <X> MaybePath<@Tag("
@@ -1033,7 +1089,7 @@ class HkjHttpClientProcessorTest {
               "@GetExchange(\"/{id}\") <Y> MaybePath<@Tag("
                   + bArguments
                   + ") String> getUser(@PathVariable String id);",
-              tag);
+              TAG);
 
       if (differs == null) {
         assertThat(compilation).succeeded();

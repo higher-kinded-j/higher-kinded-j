@@ -4,6 +4,7 @@ package org.higherkindedj.spring.client.processor;
 
 import com.google.auto.service.AutoService;
 import com.palantir.javapoet.AnnotationSpec;
+import com.palantir.javapoet.ArrayTypeName;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.JavaFile;
@@ -13,6 +14,7 @@ import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import com.palantir.javapoet.TypeVariableName;
+import com.palantir.javapoet.WildcardTypeName;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -23,8 +25,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -123,13 +123,6 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           "org.springframework.web.bind.annotation.RequestParam",
           "org.springframework.web.bind.annotation.RequestHeader",
           "org.springframework.web.bind.annotation.CookieValue");
-
-  /**
-   * A string or character literal as javapoet writes one, escapes included. Each alternative
-   * consumes one character or one escape at a time, so a match never backtracks over another.
-   */
-  private static final Pattern LITERAL =
-      Pattern.compile("\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'");
 
   /**
    * The flavour of Effect Path a client method returns, with where its error and success types sit
@@ -744,21 +737,19 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .map(parameter -> parameter.getSimpleName().toString())
             .toList();
     parts.put(
-        "the method's return type",
-        positional(method.returnTypeName(packageName).toString(), ownVariables));
+        "the method's return type", positional(method.returnTypeName(packageName), ownVariables));
     List<TypeVariableName> typeVariables = method.typeVariableNames(packageName);
     for (int index = 0; index < typeVariables.size(); index++) {
       TypeVariableName variable = typeVariables.get(index);
       parts.put(
           "the method's type parameter " + (index + 1),
-          positional(variable + " extends " + variable.bounds(), ownVariables));
+          positionalParameter(variable, ownVariables));
     }
     List<ClientMethod.Parameter> parameters = method.parameters();
     for (int index = 0; index < parameters.size(); index++) {
       ClientMethod.Parameter parameter = parameters.get(index);
       String label = "parameter " + (index + 1) + "'s ";
-      parts.put(
-          label + "type", positional(parameter.typeName(packageName).toString(), ownVariables));
+      parts.put(label + "type", positional(parameter.typeName(packageName), ownVariables));
       List<? extends AnnotationMirror> parameterAnnotations =
           parameter.element().getAnnotationMirrors();
       for (AnnotationMirror mirror : parameterAnnotations) {
@@ -823,36 +814,60 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
-   * A type written out with each of the method's own type variables replaced by its position, so a
-   * renamed variable reads the same. A variable is written bare, and a class name never is:
-   * javapoet qualifies every class it writes, so a name preceded by a dot is a class's, not a
-   * variable's. A type-use annotation's arguments are left as they are: a string or character
-   * literal, which a value is written as, and a member name, which is followed by {@code =} where
-   * no variable ever is. So {@code @Tag("X")} and {@code @Tag(X = "same")} keep their value and
-   * member under {@code <X>}.
+   * A type the generated client writes, for comparison, with each of the method's own type
+   * variables written as its position, so a renamed variable reads the same. The type is walked,
+   * not its text rewritten, so only a variable is renumbered: a name that merely matches one, in an
+   * annotation or a qualified class name, is left as it is. Neither can hold a variable, as no
+   * annotation can name one and a class name is a class's alone.
    */
-  private static String positional(String written, List<String> ownVariables) {
-    StringBuilder result = new StringBuilder();
-    Matcher literal = LITERAL.matcher(written);
-    int from = 0;
-    while (literal.find()) {
-      result
-          .append(renumbered(written.substring(from, literal.start()), ownVariables))
-          .append(literal.group());
-      from = literal.end();
-    }
-    return result.append(renumbered(written.substring(from), ownVariables)).toString();
+  private static String positional(TypeName type, List<String> ownVariables) {
+    String annotations =
+        type.annotations().stream()
+            .map(annotation -> annotation + " ")
+            .collect(Collectors.joining());
+    return switch (type) {
+      case TypeVariableName variable -> annotations + positionOf(variable, ownVariables);
+      case ParameterizedTypeName parameterised ->
+          annotations
+              + (parameterised.enclosingType() == null
+                  ? parameterised.rawType().toString()
+                  : positional(parameterised.enclosingType(), ownVariables)
+                      + "."
+                      + parameterised.rawType().simpleName())
+              + parameterised.typeArguments().stream()
+                  .map(argument -> positional(argument, ownVariables))
+                  .collect(Collectors.joining(", ", "<", ">"));
+      case WildcardTypeName wildcard ->
+          annotations
+              + (wildcard.lowerBounds().isEmpty()
+                  ? "? extends " + positional(wildcard.upperBounds().getFirst(), ownVariables)
+                  : "? super " + positional(wildcard.lowerBounds().getFirst(), ownVariables));
+      case ArrayTypeName array ->
+          positional(array.componentType(), ownVariables) + " " + annotations + "[]";
+      // A class or a primitive, annotations included, holds no variable.
+      default -> type.toString();
+    };
   }
 
-  private static String renumbered(String code, List<String> ownVariables) {
-    String result = code;
-    for (int index = 0; index < ownVariables.size(); index++) {
-      result =
-          result.replaceAll(
-              "(?<![\\w.$])" + Pattern.quote(ownVariables.get(index)) + "(?![\\w$]|\\s*=)",
-              Matcher.quoteReplacement("#" + (index + 1)));
-    }
-    return result;
+  /**
+   * A type parameter of the method's own, for comparison: its position, its annotations and its
+   * bounds, each bound as {@link #positional(TypeName, List)} writes it.
+   */
+  private static String positionalParameter(TypeVariableName parameter, List<String> ownVariables) {
+    String bounds =
+        parameter.bounds().stream()
+            .map(bound -> positional(bound, ownVariables))
+            .collect(Collectors.joining(" & "));
+    return parameter.annotations().stream()
+            .map(annotation -> annotation + " ")
+            .collect(Collectors.joining())
+        + positionOf(parameter, ownVariables)
+        + (bounds.isEmpty() ? "" : " extends " + bounds);
+  }
+
+  private static String positionOf(TypeVariableName variable, List<String> ownVariables) {
+    int index = ownVariables.indexOf(variable.name());
+    return index < 0 ? variable.name() : "#" + (index + 1);
   }
 
   private static boolean isStatusOverride(AnnotationMirror mirror) {
