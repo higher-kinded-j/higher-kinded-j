@@ -48,6 +48,14 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
         + " public final class OptionalMonad implements MonadError<OptionalKind.Witness, Unit> {"
         + " public <A> Kind<OptionalKind.Witness, A> raiseError(Unit error) { return null; } }",
     "package com.other; public interface MonadError<E> { Object raiseError(E error); }",
+    "package org.higherkindedj.hkt.either_t; public class EitherTMonad<F, L> {}",
+    "package org.higherkindedj.hkt.validated; public interface Validated<E, A> {}",
+    "package org.higherkindedj.hkt.validated; public class ValidatedMonad<E> {}",
+    "package org.higherkindedj.hkt.eitherorboth; public interface EitherOrBoth<L, R> {}",
+    "package org.higherkindedj.hkt.effect; public final class EitherPath<E, A> {}",
+    "package org.higherkindedj.hkt.effect; public final class ValidationPath<E, A> {}",
+    "package org.higherkindedj.hkt.effect; public final class EitherOrBothPath<L, A> {}",
+    "package org.higherkindedj.hkt.effect; public final class VResultPath<E, A> {}",
   };
 
   @Override
@@ -153,6 +161,87 @@ class DetectNullErrorValuesRecipeTest implements RewriteTest {
                         return /*~~(Returns null, which now throws: return an error that says what went wrong, or Unit.INSTANCE where the error type is Unit)~~>*/null;
                     }, n -> "n");
                 }
+            }
+            """));
+  }
+
+  @Test
+  void marksEveryTypeWhoseErrorIsVoid() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            import org.higherkindedj.hkt.effect.EitherOrBothPath;
+            import org.higherkindedj.hkt.effect.EitherPath;
+            import org.higherkindedj.hkt.effect.VResultPath;
+            import org.higherkindedj.hkt.effect.ValidationPath;
+            import org.higherkindedj.hkt.either.EitherMonad;
+            import org.higherkindedj.hkt.either_t.EitherT;
+            import org.higherkindedj.hkt.either_t.EitherTMonad;
+            import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.hkt.validated.ValidatedMonad;
+
+            interface Results {
+                EitherT<Object, Void, String> eitherT();
+                EitherMonad<Void> eitherMonad();
+                EitherTMonad<Object, Void> eitherTMonad();
+                Validated<Void, String> validated();
+                ValidatedMonad<Void> validatedMonad();
+                EitherOrBoth<Void, String> eitherOrBoth();
+                EitherPath<Void, String> eitherPath();
+                ValidationPath<Void, String> validationPath();
+                EitherOrBothPath<Void, String> eitherOrBothPath();
+                VResultPath<Void, String> vResultPath();
+            }
+            """,
+            """
+            package test;
+
+            import org.higherkindedj.hkt.effect.EitherOrBothPath;
+            import org.higherkindedj.hkt.effect.EitherPath;
+            import org.higherkindedj.hkt.effect.VResultPath;
+            import org.higherkindedj.hkt.effect.ValidationPath;
+            import org.higherkindedj.hkt.either.EitherMonad;
+            import org.higherkindedj.hkt.either_t.EitherT;
+            import org.higherkindedj.hkt.either_t.EitherTMonad;
+            import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.hkt.validated.ValidatedMonad;
+
+            interface Results {
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/EitherT<Object, Void, String> eitherT();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/EitherMonad<Void> eitherMonad();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/EitherTMonad<Object, Void> eitherTMonad();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/Validated<Void, String> validated();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/ValidatedMonad<Void> validatedMonad();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/EitherOrBoth<Void, String> eitherOrBoth();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/EitherPath<Void, String> eitherPath();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/ValidationPath<Void, String> validationPath();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/EitherOrBothPath<Void, String> eitherOrBothPath();
+                /*~~(Void has no value for an error to hold: use Unit)~~>*/VResultPath<Void, String> vResultPath();
+            }
+            """));
+  }
+
+  @Test
+  void leavesVoidAsASuccessTypeAlone() {
+    rewriteRun(
+        java(
+            """
+            package test;
+
+            import org.higherkindedj.hkt.effect.EitherPath;
+            import org.higherkindedj.hkt.effect.ValidationPath;
+            import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
+            import org.higherkindedj.hkt.validated.Validated;
+
+            interface Results {
+                EitherPath<String, Void> eitherPath();
+                ValidationPath<String, Void> validationPath();
+                Validated<String, Void> validated();
+                EitherOrBoth<String, Void> eitherOrBoth();
             }
             """));
   }
