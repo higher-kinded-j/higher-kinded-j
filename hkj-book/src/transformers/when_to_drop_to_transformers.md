@@ -1,6 +1,6 @@
 # Path or Transformer? When to Drop Down
 
-Most workflows you write in Higher-Kinded-J live happily on the [Effect Path API](../effect/ch_intro.md). `EitherPath`, `MaybePath`, `OptionalPath`, `ReaderPath`, `WithStatePath`, and `WriterPath` cover the same ground as their transformer counterparts and add a fluent, Java-friendly facade that hides witness types and `Kind` widening. This page exists for the moments when a Path no longer fits and you need the raw transformer.
+Most workflows you write in Higher-Kinded-J live happily on the [Effect Path API](../effect/ch_intro.md). `EitherPath`, `VResultPath`, `MaybePath`, `OptionalPath`, `ReaderPath`, `WithStatePath`, and `WriterPath` cover the same ground as their transformer counterparts and add a fluent, Java-friendly facade that hides witness types and `Kind` widening. This page exists for the moments when a Path no longer fits and you need the raw transformer.
 
 ~~~admonish info title="What You'll Learn"
 - The three signals that mean you have outgrown the Path API
@@ -17,6 +17,7 @@ If you are starting a new workflow, reach for a Path type first. The mapping is 
 | Path type | Replaces transformer |
 |-----------|----------------------|
 | `EitherPath<E, A>` | `EitherT<F, E, A>` |
+| `VResultPath<E, A>` | `EitherT<VTaskKind.Witness, E, A>` |
 | `MaybePath<A>` / `OptionalPath<A>` | `MaybeT<F, A>` / `OptionalT<F, A>` |
 | `ReaderPath<R, A>` | `ReaderT<F, R, A>` |
 | `WithStatePath<S, A>` | `StateT<S, F, A>` |
@@ -36,7 +37,6 @@ If you need to combine an inner effect (such as typed errors) with a *different*
 
 - A third-party library returns `Mono<Either<E, A>>`, `IO<Either<E, A>>`, or some other library-specific shape that wraps an `Either`. `EitherPath` cannot reach inside that container; `EitherT<F, E, A>` can, given a `Monad<F>` for the outer effect.
 - You are integrating with a custom IO or task type that has a `Monad` instance but no Path counterpart.
-- You need an effect stack like `EitherT<VTaskKind.Witness, E, A>` for virtual-thread-backed work that returns typed errors before the result is awaited.
 
 When the *outer* effect is what does not fit, the transformer is the right tool.
 
