@@ -441,7 +441,7 @@ Entries state their rule and fix in the open. Only the reasoning and the reprodu
 
 ### Release Notes
 
-The release history is a chapter: a landing page (`release-history.md`), an upgrade guide (`release-history/upgrading.md`), the unreleased notes (`release-history/unreleased.md`) and the released notes. Those are a page per release from 0.4.0, one for 0.3 and one for 0.1 to 0.2. Never rewrite a released version's notes; the readability and spelling checks skip them.
+The release history is a chapter: a landing page (`release-history.md`), an upgrade guide (`release-history/upgrading.md`), the unreleased notes (`release-history/unreleased.md`) and the released notes. Those are a page per release from 0.4.0, one for 0.3 and one for 0.1 to 0.2. Never rewrite a released version's notes, apart from the band that opens the page at release (step 7 of "At release"); the readability and spelling checks skip them.
 
 A pull request that changes what a user sees adds its entry to `unreleased.md`:
 
@@ -460,12 +460,13 @@ At release:
 5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
 6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links with `python3 .github/scripts/chapter_footers.py reference`. The previous newest release's Previous link then names it, the one edit a released page takes.
 7. **Turn the home page's band into the version's "New in" band**, as [The Home Page Band](#the-home-page-band) says. If it shows the coming version, drop `hkj-spotlight-snapshot` from its classes, write "New in X.Y.Z" in its eyebrow, and make its head link "All changes in X.Y.Z", pointing at the version's page. Then hold its cards to the release's At a glance: up to three headlines, each linked to the page that teaches it.
+8. **Make the version's page open with one band that matches the home page's.** `unreleased.md` already carries a "Coming in" band, so the rename in step 2 brings it along. Turn it into the "New in X.Y.Z" band the way step 7 does the home page's, so the page holds that band and no other: drop `hkj-spotlight-snapshot`, write "New in X.Y.Z" in the eyebrow, and make its cards the home page's. A page that has no band gets the home page's section under the `[vX.Y.Z on GitHub]` line instead, as its first block. The card links stay relative to `release-history/` (`../optics/...`), and the page omits the head link, since the page is the one it would point at. Rename the fixture `release_history_unreleased.java` to `release_history_vX_Y_Z.java`, since the gate looks for a fixture named for the page. The page keeps its band after the home page's moves on to the next version. The fresh `unreleased.md` starts without a band, or a fixture, until `main` gains a headline.
 
 ### The Home Page Band
 
 The band under the badges in `home.md` shows what a version brings, in up to three cards. It takes one of two forms:
 
-- **"New in X.Y.Z"** shows the newest release. Step 7 of "At release" sets it, so the tag freezes it into that release's copy of the book. `/latest/` keeps showing it until `main` gains a headline of its own.
+- **"New in X.Y.Z"** shows the newest release. Step 7 of "At release" sets it, so the tag freezes it into that release's copy of the book, and step 8 puts the same cards at the top of that release's page in the release history. `/latest/` keeps showing it until `main` gains a headline of its own.
 - **"Coming in X.Y.Z"** shows what `main` adds for the next release, so only `/latest/` ever shows it. A second class on the section, `hkj-spotlight-snapshot`, turns the band's accent teal and dashes the lead card. Its head link reads "All changes so far" and points at `release-history/unreleased.md`.
 
 A headline is a change a reader would upgrade for, rather than a fix or a refinement. When `main` gains one, the pull request that adds it, or one soon after, updates the band:
@@ -473,6 +474,7 @@ A headline is a change a reader would upgrade for, rather than a fix or a refine
 1. **Switch to "Coming in" the first time.** Add `hkj-spotlight-snapshot` to the section's classes, write "Coming in X.Y.Z" in the eyebrow, and make the head link `[All changes so far](release-history/unreleased.md)`. The last release's cards go, and that release's copy of the book keeps them.
 2. **Keep three cards at most.** A new headline replaces the weakest card. The lead card spans the band, and holds the headline whose one line of code shows the most.
 3. **Give every card a page and an entry.** Link the card's title to the page that teaches it, and give its change an entry in `unreleased.md`.
+4. **Keep `unreleased.md` in step.** The same cards open `unreleased.md`, above its At a glance, with links relative to `release-history/` and no head link. Its lead card's code takes its names from `release_history_unreleased.java`. Whenever a card changes on the home page, change it there and in that fixture too, and the first time, add the band and the fixture to `unreleased.md`.
 
 Each card is HTML around Markdown. Keep a blank line on each side of the Markdown, or mdBook passes it through as raw text. Write links in Markdown, not `<a href>`, so that mdBook rewrites `.md` to `.html` and the anchor check sees them. Keep the lead card's code under `<!-- verify -->`: the snippet gate compiles it against `main`, with names from `hkj-examples/src/test/resources/fixtures/home.java`.
 

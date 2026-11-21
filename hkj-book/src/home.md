@@ -17,38 +17,40 @@
 </div>
 
 <!-- This band shows the newest release, or what main adds for the next one: see "The Home Page Band" in docs/STYLE-GUIDE.md. -->
-<section class="hkj-spotlight" aria-labelledby="hkj-spotlight-title">
+<section class="hkj-spotlight hkj-spotlight-snapshot" aria-labelledby="hkj-spotlight-title">
 <div class="hkj-spotlight-head">
-<p class="hkj-spotlight-eyebrow" id="hkj-spotlight-title">New in 0.5.0</p>
+<p class="hkj-spotlight-eyebrow" id="hkj-spotlight-title">Coming in 0.6.0</p>
 
-[All changes in 0.5.0](release-history/v0_5_0.md)
+[All changes so far](release-history/unreleased.md)
 
 </div>
 <div class="hkj-spotlight-card hkj-spotlight-lead">
-<span class="hkj-spotlight-chip">Navigators</span>
+<span class="hkj-spotlight-chip">Compile-time</span>
 
-**[Records that navigate themselves](optics/focus_navigation.md#fluent-navigation-with-generated-navigators)**
+**[A step of the wrong kind of Path no longer compiles](effect/capabilities.md#the-family-parameter)**
 
-<!-- verify -->
+<!-- verify:rejects "MaybePath<A> conforms to" -->
 ```java
-User moved = UserFocus.address().street().name().set("Grey Street", user);
+Path.<AppError, String>right(userId).via(id -> Path.maybe(findUser(id)));
 ```
+
+A `MaybePath` step in an `EitherPath` chain: javac says `MaybePath<A> conforms to` a `Chainable` of the chain's own Path, and the checker names the fix.
 
 </div>
 <div class="hkj-spotlight-card">
-<span class="hkj-spotlight-chip">Core types</span>
+<span class="hkj-spotlight-chip">Stack safety</span>
 
-**[Values that are never null](monads/either_monad.md#creating-instances)**
+**[Deep programs run flat](monads/free_monad.md#what-foldmap-keeps)**
 
-`Either`, `Try`, `IO` and `VTask` refuse a null, so it fails on the line that made it.
+Long `Free`, `State`, `Coyoneda` and `FreeAp` programs run without overflowing the stack, into the targets the chapter lists.
 
 </div>
 <div class="hkj-spotlight-card">
 <span class="hkj-spotlight-chip">Nullness</span>
 
-**[Optics that pass a nullness checker](optics/focus_effects.md#a-focus-that-may-be-null)**
+**[Generated mappings pass NullAway](mapping/rules.md#same-typed-containers-cross-as-copies)**
 
-Every optic and Focus path type takes a `@Nullable` focus.
+Copies, guards and `JsonNullable` reads keep what a `@Nullable` component declares.
 
 </div>
 </section>

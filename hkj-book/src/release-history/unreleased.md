@@ -4,6 +4,42 @@ _Not released yet: these changes are on `main`, and the `latest` book describes 
 
 To try them, depend on `0.6.0-SNAPSHOT` from the snapshots repository, as [Gradle SNAPSHOT Configuration](../tooling/manual_setup.md#gradle-snapshot-configuration) shows.
 
+<!-- The same cards as the home page's "Coming in 0.6.0" band: see "The Home Page Band" in docs/STYLE-GUIDE.md. -->
+<section class="hkj-spotlight hkj-spotlight-snapshot" aria-labelledby="hkj-spotlight-title">
+<div class="hkj-spotlight-head">
+<p class="hkj-spotlight-eyebrow" id="hkj-spotlight-title">Coming in 0.6.0</p>
+</div>
+<div class="hkj-spotlight-card hkj-spotlight-lead">
+<span class="hkj-spotlight-chip">Compile-time</span>
+
+**[A step of the wrong kind of Path no longer compiles](../effect/capabilities.md#the-family-parameter)**
+
+<!-- verify:rejects "MaybePath<A> conforms to" -->
+```java
+Path.<AppError, String>right(userId).via(id -> Path.maybe(findUser(id)));
+```
+
+A `MaybePath` step in an `EitherPath` chain: javac says `MaybePath<A> conforms to` a `Chainable` of the chain's own Path, and the checker names the fix.
+
+</div>
+<div class="hkj-spotlight-card">
+<span class="hkj-spotlight-chip">Stack safety</span>
+
+**[Deep programs run flat](../monads/free_monad.md#what-foldmap-keeps)**
+
+Long `Free`, `State`, `Coyoneda` and `FreeAp` programs run without overflowing the stack, into the targets the chapter lists.
+
+</div>
+<div class="hkj-spotlight-card">
+<span class="hkj-spotlight-chip">Nullness</span>
+
+**[Generated mappings pass NullAway](../mapping/rules.md#same-typed-containers-cross-as-copies)**
+
+Copies, guards and `JsonNullable` reads keep what a `@Nullable` component declares.
+
+</div>
+</section>
+
 ~~~admonish info title="At a glance"
 - **javac checks what each step of a Path chain returns.** A step of another kind of Path, or one that fails with an error the chain does not carry, is a compile error in the IDE as well as the build.
 - **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter**: a `witheMail` beside `geteMail()` gives an `eMail()` lens.

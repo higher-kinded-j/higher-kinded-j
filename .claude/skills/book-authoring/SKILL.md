@@ -65,7 +65,8 @@ guide's "Chapter Guides" section says.
    request says which findings were declined, and why.
 9. **Add the release-notes entry** to `hkj-book/src/release-history/unreleased.md` when users can
    see the change, as the style guide's Release Notes section says. Never edit a released
-   version's page. A headline for the next release may also earn a card in the home page's band,
+   version's page, apart from the band that opens it at release, as the style guide's At release
+   steps say. A headline for the next release may also earn a card in the home page's band,
    as the style guide's Home Page Band section says. News that no release brings, such as an
    event, a survey or a release candidate, goes in a site announcement instead, as its Site
    Announcements section says.
