@@ -177,10 +177,9 @@ You need to update a field inside a record, but the update can fail.
 You need to call an async API that can return a domain error before the
 result is materialised.
 
-- **Tools:** `VTaskPath` for the async, `EitherPath` for the error, composed
-  through `ForPath`. For polymorphic code or third-party `Mono<Either<...>>`
-  shapes, drop to `EitherT<VTaskKind.Witness, E, A>`
-  ([EitherT](transformers/eithert_transformer.md)).
+- **Tools:** [`VResultPath`](effect/path_vresult.md), a `VTask` whose result is
+  an `Either`. For a third-party shape such as `Mono<Either<...>>`, drop to
+  `EitherT` over that outer monad ([EitherT](transformers/eithert_transformer.md)).
 - **Read:** [Composition Patterns](effect/composition.md) ·
   [Path or Transformer?](transformers/when_to_drop_to_transformers.md#signal-1-you-need-an-outer-monad-path-does-not-wrap)
 

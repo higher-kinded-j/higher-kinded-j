@@ -187,6 +187,7 @@ Copies, guards and `JsonNullable` reads keep what a `@Nullable` component declar
 - **You can learn the type classes from one tested example.** Most Foundations pages and Tutorial 00 use the order service the Optics and Mapping chapters share. Each core type's page opens with a card saying when to reach for it, Supported Types is rebuilt around those cards, and a new page lists where an instance bends a law. See [Foundations](../hkts/foundations_intro.md).
 - **The Type Classes glossary gains `MonadReader`, `MonadState` and `MonadWriter`** ([#1527](https://github.com/higher-kinded-j/higher-kinded-j/issues/1527)). Each gives a definition, its core operations and a link to its page in the MTL chapter.
 - **The Either and EitherPath pages say when to lift an `Either` to an `EitherPath`** ([#1466](https://github.com/higher-kinded-j/higher-kinded-j/issues/1466)). Stay on `Either` to hold and pass a result. Lift it with `Path.either` to run steps along it, such as `peek` and `ensure`, and take it back with `run()`.
+- **Path or Transformer? and Where to Start send async work with a typed error to `VResultPath`** ([#1467](https://github.com/higher-kinded-j/higher-kinded-j/issues/1467)). Both sent it to `EitherT<VTaskKind.Witness, E, A>`, a transformer stack that `VResultPath` already covers with less ceremony. Path or Transformer? also lists `VResultPath` in its table of the transformers each Path replaces.
 
 ---
 
