@@ -113,7 +113,9 @@ final class ClientMethods {
    * of interfaces alone with {@code Object} in front when it substitutes inside it, and the rebuilt
    * bound erases to {@code Object}. The leftmost bound is found as {@link TypeNames} pairs bounds,
    * from the end, so {@code <X extends Comparable<T> & Serializable>} still erases to {@code
-   * Comparable}.
+   * Comparable}. A leftmost bound that is another of the method's variables erases as that one
+   * does, so {@code <P extends Map<String, T> & Serializable, Q extends P>} erases {@code Q} to
+   * {@code Map} too.
    */
   static TypeMirror erasureOf(ClientMethod.Parameter parameter, Types types) {
     return erasure(parameter.type(), types);
@@ -128,7 +130,8 @@ final class ClientMethods {
               ? ((IntersectionType) upperBound).getBounds()
               : List.of(upperBound);
       int declared = ((TypeParameterElement) variable.asElement()).getBounds().size();
-      return types.erasure(bounds.get(Math.max(bounds.size() - declared, 0)));
+      // Ends: javac refuses a cycle of bounds among one method's type parameters.
+      return erasure(bounds.get(Math.max(bounds.size() - declared, 0)), types);
     }
     if (type.getKind() == TypeKind.ARRAY) {
       return types.getArrayType(erasure(((ArrayType) type).getComponentType(), types));

@@ -19,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -899,6 +900,143 @@ class HkjHttpClientProcessorTest {
           .inFile(diamond);
       assertThat(compilation).hadErrorCount(1);
     }
+
+    private static final JavaFileObject DIAMOND =
+        JavaFileObjects.forSourceLines(
+            "com.example.DiamondApi",
+            "package com.example;",
+            "import org.higherkindedj.spring.client.HkjHttpClient;",
+            "import org.springframework.web.service.annotation.HttpExchange;",
+            "@HttpExchange(\"/users\")",
+            "@HkjHttpClient",
+            "public interface DiamondApi extends AApi, BApi {}");
+
+    /**
+     * An interface of one method, {@code AApi} or {@code BApi}, for {@code DiamondApi} to extend.
+     */
+    private static JavaFileObject side(String name, String method) {
+      return JavaFileObjects.forSourceLines(
+          "com.example." + name,
+          "package com.example;",
+          "import org.higherkindedj.hkt.effect.MaybePath;",
+          "import org.higherkindedj.spring.client.OnStatus;",
+          "import org.springframework.web.bind.annotation.PathVariable;",
+          "import org.springframework.web.service.annotation.GetExchange;",
+          "public interface " + name + " {",
+          "  " + method,
+          "}");
+    }
+
+    private static Compilation compileDiamond(String a, String b, JavaFileObject... more) {
+      JavaFileObject[] sources = new JavaFileObject[more.length + 5];
+      sources[0] = side("AApi", a);
+      sources[1] = side("BApi", b);
+      sources[2] = DIAMOND;
+      sources[3] = USER_DTO;
+      sources[4] = USER_ERROR;
+      System.arraycopy(more, 0, sources, 5, more.length);
+      return compile(sources);
+    }
+
+    @Test
+    @DisplayName("a parameter's name counts where it names the binding")
+    void diamondImplicitBindingNamesDiffer() {
+      // An unnamed @PathVariable binds the parameter's name, so the two bind id and key.
+      Compilation compilation =
+          compileDiamond(
+              "@GetExchange(\"/{id}\") MaybePath<UserDto> getUser(@PathVariable String id);",
+              "@GetExchange(\"/{id}\") MaybePath<UserDto> getUser(@PathVariable String key);");
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "which the generated client would write differently: parameter 1's @PathVariable"
+                  + " differs.")
+          .inFile(DIAMOND);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("two annotations sharing a simple name are each compared, by qualified name")
+    void diamondAnnotationsSharingASimpleNameAreCompared() {
+      // Keyed by simple name, the second @GetExchange took the first's place, and the paths
+      // compared equal.
+      JavaFileObject marker =
+          JavaFileObjects.forSourceLines(
+              "com.example.demo.GetExchange",
+              "package com.example.demo;",
+              "public @interface GetExchange {}");
+      Compilation compilation =
+          compileDiamond(
+              "@GetExchange(\"/a/{id}\") @com.example.demo.GetExchange"
+                  + " MaybePath<UserDto> getUser(@PathVariable String id);",
+              "@GetExchange(\"/b/{id}\") @com.example.demo.GetExchange"
+                  + " MaybePath<UserDto> getUser(@PathVariable String id);",
+              marker);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "which the generated client would write differently: the method's"
+                  + " @org.springframework.web.service.annotation.GetExchange differs.")
+          .inFile(DIAMOND);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a MaybePath's @OnStatus does not count, and each declaration's is warned of")
+    void diamondMaybePathOverridesDoNotCount() {
+      // A MaybePath builds no decoder, so the client is the same whichever declaration it follows.
+      // javac lists BApi's first, so AApi's is not the declaration the client follows.
+      Compilation compilation =
+          compileDiamond(
+              "@GetExchange(\"/{id}\") @OnStatus(value = 404, error = UserError.class)"
+                  + " MaybePath<UserDto> getUser(@PathVariable String id);",
+              "@GetExchange(\"/{id}\") MaybePath<UserDto> getUser(@PathVariable String id);");
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining(
+              "'getUser', inherited from 'AApi': @OnStatus has no effect on a MaybePath method");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        value = {
+          "the same value under renamed variables is alike | X | X | ",
+          "different values are told apart | X | Y | the method's return type differs."
+        })
+    @DisplayName("a type-use annotation's value is compared as written, not renumbered")
+    void diamondAnnotationValuesAreComparedAsWritten(
+        String description, String aValue, String bValue, String differs) {
+      // The values equal the method's own type variables' names, which are renumbered elsewhere.
+      JavaFileObject tag =
+          JavaFileObjects.forSourceLines(
+              "com.example.Tag",
+              "package com.example;",
+              "import java.lang.annotation.ElementType;",
+              "import java.lang.annotation.Target;",
+              "@Target(ElementType.TYPE_USE)",
+              "public @interface Tag { String value(); }");
+      Compilation compilation =
+          compileDiamond(
+              "@GetExchange(\"/{id}\") <X> MaybePath<@Tag(\""
+                  + aValue
+                  + "\") String>"
+                  + " getUser(@PathVariable String id);",
+              "@GetExchange(\"/{id}\") <Y> MaybePath<@Tag(\""
+                  + bValue
+                  + "\") String>"
+                  + " getUser(@PathVariable String id);",
+              tag);
+
+      if (differs == null) {
+        assertThat(compilation).succeeded();
+      } else {
+        assertThat(compilation)
+            .hadErrorContaining("which the generated client would write differently: " + differs)
+            .inFile(DIAMOND);
+      }
+    }
   }
 
   @Nested
@@ -1285,6 +1423,169 @@ class HkjHttpClientProcessorTest {
               client("ChildApi extends Mid"));
 
       assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("a raw interface erases a generic base past a non-generic one too, as javac does")
+    void rawInterfaceErasesPastANonGenericOne() {
+      // The JLS gives a raw type's supertypes as their erasures, which leaves Fixed as it is and
+      // Repo<UserDto> bound. javac erases on through Fixed, and reads get() as returning a bare
+      // MaybePath, so the client is refused as for any raw read.
+      JavaFileObject child = client("ChildApi extends Mid");
+      Compilation compilation =
+          compileWith(
+              base("Repo<T>", "MaybePath<T> get(@PathVariable String id);"),
+              source("Fixed", "public interface Fixed extends Repo<UserDto> {}"),
+              source("Mid", "public interface Mid<M> extends Fixed {}"),
+              child);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'get', inherited from 'Repo': @HkjHttpClient reads this method through the raw type"
+                  + " Mid, named in ChildApi's extends clause, which leaves Repo's type variable T"
+                  + " unbound.")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a base's Map bound reached through another of the method's variables is unnamed")
+    void chainedMapBoundStaysAnAggregateBinder() {
+      // Under substitution javac rebuilds P's bound with Object in front, which erases to Object;
+      // read through Q, it once took Q for a single value and named it.
+      Compilation compilation =
+          compileWith(
+              base(
+                  "Repo<T>",
+                  "<P extends Map<String, T> & java.io.Serializable, Q extends P>"
+                      + " EitherPath<UserError, UserDto> find(@RequestParam Q filters);"),
+              client("ChildApi extends Repo<String>"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              contents(compilation.generatedSourceFile("com.example.ChildApiHttpExchange").get()))
+          .contains("@RequestParam Q filters")
+          .doesNotContain("\"filters\"");
+    }
+
+    @Test
+    @DisplayName("an inner class of a parameterised type is not a concrete error type")
+    void innerClassOfAParameterisedTypeIsRefused() {
+      // Outer.Problem.class names the raw Outer's Problem, so the decoder could not be typed to it.
+      JavaFileObject outer = source("Outer", "public class Outer<O> { public class Problem {} }");
+      Compilation bound =
+          compileWith(
+              outer,
+              base("Repo<E>", "EitherPath<E, UserDto> get(@PathVariable String id);"),
+              client("ChildApi extends Repo<Outer<String>.Problem>"));
+      Compilation written =
+          compileWith(
+              outer,
+              source(
+                  "ChildApi",
+                  "@HttpExchange(\"/users\")",
+                  "@HkjHttpClient",
+                  "public interface ChildApi {",
+                  "  @GetExchange(\"/{id}\")",
+                  "  EitherPath<Outer<String>.Problem, UserDto> get(@PathVariable String id);",
+                  "}"));
+
+      for (Compilation compilation : List.of(bound, written)) {
+        assertThat(compilation)
+            .hadErrorContaining(
+                "@HkjHttpClient error type must be a concrete, non-generic class (so the decoder"
+                    + " can bind it with E.class); found: com.example.Outer<java.lang.String>.Problem");
+        assertThat(compilation).hadErrorCount(1);
+      }
+    }
+
+    @Test
+    @DisplayName("an inner class of a type that is not parameterised is a concrete error type")
+    void innerClassOfAPlainTypeGenerates() {
+      Compilation compilation =
+          compileWith(
+              source("Plain", "public class Plain { public class Problem {} }"),
+              base("Repo<E>", "EitherPath<E, UserDto> get(@PathVariable String id);"),
+              client("ChildApi extends Repo<Plain.Problem>"));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName(
+        "an annotation whose arguments the client cannot name is left off, and others kept")
+    void annotationArgumentsTheClientCannotNameAreLeftOff() {
+      // The client is written into com.example, where a class or an enum package-private to
+      // com.example.base cannot be named, though the annotations naming them can.
+      Compilation compilation =
+          compileWith(
+              inBase(
+                  "Tag",
+                  "@Target(ElementType.TYPE_USE)",
+                  "public @interface Tag {",
+                  "  Class<?> value();",
+                  "  Level level() default Level.LOW;",
+                  "}"),
+              inBase(
+                  "Mark",
+                  "@Target(ElementType.TYPE_USE)",
+                  "public @interface Mark { Kind value(); }"),
+              inBase(
+                  "Wrap",
+                  "@Target(ElementType.TYPE_USE)",
+                  "public @interface Wrap { Tag value(); }"),
+              inBase("Level", "public enum Level { LOW, HIGH }"),
+              inBase("Kind", "enum Kind { SECRET }"),
+              inBase("Internal", "class Internal {}"),
+              inBase("Shown", "public class Shown {}"),
+              inBase(
+                  "Repo",
+                  "public interface Repo<T> {",
+                  "  @GetExchange(\"/{id}\") MaybePath<T> get(@PathVariable String id);",
+                  "}"),
+              inBase(
+                  "Lookup",
+                  "public interface Lookup extends Repo<@Tag(Internal.class) String> {",
+                  "  @GetExchange(\"/kinds/{id}\")",
+                  "  MaybePath<@Mark(Kind.SECRET) String> kind(@PathVariable String id);",
+                  "  @GetExchange(\"/arrays/{id}\")",
+                  "  MaybePath<@Tag(Internal[].class) String> array(@PathVariable String id);",
+                  "  @GetExchange(\"/wrapped/{id}\")",
+                  "  MaybePath<@Wrap(@Tag(Internal.class)) String> wrapped(@PathVariable String id);",
+                  "  @GetExchange(\"/shown/{id}\")",
+                  "  MaybePath<@Tag(value = Shown.class, level = Level.HIGH) String> shown(",
+                  "      @PathVariable String id);",
+                  "}"),
+              source(
+                  "ChildApi",
+                  "@HttpExchange(\"/users\")",
+                  "@HkjHttpClient",
+                  "public interface ChildApi extends com.example.base.Lookup {}"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              contents(compilation.generatedSourceFile("com.example.ChildApiClient").get()))
+          .contains("MaybePath<String> get(String id)")
+          .contains("MaybePath<String> kind(String id)")
+          .contains("MaybePath<String> array(String id)")
+          .contains("MaybePath<String> wrapped(String id)")
+          .contains("MaybePath<@Tag(value = Shown.class, level = Level.HIGH) String> shown(");
+    }
+
+    /** A source in {@code com.example.base}, a package the client is not written into. */
+    private static JavaFileObject inBase(String simpleName, String... body) {
+      return JavaFileObjects.forSourceLines(
+          "com.example.base." + simpleName,
+          Stream.concat(
+                  Stream.of(
+                      "package com.example.base;",
+                      "import java.lang.annotation.ElementType;",
+                      "import java.lang.annotation.Target;",
+                      "import org.higherkindedj.hkt.effect.MaybePath;",
+                      "import org.springframework.web.bind.annotation.PathVariable;",
+                      "import org.springframework.web.service.annotation.GetExchange;"),
+                  Stream.of(body))
+              .toList());
     }
 
     @Test

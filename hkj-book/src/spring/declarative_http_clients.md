@@ -372,7 +372,7 @@ Put the type-level `@HttpExchange` on each client. The processor copies only the
 
 Give each generic interface its type arguments where the client extends it. Named raw, as in `extends CrudApi`, a base's methods lose their types, and the processor refuses each one that needs them, saying it `reads this method through the raw type CrudApi`.
 
-The client implements a method once, however many declarations it inherits it from. Two bases can each declare `get(String)`, and type arguments can make two methods of one base the same. The processor refuses such a method when the generated client would write its declarations differently, as it could follow only one of them. A different path, binding, override, type or type parameter counts; a parameter's name and the order of attributes do not. Here the processor reports `which the generated client would write differently: the method's @GetExchange differs`:
+The client implements a method once, however many declarations it inherits it from. Two bases can each declare `get(String)`, and type arguments can make two methods of one base the same. The processor refuses such a method when the generated client would write its declarations differently, as it could follow only one of them. A different path, binding, override, type or type parameter counts. A parameter's name counts only where it names the binding, as an unnamed `@PathVariable String id` binds `id`, and the order of attributes does not count. Here the processor reports `which the generated client would write differently: the method's @GetExchange differs`:
 
 <!-- verify:rejects "which the generated client would write differently" -->
 ```java
