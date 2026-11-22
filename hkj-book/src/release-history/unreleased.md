@@ -189,6 +189,7 @@ Copies, guards and `JsonNullable` reads keep what a `@Nullable` component declar
 - **The Type Classes glossary gains `MonadReader`, `MonadState` and `MonadWriter`** ([#1527](https://github.com/higher-kinded-j/higher-kinded-j/issues/1527)). Each gives a definition, its core operations and a link to its page in the MTL chapter.
 - **The Either and EitherPath pages say when to lift an `Either` to an `EitherPath`** ([#1466](https://github.com/higher-kinded-j/higher-kinded-j/issues/1466)). Stay on `Either` to hold and pass a result. Lift it with `Path.either` to run steps along it, such as `peek` and `ensure`, and take it back with `run()`.
 - **Path or Transformer? and Where to Start send async work with a typed error to `VResultPath`** ([#1467](https://github.com/higher-kinded-j/higher-kinded-j/issues/1467)). Both sent it to `EitherT<VTaskKind.Witness, E, A>`, a transformer stack that `VResultPath` already covers with less ceremony. Path or Transformer? also lists `VResultPath` in its table of the transformers each Path replaces.
+- **More help upgrading to 0.5.0** ([#1368](https://github.com/higher-kinded-j/higher-kinded-j/issues/1368)). The Upgrading page says a 200 response that answered `Right(null)` now sends no body, and that `hkj-spring` brings Spring Boot 4.1's own changes. Migration Recipes shows how to run the recipes without changing the build, and how to give a large build more heap. See [To 0.5.0](upgrading.md#to-050).
 
 ---
 
