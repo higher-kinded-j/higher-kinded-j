@@ -18,7 +18,7 @@ This page is the authoritative catalogue. The same recipe set is also referenced
 
 ```kotlin
 plugins {
-    id("org.openrewrite.rewrite") version "7.28.1"
+    id("org.openrewrite.rewrite") version "7.39.0"
 }
 
 dependencies {
@@ -34,6 +34,8 @@ rewrite {
 ./gradlew rewriteDryRun   # preview changes
 ./gradlew rewriteRun      # apply changes
 ```
+
+If Gradle reports `Could not find org.openrewrite:rewrite-bom` for the newest plugin, use the release before it. A plugin release has at times depended on a `rewrite-bom` that had not yet reached Maven Central.
 
 ### Maven
 
@@ -68,6 +70,33 @@ mvn rewrite:run      # apply changes
 ```
 
 `hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A recipe for an API deprecated after 0.4.11 arrives with the release that deprecates it. A recipe for a signature that changes with no deprecation first, such as `StateT`'s in 0.5.0, arrives with the release that changes it: run it before the project moves to that release. A recipe can also join a group later, as the 0.5.0 group's `Void` rewrite does with 0.6.0, so take the latest release.
+
+### Without changing the build {#init-script}
+
+A one-off migration need not add the plugin to the build. Save this as `rewrite.gradle`, outside the project or ignored by it:
+
+```groovy
+initscript {
+    repositories { gradlePluginPortal() }
+    dependencies { classpath("org.openrewrite:plugin:7.39.0") }
+}
+rootProject {
+    plugins.apply(org.openrewrite.gradle.RewritePlugin)
+    dependencies { rewrite("io.github.higher-kinded-j:hkj-openrewrite:LATEST_VERSION") }
+    rewrite { activeRecipe("org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0") }
+}
+```
+
+```bash
+./gradlew --init-script rewrite.gradle rewriteDryRun   # preview changes
+./gradlew --init-script rewrite.gradle rewriteRun      # apply changes
+```
+
+Applied to the root project, the plugin reads the sources of every subproject. The script is Groovy, and it works whether the build is written in Groovy or Kotlin. If the run stops with `no repositories are defined`, the root project declares none of its own: add `repositories { mavenCentral() }` inside `rootProject { }`.
+
+### On a large build {#large-build}
+
+The recipes hold every source file in memory, so a large build can exhaust Gradle's default daemon heap. A build of about 1,300 source files ran out, and finished with 8 GB. Raise the heap for one run with `-Dorg.gradle.jvmargs=-Xmx8g`, or set `org.gradle.jvmargs=-Xmx8g` in `gradle.properties`. Under Maven, set `MAVEN_OPTS=-Xmx8g`.
 
 ---
 
