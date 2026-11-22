@@ -310,9 +310,14 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     // Copy class-level annotations (e.g. @HttpExchange) except the HKJ client meta-annotations.
     for (AnnotationMirror mirror : iface.getAnnotationMirrors()) {
       if (!isClientMetaAnnotation(mirror)) {
-        builder.addAnnotation(AnnotationSpec.get(mirror));
+        builder.addAnnotation(AnnotationSpecs.copyOf(mirror));
       }
     }
+    // Spring proxies the native interface, which extends nothing, so a client with no type-level
+    // @HttpExchange of its own is given those Spring would have read from its bases.
+    HttpExchanges.inheritedBy(iface).stream()
+        .map(AnnotationSpecs::copyOf)
+        .forEach(builder::addAnnotation);
 
     for (int i = 0; i < methods.size(); i++) {
       ClientMethod clientMethod = methods.get(i);
@@ -332,7 +337,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       // native interface extends nothing, so a copied @Override would not compile.
       for (AnnotationMirror mirror : method.getAnnotationMirrors()) {
         if (!isClientMetaAnnotation(mirror) && !isOverride(mirror)) {
-          nativeMethod.addAnnotation(AnnotationSpec.get(mirror));
+          nativeMethod.addAnnotation(AnnotationSpecs.copyOf(mirror));
         }
       }
       // Copy parameters with their binding annotations (@PathVariable, @RequestBody, …).
@@ -621,7 +626,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     ParameterSpec.Builder builder =
         ParameterSpec.builder(parameter.typeName(packageName), parameterName);
     for (AnnotationMirror mirror : parameter.element().getAnnotationMirrors()) {
-      AnnotationSpec spec = AnnotationSpec.get(mirror);
+      AnnotationSpec spec = AnnotationSpecs.copyOf(mirror);
       if (needsExplicitName(mirror, parameter)) {
         spec = spec.toBuilder().addMember("value", "$S", parameterName).build();
       }

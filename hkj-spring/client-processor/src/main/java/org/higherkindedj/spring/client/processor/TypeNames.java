@@ -288,7 +288,7 @@ final class TypeNames {
       List<AnnotationSpec> specs =
           annotations.values().stream()
               .filter(annotation -> writableFrom(annotation, targetPackage))
-              .map(AnnotationSpec::get)
+              .map(AnnotationSpecs::copyOf)
               .toList();
       // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
       // intersection implements DeclaredType, so a pattern switch would send one down the declared

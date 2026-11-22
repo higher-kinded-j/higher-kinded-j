@@ -250,9 +250,12 @@ against a hostile or buggy upstream.
 A client may extend a generic base interface with concrete type arguments, such as
 `interface UserCrudApi extends CrudApi<ApiError, UserDto, String>`. The processor generates it as if
 it redeclared each inherited method with those arguments in place of the base's type variables,
-bean wiring included. Put the type-level `@HttpExchange` on the client: the processor copies only
-the client's own class-level annotations. The error type must be a concrete class, and the processor
-refuses a client that passes one of its own type variables on as the error type.
+bean wiring included. A client with no type-level `@HttpExchange` of its own takes those Spring
+would read from its bases. A client with its own uses only its own, so a base's prefix is not
+joined to it. To find a composed one, the processor looks into the annotations the client and its
+bases carry. Where one of them names a class the compile classpath lacks, javac may warn of it;
+writing `@HttpExchange` on the client avoids that. The error type must be a concrete class, and the
+processor refuses a client that passes one of its own type variables on as the error type.
 
 A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and the
 facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a

@@ -368,7 +368,7 @@ interface CrudApi<E, T, ID> {
 interface UserCrudApi extends CrudApi<ApiError, UserDto, String> {}
 ```
 
-Put the type-level `@HttpExchange` on each client. The processor copies only the client's own type-level annotations onto the interface Spring proxies, so Spring never sees one written on the base.
+A client with no type-level `@HttpExchange` of its own takes its base's, as a Spring HTTP interface would, whether the base is generic or not. With several bases, the processor searches each one, and the interfaces it extends, before the next, and stops at the first interface that carries one. An annotation composed from `@HttpExchange` counts as one when it is retained at run time, where Spring reads it. Every such annotation on that interface is copied, so two that differ stop the application at startup, as Spring refuses them. A client with its own uses only its own, as Spring does, so `@HttpExchange("/users")` on the client over `@HttpExchange("/api")` on the base sends to `/users`, not `/api/users`.
 
 Give each generic interface its type arguments where the client extends it. Named raw, as in `extends CrudApi`, a base's methods lose their types, and the processor refuses each one that needs them, saying it `reads this method through the raw type CrudApi`.
 
