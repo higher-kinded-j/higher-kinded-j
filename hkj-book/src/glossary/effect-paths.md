@@ -769,6 +769,18 @@ EitherPath<ApiError, User> partial = fetchUser(id)
 
 ---
 
+## TryPath
+
+**Definition:** A path over `Try<A>` for a computation that may throw. The failure is the thrown exception, so it has no typed error value, and `run()` returns the `Try`.
+
+**Factories:** `Path.success(value)`, `Path.failure(exception)`, `Path.tryOf(supplier)` for a computation that may throw, and `Path.tryPath(try)` for an existing `Try`.
+
+**Operations:** `map`, `via`, `zipWith`, `recover`, `recoverWith`, `orElse`, `mapError`, `mapException` and `getOrElse`.
+
+**Related:** [TryPath documentation](../effect/path_try.md), [Path](#path), [Try](data-effects.md#try), [EitherPath](#eitherpath)
+
+---
+
 ## via
 
 **Definition:** The chaining operation on Effect Paths, equivalent to `flatMap` on monads. Applies a function that returns a new Path, allowing dependent operations to be sequenced. If the current Path is on the failure track, `via` is bypassed and the failure propagates.
