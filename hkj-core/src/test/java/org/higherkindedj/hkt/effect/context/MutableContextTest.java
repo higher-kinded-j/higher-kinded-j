@@ -153,23 +153,6 @@ class MutableContextTest {
     }
 
     @Test
-    @DisplayName("via() throws when function returns wrong context type")
-    void viaThrowsOnWrongContextType() {
-      MutableContext<IOKind.Witness, Counter, Integer> ctx = MutableContext.pure(TEST_VALUE);
-
-      assertThatIllegalArgumentException()
-          .isThrownBy(
-              () ->
-                  ctx.via(x -> ErrorContext.success(x.toString()))
-                      .runWith(INITIAL_STATE)
-                      .unsafeRun())
-          .withMessageContaining(
-              "Type mismatch in via(): expected MutableContext but function returned ErrorContext")
-          .withMessageContaining(
-              "Build the step with MutableContext's factory methods, or chain with flatMap()");
-    }
-
-    @Test
     @DisplayName("flatMap() chains contexts maintaining state")
     void flatMapChainsContexts() {
       MutableContext<IOKind.Witness, Counter, Integer> result =

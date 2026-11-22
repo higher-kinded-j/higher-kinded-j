@@ -66,6 +66,8 @@ record ReportConfig(String userServiceUrl, String orderServiceUrl, Duration time
 
 record DbConfig(String url, String username, String password, int poolSize) {}
 
+record PlatformConfig(String apiUrl, DbConfig database) {}
+
 record ApiError(String message) {
 
   static ApiError fromException(Throwable cause) {
@@ -138,6 +140,10 @@ class Fixture {
 
   static Connection openConnection(String url) {
     return null;
+  }
+
+  static ConfigContext<IOKind.Witness, DbConfig, String> databaseUrl() {
+    return ConfigContext.io(DbConfig::url);
   }
 
   static ConfigContext<IOKind.Witness, AppConfig, Report> generateReport() {

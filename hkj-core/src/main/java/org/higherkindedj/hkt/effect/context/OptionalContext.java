@@ -150,47 +150,28 @@ public final class OptionalContext<F extends WitnessArity<TypeArity.Unary>, A>
   // --- Chainable Operations ---
 
   @Override
-  @SuppressWarnings("unchecked")
   public <B> OptionalContext<F, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Kind<MaybeTKind.Witness<F>, B> result = maybeTMonad.map(mapper, MAYBE_T.widen(transformer));
     return new OptionalContext<>(MAYBE_T.narrow(result), outerMonad);
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <B> OptionalContext<F, B> via(Function<? super A, ? extends EffectContext<F, B>> fn) {
-    Objects.requireNonNull(fn, "fn must not be null");
-
-    Kind<MaybeTKind.Witness<F>, B> result =
-        maybeTMonad.flatMap(
-            a -> {
-              EffectContext<F, B> next = fn.apply(a);
-              Objects.requireNonNull(next, "fn must not return null");
-              if (!(next instanceof OptionalContext<?, ?> nextCtx)) {
-                throw ContextTypeMismatch.via(OptionalContext.class, next);
-              }
-              @SuppressWarnings("unchecked")
-              OptionalContext<F, B> typedNext = (OptionalContext<F, B>) nextCtx;
-              return MAYBE_T.widen(typedNext.transformer);
-            },
-            MAYBE_T.widen(transformer));
-
-    return new OptionalContext<>(MAYBE_T.narrow(result), outerMonad);
-  }
-
   /**
-   * Chains a dependent computation using OptionalContext-specific typing.
+   * Chains a dependent computation that returns an OptionalContext.
    *
-   * <p>This is a convenience method that preserves the type in the signature.
+   * <p>The function is applied to the value, and the context it returns becomes the new context. If
+   * this context is empty, the function is not applied.
    *
-   * @param fn the function to apply, returning a new OptionalContext; must not be null
+   * <p>javac checks the step. It must be an {@code OptionalContext} over the same effect, so a step
+   * of another kind of context does not compile. Convert a {@link JavaOptionalContext} step with
+   * {@link JavaOptionalContext#toOptionalContext()} first.
+   *
+   * @param fn the function to apply, returning the next OptionalContext; must not be null
    * @param <B> the type of the value in the returned context
    * @return the context returned by the function, or an empty context
    * @throws NullPointerException if fn is null or returns null
    */
-  public <B> OptionalContext<F, B> flatMap(
-      Function<? super A, ? extends OptionalContext<F, B>> fn) {
+  public <B> OptionalContext<F, B> via(Function<? super A, ? extends OptionalContext<F, B>> fn) {
     Objects.requireNonNull(fn, "fn must not be null");
 
     Kind<MaybeTKind.Witness<F>, B> result =
@@ -206,6 +187,20 @@ public final class OptionalContext<F extends WitnessArity<TypeArity.Unary>, A>
   }
 
   /**
+   * Chains a dependent computation that returns an OptionalContext. This is another name for {@link
+   * #via}, matching traditional monad terminology, and javac checks the step the same way.
+   *
+   * @param fn the function to apply, returning the next OptionalContext; must not be null
+   * @param <B> the type of the value in the returned context
+   * @return the context returned by the function, or an empty context
+   * @throws NullPointerException if fn is null or returns null
+   */
+  public <B> OptionalContext<F, B> flatMap(
+      Function<? super A, ? extends OptionalContext<F, B>> fn) {
+    return via(fn);
+  }
+
+  /**
    * Sequences an independent computation, discarding this context's value.
    *
    * <p>This is useful for sequencing effects where only the final result matters.
@@ -217,7 +212,7 @@ public final class OptionalContext<F extends WitnessArity<TypeArity.Unary>, A>
    */
   public <B> OptionalContext<F, B> then(Supplier<? extends OptionalContext<F, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return flatMap(ignored -> supplier.get());
+    return via(ignored -> supplier.get());
   }
 
   // --- Recovery Operations ---

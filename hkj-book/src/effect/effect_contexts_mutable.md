@@ -200,6 +200,34 @@ MutableContext<IOKind.Witness, Counter, Unit> incrementThrice =
         .then(() -> MutableContext.modify(Counter::increment));
 ```
 
+### What a Step May Return {#what-a-step-may-return}
+
+javac checks each step of `via`, `flatMap` and `then`. A step must be a `MutableContext` over the same effect and the same state type, because a step both reads and writes the state. So a helper typed on part of the state does not compile in a chain over the whole of it:
+
+<!-- verify:rejects "AppState,B>" -->
+```java
+var counted =
+    MutableContext.<AppState>get()
+        .via(state -> increment());
+```
+
+javac reports the step's type and the type the chain needs:
+
+```text
+error: incompatible types: cannot infer type-variable(s) B
+    (argument mismatch; bad return type in lambda expression
+      MutableContext<Witness,Counter,Unit> cannot be converted to MutableContext<Witness,AppState,B>)
+```
+
+Write the step on the chain's state, reaching the part it changes:
+
+<!-- verify -->
+```java
+MutableContext<IOKind.Witness, AppState, Unit> counted =
+    MutableContext.<AppState>get()
+        .via(state -> MutableContext.modify(s -> s.withCounter(s.counter().increment())));
+```
+
 ### Pattern: Accumulator
 
 <!-- verify -->

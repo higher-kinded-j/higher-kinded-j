@@ -188,7 +188,6 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
   // --- Chainable Operations ---
 
   @Override
-  @SuppressWarnings("unchecked")
   public <B> ErrorContext<F, E, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Kind<EitherTKind.Witness<F, E>, B> result =
@@ -196,22 +195,36 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
     return new ErrorContext<>(EITHER_T.narrow(result), outerMonad);
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <B> ErrorContext<F, E, B> via(Function<? super A, ? extends EffectContext<F, B>> fn) {
+  /**
+   * Chains a dependent computation that returns an ErrorContext.
+   *
+   * <p>The function is applied to the success value, and the context it returns becomes the new
+   * context. If this context holds an error, the function is not applied and the error passes
+   * through.
+   *
+   * <p>javac checks the step. It must be an {@code ErrorContext} over the same effect, and it may
+   * fail with {@code E} or a subtype of it, such as one variant of a sealed error. A step with
+   * another error type does not compile: map its error with {@link #mapError} first.
+   *
+   * <p>A chain whose first context is typed on one variant stays on that variant. Type the first
+   * context on the wider error, as in {@code ErrorContext.<AppError, User>success(user)}, or widen
+   * it with {@code .<AppError>mapError(e -> e)}.
+   *
+   * @param fn the function to apply, returning the next ErrorContext; must not be null
+   * @param <B> the type of the value in the returned context
+   * @return the context returned by the function, or an error context
+   * @throws NullPointerException if fn is null or returns null
+   */
+  public <B> ErrorContext<F, E, B> via(
+      Function<? super A, ? extends ErrorContext<F, ? extends E, B>> fn) {
     Objects.requireNonNull(fn, "fn must not be null");
 
     Kind<EitherTKind.Witness<F, E>, B> result =
         eitherTMonad.flatMap(
             a -> {
-              EffectContext<F, B> next = fn.apply(a);
+              ErrorContext<F, ? extends E, B> next = fn.apply(a);
               Objects.requireNonNull(next, "fn must not return null");
-              if (!(next instanceof ErrorContext<?, ?, ?> nextCtx)) {
-                throw ContextTypeMismatch.via(ErrorContext.class, next);
-              }
-              @SuppressWarnings("unchecked")
-              ErrorContext<F, E, B> typedNext = (ErrorContext<F, E, B>) nextCtx;
-              return EITHER_T.widen(typedNext.transformer);
+              return EITHER_T.widen(covary(next));
             },
             EITHER_T.widen(transformer));
 
@@ -219,44 +232,41 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
   }
 
   /**
-   * Chains a dependent computation using ErrorContext-specific typing.
+   * Chains a dependent computation that returns an ErrorContext. This is another name for {@link
+   * #via}, matching traditional monad terminology, and javac checks the step the same way.
    *
-   * <p>This is a convenience method that preserves the error type in the signature.
-   *
-   * @param fn the function to apply, returning a new ErrorContext; must not be null
+   * @param fn the function to apply, returning the next ErrorContext; must not be null
    * @param <B> the type of the value in the returned context
    * @return the context returned by the function, or an error context
    * @throws NullPointerException if fn is null or returns null
    */
   public <B> ErrorContext<F, E, B> flatMap(
-      Function<? super A, ? extends ErrorContext<F, E, B>> fn) {
-    Objects.requireNonNull(fn, "fn must not be null");
-
-    Kind<EitherTKind.Witness<F, E>, B> result =
-        eitherTMonad.flatMap(
-            a -> {
-              ErrorContext<F, E, B> next = fn.apply(a);
-              Objects.requireNonNull(next, "fn must not return null");
-              return EITHER_T.widen(next.transformer);
-            },
-            EITHER_T.widen(transformer));
-
-    return new ErrorContext<>(EITHER_T.narrow(result), outerMonad);
+      Function<? super A, ? extends ErrorContext<F, ? extends E, B>> fn) {
+    return via(fn);
   }
 
   /**
    * Sequences an independent computation, discarding this context's value.
    *
-   * <p>This is useful for sequencing effects where only the final result matters.
+   * <p>This is useful for sequencing effects where only the final result matters. The supplied
+   * context may fail with {@code E} or a subtype of it, as a step of {@link #via} may.
    *
    * @param supplier provides the next context; must not be null
    * @param <B> the type of the value in the returned context
    * @return the context from the supplier
    * @throws NullPointerException if supplier is null or returns null
    */
-  public <B> ErrorContext<F, E, B> then(Supplier<? extends ErrorContext<F, E, B>> supplier) {
+  public <B> ErrorContext<F, E, B> then(
+      Supplier<? extends ErrorContext<F, ? extends E, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return flatMap(ignored -> supplier.get());
+    return via(ignored -> supplier.get());
+  }
+
+  /** Reads a step whose error is a subtype of {@code E} as failing with {@code E}. */
+  @SuppressWarnings("unchecked") // immutable, and only produces its error: unobservable
+  private static <F extends WitnessArity<TypeArity.Unary>, E, B> EitherT<F, E, B> covary(
+      ErrorContext<F, ? extends E, B> step) {
+    return (EitherT<F, E, B>) step.transformer;
   }
 
   // --- Recovery Operations ---
@@ -289,7 +299,8 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * Recovers from an error by providing a fallback ErrorContext.
    *
    * <p>If this context contains an error, the recovery function is applied to produce an
-   * alternative context. If this context is already successful, it is returned unchanged.
+   * alternative context. If this context is already successful, it is returned unchanged. The
+   * fallback may fail with {@code E} or a subtype of it, as a step of {@link #via} may.
    *
    * @param recovery the function to apply to the error to produce a fallback context; must not be
    *     null
@@ -297,16 +308,16 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * @throws NullPointerException if recovery is null or returns null
    */
   public ErrorContext<F, E, A> recoverWith(
-      Function<? super E, ? extends ErrorContext<F, E, A>> recovery) {
+      Function<? super E, ? extends ErrorContext<F, ? extends E, A>> recovery) {
     Objects.requireNonNull(recovery, "recovery must not be null");
 
     Kind<EitherTKind.Witness<F, E>, A> result =
         eitherTMonad.handleErrorWith(
             EITHER_T.widen(transformer),
             error -> {
-              ErrorContext<F, E, A> next = recovery.apply(error);
+              ErrorContext<F, ? extends E, A> next = recovery.apply(error);
               Objects.requireNonNull(next, "recovery must not return null");
-              return EITHER_T.widen(next.transformer);
+              return EITHER_T.widen(covary(next));
             });
 
     return new ErrorContext<>(EITHER_T.narrow(result), outerMonad);
@@ -315,13 +326,15 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
   /**
    * Provides an alternative context if this one represents an error.
    *
-   * <p>This is a convenience method that ignores the specific error and provides a fallback.
+   * <p>This is a convenience method that ignores the specific error and provides a fallback. The
+   * fallback may fail with {@code E} or a subtype of it, as a step of {@link #via} may.
    *
    * @param alternative provides the fallback context; must not be null
    * @return either this context (if successful) or the alternative
    * @throws NullPointerException if alternative is null or returns null
    */
-  public ErrorContext<F, E, A> orElse(Supplier<? extends ErrorContext<F, E, A>> alternative) {
+  public ErrorContext<F, E, A> orElse(
+      Supplier<? extends ErrorContext<F, ? extends E, A>> alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
     return recoverWith(ignored -> alternative.get());
   }
@@ -338,7 +351,6 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * @return a context with the transformed error type
    * @throws NullPointerException if mapper is null
    */
-  @SuppressWarnings("unchecked")
   public <E2> ErrorContext<F, E2, A> mapError(Function<? super E, ? extends E2> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
 

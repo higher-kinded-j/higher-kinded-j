@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li>Factory methods: io(), ioDeferred(), ask(), pure()
  *   <li>Chainable operations: map(), via(), flatMap(), then()
+ *   <li>Steps that read a supertype of the chain's configuration
  *   <li>Config-specific operations: contramap(), local()
  *   <li>Execution methods: runWith(), runWithSync()
  *   <li>Escape hatch: toReaderT()
@@ -26,7 +27,16 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ConfigContext")
 class ConfigContextTest {
 
-  record AppConfig(String apiUrl, int timeout) {}
+  /** The part of the configuration that a step can read on its own. */
+  interface Endpoint {
+    String apiUrl();
+  }
+
+  record AppConfig(String apiUrl, int timeout) implements Endpoint {}
+
+  private static ConfigContext<IOKind.Witness, Endpoint, String> readUrl() {
+    return ConfigContext.io(Endpoint::apiUrl);
+  }
 
   private static final AppConfig TEST_CONFIG = new AppConfig("https://api.example.com", 30);
   private static final Integer TEST_VALUE = 42;
@@ -139,20 +149,6 @@ class ConfigContextTest {
     }
 
     @Test
-    @DisplayName("via() throws when function returns wrong context type")
-    void viaThrowsOnWrongContextType() {
-      ConfigContext<IOKind.Witness, AppConfig, Integer> ctx = ConfigContext.pure(TEST_VALUE);
-
-      assertThatIllegalArgumentException()
-          .isThrownBy(
-              () -> ctx.via(x -> ErrorContext.success(x.toString())).runWithSync(TEST_CONFIG))
-          .withMessageContaining(
-              "Type mismatch in via(): expected ConfigContext but function returned ErrorContext")
-          .withMessageContaining(
-              "Build the step with ConfigContext's factory methods, or chain with flatMap()");
-    }
-
-    @Test
     @DisplayName("flatMap() chains contexts")
     void flatMapChainsContexts() {
       ConfigContext<IOKind.Witness, AppConfig, Integer> result =
@@ -192,6 +188,39 @@ class ConfigContextTest {
       result.runWithSync(TEST_CONFIG);
       assertThat(firstCalled.get()).isTrue();
       assertThat(secondCalled.get()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("A step that reads a supertype of the chain's configuration")
+  class SupertypeConfigStepTests {
+
+    private final ConfigContext<IOKind.Witness, AppConfig, Integer> start =
+        ConfigContext.pure(TEST_VALUE);
+
+    @Test
+    @DisplayName("via() hands the chain's configuration to the step")
+    void viaHandsConfigurationToStep() {
+      ConfigContext<IOKind.Witness, AppConfig, String> result = start.via(x -> readUrl());
+
+      assertThat(result.runWithSync(TEST_CONFIG)).isEqualTo("https://api.example.com");
+    }
+
+    @Test
+    @DisplayName("flatMap() hands the chain's configuration to the step")
+    void flatMapHandsConfigurationToStep() {
+      ConfigContext<IOKind.Witness, AppConfig, String> result = start.flatMap(x -> readUrl());
+
+      assertThat(result.runWithSync(TEST_CONFIG)).isEqualTo("https://api.example.com");
+    }
+
+    @Test
+    @DisplayName("then() hands the chain's configuration to the step")
+    void thenHandsConfigurationToStep() {
+      ConfigContext<IOKind.Witness, AppConfig, String> result =
+          start.then(ConfigContextTest::readUrl);
+
+      assertThat(result.runWithSync(TEST_CONFIG)).isEqualTo("https://api.example.com");
     }
   }
 

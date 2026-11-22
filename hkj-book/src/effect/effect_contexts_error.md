@@ -164,9 +164,9 @@ ErrorContext<IOKind.Witness, DbError, Invoice> invoice =
 
 Each step receives the previous result. If any step fails, subsequent steps are skipped; the failure propagates to the end.
 
-### flatMap: Type-Preserving Chain
+### flatMap: Another Name for via
 
-`flatMap` is equivalent to `via` but with a more explicit type signature:
+`flatMap` is another name for `via`, for readers who know the monad vocabulary:
 
 <!-- verify -->
 ```java
@@ -177,7 +177,7 @@ ErrorContext<IOKind.Witness, ApiError, Profile> profile =
         .flatMap(prof -> enrichProfile(prof));
 ```
 
-Choose based on readability. Both short-circuit on failure.
+The two are one method, so choose based on readability. Both short-circuit on failure, and javac checks their steps the same way.
 
 ### then: Sequence Without Using the Value
 
@@ -191,6 +191,75 @@ ErrorContext<IOKind.Witness, String, Unit> workflow =
         .then(() -> performAction())
         .then(() -> logAction("Completed"));
 ```
+
+### What a Step May Return {#what-a-step-may-return}
+
+javac checks each step of `via`, `flatMap` and `then`. A step must be an `ErrorContext` over the same effect. It may fail with the chain's error type or a subtype of it. So a helper typed on one variant of a sealed error chains as it is:
+
+<!-- verify -->
+```java
+ErrorContext<IOKind.Witness, LookupError, Profile> lookedUp =
+    ErrorContext.<LookupError, String>success(userId)
+        .via(id -> findUser(id))              // fails with UserMissing
+        .via(user -> loadProfile(user));      // fails with any LookupError
+```
+
+A chain's error type is its first context's, which is why that chain starts on `LookupError`. A chain started by `findUser(id)` stays on `UserMissing`, so it refuses `loadProfile`. Widen such a chain before its first step:
+
+<!-- verify -->
+```java
+ErrorContext<IOKind.Witness, LookupError, Profile> widened =
+    findUser(userId)
+        .<LookupError>mapError(e -> e)
+        .via(user -> loadProfile(user));
+```
+
+A step with another error type does not compile. Here `fetchFromCache` fails with a `String`, in a chain whose error is `ApiError`:
+
+<!-- verify:rejects "ApiError,B>" -->
+```java
+ErrorContext<IOKind.Witness, ApiError, User> cached =
+    fetchUser(userId)
+        .via(user -> fetchFromCache(user.id()));
+```
+
+javac reports the step's type and the type the chain needs:
+
+```text
+error: incompatible types: cannot infer type-variable(s) B
+    (argument mismatch; bad return type in lambda expression
+      ErrorContext<Witness,String,User> cannot be converted to ErrorContext<Witness,? extends ApiError,B>)
+```
+
+Map the step's error to the chain's with [`mapError`](#maperror-change-the-error-type) before returning it:
+
+<!-- verify -->
+```java
+ErrorContext<IOKind.Witness, ApiError, User> cached =
+    fetchUser(userId)
+        .via(user -> fetchFromCache(user.id())
+            .mapError(message -> new ApiError(404, message)));
+```
+
+Convert an `OptionalContext` step with `toErrorContext`, giving it the error an empty result fails with:
+
+<!-- verify -->
+```java
+ErrorContext<IOKind.Witness, ApiError, User> known =
+    ErrorContext.<ApiError, String>success(userId)
+        .via(id -> findCachedUser(id).toErrorContext(new ApiError(404, "no user")));
+```
+
+A step that calls a method on a factory's result names the error type. javac infers it from the chain only when the factory call is the whole step:
+
+<!-- verify -->
+```java
+ErrorContext<IOKind.Witness, ApiError, Integer> idLength =
+    fetchUser(userId)
+        .via(user -> ErrorContext.<ApiError, String>success(user.id()).map(String::length));
+```
+
+[`recoverWith`](#recoverwith-provide-a-fallback-computation) and [`orElse`](#orelse-alternative-without-inspecting-error) follow the same rule for the fallback they return.
 
 ---
 

@@ -163,7 +163,9 @@ OptionalContext<IOKind.Witness, Address> address =
 
 If the user isn't found, the address lookup never runs. If the user exists but has no address, the result is empty. Both cases produce the same `none()` outcome.
 
-### flatMap: Type-Preserving Chain
+### flatMap: Another Name for via
+
+`flatMap` is another name for `via`, for readers who know the monad vocabulary:
 
 <!-- verify -->
 ```java
@@ -182,6 +184,36 @@ OptionalContext<IOKind.Witness, String> result =
         .then(() -> fetchData())
         .then(() -> processResult());
 ```
+
+### What a Step May Return {#what-a-step-may-return}
+
+javac checks each step of `via`, `flatMap` and `then`. A step must be the chain's own kind of context over the same effect, so a `JavaOptionalContext` step in an `OptionalContext` chain does not compile:
+
+<!-- verify:rejects "Address> cannot be converted to" -->
+```java
+OptionalContext<IOKind.Witness, Address> address =
+    lookupUser(userId)
+        .via(found -> findAddress(found));
+```
+
+javac reports the step's type and the type the chain needs:
+
+```text
+error: incompatible types: cannot infer type-variable(s) B
+    (argument mismatch; bad return type in lambda expression
+      JavaOptionalContext<Witness,Address> cannot be converted to OptionalContext<Witness,B>)
+```
+
+Convert the step with `toOptionalContext()` first:
+
+<!-- verify -->
+```java
+OptionalContext<IOKind.Witness, Address> address =
+    lookupUser(userId)
+        .via(found -> findAddress(found).toOptionalContext());
+```
+
+Nothing converts the other way, so build a step for a `JavaOptionalContext` chain with `JavaOptionalContext`'s own factories.
 
 ---
 

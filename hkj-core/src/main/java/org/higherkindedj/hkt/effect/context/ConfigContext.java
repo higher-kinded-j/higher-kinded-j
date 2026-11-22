@@ -153,7 +153,6 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
   // --- Chainable Operations ---
 
   @Override
-  @SuppressWarnings("unchecked")
   public <B> ConfigContext<F, R, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Kind<ReaderTKind.Witness<F, R>, B> result =
@@ -161,22 +160,31 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
     return new ConfigContext<>(READER_T.narrow(result), outerMonad);
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <B> ConfigContext<F, R, B> via(Function<? super A, ? extends EffectContext<F, B>> fn) {
+  /**
+   * Chains a dependent computation that returns a ConfigContext.
+   *
+   * <p>The function is applied to the value, and the context it returns runs with the same
+   * configuration.
+   *
+   * <p>javac checks the step. It must be a {@code ConfigContext} over the same effect, and it may
+   * read {@code R} or a supertype of it, that is, less of the configuration. A step that reads
+   * another type does not compile: adapt it with {@link #contramap} first.
+   *
+   * @param fn the function to apply, returning the next ConfigContext; must not be null
+   * @param <B> the type of the value in the returned context
+   * @return the context returned by the function
+   * @throws NullPointerException if fn is null or returns null
+   */
+  public <B> ConfigContext<F, R, B> via(
+      Function<? super A, ? extends ConfigContext<F, ? super R, B>> fn) {
     Objects.requireNonNull(fn, "fn must not be null");
 
     Kind<ReaderTKind.Witness<F, R>, B> result =
         readerTMonad.flatMap(
             a -> {
-              EffectContext<F, B> next = fn.apply(a);
+              ConfigContext<F, ? super R, B> next = fn.apply(a);
               Objects.requireNonNull(next, "fn must not return null");
-              if (!(next instanceof ConfigContext<?, ?, ?> nextCtx)) {
-                throw ContextTypeMismatch.via(ConfigContext.class, next);
-              }
-              @SuppressWarnings("unchecked")
-              ConfigContext<F, R, B> typedNext = (ConfigContext<F, R, B>) nextCtx;
-              return READER_T.widen(typedNext.transformer);
+              return READER_T.widen(contravary(next));
             },
             READER_T.widen(transformer));
 
@@ -184,44 +192,41 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
   }
 
   /**
-   * Chains a dependent computation using ConfigContext-specific typing.
+   * Chains a dependent computation that returns a ConfigContext. This is another name for {@link
+   * #via}, matching traditional monad terminology, and javac checks the step the same way.
    *
-   * <p>This is a convenience method that preserves the config type in the signature.
-   *
-   * @param fn the function to apply, returning a new ConfigContext; must not be null
+   * @param fn the function to apply, returning the next ConfigContext; must not be null
    * @param <B> the type of the value in the returned context
    * @return the context returned by the function
    * @throws NullPointerException if fn is null or returns null
    */
   public <B> ConfigContext<F, R, B> flatMap(
-      Function<? super A, ? extends ConfigContext<F, R, B>> fn) {
-    Objects.requireNonNull(fn, "fn must not be null");
-
-    Kind<ReaderTKind.Witness<F, R>, B> result =
-        readerTMonad.flatMap(
-            a -> {
-              ConfigContext<F, R, B> next = fn.apply(a);
-              Objects.requireNonNull(next, "fn must not return null");
-              return READER_T.widen(next.transformer);
-            },
-            READER_T.widen(transformer));
-
-    return new ConfigContext<>(READER_T.narrow(result), outerMonad);
+      Function<? super A, ? extends ConfigContext<F, ? super R, B>> fn) {
+    return via(fn);
   }
 
   /**
    * Sequences an independent computation, discarding this context's value.
    *
-   * <p>This is useful for sequencing effects where only the final result matters.
+   * <p>This is useful for sequencing effects where only the final result matters. The supplied
+   * context may read {@code R} or a supertype of it, as a step of {@link #via} may.
    *
    * @param supplier provides the next context; must not be null
    * @param <B> the type of the value in the returned context
    * @return the context from the supplier
    * @throws NullPointerException if supplier is null or returns null
    */
-  public <B> ConfigContext<F, R, B> then(Supplier<? extends ConfigContext<F, R, B>> supplier) {
+  public <B> ConfigContext<F, R, B> then(
+      Supplier<? extends ConfigContext<F, ? super R, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return flatMap(ignored -> supplier.get());
+    return via(ignored -> supplier.get());
+  }
+
+  /** Reads a step that needs a supertype of {@code R} as needing {@code R}. */
+  @SuppressWarnings("unchecked") // immutable, and only reads its configuration: unobservable
+  private static <F extends WitnessArity<TypeArity.Unary>, R, B> ReaderT<F, R, B> contravary(
+      ConfigContext<F, ? super R, B> step) {
+    return (ReaderT<F, R, B>) step.transformer;
   }
 
   // --- Config-specific Operations ---

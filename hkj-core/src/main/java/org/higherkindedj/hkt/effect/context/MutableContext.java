@@ -156,46 +156,28 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
   // --- Chainable Operations ---
 
   @Override
-  @SuppressWarnings("unchecked")
   public <B> MutableContext<F, S, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Kind<StateTKind.Witness<S, F>, B> result = stateTMonad.map(mapper, transformer);
     return new MutableContext<>(StateTKind.narrow(result), outerMonad);
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <B> MutableContext<F, S, B> via(Function<? super A, ? extends EffectContext<F, B>> fn) {
-    Objects.requireNonNull(fn, "fn must not be null");
-
-    Kind<StateTKind.Witness<S, F>, B> result =
-        stateTMonad.flatMap(
-            a -> {
-              EffectContext<F, B> next = fn.apply(a);
-              Objects.requireNonNull(next, "fn must not return null");
-              if (!(next instanceof MutableContext<?, ?, ?> nextCtx)) {
-                throw ContextTypeMismatch.via(MutableContext.class, next);
-              }
-              @SuppressWarnings("unchecked")
-              MutableContext<F, S, B> typedNext = (MutableContext<F, S, B>) nextCtx;
-              return typedNext.transformer;
-            },
-            transformer);
-
-    return new MutableContext<>(StateTKind.narrow(result), outerMonad);
-  }
-
   /**
-   * Chains a dependent computation using MutableContext-specific typing.
+   * Chains a dependent computation that returns a MutableContext.
    *
-   * <p>This is a convenience method that preserves the state type in the signature.
+   * <p>The function is applied to the value, and the context it returns runs on the state this
+   * context left.
    *
-   * @param fn the function to apply, returning a new MutableContext; must not be null
+   * <p>javac checks the step. It must be a {@code MutableContext} over the same effect and the same
+   * state type {@code S}, because a step both reads and writes the state. A step with another state
+   * type does not compile.
+   *
+   * @param fn the function to apply, returning the next MutableContext; must not be null
    * @param <B> the type of the value in the returned context
    * @return the context returned by the function
    * @throws NullPointerException if fn is null or returns null
    */
-  public <B> MutableContext<F, S, B> flatMap(
+  public <B> MutableContext<F, S, B> via(
       Function<? super A, ? extends MutableContext<F, S, B>> fn) {
     Objects.requireNonNull(fn, "fn must not be null");
 
@@ -212,6 +194,20 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
   }
 
   /**
+   * Chains a dependent computation that returns a MutableContext. This is another name for {@link
+   * #via}, matching traditional monad terminology, and javac checks the step the same way.
+   *
+   * @param fn the function to apply, returning the next MutableContext; must not be null
+   * @param <B> the type of the value in the returned context
+   * @return the context returned by the function
+   * @throws NullPointerException if fn is null or returns null
+   */
+  public <B> MutableContext<F, S, B> flatMap(
+      Function<? super A, ? extends MutableContext<F, S, B>> fn) {
+    return via(fn);
+  }
+
+  /**
    * Sequences an independent computation, discarding this context's value.
    *
    * <p>This is useful for sequencing effects where only the final result matters.
@@ -223,7 +219,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
    */
   public <B> MutableContext<F, S, B> then(Supplier<? extends MutableContext<F, S, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return flatMap(ignored -> supplier.get());
+    return via(ignored -> supplier.get());
   }
 
   // --- Execution Methods (IO-specific) ---

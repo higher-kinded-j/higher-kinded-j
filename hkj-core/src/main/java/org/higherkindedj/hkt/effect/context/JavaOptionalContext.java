@@ -156,7 +156,6 @@ public final class JavaOptionalContext<F extends WitnessArity<TypeArity.Unary>, 
   // --- Chainable Operations ---
 
   @Override
-  @SuppressWarnings("unchecked")
   public <B> JavaOptionalContext<F, B> map(Function<? super A, ? extends B> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Kind<OptionalTKind.Witness<F>, B> result =
@@ -164,39 +163,21 @@ public final class JavaOptionalContext<F extends WitnessArity<TypeArity.Unary>, 
     return new JavaOptionalContext<>(OPTIONAL_T.narrow(result), outerMonad);
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <B> JavaOptionalContext<F, B> via(Function<? super A, ? extends EffectContext<F, B>> fn) {
-    Objects.requireNonNull(fn, "fn must not be null");
-
-    Kind<OptionalTKind.Witness<F>, B> result =
-        optionalTMonad.flatMap(
-            a -> {
-              EffectContext<F, B> next = fn.apply(a);
-              Objects.requireNonNull(next, "fn must not return null");
-              if (!(next instanceof JavaOptionalContext<?, ?> nextCtx)) {
-                throw ContextTypeMismatch.via(JavaOptionalContext.class, next);
-              }
-              @SuppressWarnings("unchecked")
-              JavaOptionalContext<F, B> typedNext = (JavaOptionalContext<F, B>) nextCtx;
-              return OPTIONAL_T.widen(typedNext.transformer);
-            },
-            OPTIONAL_T.widen(transformer));
-
-    return new JavaOptionalContext<>(OPTIONAL_T.narrow(result), outerMonad);
-  }
-
   /**
-   * Chains a dependent computation using JavaOptionalContext-specific typing.
+   * Chains a dependent computation that returns a JavaOptionalContext.
    *
-   * <p>This is a convenience method that preserves the type in the signature.
+   * <p>The function is applied to the value, and the context it returns becomes the new context. If
+   * this context is empty, the function is not applied.
    *
-   * @param fn the function to apply, returning a new JavaOptionalContext; must not be null
+   * <p>javac checks the step. It must be a {@code JavaOptionalContext} over the same effect, so a
+   * step of another kind of context does not compile.
+   *
+   * @param fn the function to apply, returning the next JavaOptionalContext; must not be null
    * @param <B> the type of the value in the returned context
    * @return the context returned by the function, or an empty context
    * @throws NullPointerException if fn is null or returns null
    */
-  public <B> JavaOptionalContext<F, B> flatMap(
+  public <B> JavaOptionalContext<F, B> via(
       Function<? super A, ? extends JavaOptionalContext<F, B>> fn) {
     Objects.requireNonNull(fn, "fn must not be null");
 
@@ -213,6 +194,20 @@ public final class JavaOptionalContext<F extends WitnessArity<TypeArity.Unary>, 
   }
 
   /**
+   * Chains a dependent computation that returns a JavaOptionalContext. This is another name for
+   * {@link #via}, matching traditional monad terminology, and javac checks the step the same way.
+   *
+   * @param fn the function to apply, returning the next JavaOptionalContext; must not be null
+   * @param <B> the type of the value in the returned context
+   * @return the context returned by the function, or an empty context
+   * @throws NullPointerException if fn is null or returns null
+   */
+  public <B> JavaOptionalContext<F, B> flatMap(
+      Function<? super A, ? extends JavaOptionalContext<F, B>> fn) {
+    return via(fn);
+  }
+
+  /**
    * Sequences an independent computation, discarding this context's value.
    *
    * <p>This is useful for sequencing effects where only the final result matters.
@@ -225,7 +220,7 @@ public final class JavaOptionalContext<F extends WitnessArity<TypeArity.Unary>, 
   public <B> JavaOptionalContext<F, B> then(
       Supplier<? extends JavaOptionalContext<F, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return flatMap(ignored -> supplier.get());
+    return via(ignored -> supplier.get());
   }
 
   // --- Recovery Operations ---
