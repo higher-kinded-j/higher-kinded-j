@@ -394,6 +394,10 @@ public class PathProcessor extends AbstractProcessor {
         return null;
       }
       List<? extends TypeMirror> declaredBounds = method.getTypeParameters().get(index).getBounds();
+      // Substitution keeps the declaration's bounds in order, but javac rebuilds an intersection of
+      // interfaces alone with Object in front, so the two are paired from the end. A bound with no
+      // counterpart is that Object, named from itself, which javapoet leaves off the declaration.
+      int offset = bounds.size() - declaredBounds.size();
       typeVariables.add(
           TypeVariableName.get(
               variableName.toString(),
@@ -402,7 +406,9 @@ public class PathProcessor extends AbstractProcessor {
                       bound ->
                           ProcessorUtils.typeNameOf(
                               bounds.get(bound),
-                              declaredBounds.get(bound),
+                              bound >= offset
+                                  ? declaredBounds.get(bound - offset)
+                                  : bounds.get(bound),
                               interfaceType,
                               packageName))
                   .toArray(TypeName[]::new)));
