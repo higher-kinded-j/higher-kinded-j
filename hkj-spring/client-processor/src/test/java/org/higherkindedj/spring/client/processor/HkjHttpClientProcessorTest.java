@@ -241,6 +241,73 @@ class HkjHttpClientProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("Replace Void with org.higherkindedj.hkt.Unit");
     }
+
+    @Test
+    @DisplayName("a wildcard bounded by Void is refused, on each Path, since only Void fits it")
+    void voidBehindAWildcardIsRefused() {
+      Compilation compilation =
+          compile(
+              userApi(
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}\")",
+                  "  EitherPath<UserError, ? extends Void> delete(@PathVariable String id);",
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}/later\")",
+                  "  VTaskPath<Either<UserError, ? extends Void>> deleteLater(@PathVariable String id);",
+                  "  @org.springframework.web.service.annotation.DeleteExchange(\"/{id}/maybe\")",
+                  "  MaybePath<? extends Void> deleteIfThere(@PathVariable String id);"),
+              USER_ERROR);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(3);
+      assertThat(compilation).hadErrorContaining("Replace Void with org.higherkindedj.hkt.Unit");
+    }
+
+    @Test
+    @DisplayName("a type variable bounded by Void is refused on a generic client")
+    void voidBoundingATypeVariableIsRefused() {
+      Compilation compilation = compile(repo("T extends Void"), USER_ERROR);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Replace Void with org.higherkindedj.hkt.Unit");
+    }
+
+    @Test
+    @DisplayName("a type variable whose bounds include Void is refused")
+    void voidInAnIntersectionBoundIsRefused() {
+      Compilation compilation = compile(repo("T extends Void & java.io.Serializable"), USER_ERROR);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("Replace Void with org.higherkindedj.hkt.Unit");
+    }
+
+    @Test
+    @DisplayName("a wildcard or type variable that other types fit is not read as Void")
+    void otherBoundsAreNotVoid() {
+      Compilation unbounded =
+          compile(
+              userApi("  @GetExchange(\"/{id}\")", "  MaybePath<?> find(@PathVariable String id);"),
+              USER_ERROR);
+      Compilation numeric = compile(repo("T extends Number"), USER_ERROR);
+
+      assertThat(unbounded).succeeded();
+      assertThat(numeric).succeeded();
+    }
+
+    private static JavaFileObject repo(String typeParameter) {
+      return JavaFileObjects.forSourceLines(
+          "com.example.Repo",
+          "package com.example;",
+          "import org.higherkindedj.hkt.effect.EitherPath;",
+          "import org.higherkindedj.spring.client.HkjHttpClient;",
+          "import org.springframework.web.bind.annotation.PathVariable;",
+          "import org.springframework.web.service.annotation.DeleteExchange;",
+          "import org.springframework.web.service.annotation.HttpExchange;",
+          "@HttpExchange(\"/repo\")",
+          "@HkjHttpClient",
+          "public interface Repo<" + typeParameter + "> {",
+          "  @DeleteExchange(\"/{id}\")",
+          "  EitherPath<UserError, T> delete(@PathVariable String id);",
+          "}");
+    }
   }
 
   @Nested

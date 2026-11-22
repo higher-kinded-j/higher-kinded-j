@@ -104,7 +104,7 @@ signature, and sorted), so repeated builds produce byte-identical sources.
 | `EitherPath<E, T>` | `Right(body)` on 2xx, `Left(decoded)` on a 4xx/5xx envelope | Eager: the call runs when the method is invoked. |
 | `VTaskPath<Either<E, T>>` | the same `Either`, deferred on a virtual thread | Lazy: layer `withRetry` / `timeout` / `withCircuitBreaker` on the returned path before running it. |
 | `MaybePath<T>` | `Just(body)` on 2xx, `Nothing` on 404 or empty body | Other failures propagate as the original exception. |
-| `EitherPath<E, Unit>`, `VTaskPath<Either<E, Unit>>` | `Right(Unit.INSTANCE)` on 2xx, whatever the body | For an endpoint that sends no body. The native method returns `ResponseEntity<Void>`; declaring `Void` itself is a compile error. |
+| `EitherPath<E, Unit>`, `VTaskPath<Either<E, Unit>>` | `Right(Unit.INSTANCE)` on 2xx, whatever the body | For an endpoint that sends no body. The native method returns `ResponseEntity<Void>`; declaring `Void`, or a wildcard or type variable bounded by `Void`, is a compile error. |
 | `MaybePath<Unit>` | `Just(Unit.INSTANCE)` on 2xx, whatever the body, `Nothing` on 404 | For an endpoint that sends no body and may answer 404. |
 | `EitherPath<Unit, T>`, `VTaskPath<Either<Unit, T>>` | `Left(Unit.INSTANCE)` on a 4xx/5xx, whatever the body | For an endpoint whose errors carry nothing, with the default decoder. Declaring `Void` as the error type, or in an `@OnStatus`, is a compile error. |
 

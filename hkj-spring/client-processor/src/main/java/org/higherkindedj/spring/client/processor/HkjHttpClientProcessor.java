@@ -40,9 +40,12 @@ import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -987,7 +990,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    */
   private boolean refusesVoidSuccess(
       TypeMirror success, TypeElement iface, ExecutableElement method) {
-    if (isVoid(success)) {
+    if (onlyVoidFits(success)) {
       error(
           "@HkjHttpClient success type Void cannot hold a value, but a success always holds one."
               + " Replace Void with org.higherkindedj.hkt.Unit: the client then ignores the response"
@@ -1017,6 +1020,24 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         + " org.higherkindedj.hkt.Unit: the default decoder then reads no error body, and "
         + responses
         + " gives Left(Unit.INSTANCE).";
+  }
+
+  /**
+   * Whether only {@code Void} fits a success type: {@code Void} itself, a wildcard whose upper
+   * bound only {@code Void} fits, or a type variable whose bound only {@code Void} fits.
+   */
+  private static boolean onlyVoidFits(TypeMirror type) {
+    return switch (type.getKind()) {
+      case WILDCARD -> {
+        TypeMirror bound = ((WildcardType) type).getExtendsBound();
+        yield bound != null && onlyVoidFits(bound);
+      }
+      case TYPEVAR -> onlyVoidFits(((TypeVariable) type).getUpperBound());
+      case INTERSECTION ->
+          ((IntersectionType) type)
+              .getBounds().stream().anyMatch(HkjHttpClientProcessor::onlyVoidFits);
+      default -> isVoid(type);
+    };
   }
 
   private static boolean isVoid(TypeMirror type) {
