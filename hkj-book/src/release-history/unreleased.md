@@ -174,6 +174,7 @@ Copies, guards and `JsonNullable` reads keep what a `@Nullable` component declar
 
 ## Documentation {#documentation}
 
+- **ValidationPath now has a glossary entry** ([#1264](https://github.com/higher-kinded-j/higher-kinded-j/issues/1264)): it explains error accumulation, the main factories, and where to read more. See [ValidationPath](../glossary/effect-paths.md#validationpath).
 - **`StreamPath` docs no longer call it lazy where the source is read at once** ([#1290](https://github.com/higher-kinded-j/higher-kinded-j/issues/1290)). The cheat sheet and home page describe sequences you can run more than once, and `toStreamPath` says the non-null focuses are collected into a list when it is called.
 - **The StreamPath docs say when the source is read** ([#1278](https://github.com/higher-kinded-j/higher-kinded-j/issues/1278)). `Path.stream` reads its whole stream when it is called, so the stream must be finite. `Path.streamIterate`, `StreamPath.generate` and `StreamPath.fromSupplier` build a fresh stream each time the path runs, so `take` can limit an infinite one. See [Choosing the Right Streaming Tool](../monads/vstream.md#choosing-the-right-streaming-tool).
 - **The Effect Paths glossary gains three entries** ([#1301](https://github.com/higher-kinded-j/higher-kinded-j/issues/1301)): `FreeApPath`, `FreePath` and `GenericPath`. Each gives a definition, its factories on `Path`, and its main operations. See [Effect Paths](../glossary/effect-paths.md#freeappath).
