@@ -13,6 +13,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Flow;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -20,6 +21,7 @@ import org.awaitility.core.ConditionFactory;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -101,6 +103,28 @@ class TakeOnceTailTest {
                       // Cancelled
                     }
                   }));
+    };
+  }
+
+  /**
+   * A publisher of 1 to {@code last} that sends the next element for each one asked for, on the
+   * thread that asks, as a synchronous publisher does.
+   */
+  private static Flow.Publisher<Integer> sendingWhenAsked(int last) {
+    return subscriber -> {
+      AtomicInteger next = new AtomicInteger(1);
+      subscriber.onSubscribe(
+          new Flow.Subscription() {
+            @Override
+            public void request(long n) {
+              for (long i = 0; i < n && next.get() <= last; i++) {
+                subscriber.onNext(next.getAndIncrement());
+              }
+            }
+
+            @Override
+            public void cancel() {}
+          });
     };
   }
 
@@ -235,6 +259,23 @@ class TakeOnceTailTest {
     assertThat(stopped.statusSet()).isTrue();
     assertThat(emitted(read.get())).isEqualTo(2);
     assertThat(again).isSameAs(read.get());
+  }
+
+  @Test
+  @DisplayName(
+      "an element a publisher sends on an interrupted pulling thread, as it asks for one more, is"
+          + " there for the next pull")
+  void elementSentOnAnInterruptedPullingThread() throws Throwable {
+    // A buffer of one, so the second element is buffered and the third is sent as it is taken
+    VStream<Integer> rest =
+        tailOf(VStreamReactive.fromPublisher(sendingWhenAsked(3), 1).pull().run());
+
+    Interrupted<VStream.Step<Integer>> second = onAnInterruptedThread(rest.pull());
+    VStream.Step<Integer> third = tailOf(second.result()).pull().run();
+
+    assertThat(emitted(second.result())).isEqualTo(2);
+    assertThat(second.statusSet()).isTrue();
+    assertThat(emitted(third)).isEqualTo(3);
   }
 
   @ParameterizedTest(name = "{0}")

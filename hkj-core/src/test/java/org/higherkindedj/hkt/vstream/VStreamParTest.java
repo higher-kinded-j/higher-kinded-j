@@ -48,6 +48,14 @@ class VStreamParTest {
         });
   }
 
+  /** Waits until the thread waits, as one blocked in a join or a queue does. */
+  private static void awaitWaiting(Thread thread) {
+    await()
+        .atMost(Duration.ofSeconds(5))
+        .pollInterval(Duration.ofMillis(1))
+        .until(() -> thread.getState() == Thread.State.WAITING);
+  }
+
   @Nested
   @DisplayName("parEvalMap() Tests")
   class ParEvalMap {
@@ -2437,13 +2445,6 @@ class VStreamParTest {
       assertThat(doneOnReturn).as("the source closed before runMergeScope returned").isTrue();
       assertThat(interruptFlagAfter).isTrue();
     }
-
-    private void awaitWaiting(Thread thread) {
-      await()
-          .atMost(Duration.ofSeconds(5))
-          .pollInterval(Duration.ofMillis(1))
-          .until(() -> thread.getState() == Thread.State.WAITING);
-    }
   }
 
   @Nested
@@ -2537,6 +2538,75 @@ class VStreamParTest {
         assertThat(reader.isAlive()).as("close() returned once interrupted").isFalse();
         assertThat(read.get()).containsExactly(1);
         assertThat(interruptedAfter).isTrue();
+      } finally {
+        finaliserMayEnd.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "after an interrupt stops close()'s wait, a pull gives Done only once the sources are"
+            + " closed")
+    void pullAfterAnInterruptedCloseWaitsForTheSources() throws InterruptedException {
+      CountDownLatch finaliserStarted = new CountDownLatch(1);
+      CountDownLatch finaliserMayEnd = new CountDownLatch(1);
+      VStream<Integer> source =
+          VStream.repeat(1)
+              .mapTask(
+                  i ->
+                      VTask.of(
+                          () -> {
+                            Thread.sleep(1);
+                            return i;
+                          }))
+              .onFinalize(
+                  VTask.of(
+                      () -> {
+                        finaliserStarted.countDown();
+                        finaliserMayEnd.await();
+                        return Unit.INSTANCE;
+                      }));
+      // Never ends, so the first step is the source's element
+      VStream<Integer> quiet =
+          () ->
+              VTask.of(
+                  () -> {
+                    new CountDownLatch(1).await();
+                    return new VStream.Step.Done<>();
+                  });
+      VStream<Integer> rest =
+          ((VStream.Step.Emit<Integer>) VStreamPar.merge(source, quiet).pull().run()).tail();
+      Thread closing = Thread.ofVirtual().start(() -> rest.close().run());
+
+      try {
+        assertThat(finaliserStarted.await(5, TimeUnit.SECONDS)).isTrue();
+        awaitWaiting(closing);
+        closing.interrupt();
+        closing.join(Duration.ofSeconds(5));
+        assertThat(closing.isAlive()).as("close() returned once interrupted").isFalse();
+
+        // On an interrupted thread, the wait for the sources stops at the interrupt
+        Thread.currentThread().interrupt();
+        try {
+          assertThatThrownBy(() -> rest.pull().execute()).isInstanceOf(InterruptedException.class);
+        } finally {
+          Thread.interrupted();
+        }
+
+        AtomicReference<VStream.Step<Integer>> pulled = new AtomicReference<>();
+        Thread pulling = Thread.ofVirtual().start(() -> pulled.set(rest.pull().run()));
+        await()
+            .atMost(Duration.ofSeconds(5))
+            .pollInterval(Duration.ofMillis(1))
+            .until(
+                () ->
+                    pulling.getState() == Thread.State.WAITING
+                        || pulling.getState() == Thread.State.TERMINATED);
+        assertThat(pulled.get()).as("no Done while a source's finaliser runs").isNull();
+
+        finaliserMayEnd.countDown();
+        pulling.join(Duration.ofSeconds(5));
+        assertThat(pulled.get()).isInstanceOf(VStream.Step.Done.class);
       } finally {
         finaliserMayEnd.countDown();
       }

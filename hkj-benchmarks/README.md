@@ -575,7 +575,7 @@ Available profilers:
 | `deepFlatMapChainExecution` | Composition | Stack safety for flatMap chains |
 | `mapTaskExecution` | Execution | A task for each element, none failing |
 | `recoverThroughOperators` | Execution | Failed elements recovered through a `map` and a `filter` |
-| `onFinalizeExecution` / `bracketExecution` | Execution | A finaliser on each pull |
+| `onFinalizeExecution` / `bracketExecution` | Execution | Reading through a finaliser, which runs once at the end |
 | `fromStreamExecution` / `fromIteratorExecution` | Execution | `fromStream`, which closes its Java stream, against `fromIterator` |
 | `fromPublisherExecution` | Execution | Reading a `Flow.Publisher` that sends what is asked for |
 | `mergeTwoExecution` | Parallel | Two streams merged, each read on a thread of its own |

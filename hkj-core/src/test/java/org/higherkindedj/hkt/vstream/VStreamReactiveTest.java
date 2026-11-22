@@ -1593,14 +1593,56 @@ class VStreamReactiveTest {
   class InterruptedExceptionHandlerTests {
 
     @Test
-    @DisplayName("onNext InterruptedException fails the run and cancels the subscription")
-    void onNextInterruptedException() throws Exception {
-      AtomicBoolean cancelCalled = new AtomicBoolean(false);
-      CountDownLatch done = new CountDownLatch(1);
+    @DisplayName("onNext waits for room when the publisher sends more than it was asked for")
+    void onNextWaitsForRoom() throws InterruptedException {
+      AtomicReference<Thread> sender = new AtomicReference<>();
+      // Four where one was asked for: the queue holds two, so a send waits for a pull to make room
+      Flow.Publisher<Integer> publisher =
+          subscriber -> {
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {}
 
+                  @Override
+                  public void cancel() {}
+                });
+            sender.set(
+                Thread.startVirtualThread(
+                    () -> {
+                      for (int i = 1; i <= 4; i++) {
+                        subscriber.onNext(i);
+                      }
+                    }));
+          };
+
+      VStream.Step<Integer> first = VStreamReactive.fromPublisher(publisher, 1).pull().run();
+      Thread sending = sender.get();
+      await()
+          .atMost(Duration.ofSeconds(5))
+          .pollInterval(Duration.ofMillis(1))
+          .until(() -> sending.getState() == Thread.State.WAITING);
+      List<Integer> rest = ((VStream.Step.Emit<Integer>) first).tail().take(3).toList().run();
+      sending.join(Duration.ofSeconds(5));
+
+      assertThat(((VStream.Step.Emit<Integer>) first).value()).isEqualTo(1);
+      assertThat(rest).containsExactly(2, 3, 4);
+      assertThat(sending.isAlive()).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "onNext on an interrupted thread, with no room left, cancels the subscription and keeps"
+            + " the interrupt")
+    void onNextInterruptedWithNoRoom() {
+      AtomicBoolean cancelCalled = new AtomicBoolean(false);
+      AtomicBoolean interruptKept = new AtomicBoolean(false);
+
+      // Sends more than the one element asked for, as it subscribes: two fill the queue, and the
+      // third would wait for room
       Flow.Publisher<String> publisher =
           subscriber -> {
-            Flow.Subscription sub =
+            subscriber.onSubscribe(
                 new Flow.Subscription() {
                   @Override
                   public void request(long n) {}
@@ -1608,33 +1650,21 @@ class VStreamReactiveTest {
                   @Override
                   public void cancel() {
                     cancelCalled.set(true);
-                    done.countDown();
                   }
-                };
-            subscriber.onSubscribe(sub);
-            Thread.startVirtualThread(
-                () -> {
-                  Thread.currentThread().interrupt();
-                  subscriber.onNext("item");
                 });
+            subscriber.onNext("a");
+            subscriber.onNext("b");
+            Thread.currentThread().interrupt();
+            subscriber.onNext("c");
+            interruptKept.set(Thread.interrupted());
           };
-      VStream<String> stream = VStreamReactive.fromPublisher(publisher, 1);
 
-      // A run subscribes at its first pull, which then waits for an element
-      AtomicReference<Try<VStream.Step<String>>> outcome = new AtomicReference<>();
-      Thread run = Thread.startVirtualThread(() -> outcome.set(stream.pull().runSafe()));
+      // The run subscribes at its first pull, on this thread
+      VStream.Step<String> first = VStreamReactive.fromPublisher(publisher, 1).pull().run();
 
-      assertThat(done.await(5, TimeUnit.SECONDS)).isTrue();
-      boolean ended = run.join(Duration.ofSeconds(5));
-      if (!ended) {
-        run.interrupt();
-      }
-      assertThat(ended).isTrue();
       assertThat(cancelCalled).isTrue();
-      assertThat(outcome.get())
-          .isInstanceOfSatisfying(
-              Try.Failure.class,
-              failure -> assertThat(failure.cause()).isInstanceOf(InterruptedException.class));
+      assertThat(interruptKept).isTrue();
+      assertThat(((VStream.Step.Emit<String>) first).value()).isEqualTo("a");
     }
 
     @Test

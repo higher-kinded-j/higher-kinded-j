@@ -165,9 +165,15 @@ public final class VStreamReactive {
               // Sent after the stream was closed, so nothing will read it
               return;
             }
+            // The stream asks for one more as it takes each element, not here. Offered first, since
+            // put throws on an interrupted thread even with room, and a publisher may send on the
+            // thread of a pull that was interrupted, from its request(1)
+            Signal<A> element = new Signal.Element<>(item);
+            if (queue.offer(element)) {
+              return;
+            }
             try {
-              // The stream asks for one more as it takes each element, not here
-              queue.put(new Signal.Element<>(item));
+              queue.put(element);
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
               // Fail the run, rather than leave it waiting for an element that is gone
