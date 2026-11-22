@@ -152,7 +152,9 @@ class VStreamErrorReportingTest {
     }
 
     @Test
-    @DisplayName("mapTask failing with one shared error resumes from each failure in turn")
+    @DisplayName(
+        "mapTask failing with one shared error resumes from each failure in turn, run after run,"
+            + " and leaves the error as it was")
     void mapTaskWithASharedError() {
       IllegalStateException shared = new IllegalStateException("even line");
 
@@ -161,7 +163,10 @@ class VStreamErrorReportingTest {
               .mapTask(n -> n % 2 == 0 ? VTask.fail(shared) : VTask.succeed(n))
               .recover(_ -> -1);
 
-      assertThat(stream.take(10).toList().run()).containsExactly(1, -1, 3, -1, 5);
+      for (int run = 0; run < 3; run++) {
+        assertThat(stream.take(10).toList().run()).containsExactly(1, -1, 3, -1, 5);
+      }
+      assertThat(shared.getSuppressed()).isEmpty();
     }
 
     @Test

@@ -29,6 +29,7 @@ import org.higherkindedj.example.book.foundations.vstream.VStreamBook.PagedFeed;
 import org.higherkindedj.example.book.foundations.vstream.VStreamResourcesBook.LoggedCourierService;
 import org.higherkindedj.example.book.foundations.vstream.VStreamResourcesBook.LoggedFeedService;
 import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vstream.VStream;
@@ -399,6 +400,37 @@ class VStreamResourcesBookTest {
                     .extracting(Throwable::getMessage)
                     .containsExactly("second finaliser");
               });
+    }
+
+    @Test
+    @DisplayName(
+        "a shared exception gathers every run's finaliser failure, and defer gives each run its"
+            + " own")
+    void sharedExceptionGathersFinaliserFailures() {
+      VTask<Unit> failingFinaliser =
+          VTask.exec(
+              () -> {
+                throw new IllegalStateException("finaliser");
+              });
+      IllegalStateException shared = new IllegalStateException("feed down");
+      VStream<Integer> sharing = VStream.<Integer>fail(shared).onFinalize(failingFinaliser);
+      VStream<Integer> deferred =
+          VStream.<Integer>defer(() -> VStream.fail(new IllegalStateException("feed down")))
+              .onFinalize(failingFinaliser);
+
+      sharing.toList().runSafe();
+      sharing.toList().runSafe();
+      Try<List<Integer>> firstOwn = deferred.toList().runSafe();
+      Try<List<Integer>> secondOwn = deferred.toList().runSafe();
+
+      assertThat(shared.getSuppressed()).hasSize(2);
+      for (Try<List<Integer>> own : List.of(firstOwn, secondOwn)) {
+        assertThatTry(own)
+            .isFailure()
+            .hasExceptionSatisfying(error -> assertThat(error.getSuppressed()).hasSize(1));
+      }
+      assertThat(((Try.Failure<List<Integer>>) firstOwn).cause())
+          .isNotSameAs(((Try.Failure<List<Integer>>) secondOwn).cause());
     }
 
     @Test

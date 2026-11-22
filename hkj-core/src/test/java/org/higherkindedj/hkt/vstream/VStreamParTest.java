@@ -2280,9 +2280,9 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("mergeFromQueue handles multiple SourceDone signals (Skip path)")
-    void mergeFromQueueMultipleSourceDoneSkipPath() {
-      // Four sources ensure mergeFromQueue processes SourceDone → Skip
+    @DisplayName("merge handles multiple SourceDone signals (Skip path)")
+    void mergeMultipleSourceDoneSkipPath() {
+      // Four sources ensure merge's tail processes SourceDone → Skip
       // for the first three completions, and SourceDone → Done for the last
       VStream<Integer> a = VStream.of(1);
       VStream<Integer> b = VStream.of(2);
@@ -2298,7 +2298,7 @@ class VStreamParTest {
     @DisplayName("merge handles empty sources mixed with non-empty sources")
     void mergeEmptyAndNonEmptySources() {
       // Empty sources send SourceDone immediately, exercising the SourceDone → Skip
-      // path in mergeFromQueue when other sources are still active
+      // path in merge's tail when other sources are still active
       VStream<Integer> empty1 = VStream.empty();
       VStream<Integer> nonEmpty = VStream.of(1, 2);
       VStream<Integer> empty2 = VStream.empty();
@@ -2357,7 +2357,7 @@ class VStreamParTest {
       assertThat(subtaskStarted.await(5, TimeUnit.SECONDS)).isTrue();
       Thread.sleep(50);
 
-      // Interrupt the consumer thread — this causes queue.take() in mergeFromQueue
+      // Interrupt the consumer thread — this causes queue.take() in merge's tail
       // to throw InterruptedException, exercising that catch block
       worker.interrupt();
       assertThat(finished.await(10, TimeUnit.SECONDS)).isTrue();
@@ -2406,7 +2406,7 @@ class VStreamParTest {
       Thread.sleep(100); // buffer to ensure scope.join() is entered
 
       // Interrupt the scope thread — scope.join() throws InterruptedException,
-      // exercising the catch block on lines 298-299
+      // exercising runMergeScope's catch block
       scopeThread.interrupt();
       scopeThread.join(5000);
 
@@ -2673,7 +2673,7 @@ class VStreamParTest {
                 return () -> VTask.succeed(new VStream.Step.Emit<>(1, blocking));
               });
 
-      // take(1) will pull one element then call close() on the inner mergeFromQueue stream
+      // take(1) will pull one element then call close() on merge's tail
       // (via the tail chain), which calls producer.join()
       VStream<Integer> merged = VStreamPar.merge(blockingSource, VStream.of(2)).take(1);
 
@@ -2695,8 +2695,8 @@ class VStreamParTest {
                   subtaskStarted.await(5, TimeUnit.SECONDS);
                   Thread.sleep(50);
 
-                  // Set interrupt flag — when take(0) calls close() -> producer.join(),
-                  // join() will throw InterruptedException, exercising lines 402-403
+                  // Set the interrupt flag before take closes the run. The close holds it back
+                  // while it waits for the producer, then sets it again
                   Thread.currentThread().interrupt();
 
                   // This pull triggers take's n<=0 path which calls close()

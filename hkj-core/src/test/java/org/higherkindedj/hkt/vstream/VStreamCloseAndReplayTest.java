@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.await;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
@@ -31,6 +32,7 @@ import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -46,6 +48,16 @@ class VStreamCloseAndReplayTest {
   /** An endless stream that counts how often its finaliser runs. */
   private static VStream<Integer> endless(AtomicInteger runs) {
     return VStream.repeat(1).onFinalize(VTask.exec(runs::incrementAndGet));
+  }
+
+  /** A stream whose first pull waits until it is interrupted. */
+  private static VStream<Integer> idle() {
+    return () ->
+        VTask.of(
+            () -> {
+              new CountDownLatch(1).await();
+              return new VStream.Step.Done<>();
+            });
   }
 
   /** A four-element stream over a resource whose release is counted. */
@@ -307,6 +319,15 @@ class VStreamCloseAndReplayTest {
 
   private static Arguments terminal(String name, Function<VStream<Integer>, VTask<?>> op) {
     return arguments(named(name, op));
+  }
+
+  /** The ways a run of a {@code fromStream} stream ends. */
+  static Stream<Arguments> javaStreamRuns() {
+    return Stream.of(
+        terminal("take(1), which stops early", s -> s.take(1).toList()),
+        terminal("take(0), which closes it unread", s -> s.take(0).toList()),
+        terminal("toList, which reads to the end", VStream::toList),
+        terminal("a map whose function throws", s -> s.<Integer>map(_ -> boom()).toList()));
   }
 
   static Stream<Arguments> userFunctions() {
@@ -1283,6 +1304,8 @@ class VStreamCloseAndReplayTest {
 
   @Nested
   @DisplayName("A pulled VTask gives the same step each time it runs")
+  // A wait that never ends fails the test rather than hanging the build
+  @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   class PulledTaskRunsAgain {
 
     @Test
@@ -1348,6 +1371,118 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
+    @DisplayName("a tail of merge gives the same step each time it is pulled")
+    void mergeTailRepeats() {
+      VStream<Integer> rest =
+          tailOf(VStreamPar.merge(VStream.of(1, 2), VStream.of(10, 20)).pull().run());
+      VTask<VStream.Step<Integer>> next = rest.pull();
+
+      VStream.Step<Integer> second = next.run();
+
+      assertThat(next.run()).isSameAs(second).isSameAs(rest.pull().run());
+      rest.close().run();
+    }
+
+    @Test
+    @DisplayName("a merge tail that keeps its step gives it again on an interrupted thread")
+    void keptStepOnAnInterruptedThread() throws Throwable {
+      VStream<Integer> rest =
+          tailOf(VStreamPar.merge(VStream.of(1, 2), VStream.of(10, 20)).pull().run());
+      VStream.Step<Integer> kept = rest.pull().run();
+
+      VStream.Step<Integer> again;
+      Thread.currentThread().interrupt();
+      try {
+        again = rest.pull().execute();
+      } finally {
+        Thread.interrupted();
+      }
+      rest.close().run();
+
+      assertThat(again).isSameAs(kept);
+    }
+
+    @Test
+    @DisplayName(
+        "a pull waiting for another pull of the same merge tail stops at an interrupt, keeping the"
+            + " status")
+    void interruptedWhileAnotherPullReads() throws InterruptedException {
+      // Neither source sends anything after the first element, so the next pull waits
+      VStream<Integer> rest =
+          tailOf(VStreamPar.merge(VStream.of(1).concat(idle()), idle()).pull().run());
+      AtomicReference<Throwable> stopped = new AtomicReference<>();
+      AtomicBoolean statusKept = new AtomicBoolean();
+
+      Thread reading = Thread.ofVirtual().start(() -> rest.pull().runSafe());
+      await().atMost(Duration.ofSeconds(5)).until(() -> reading.getState() == Thread.State.WAITING);
+      Thread waiting =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    try {
+                      rest.pull().execute();
+                    } catch (Throwable t) {
+                      stopped.set(t);
+                      statusKept.set(Thread.currentThread().isInterrupted());
+                    }
+                  });
+      await().atMost(Duration.ofSeconds(5)).until(() -> waiting.getState() == Thread.State.WAITING);
+      waiting.interrupt();
+      waiting.join(Duration.ofSeconds(5));
+      rest.close().run();
+      reading.join(Duration.ofSeconds(5));
+
+      assertThat(stopped.get()).isInstanceOf(InterruptedException.class);
+      assertThat(statusKept).isTrue();
+    }
+
+    @Test
+    @DisplayName("a tail of merge pulled by two threads at once gives each the same step")
+    void mergeTailPulledAtOnce() throws InterruptedException {
+      CountDownLatch release = new CountDownLatch(1);
+      // Its second element waits until released, so both pulls wait for it
+      VStream<Integer> held =
+          VStream.of(1)
+              .concat(
+                  () ->
+                      VTask.of(
+                          () -> {
+                            release.await();
+                            return new VStream.Step.Emit<>(2, VStream.empty());
+                          }));
+      VStream<Integer> rest = tailOf(VStreamPar.merge(held, idle()).pull().run());
+      AtomicReference<VStream.Step<Integer>> first = new AtomicReference<>();
+      AtomicReference<VStream.Step<Integer>> second = new AtomicReference<>();
+
+      Thread reading = Thread.ofVirtual().start(() -> first.set(rest.pull().run()));
+      await().atMost(Duration.ofSeconds(5)).until(() -> reading.getState() == Thread.State.WAITING);
+      // The second pull waits for the first, which holds the position while it waits
+      Thread waiting = Thread.ofVirtual().start(() -> second.set(rest.pull().run()));
+      await().atMost(Duration.ofSeconds(5)).until(() -> waiting.getState() == Thread.State.WAITING);
+      release.countDown();
+      reading.join(Duration.ofSeconds(5));
+      waiting.join(Duration.ofSeconds(5));
+      rest.close().run();
+
+      assertThat(emitted(first.get())).isEqualTo(2);
+      assertThat(second.get()).isSameAs(first.get());
+    }
+
+    @Test
+    @DisplayName("a tail of merge that a source's failure fails gives that failure each time")
+    void mergeTailRepeatsItsFailure() {
+      IllegalStateException down = new IllegalStateException("source down");
+      // The idle source sends nothing, so the element comes first and the failure next
+      VStream<Integer> rest =
+          tailOf(VStreamPar.merge(VStream.of(1).concat(VStream.fail(down)), idle()).pull().run());
+      VTask<VStream.Step<Integer>> pulled = rest.pull();
+
+      assertThatTry(pulled.runSafe()).hasException(down);
+      assertThatTry(pulled.runSafe()).hasException(down);
+      assertThatTry(rest.pull().runSafe()).hasException(down);
+    }
+
+    @Test
     @DisplayName("distinct, chunk and chunkWhile give the same step on a second run")
     void statefulOperatorsRepeat() {
       VTask<VStream.Step<Integer>> distinct = VStream.of(1, 2).distinct().pull();
@@ -1367,6 +1502,8 @@ class VStreamCloseAndReplayTest {
 
   @Nested
   @DisplayName("A tail pulled again replays the same elements")
+  // A wait that never ends fails the test rather than hanging the build
+  @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   class TailReplays {
 
     @Test
@@ -1376,6 +1513,18 @@ class VStreamCloseAndReplayTest {
 
       assertThat(tail.toList().run()).containsExactly(2, 3);
       assertThat(tail.toList().run()).containsExactly(2, 3);
+    }
+
+    @Test
+    @DisplayName("a merge tail consumed twice gives the same elements")
+    void mergeTailReplays() {
+      VStream<Integer> tail =
+          tailOf(VStreamPar.merge(VStream.of(1, 2), VStream.of(10, 20)).pull().run());
+
+      List<Integer> once = tail.toList().run();
+
+      assertThat(once).hasSize(3);
+      assertThat(tail.toList().run()).isEqualTo(once);
     }
 
     @Test
@@ -1578,6 +1727,8 @@ class VStreamCloseAndReplayTest {
 
   @Nested
   @DisplayName("merge closes the sources it stops reading")
+  // A wait that never ends fails the test rather than hanging the build
+  @Timeout(value = 10, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   class MergeCloses {
 
     @Test
@@ -1595,19 +1746,12 @@ class VStreamCloseAndReplayTest {
     @Test
     @DisplayName("headOption after merge returns while another source is blocked in a pull")
     void headOptionReturnsPastAnIdleSource() throws InterruptedException {
-      VStream<Integer> idle =
-          () ->
-              VTask.of(
-                  () -> {
-                    new CountDownLatch(1).await();
-                    return new VStream.Step.Done<>();
-                  });
       List<Optional<Integer>> result = new ArrayList<>();
 
       Thread consumer =
           Thread.ofVirtual()
-              .start(() -> result.add(VStreamPar.merge(VStream.of(1), idle).headOption().run()));
-      consumer.join(Duration.ofSeconds(10));
+              .start(() -> result.add(VStreamPar.merge(VStream.of(1), idle()).headOption().run()));
+      consumer.join(Duration.ofSeconds(5));
 
       assertThat(consumer.isAlive()).as("headOption should not wait for the idle source").isFalse();
       assertThat(result).containsExactly(Optional.of(1));
@@ -1662,8 +1806,8 @@ class VStreamCloseAndReplayTest {
       // Once the second close waits for the producer, it has interrupted it
       await().atMost(Duration.ofSeconds(10)).until(() -> closer.getState() == Thread.State.WAITING);
       proceed.countDown();
-      firstCloser.join(Duration.ofSeconds(10));
-      closer.join(Duration.ofSeconds(10));
+      firstCloser.join(Duration.ofSeconds(5));
+      closer.join(Duration.ofSeconds(5));
 
       assertThat(interrupted).isFalse();
       assertThat(firstCloser.isAlive()).isFalse();
@@ -1718,6 +1862,155 @@ class VStreamCloseAndReplayTest {
       assertThatThrownBy(() -> merged.toList().run()).hasMessage("pull failed");
       assertThat(first).hasValue(1);
       assertThat(second).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a merge tail first pulled after its run is closed gives Done")
+    void tailPulledAfterCloseIsDone() {
+      VStream<Integer> rest =
+          tailOf(VStreamPar.merge(VStream.of(1, 2), VStream.of(10, 20)).pull().run());
+
+      rest.close().run();
+
+      assertThat(rest.toList().run()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("closing a merge tail wakes a pull waiting on it, which gives Done")
+    void closeWakesAWaitingPull() throws InterruptedException {
+      VStream<Integer> rest = tailOf(VStreamPar.merge(VStream.of(1), idle()).pull().run());
+      AtomicReference<List<Integer>> read = new AtomicReference<>();
+
+      Thread reader = Thread.ofVirtual().start(() -> read.set(rest.toList().run()));
+      await().atMost(Duration.ofSeconds(5)).until(() -> reader.getState() == Thread.State.WAITING);
+      rest.close().run();
+      reader.join(Duration.ofSeconds(5));
+
+      assertThat(reader.isAlive()).as("the pull still waits after the close").isFalse();
+      assertThat(read.get()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "a pull waiting through a close gives Done, though a source sends one more element as it"
+            + " stops")
+    void waitingPullEndsPastALateElement() throws InterruptedException {
+      CountDownLatch pulling = new CountDownLatch(1);
+      CountDownLatch passedOver = new CountDownLatch(1);
+      CountDownLatch release = new CountDownLatch(1);
+      CountDownLatch read = new CountDownLatch(1);
+      // Its second pull waits until released, passing over the interrupt that stops the merge.
+      // Its finaliser holds the close until the pull has read, so the late element is the only
+      // signal the pull can take
+      VStream<Integer> late =
+          VStream.of(1)
+              .concat(
+                  () ->
+                      VTask.of(
+                          () -> {
+                            pulling.countDown();
+                            while (true) {
+                              try {
+                                release.await();
+                                return new VStream.Step.Emit<>(2, VStream.empty());
+                              } catch (InterruptedException interrupt) {
+                                // waits on, as a source that ignores interrupts does
+                                passedOver.countDown();
+                              }
+                            }
+                          }))
+              .onFinalize(
+                  VTask.of(
+                      () -> {
+                        read.await(5, TimeUnit.SECONDS);
+                        return Unit.INSTANCE;
+                      }));
+      VStream<Integer> rest = tailOf(VStreamPar.merge(late, idle()).pull().run());
+      AtomicReference<VStream.Step<Integer>> waited = new AtomicReference<>();
+
+      Thread reader =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    waited.set(rest.pull().run());
+                    read.countDown();
+                  });
+      assertThat(pulling.await(5, TimeUnit.SECONDS)).isTrue();
+      await().atMost(Duration.ofSeconds(5)).until(() -> reader.getState() == Thread.State.WAITING);
+      Thread closer = Thread.ofVirtual().start(() -> rest.close().run());
+      // The close interrupts the late source once, which passes over it, so the element it sends
+      // once released reaches the queue
+      assertThat(passedOver.await(5, TimeUnit.SECONDS)).isTrue();
+      release.countDown();
+      closer.join(Duration.ofSeconds(5));
+      reader.join(Duration.ofSeconds(5));
+
+      assertThat(waited.get()).isInstanceOf(VStream.Step.Done.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("fromStream closes the Java stream it reads")
+  class FromStreamCloses {
+
+    /** A Java stream over 1, 2 and 3 that counts how often it is closed. */
+    private static Stream<Integer> counted(AtomicInteger closed) {
+      return Stream.of(1, 2, 3).onClose(closed::incrementAndGet);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("org.higherkindedj.hkt.vstream.VStreamCloseAndReplayTest#javaStreamRuns")
+    @DisplayName("each way a run ends closes the Java stream")
+    void eachEndCloses(Function<VStream<Integer>, VTask<?>> run) {
+      AtomicInteger closed = new AtomicInteger();
+
+      run.apply(VStream.fromStream(counted(closed))).runSafe();
+
+      assertThat(closed).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a Java stream that fails as it is read is closed")
+    void failingJavaStreamIsClosed() {
+      AtomicInteger closed = new AtomicInteger();
+      Stream<Integer> failsAtTwo =
+          counted(closed)
+              .map(
+                  n -> {
+                    if (n == 2) {
+                      throw new IllegalStateException("read failed");
+                    }
+                    return n;
+                  });
+
+      assertThatThrownBy(() -> VStream.fromStream(failsAtTwo).toList().run())
+          .hasMessage("read failed");
+      assertThat(closed).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("an onClose handler that throws fails the run, as a finaliser does")
+    void throwingCloseHandlerFailsTheRun() {
+      Stream<Integer> closeFails =
+          Stream.of(1)
+              .onClose(
+                  () -> {
+                    throw new IllegalStateException("close failed");
+                  });
+
+      assertThatThrownBy(() -> VStream.fromStream(closeFails).toList().run())
+          .hasMessage("close failed");
+    }
+
+    @Test
+    @DisplayName("a later run carries on where the last stopped, and closes nothing more")
+    void laterRunCarriesOn() {
+      AtomicInteger closed = new AtomicInteger();
+      VStream<Integer> stream = VStream.fromStream(counted(closed));
+
+      assertThat(stream.take(1).toList().run()).containsExactly(1);
+      assertThat(stream.toList().run()).containsExactly(2, 3);
+      assertThat(closed).hasValue(1);
     }
   }
 

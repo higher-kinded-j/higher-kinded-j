@@ -93,6 +93,8 @@ A file is read the same way, with `java.nio.file.Files`, `java.nio.file.Path` an
 
 `java.nio.file.Path` and the library's `Path` share a name, so code that uses both imports one and writes the other in full. The example keeps the file in a class of its own.
 
+`VStream.fromStream(Files.lines(file))` closes the file when a run is over too, but `Files.lines` opens the file as soon as it is called. So a stream that no run pulls keeps the file open, and so does a run on an interrupted thread, which fails before it pulls. A run after one that stopped early or failed, such as a retry, reads on from the closed file. Over a large file it can give the lines already buffered, then fail with `UncheckedIOException`. `bracket` opens the file afresh for each run, and only once the run starts. To read on across runs instead, pass the stream's iterator to `fromIterator`, which leaves closing it to you.
+
 ## When something fails {#when-something-fails}
 
 A failure closes the connection too, and a close that fails is reported. `new LoggedFeedService(log, feed)` serves another feed, and `LoggedFeedService.failingToClose(log, feed)` gives connections whose close throws:
@@ -143,6 +145,7 @@ A `use` such as `connection -> orders(connection).concat(next)` instead keeps th
 - **Several finalisers run in the order they were attached.**
 - **After a recovered failure, the finaliser runs when the stream ends.** When a `recover` reads on after a failed `mapTask` task, the run goes on, and the finaliser waits for its end.
 - **A failing finaliser is reported as a failing release is**, as [When something fails](#when-something-fails) shows. When several fail, the others still run, the first one's exception is thrown, and each later one is suppressed onto it.
+- **A shared exception gathers every run's finaliser failure**, as it does [on a path](../effect/advanced_topics.md#the-bracket-pattern). `VStream.fail(e)` fails each run with the one `e`. Create it inside `defer`, as in `VStream.defer(() -> VStream.fail(new IOException("feed down")))`, to give each run its own.
 
 `bracket` is built on `onFinalize`: its release is the finaliser of the stream that `use` gives.
 

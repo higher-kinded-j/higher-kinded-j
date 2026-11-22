@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.stream.StreamKindHelper.STREAM;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Natural;
@@ -68,6 +69,21 @@ class VStreamTransformationsTest {
 
       VStream<Integer> vstream = VSTREAM.narrow(result);
       assertThat(vstream.toList().run()).containsExactly(42);
+    }
+
+    @Test
+    @DisplayName("closes the Java stream when a run stops early")
+    void closesTheJavaStream() {
+      AtomicInteger closed = new AtomicInteger();
+      Natural<StreamKind.Witness, VStreamKind.Witness> nt =
+          VStreamTransformations.streamToVStream();
+
+      Kind<StreamKind.Witness, Integer> streamKind =
+          STREAM.widen(Stream.of(1, 2, 3).onClose(closed::incrementAndGet));
+      VStream<Integer> vstream = VSTREAM.narrow(nt.apply(streamKind));
+
+      assertThat(vstream.take(1).toList().run()).containsExactly(1);
+      assertThat(closed).hasValue(1);
     }
   }
 
