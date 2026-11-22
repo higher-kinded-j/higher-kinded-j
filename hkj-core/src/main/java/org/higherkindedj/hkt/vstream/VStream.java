@@ -2373,12 +2373,10 @@ final class FinalizedStream<A> implements VStream<A> {
 
   @Override
   public VTask<Step<A>> pull() {
-    return VTask.delay(
-            () -> {
-              headDone.set(true);
-              return consumption(source, finalizer, new AtomicBoolean(false));
-            })
-        .flatMap(VStream::pull);
+    return () -> {
+      headDone.set(true);
+      return consumption(source, finalizer, new AtomicBoolean(false)).pull().execute();
+    };
   }
 
   @Override
@@ -2424,42 +2422,33 @@ final class FinalizedStream<A> implements VStream<A> {
     return new VStream<>() {
       @Override
       public VTask<Step<A>> pull() {
-        // A source that fails as it is pulled still reaches the recovery that runs the finaliser
-        VTask<Step<A>> pullTask = VTask.delay(source::pull).flatMap(task -> task);
-        return pullTask
-            .<Step<A>>flatMap(
-                step ->
-                    switch (step) {
-                      case Step.Emit<A> e ->
-                          VTask.succeed(
-                              new Step.Emit<>(
-                                  e.value(), consumption(e.tail(), finalizer, released)));
-                      case Step.Skip<A> s ->
-                          VTask.succeed(
-                              new Step.Skip<>(consumption(s.tail(), finalizer, released)));
-                      // The consumption goes on after a failed element, and releases when it ends
-                      // or closes
-                      case Step.Fail<A> failed ->
-                          VTask.succeed(
-                              new Step.Fail<>(
-                                  failed.error(), consumption(failed.tail(), finalizer, released)));
-                      // A task of its own, so the finaliser's failure is reported as it threw it
-                      case Step.Done<A> _ ->
-                          () -> {
-                            if (released.compareAndSet(false, true)) {
-                              Cleanup.withInterruptCleared(() -> Executing.executed(finalizer));
-                            }
-                            return new Step.Done<A>();
-                          };
-                    })
-            .recoverWith(
-                error ->
-                    () -> {
-                      // Release as closing does, source first, so the finalisers upstream run
-                      // before this one; a failure to release is suppressed onto the error
-                      Closing.runAfterFailure(release(released, finalizer, source), error);
-                      throw error;
-                    });
+        // One task for each pull, as the operators run theirs, since every element passes here
+        return () -> {
+          try {
+            // A source that fails as it is pulled still reaches the release below
+            return switch (source.pull().execute()) {
+              case Step.Emit<A> e ->
+                  new Step.Emit<>(e.value(), consumption(e.tail(), finalizer, released));
+              case Step.Skip<A> s -> new Step.Skip<>(consumption(s.tail(), finalizer, released));
+              // The consumption goes on after a failed element, and releases when it ends or
+              // closes
+              case Step.Fail<A> failed ->
+                  new Step.Fail<>(failed.error(), consumption(failed.tail(), finalizer, released));
+              case Step.Done<A> _ -> {
+                if (released.compareAndSet(false, true)) {
+                  // The finaliser's failure is reported as it threw it
+                  Cleanup.withInterruptCleared(() -> Executing.executed(finalizer));
+                }
+                yield new Step.Done<>();
+              }
+            };
+          } catch (Throwable error) {
+            // Release as closing does, source first, so the finalisers upstream run before this
+            // one; a failure to release is suppressed onto the error
+            Closing.runAfterFailure(release(released, finalizer, source), error);
+            throw error;
+          }
+        };
       }
 
       @Override

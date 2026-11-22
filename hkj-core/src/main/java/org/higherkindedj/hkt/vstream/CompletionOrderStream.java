@@ -8,7 +8,6 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.util.Cleanup;
@@ -315,52 +314,42 @@ final class CompletionOrderStream {
   }
 
   /**
-   * The rest of a window after the results taken so far. Its first pull takes the next signal, and
-   * it keeps the step that gives, so pulling it again gives the same step.
+   * The rest of a window after the results taken so far, a {@link TakeOnceTail} over the window's
+   * signals: its first pull takes the next signal, and it keeps the step that gives, so pulling it
+   * again gives the same step.
    */
-  private static final class Taken<B> implements VStream<B> {
+  private static final class Taken<B> extends TakeOnceTail<Signal<B>, B> {
 
     private final Window<?, B> window;
-    private final ReentrantLock lock = new ReentrantLock();
-    private @Nullable Step<B> step;
-    private @Nullable Throwable failure;
 
     Taken(Window<?, B> window) {
       this.window = window;
     }
 
     @Override
-    public VTask<Step<B>> pull() {
-      return () -> {
-        lock.lockInterruptibly();
-        try {
-          if (step == null && failure == null) {
-            switch (window.signals.take()) {
-              case Signal.Result<B> r -> {
-                window.permits.release();
-                step = new Step.Emit<>(r.value(), new Taken<>(window));
-              }
-              case Signal.FailedElement<B> failed -> {
-                window.permits.release();
-                step = new Step.Fail<>(failed.error(), new Taken<>(window));
-              }
-              // How the window ended stays for any other tail pulled after this one
-              case Signal.Failed<B> failed -> {
-                window.signals.add(failed);
-                failure = failed.cause();
-              }
-              case Signal.End<B> end -> {
-                window.signals.add(end);
-                step = new Step.Done<>();
-              }
-            }
-          }
-          if (failure != null) {
-            throw failure;
-          }
-          return Objects.requireNonNull(step);
-        } finally {
-          lock.unlock();
+    Signal<B> nextSignal() throws InterruptedException {
+      return pollOrTake(window.signals);
+    }
+
+    @Override
+    Step<B> stepFor(Signal<B> signal) throws Throwable {
+      return switch (signal) {
+        case Signal.Result<B> r -> {
+          window.permits.release();
+          yield new Step.Emit<>(r.value(), new Taken<>(window));
+        }
+        case Signal.FailedElement<B> failed -> {
+          window.permits.release();
+          yield new Step.Fail<>(failed.error(), new Taken<>(window));
+        }
+        // How the window ended stays for any other tail pulled after this one
+        case Signal.Failed<B> failed -> {
+          window.signals.add(failed);
+          throw failed.cause();
+        }
+        case Signal.End<B> end -> {
+          window.signals.add(end);
+          yield new Step.Done<>();
         }
       };
     }

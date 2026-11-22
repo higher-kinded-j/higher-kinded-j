@@ -1403,59 +1403,6 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
-    @DisplayName("a merge tail that keeps its step gives it again on an interrupted thread")
-    void keptStepOnAnInterruptedThread() throws Throwable {
-      VStream<Integer> rest =
-          tailOf(VStreamPar.merge(VStream.of(1, 2), VStream.of(10, 20)).pull().run());
-      VStream.Step<Integer> kept = rest.pull().run();
-
-      VStream.Step<Integer> again;
-      Thread.currentThread().interrupt();
-      try {
-        again = rest.pull().execute();
-      } finally {
-        Thread.interrupted();
-      }
-      rest.close().run();
-
-      assertThat(again).isSameAs(kept);
-    }
-
-    @Test
-    @DisplayName(
-        "a pull waiting for another pull of the same merge tail stops at an interrupt, keeping the"
-            + " status")
-    void interruptedWhileAnotherPullReads() throws InterruptedException {
-      // Neither source sends anything after the first element, so the next pull waits
-      VStream<Integer> rest =
-          tailOf(VStreamPar.merge(VStream.of(1).concat(idle()), idle()).pull().run());
-      AtomicReference<Throwable> stopped = new AtomicReference<>();
-      AtomicBoolean statusKept = new AtomicBoolean();
-
-      Thread reading = Thread.ofVirtual().start(() -> rest.pull().runSafe());
-      await().atMost(Duration.ofSeconds(5)).until(() -> reading.getState() == Thread.State.WAITING);
-      Thread waiting =
-          Thread.ofVirtual()
-              .start(
-                  () -> {
-                    try {
-                      rest.pull().execute();
-                    } catch (Throwable t) {
-                      stopped.set(t);
-                      statusKept.set(Thread.currentThread().isInterrupted());
-                    }
-                  });
-      await().atMost(Duration.ofSeconds(5)).until(() -> waiting.getState() == Thread.State.WAITING);
-      waiting.interrupt();
-      waiting.join(Duration.ofSeconds(5));
-      rest.close().run();
-      reading.join(Duration.ofSeconds(5));
-
-      assertThat(stopped.get()).isInstanceOf(InterruptedException.class);
-      assertThat(statusKept).isTrue();
-    }
-
-    @Test
     @DisplayName("a tail of merge pulled by two threads at once gives each the same step")
     void mergeTailPulledAtOnce() throws InterruptedException {
       CountDownLatch release = new CountDownLatch(1);

@@ -89,7 +89,9 @@ The results go to `hkj-benchmarks/build/reports/jmh/`. Each score is operations 
 | `pipelineFilterMap`, `pipelineMapFilterTake`, `deepMapChainExecution`, `deepFlatMapChainExecution`, `realWorldTransformPipeline`, `realWorldFlatMapFilter` | Running pipelines |
 | `baselineJavaStreamMap`, `baselineJavaStreamFilter`, `baselineJavaStreamPipeline`, `baselineJavaStreamFold` | The same work as a Java `Stream` |
 | `mapTaskExecution`, `recoverThroughOperators` | A task for each element, and recovering through operators |
-| `parEvalMapConcurrency2`, `parEvalMapConcurrency4`, `parEvalMapUnbounded`, `parEvalMapUnorderedConcurrency4` | Parallel tasks |
+| `onFinalizeExecution`, `bracketExecution`, `fromStreamExecution`, `fromIteratorExecution` | Reading through a finaliser, which runs once at the end, and `fromStream` against `fromIterator`, which closes nothing |
+| `fromPublisherExecution` | Reading a `Flow.Publisher` that sends what is asked for |
+| `parEvalMapConcurrency2`, `parEvalMapConcurrency4`, `parEvalMapUnbounded`, `parEvalMapUnorderedConcurrency4`, `mergeTwoExecution` | Parallel tasks, and merging two streams |
 | `chunkExecution`, `mapChunkedExecution`, `realWorldChunkParallel` | Chunking |
 | `existsEarlyMatch`, `findEarlyMatch`, `existsNoMatch` | Stopping early, against reading to the end |
 

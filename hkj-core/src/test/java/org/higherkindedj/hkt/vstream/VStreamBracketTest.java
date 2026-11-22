@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.Unit;
-import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -301,13 +300,27 @@ class VStreamBracketTest {
     void finalizerRunsWhenSourceFailsAsItIsPulled() {
       AtomicInteger count = new AtomicInteger(0);
 
-      // chunk pulls its source as soon as it is pulled, so the failure comes from pull() itself
-      VStream<NonEmptyList<Integer>> stream =
-          VStream.<Integer>fail(new RuntimeException("boom"))
-              .chunk(2)
-              .onFinalize(VTask.exec(count::incrementAndGet));
+      // The source's pull() throws, before it gives a task to run
+      VStream<Integer> source =
+          () -> {
+            throw new IllegalStateException("boom");
+          };
+      VStream<Integer> stream = source.onFinalize(VTask.exec(count::incrementAndGet));
 
       assertThatThrownBy(() -> stream.toList().run()).hasMessage("boom");
+      assertThat(count).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("finaliser runs once after a source that skips elements")
+    void finalizerRunsOnceAfterSkips() {
+      AtomicInteger count = new AtomicInteger(0);
+
+      // filter gives a Skip for the element it drops
+      VStream<Integer> stream =
+          VStream.of(1, 2, 3).filter(x -> x != 2).onFinalize(VTask.exec(count::incrementAndGet));
+
+      assertThat(stream.toList().run()).containsExactly(1, 3);
       assertThat(count).hasValue(1);
     }
 
