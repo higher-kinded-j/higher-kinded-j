@@ -903,3 +903,42 @@ html.mocha .hkj-rail-ok       { color: #a6e3a1; } /* Green */
 html.mocha .hkj-rail-err      { color: #f38ba8; } /* Red */
 html.mocha .hkj-rail-warn     { color: #f9e2af; } /* Yellow */
 html.mocha .hkj-rail-info     { color: #89b4fa; } /* Blue */
+
+/* "Ask about this page": menu-bar icon with a count badge, and the thread at the foot of the page */
+.ask-about-page-icon {
+  position: relative;
+  display: inline-block;
+}
+.ask-about-page-badge {
+  position: absolute;
+  top: -0.15em;
+  right: -0.75em;
+  min-width: 1.25em;
+  padding: 0 0.3em;
+  border-radius: 1em;
+  background: var(--links);
+  color: var(--bg);
+  font-size: 0.65em;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  pointer-events: none;
+}
+.ask-about-page-badge[hidden] {
+  display: none;
+}
+.ask-about-page {
+  margin-top: 4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--table-border-color, var(--quote-border));
+  outline: none;
+}
+.ask-about-page h2 {
+  margin-top: 0;
+}
+@media print {
+  .ask-about-page,
+  .ask-about-page-link {
+    display: none;
+  }
+}
