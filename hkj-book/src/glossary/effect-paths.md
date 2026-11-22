@@ -769,6 +769,18 @@ EitherPath<ApiError, User> partial = fetchUser(id)
 
 ---
 
+## ValidationPath
+
+**Definition:** A path over `Validated<E, A>` for a computation that collects every error instead of stopping at the first. The errors combine through a `Semigroup<E>`, and `run()` returns the `Validated`.
+
+**Factories:** `Path.valid(value, semigroup)`, `Path.invalid(error, semigroup)` and `Path.validated(validated, semigroup)` for an existing `Validated`. The shortcuts `Path.validNel(value)` and `Path.invalidNel(error)` use a `NonEmptyList` of errors and take no `Semigroup`. `Path.fields()` and `Path.accumulate()` open the staged assembly builder for combining several validations at once.
+
+**Operations:** `map`, `via`, `zipWith`, `zipWithAccum`, `zipWith3Accum`, `andAlso`, `recover`, `recoverWith`, `orElse`, `mapError` and `getOrElse`.
+
+**Related:** [ValidationPath documentation](../effect/path_validation.md), [Path](#path), [Validated](data-effects.md#validated), [Semigroup](type-classes.md#semigroup), [EitherPath](#eitherpath)
+
+---
+
 ## via
 
 **Definition:** The chaining operation on Effect Paths, equivalent to `flatMap` on monads. Applies a function that returns a new Path, allowing dependent operations to be sequenced. If the current Path is on the failure track, `via` is bypassed and the failure propagates.
