@@ -177,7 +177,7 @@ EitherPath<AppError, String> result =
 
 The same message names the environment of a `ReaderPath`, the state of a `WithStatePath`, the log of a `WriterPath` and the witness of a `FreePath` or `GenericPath`. A `ReaderPath` step may need less of the environment, a supertype of the chain's; the others must match exactly.
 
-Each Path still checks a step's kind when the chain runs, for code that reaches `via` through a raw type or was compiled against an older release. There the mistake throws an `IllegalArgumentException` that names the method and both Path types, as in `Type mismatch in via(): expected EitherPath but mapper returned MaybePath`, and the fix is the same conversion.
+Each Path still checks a step's kind, for code that reaches `via` through a raw type or was compiled against an older release. A Path that already holds its value, such as an `EitherPath` or a `WriterPath`, checks as `via` is called, while the chain is built. A deferred Path, such as an `IOPath` or a `ReaderPath`, checks when the chain runs. Either way the mistake throws an `IllegalArgumentException` that names the method and both Path types, as in `Type mismatch in via(): expected EitherPath but mapper returned MaybePath`, and the fix is the same conversion.
 ~~~
 
 ---
