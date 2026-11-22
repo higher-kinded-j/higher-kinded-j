@@ -412,6 +412,49 @@ class PathProcessorIntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "reads an inherited bound of interfaces alone, which javac rebuilds with Object in front")
+    void readsAnInheritedBoundOfInterfacesAlone() {
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.other.Picker",
+                  """
+                  package com.other;
+
+                  import java.io.Serializable;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+                  import org.jspecify.annotations.Nullable;
+
+                  public interface Picker<T> {
+                      @PathVia
+                      <R extends Comparable<@Nullable T> & Serializable> Optional<R> pick(
+                          R candidate, T from);
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.TextPicker",
+                  """
+                  package com.example;
+
+                  import com.other.Picker;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+                  @GeneratePathBridge
+                  public interface TextPicker extends Picker<String> {}
+                  """));
+
+      // Under TextPicker the bound reads Object & Comparable<String> & Serializable, one longer
+      // than the two Picker declares; each declared bound pairs with the one it became.
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.TextPickerPaths",
+          "public <R extends Comparable<@Nullable String> & Serializable> OptionalPath<R> pick(");
+    }
+
+    @Test
     @DisplayName("bridges an overridden method once, as the override declares it")
     void bridgesAnOverriddenMethodOnce() {
       var compilation =
