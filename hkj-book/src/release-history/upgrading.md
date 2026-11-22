@@ -80,6 +80,19 @@ Already moved without step 1? Run it on your last commit on 0.4.x, or check each
 
 The 0.5.0 notes give the details in [Upgrading from 0.4.11](v0_5_0.md#upgrading). Run `MigrateDeprecationsTo0_5_0` first, while the project is still on 0.4.11, since its recipes find the APIs in [Removals in 0.5.0](#removals-in-050) only there. Take `hkj-openrewrite` 0.6.0 or later for it, which rewrites `Void` to `Unit` where 0.5.0 only marks it, as [`Void` becomes `Unit`](../tooling/openrewrite.md#void-becomes-unit) explains. [Before you upgrade](v0_5_0.md#before-you-upgrade) lists that step and the others to take first. Then read [What a running program can notice](v0_5_0.md#runtime-changes), most of it about null values, because the compiler cannot point at those changes. Each entry in [What stops a build that compiled](v0_5_0.md#build-changes) fails at a line the message names, with its fix. That table's entries for a nullness checker leave out a lambda that returns null through `VTask.of`, `Try.of`, `IO.delay` or another factory taking a JDK `Supplier` or `Callable`. NullAway flags one only with the two options in [What a nullness checker sees](../hkts/core-concepts.md#what-a-nullness-checker-sees).
 
+Two more changes come with 0.5.0, and neither stops the build:
+
+- **A 200 response that answered `Right(null)` now sends no body**: on 0.4.x the handler wrote a JSON `null`. Its `Unit` replacement writes no body, as a `void` controller method does, so a client that parses the body notices. A 204 response is unchanged.
+- **`hkj-spring` brings Spring Boot 4.1's own changes**: under Gradle it raises your Spring Boot to 4.1.1, so read [Spring Boot 4.1's release notes](https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-4.1-Release-Notes) too. Boot 4.1 split the servlet `OAuth2ResourceServerAutoConfiguration` in two, and silently skips an excluded class it cannot find, so excluding the old class excludes nothing. Name both new classes in its place:
+
+  ```properties
+  # Spring Boot 4.0
+  spring.autoconfigure.exclude=org.springframework.boot.security.oauth2.server.resource.autoconfigure.servlet.OAuth2ResourceServerAutoConfiguration
+  # Spring Boot 4.1
+  spring.autoconfigure.exclude=org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration,\
+    org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration
+  ```
+
 ---
 
 ## To 0.4.11 {#to-0411}
