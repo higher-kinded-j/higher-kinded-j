@@ -331,9 +331,24 @@ public interface VStream<A> extends VStreamKind<A> {
    * Creates a stream that lazily consumes elements from the given Java {@code Stream} via its
    * iterator.
    *
-   * <p><b>Warning:</b> The Java stream is consumed incrementally. Once its iterator is exhausted,
-   * the resulting {@code VStream} will be empty on subsequent traversals. A null element fails the
-   * stream when it is pulled.
+   * <p>The returned stream takes over the Java stream. It closes the Java stream when a run ends,
+   * fails or stops early, as {@link #onFinalize} runs a finaliser, so its {@link
+   * Stream#onClose(Runnable) onClose} handlers run then. Closing the Java stream before a run, as a
+   * {@code try}-with-resources that ends first does, cuts that run short. One around the whole run
+   * does no harm, since a second close does nothing. Until a run pulls the returned stream, closing
+   * it closes the Java stream. A Java stream that no run pulls stays open: one after a {@link
+   * #concat} that a {@link #take} stops before, say, or one whose run starts on an interrupted
+   * thread, which fails before it pulls.
+   *
+   * <p><b>Warning:</b> The Java stream is consumed incrementally, and its runs share its iterator,
+   * so run them one at a time. A later run reads on from where the last one stopped, in the Java
+   * stream that run closed. Over elements in memory that gives the rest, and nothing once they are
+   * used up. Over a resource it may end or fail, even after a full run. Over a large file, a later
+   * run of a {@link java.nio.file.Files#lines(java.nio.file.Path) Files.lines} stream can give the
+   * lines already buffered, then fail with an {@link java.io.UncheckedIOException}. To read a
+   * resource afresh on each run, open it with {@link #bracket}. To read on across runs, pass the
+   * Java stream's iterator to {@link #fromIterator}, which closes nothing, and close the Java
+   * stream yourself. A null element fails the stream when it is pulled.
    *
    * @param stream The Java stream to consume. Must not be null.
    * @param <A> The type of the elements.
@@ -342,7 +357,8 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   static <A> VStream<A> fromStream(Stream<A> stream) {
     Objects.requireNonNull(stream, "stream must not be null");
-    return fromIteratorRefusing(stream.iterator(), "VStream.fromStream element cannot be null");
+    return fromIteratorRefusing(stream.iterator(), "VStream.fromStream element cannot be null")
+        .onFinalize(VTask.exec(stream::close));
   }
 
   /**
@@ -1739,6 +1755,11 @@ public interface VStream<A> extends VStreamKind<A> {
    * error is preserved and the finaliser error is added as a suppressed exception. Otherwise a
    * finaliser that throws fails the operation that completed or closed the stream with the
    * exception it threw, a checked one included.
+   *
+   * <p>An exception the stream fails with on every run, such as the one {@link #fail} holds, is the
+   * same instance each time. So it gathers each run's new finaliser exception, as it would under
+   * try-with-resources. To keep runs apart, create the exception inside a {@link #defer}, so each
+   * run fails with one of its own.
    *
    * <p>The finaliser runs with the thread's interrupt status cleared, and the status is restored
    * afterwards, so a finaliser that blocks is not cut short when the reading was cancelled. The

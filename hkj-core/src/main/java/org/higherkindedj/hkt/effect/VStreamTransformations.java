@@ -37,7 +37,9 @@ import org.higherkindedj.hkt.vstream.VStreamKind;
  * </ul>
  *
  * <p>A VStream made by {@link #streamToVStream()} reads a Java Stream, which can be read only once,
- * so each run carries on from where the last one stopped, and after a full run it gives nothing.
+ * so each run carries on from where the last one stopped. It is a {@link VStream#fromStream}
+ * stream, which closes the Java Stream when a run ends, fails or stops early, so a later run over a
+ * resource may end or fail.
  *
  * <h2>Usage with GenericPath.mapK</h2>
  *

@@ -3,11 +3,13 @@
 package org.higherkindedj.hkt.vstream;
 
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -95,8 +97,9 @@ public final class VStreamPar {
   // ===== Internal merge signal types =====
 
   /**
-   * Signal type for the queue-based merge. Each source stream pushes signals to a shared queue; the
-   * consumer VStream pulls from the queue to build the output.
+   * Signal type for the queue-based merge. Each source stream pushes signals to a shared queue, and
+   * closing the run pushes {@link Closed}; the consumer VStream pulls from the queue to build the
+   * output.
    */
   private sealed interface MergeSignal<A> {
     /** An element produced by a source stream. */
@@ -107,6 +110,9 @@ public final class VStreamPar {
 
     /** A source stream failed with an exception. */
     record SourceError<A>(Throwable cause) implements MergeSignal<A> {}
+
+    /** The run was closed, which ends it. */
+    record Closed<A>() implements MergeSignal<A> {}
   }
 
   /**
@@ -298,6 +304,15 @@ public final class VStreamPar {
    * since the run has already stopped. Closing the merged stream itself stops no run's producer,
    * since several runs may read it at once; before any run, it closes the sources.
    *
+   * <p>With more than one source, once a tail's pulled {@code VTask} has given a step, or a
+   * source's failure, it gives the same one each time it runs. So a tail read twice gives the same
+   * elements, as far as the first read went, and a tail you hold keeps every step read after it. An
+   * interrupt of the reading thread keeps nothing, so pulling that tail again waits again. Running
+   * the head's pulled {@code VTask} again starts another run. A read that stops early, as {@code
+   * take} does, closes the run. A tail first pulled after that gives {@code Done}, and so does a
+   * pull still waiting when the run is closed, once the close has closed the sources, so a
+   * finaliser after the merge runs after theirs.
+   *
    * <p>With more than one source, the sources are read on threads the merge starts, which do not
    * see the caller's {@code ScopedValue} bindings, and each is read as fast as it gives elements,
    * with the elements not yet pulled held without a limit. A merge of one stream is that stream.
@@ -327,18 +342,7 @@ public final class VStreamPar {
     // Each run of the pulled VTask starts its own producer, so producer threads are not started
     // until the first pull runs. Only the run's own tails reach its producer.
     return DeferredStream.opening(
-        VTask.delay(
-            () -> {
-              LinkedBlockingQueue<MergeSignal<A>> queue = new LinkedBlockingQueue<>();
-              AtomicBoolean cancelled = new AtomicBoolean(false);
-
-              // Background thread manages a StructuredTaskScope with one subtask per source.
-              // Each subtask pulls elements and pushes them to the shared queue.
-              Thread producer =
-                  Thread.ofVirtual().start(() -> runMergeScope(streams, queue, cancelled));
-
-              return mergeFromQueue(queue, sourceCount, cancelled, producer);
-            }),
+        VTask.delay(() -> new MergeTail<>(MergeRun.start(streams), sourceCount)),
         streams.toArray(VStream<?>[]::new));
   }
 
@@ -461,82 +465,178 @@ public final class VStreamPar {
   }
 
   /**
-   * Builds a {@code VStream} that pulls elements from the merge queue. Each pull blocks on {@link
-   * LinkedBlockingQueue#take()} until a signal arrives.
-   *
-   * <p>The returned stream overrides {@link VStream#close()} to set the {@code cancelled} flag and
-   * interrupt the producer, which signals the source subtasks to stop, then waits while the
-   * producer closes the sources that did not finish. This is essential for preventing memory leaks
-   * when the consumer terminates early (e.g. via {@link VStream#take}).
-   *
-   * @param queue the shared queue populated by source-consuming subtasks.
-   * @param remainingSources the number of source streams that have not yet sent {@link
-   *     MergeSignal.SourceDone}.
-   * @param cancelled shared cancellation flag; set to {@code true} to stop producers.
-   * @param producer the background producer thread to join on close.
+   * One run of a {@link #merge}: the queue its sources fill, the flag that tells them to stop, the
+   * producer thread that reads them, and whether a close has begun and finished.
    */
-  private static <A> VStream<A> mergeFromQueue(
-      LinkedBlockingQueue<MergeSignal<A>> queue,
-      int remainingSources,
-      AtomicBoolean cancelled,
-      Thread producer) {
-    // No guard needed: merge() guarantees remainingSources >= 2 on the initial call,
-    // and recursive calls pass newRemaining >= 1 (the newRemaining <= 0 branch yields Done).
-    return new VStream<>() {
-      @Override
-      public VTask<VStream.Step<A>> pull() {
-        return () -> {
-          MergeSignal<A> signal;
-          try {
-            signal = queue.take();
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw e;
-          }
-          return switch (signal) {
-            case MergeSignal.Element<A> e ->
-                new VStream.Step.Emit<>(
-                    e.value(), mergeFromQueue(queue, remainingSources, cancelled, producer));
-            case MergeSignal.SourceDone<A> _ -> {
-              int newRemaining = remainingSources - 1;
-              if (newRemaining <= 0) {
-                yield new VStream.Step.Done<>();
-              }
-              yield new VStream.Step.Skip<>(
-                  mergeFromQueue(queue, newRemaining, cancelled, producer));
-            }
-            case MergeSignal.SourceError<A> err -> {
-              // Stop this run before failing, since a consumer reading through a stream that
-              // keeps nothing it built has nothing that reaches it. The failure is the source's
-              // own, an InterruptedException included, so it is thrown outside the take's catch
-              Throwable failure = err.cause();
-              Closing.runAfterFailure(close(), failure);
-              throw failure;
-            }
-          };
-        };
-      }
+  private static final class MergeRun<A> {
 
-      @Override
-      public VTask<Unit> close() {
-        return VTask.delay(
-            () -> {
-              cancelled.set(true);
-              queue.clear();
-              // Interrupt the producer so a source blocked in a pull stops; its scope stops the
-              // others, then the producer closes the sources that did not finish. Wait for that
-              // with an interrupt already pending held back, as cleanup runs, so the sources are
-              // closed when this returns; an interrupt that arrives while waiting stops the wait
-              producer.interrupt();
-              try {
-                Cleanup.withInterruptCleared(producer::join);
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              }
-              return Unit.INSTANCE;
-            });
+    private final LinkedBlockingQueue<MergeSignal<A>> queue;
+    // Tells the sources to stop, which a source's failure sets too
+    private final AtomicBoolean cancelled;
+    private final Thread producer;
+    // Set only by close, so a source's failure is not taken for one
+    private final AtomicBoolean closed = new AtomicBoolean();
+    // Counted down once a close has closed the sources
+    private final CountDownLatch closeFinished = new CountDownLatch(1);
+
+    private MergeRun(
+        LinkedBlockingQueue<MergeSignal<A>> queue, AtomicBoolean cancelled, Thread producer) {
+      this.queue = queue;
+      this.cancelled = cancelled;
+      this.producer = producer;
+    }
+
+    /** Starts a run over the sources, whose producer begins reading them at once. */
+    static <A> MergeRun<A> start(List<VStream<A>> streams) {
+      LinkedBlockingQueue<MergeSignal<A>> queue = new LinkedBlockingQueue<>();
+      AtomicBoolean cancelled = new AtomicBoolean();
+      // A StructuredTaskScope with one subtask per source, each pushing what it reads to the queue
+      Thread producer = Thread.ofVirtual().start(() -> runMergeScope(streams, queue, cancelled));
+      return new MergeRun<>(queue, cancelled, producer);
+    }
+
+    /**
+     * Waits for the run's next signal. Once the run is closed, any signal is {@link
+     * MergeSignal.Closed}, given once the close has closed the sources, so a pull that waited
+     * through the close ends after their finalisers, even if a source sent one more element as it
+     * stopped. The run stays closed for any position pulled after, an interrupted one included.
+     */
+    MergeSignal<A> take() throws InterruptedException {
+      MergeSignal<A> signal = queue.take();
+      if (!closed.get()) {
+        return signal;
       }
-    };
+      queue.add(new MergeSignal.Closed<>());
+      closeFinished.await();
+      return new MergeSignal.Closed<>();
+    }
+
+    /**
+     * Stops the run, so a consumer that stops early leaves no source being read. It interrupts the
+     * producer, so a source blocked in a pull stops; the producer's scope stops the others, then
+     * the producer closes the sources that did not finish. This waits for that with an interrupt
+     * already pending held back, as cleanup runs, so the sources are closed when it returns; an
+     * interrupt that arrives while it waits stops the wait. A position first pulled after this, or
+     * one waiting for a signal, then gives {@code Done}.
+     */
+    VTask<Unit> close() {
+      return VTask.delay(
+          () -> {
+            // A later close leaves the Closed an earlier one added, so a pull meanwhile ends
+            if (!closed.getAndSet(true)) {
+              queue.clear();
+            }
+            cancelled.set(true);
+            producer.interrupt();
+            try {
+              Cleanup.withInterruptCleared(producer::join);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            // Drop what the sources sent as they stopped, which nothing will read, and wake a
+            // pull that waits
+            queue.clear();
+            closeFinished.countDown();
+            queue.add(new MergeSignal.Closed<>());
+            return Unit.INSTANCE;
+          });
+    }
+  }
+
+  /**
+   * A position in one run of a {@link #merge}, from which it reads the run's queue. Its first pull
+   * takes the next signal, and it keeps the step that gives, or the failure, so pulling it again
+   * gives the same step, as a {@code fromPublisher} or {@code parEvalMapUnordered} tail keeps its
+   * step. Closing it stops the run.
+   */
+  private static final class MergeTail<A> implements VStream<A> {
+
+    private final MergeRun<A> run;
+    // The sources that have not yet sent SourceDone, at least one
+    private final int remainingSources;
+    private final ReentrantLock lock = new ReentrantLock();
+    // Guarded by lock
+    private VStream.@Nullable Step<A> step;
+    private @Nullable Throwable failure;
+
+    MergeTail(MergeRun<A> run, int remainingSources) {
+      this.run = run;
+      this.remainingSources = remainingSources;
+    }
+
+    @Override
+    public VTask<VStream.Step<A>> pull() {
+      return () -> {
+        lockForPull();
+        try {
+          if (step == null && failure == null) {
+            keep(nextSignal());
+          }
+          if (failure != null) {
+            // The source's own failure, an InterruptedException included, thrown as it is: it
+            // leaves this thread's interrupt status alone, since it stopped another thread
+            throw failure;
+          }
+          return Objects.requireNonNull(step);
+        } finally {
+          lock.unlock();
+        }
+      };
+    }
+
+    /**
+     * Takes the lock, so one pull at a time reads this position. A lock no other pull holds is
+     * taken whether or not the thread is interrupted, so a step this position keeps is given again
+     * on an interrupted thread too. A wait for another pull is stopped by an interrupt, which keeps
+     * the interrupt status, as {@link #nextSignal} does.
+     */
+    private void lockForPull() throws InterruptedException {
+      if (lock.tryLock()) {
+        return;
+      }
+      try {
+        lock.lockInterruptibly();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw e;
+      }
+    }
+
+    /** Waits for the run's next signal. An interrupt keeps nothing, so a later pull waits again. */
+    private MergeSignal<A> nextSignal() throws InterruptedException {
+      try {
+        return run.take();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw e;
+      }
+    }
+
+    /** Keeps the step, or the failure, that a signal gives this position. */
+    private void keep(MergeSignal<A> signal) {
+      switch (signal) {
+        case MergeSignal.Element<A> e ->
+            step = new VStream.Step.Emit<>(e.value(), new MergeTail<>(run, remainingSources));
+        case MergeSignal.SourceDone<A> _ ->
+            step =
+                remainingSources == 1
+                    ? new VStream.Step.Done<>()
+                    : new VStream.Step.Skip<>(new MergeTail<>(run, remainingSources - 1));
+        case MergeSignal.SourceError<A> err -> {
+          // Stop this run before failing, since a consumer reading through a stream that keeps
+          // nothing it built has nothing that reaches it
+          Throwable cause = err.cause();
+          failure = cause;
+          Closing.runAfterFailure(close(), cause);
+        }
+        case MergeSignal.Closed<A> _ -> step = new VStream.Step.Done<>();
+      }
+    }
+
+    @Override
+    public VTask<Unit> close() {
+      return run.close();
+    }
   }
 
   /**

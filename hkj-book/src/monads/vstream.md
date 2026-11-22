@@ -128,7 +128,7 @@ Each arrow ends at the operator that answers it. `orders` is the `unfold` and `f
 | `range(from, to)` | The integers from `from` up to, not including, `to` |
 | `iterate(seed, f)`, `generate(supplier)`, `repeat(value)` | A stream without end, which `take` or `takeWhile` limits |
 | `unfold(state, f)` | An element and the next state from a task, until it gives `Optional.empty()` |
-| `fromIterator(iterator)`, `fromStream(stream)` | The elements of an iterator or a Java `Stream`, which a run uses up: a later run carries on where the last one stopped |
+| `fromIterator(iterator)`, `fromStream(stream)` | The elements of an iterator or a Java `Stream`, which a run uses up: a later run carries on where the last one stopped. `fromStream` closes the Java `Stream` when a run is over, so read a file with `bracket`, as [A file, a line at a time](vstream_resources.md#a-file-a-line-at-a-time) shows |
 | `defer(supplier)` | A stream built afresh each time it runs |
 | `empty()`, `fail(error)` | A stream that ends at once, or fails at its first pull |
 | `bracket(acquire, use, release)` | A stream that holds a resource while it is read, as [Resource-Safe Streaming](vstream_resources.md) shows |

@@ -132,7 +132,7 @@ For one stream, `toList().run()` gives a `List`. `VStreamTransformations` is for
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/vstream/VStreamAdvancedBook.java:naturals}}
 ```
 
-`listToVStream` and `streamToVStream` read nothing until the stream is pulled. `vstreamToList` and `vstreamToStream` read the whole stream when they are applied, on the calling thread, so take a prefix of an endless stream first. A Java `Stream` can be read only once, so each run of a `VStream` made from one carries on from where the last run stopped, and after a full run it gives nothing.
+`listToVStream` and `streamToVStream` read nothing until the stream is pulled. `vstreamToList` and `vstreamToStream` read the whole stream when they are applied, on the calling thread, so take a prefix of an endless stream first. A Java `Stream` can be read only once, so each run of a `VStream` made from one carries on from where the last run stopped. `streamToVStream` builds it with `fromStream`, which closes the Java `Stream` when a run is over, so a later run over a file can fail, as [A file, a line at a time](vstream_resources.md#a-file-a-line-at-a-time) says.
 
 ## Finding a Path, and registering a provider {#pathprovider-spi-registration}
 
