@@ -282,7 +282,7 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof ListPath<?> otherList)) {
-      throw new IllegalArgumentException("Cannot zipWith non-ListPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(ListPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -354,8 +354,7 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
                   Objects.requireNonNull(result, "mapper must not return null");
 
                   if (!(result instanceof ListPath<?> listPath)) {
-                    throw new IllegalArgumentException(
-                        "via mapper must return ListPath, got: " + result.getClass());
+                    throw PathTypeMismatch.VIA.exception(ListPath.class, result);
                   }
 
                   @SuppressWarnings("unchecked")
@@ -370,7 +369,15 @@ public final class ListPath<A> implements Chainable<ListPath<?>, A> {
   @Override
   public <B> ListPath<B> then(Supplier<? extends Chainable<? extends ListPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return via(ignored -> supplier.get());
+    return via(
+        ignored -> {
+          Chainable<? extends ListPath<?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
+          if (!(result instanceof ListPath<?>)) {
+            throw PathTypeMismatch.THEN.exception(ListPath.class, result);
+          }
+          return result;
+        });
   }
 
   // ===== List-Specific Operations =====

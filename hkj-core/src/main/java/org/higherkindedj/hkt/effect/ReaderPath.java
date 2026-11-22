@@ -178,7 +178,7 @@ public final class ReaderPath<R, A> implements Chainable<ReaderPath<? super R, ?
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof ReaderPath<?, ?> otherReader)) {
-      throw new IllegalArgumentException("Cannot zipWith non-ReaderPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(ReaderPath.class, other);
     }
 
     @SuppressWarnings("unchecked") // a Reader only reads its environment
@@ -244,8 +244,7 @@ public final class ReaderPath<R, A> implements Chainable<ReaderPath<? super R, ?
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof ReaderPath<?, ?> readerPath)) {
-                throw new IllegalArgumentException(
-                    "via mapper must return ReaderPath, got: " + result.getClass());
+                throw PathTypeMismatch.VIA.exception(ReaderPath.class, result);
               }
 
               @SuppressWarnings("unchecked") // a Reader only reads its environment
@@ -270,8 +269,7 @@ public final class ReaderPath<R, A> implements Chainable<ReaderPath<? super R, ?
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof ReaderPath<?, ?> readerPath)) {
-                throw new IllegalArgumentException(
-                    "then supplier must return ReaderPath, got: " + result.getClass());
+                throw PathTypeMismatch.THEN.exception(ReaderPath.class, result);
               }
 
               @SuppressWarnings("unchecked") // a Reader only reads its environment

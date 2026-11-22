@@ -169,7 +169,7 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof IOPath<?> otherIO)) {
-      throw new IllegalArgumentException("Cannot zipWith non-IOPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(IOPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -235,8 +235,7 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof IOPath<?> ioPath)) {
-                throw new IllegalArgumentException(
-                    "via mapper must return IOPath, got: " + result.getClass());
+                throw PathTypeMismatch.VIA.exception(IOPath.class, result);
               }
 
               @SuppressWarnings("unchecked")
@@ -265,8 +264,7 @@ public final class IOPath<A> implements Effectful<IOPath<?>, A>, Deferred<A> {
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof IOPath<?> ioPath)) {
-                throw new IllegalArgumentException(
-                    "then supplier must return IOPath, got: " + result.getClass());
+                throw PathTypeMismatch.THEN.exception(IOPath.class, result);
               }
 
               @SuppressWarnings("unchecked")

@@ -139,7 +139,7 @@ public final class IdPath<A> implements Chainable<IdPath<?>, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof IdPath<?> otherId)) {
-      throw new IllegalArgumentException("Cannot zipWith non-IdPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(IdPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -195,8 +195,7 @@ public final class IdPath<A> implements Chainable<IdPath<?>, A> {
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof IdPath<?> idPath)) {
-      throw new IllegalArgumentException(
-          "via mapper must return IdPath, got: " + result.getClass());
+      throw PathTypeMismatch.VIA.exception(IdPath.class, result);
     }
 
     @SuppressWarnings("unchecked")
@@ -212,8 +211,7 @@ public final class IdPath<A> implements Chainable<IdPath<?>, A> {
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof IdPath<?> idPath)) {
-      throw new IllegalArgumentException(
-          "then supplier must return IdPath, got: " + result.getClass());
+      throw PathTypeMismatch.THEN.exception(IdPath.class, result);
     }
 
     @SuppressWarnings("unchecked")

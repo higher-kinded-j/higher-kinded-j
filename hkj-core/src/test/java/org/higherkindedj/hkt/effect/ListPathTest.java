@@ -302,7 +302,9 @@ class ListPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(NonDetPath.of(4, 5, 6)), (a, b) -> a + b))
-          .withMessageContaining("Cannot zipWith non-ListPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected ListPath but other was NonDetPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -372,7 +374,32 @@ class ListPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(n -> NonDetPath.of(n))))
-          .withMessageContaining("via mapper must return ListPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected ListPath but mapper returned NonDetPath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() throws for non-ListPath result")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenThrowsForNonListPathResult() {
+      ListPath<Integer> path = ListPath.of(1, 2, 3);
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> NonDetPath.of(1))))
+          .withMessageContaining(
+              "Type mismatch in then(): expected ListPath but supplier returned NonDetPath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names the supplier when it returns null")
+    void thenRejectsNullSupplierResult() {
+      ListPath<Integer> path = ListPath.of(1, 2, 3);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.then(() -> null))
+          .withMessage("supplier must not return null");
     }
 
     @Test

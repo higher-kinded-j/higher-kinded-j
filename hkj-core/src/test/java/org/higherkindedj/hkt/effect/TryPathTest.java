@@ -394,7 +394,10 @@ class TryPathTest {
           .fold(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalArgumentException.class);
-                assertThat(ex.getMessage()).contains("via mapper must return TryPath");
+                assertThat(ex.getMessage())
+                    .contains(
+                        "Type mismatch in via(): expected TryPath but mapper returned MaybePath",
+                        "Use conversion methods");
                 return null;
               },
               value -> null);
@@ -438,7 +441,7 @@ class TryPathTest {
     }
 
     @Test
-    @DisplayName("then() throws when supplier returns wrong type")
+    @DisplayName("then() returns failure when supplier returns wrong type")
     @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
     void thenThrowsWhenSupplierReturnsWrongType() {
       TryPath<String> path = Path.success(TEST_VALUE);
@@ -452,7 +455,10 @@ class TryPathTest {
           .fold(
               ex -> {
                 assertThat(ex).isInstanceOf(IllegalArgumentException.class);
-                assertThat(ex.getMessage()).contains("then supplier must return TryPath");
+                assertThat(ex.getMessage())
+                    .contains(
+                        "Type mismatch in then(): expected TryPath but supplier returned MaybePath",
+                        "Use conversion methods");
                 return null;
               },
               value -> null);
@@ -548,7 +554,9 @@ class TryPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-TryPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected TryPath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -708,7 +716,9 @@ class TryPathTest {
                 var rawPath = (TryPath) path;
                 rawPath.recoverWith(ex -> Path.just("fallback"));
               })
-          .withMessageContaining("recovery must return TryPath");
+          .withMessageContaining(
+              "Type mismatch in recoverWith(): expected TryPath but recovery returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -727,7 +737,9 @@ class TryPathTest {
                 var rawPath = (TryPath) path;
                 rawPath.orElse(() -> Path.just("alternative"));
               })
-          .withMessageContaining("alternative must return TryPath");
+          .withMessageContaining(
+              "Type mismatch in orElse(): expected TryPath but alternative returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

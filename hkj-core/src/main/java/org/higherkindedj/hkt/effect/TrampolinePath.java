@@ -184,7 +184,7 @@ public final class TrampolinePath<A> implements Chainable<TrampolinePath<?>, A>,
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof TrampolinePath<?> otherTrampoline)) {
-      throw new IllegalArgumentException("Cannot zipWith non-TrampolinePath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(TrampolinePath.class, other);
     }
 
     TrampolinePath<B> typedOther = (TrampolinePath<B>) otherTrampoline;
@@ -248,8 +248,7 @@ public final class TrampolinePath<A> implements Chainable<TrampolinePath<?>, A>,
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof TrampolinePath<?> tp)) {
-                throw new IllegalArgumentException(
-                    "TrampolinePath.via must return TrampolinePath. Got: " + result.getClass());
+                throw PathTypeMismatch.VIA.exception(TrampolinePath.class, result);
               }
               return ((TrampolinePath<B>) tp).trampoline;
             });
@@ -260,7 +259,15 @@ public final class TrampolinePath<A> implements Chainable<TrampolinePath<?>, A>,
   public <B> TrampolinePath<B> then(
       Supplier<? extends Chainable<? extends TrampolinePath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return via(_ -> supplier.get());
+    return via(
+        _ -> {
+          Chainable<? extends TrampolinePath<?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
+          if (!(result instanceof TrampolinePath<?>)) {
+            throw PathTypeMismatch.THEN.exception(TrampolinePath.class, result);
+          }
+          return result;
+        });
   }
 
   // ===== Conversions =====

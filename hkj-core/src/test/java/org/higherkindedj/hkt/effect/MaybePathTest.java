@@ -667,7 +667,9 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.recoverWith(Mismatched.recovery(unit -> Path.right("fallback"))))
-          .withMessageContaining("recovery must return MaybePath");
+          .withMessageContaining(
+              "Type mismatch in recoverWith(): expected MaybePath but recovery returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -678,7 +680,9 @@ class MaybePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.orElse(Mismatched.alternative(() -> Path.right("alternative"))))
-          .withMessageContaining("alternative must return MaybePath");
+          .withMessageContaining(
+              "Type mismatch in orElse(): expected MaybePath but alternative returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 

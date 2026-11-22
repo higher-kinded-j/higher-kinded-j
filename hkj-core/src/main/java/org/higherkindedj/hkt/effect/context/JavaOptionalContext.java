@@ -175,9 +175,7 @@ public final class JavaOptionalContext<F extends WitnessArity<TypeArity.Unary>, 
               EffectContext<F, B> next = fn.apply(a);
               Objects.requireNonNull(next, "fn must not return null");
               if (!(next instanceof JavaOptionalContext<?, ?> nextCtx)) {
-                throw new IllegalArgumentException(
-                    "via function must return a JavaOptionalContext, got: "
-                        + next.getClass().getName());
+                throw ContextTypeMismatch.via(JavaOptionalContext.class, next);
               }
               @SuppressWarnings("unchecked")
               JavaOptionalContext<F, B> typedNext = (JavaOptionalContext<F, B>) nextCtx;

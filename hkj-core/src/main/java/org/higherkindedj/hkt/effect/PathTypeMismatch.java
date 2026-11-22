@@ -16,7 +16,7 @@ import org.higherkindedj.hkt.effect.capability.Composable;
  * <pre>{@code
  * Type mismatch in via(): expected MaybePath but mapper returned IOPath.
  * Each Path type can only chain with the same type.
- * Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.
+ * Use conversion methods (toEitherPath, toMaybePath, etc.) or a Path factory to change types.
  * }</pre>
  *
  * <p>Both types are named by their public Path type. {@code VTaskPath} and {@code VStreamPath} are
@@ -33,7 +33,24 @@ enum PathTypeMismatch {
   THEN("then()", "supplier returned", "chain"),
 
   /** {@code zipWith()}, whose other path is a different Path type. */
-  ZIP_WITH("zipWith()", "other was", "combine");
+  ZIP_WITH("zipWith()", "other was", "combine"),
+
+  /** {@code recoverWith()}, whose recovery returned a different Path type. */
+  RECOVER_WITH("recoverWith()", "recovery returned", "recover"),
+
+  /** {@code orElse()}, whose alternative returned a different Path type. */
+  OR_ELSE("orElse()", "alternative returned", "recover"),
+
+  /**
+   * {@code zipWithAccum()} or {@code zipWith3Accum()}, whose other path is a different Path type.
+   */
+  ZIP_WITH_ACCUM("zipWithAccum()", "other was", "accumulate"),
+
+  /** {@code andAlso()}, whose other path is a different Path type. */
+  AND_ALSO("andAlso()", "other was", "accumulate"),
+
+  /** {@code andThen()}, whose other path is a different Path type. */
+  AND_THEN("andThen()", "other was", "accumulate");
 
   /** The public Path interfaces named in place of their implementation classes. */
   private static final List<Class<?>> INTERFACE_PATHS = List.of(VTaskPath.class, VStreamPath.class);
@@ -71,7 +88,8 @@ enum PathTypeMismatch {
             + ". Each Path type can only "
             + verb
             + " with the same type."
-            + " Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.");
+            + " Use conversion methods (toEitherPath, toMaybePath, etc.) or a Path factory to"
+            + " change types.");
   }
 
   private static String pathTypeName(Class<?> type) {

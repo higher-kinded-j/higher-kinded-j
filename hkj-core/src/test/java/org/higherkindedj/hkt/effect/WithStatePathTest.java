@@ -263,7 +263,9 @@ class WithStatePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).run(0))
-          .withMessageContaining("via mapper must return WithStatePath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected WithStatePath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -300,7 +302,9 @@ class WithStatePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.id(42))).run(0))
-          .withMessageContaining("then supplier must return WithStatePath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected WithStatePath but supplier returned IdPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -346,7 +350,9 @@ class WithStatePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-WithStatePath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected WithStatePath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

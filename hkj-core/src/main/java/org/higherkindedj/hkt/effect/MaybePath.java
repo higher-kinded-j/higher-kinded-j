@@ -438,8 +438,7 @@ public final class MaybePath<A> implements Recoverable<MaybePath<?>, Unit, A> {
     Recoverable<? extends MaybePath<?>, ? extends Unit, A> result = recovery.apply(Unit.INSTANCE);
     Objects.requireNonNull(result, "recovery must not return null");
     if (!(result instanceof MaybePath<?> maybePath)) {
-      throw new IllegalArgumentException(
-          "recovery must return MaybePath, got: " + result.getClass());
+      throw PathTypeMismatch.RECOVER_WITH.exception(MaybePath.class, result);
     }
     @SuppressWarnings("unchecked")
     MaybePath<A> typedResult = (MaybePath<A>) maybePath;
@@ -456,8 +455,7 @@ public final class MaybePath<A> implements Recoverable<MaybePath<?>, Unit, A> {
     Recoverable<? extends MaybePath<?>, ? extends Unit, A> result = alternative.get();
     Objects.requireNonNull(result, "alternative must not return null");
     if (!(result instanceof MaybePath<?> maybePath)) {
-      throw new IllegalArgumentException(
-          "alternative must return MaybePath, got: " + result.getClass());
+      throw PathTypeMismatch.OR_ELSE.exception(MaybePath.class, result);
     }
     @SuppressWarnings("unchecked")
     MaybePath<A> typedResult = (MaybePath<A>) maybePath;

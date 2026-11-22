@@ -307,7 +307,7 @@ public final class OptionalPath<A> implements Chainable<OptionalPath<?>, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof OptionalPath<?> otherOptional)) {
-      throw new IllegalArgumentException("Cannot zipWith non-OptionalPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(OptionalPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -369,8 +369,7 @@ public final class OptionalPath<A> implements Chainable<OptionalPath<?>, A> {
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof OptionalPath<?> optionalPath)) {
-      throw new IllegalArgumentException(
-          "via mapper must return OptionalPath, got: " + result.getClass());
+      throw PathTypeMismatch.VIA.exception(OptionalPath.class, result);
     }
 
     @SuppressWarnings("unchecked")
@@ -391,8 +390,7 @@ public final class OptionalPath<A> implements Chainable<OptionalPath<?>, A> {
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof OptionalPath<?> optionalPath)) {
-      throw new IllegalArgumentException(
-          "then supplier must return OptionalPath, got: " + result.getClass());
+      throw PathTypeMismatch.THEN.exception(OptionalPath.class, result);
     }
 
     @SuppressWarnings("unchecked")

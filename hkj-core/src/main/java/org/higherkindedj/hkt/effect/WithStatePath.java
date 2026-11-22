@@ -230,7 +230,7 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof WithStatePath<?, ?> otherState)) {
-      throw new IllegalArgumentException("Cannot zipWith non-WithStatePath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(WithStatePath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -295,8 +295,7 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof WithStatePath<?, ?> statePath)) {
-                throw new IllegalArgumentException(
-                    "via mapper must return WithStatePath, got: " + result.getClass());
+                throw PathTypeMismatch.VIA.exception(WithStatePath.class, result);
               }
 
               @SuppressWarnings("unchecked")
@@ -317,8 +316,7 @@ public final class WithStatePath<S, A> implements Chainable<WithStatePath<S, ?>,
               Objects.requireNonNull(next, "supplier must not return null");
 
               if (!(next instanceof WithStatePath<?, ?> statePath)) {
-                throw new IllegalArgumentException(
-                    "then supplier must return WithStatePath, got: " + next.getClass());
+                throw PathTypeMismatch.THEN.exception(WithStatePath.class, next);
               }
 
               @SuppressWarnings("unchecked")

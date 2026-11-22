@@ -359,7 +359,9 @@ class OptionalPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.right(s.length()))))
-          .withMessageContaining("via mapper must return OptionalPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected OptionalPath but mapper returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -393,7 +395,9 @@ class OptionalPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.right(42))))
-          .withMessageContaining("then supplier must return OptionalPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected OptionalPath but supplier returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -443,7 +447,9 @@ class OptionalPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(eitherPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-OptionalPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected OptionalPath but other was EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

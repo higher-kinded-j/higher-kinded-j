@@ -391,7 +391,9 @@ class ValidationPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.right(s.length()))))
-          .withMessageContaining("via mapper must return ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected ValidationPath but mapper returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -426,7 +428,9 @@ class ValidationPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.right(42))))
-          .withMessageContaining("then supplier must return ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected ValidationPath but supplier returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -574,13 +578,20 @@ class ValidationPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> valid.zipWithAccum(Mismatched.accumulating(other), Integer::sum))
-          .withMessageContaining("non-ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in zipWithAccum(): expected ValidationPath"
+                  + " but other was EitherOrBothPath")
+          .withMessageContaining("Use conversion methods");
       assertThatIllegalArgumentException()
           .isThrownBy(() -> valid.andAlso(Mismatched.accumulating(other)))
-          .withMessageContaining("non-ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in andAlso(): expected ValidationPath but other was EitherOrBothPath")
+          .withMessageContaining("Use conversion methods");
       assertThatIllegalArgumentException()
           .isThrownBy(() -> valid.andThen(Mismatched.accumulating(other)))
-          .withMessageContaining("non-ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in andThen(): expected ValidationPath but other was EitherOrBothPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -635,7 +646,9 @@ class ValidationPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(eitherPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected ValidationPath but other was EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -854,7 +867,10 @@ class ValidationPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.recoverWith(Mismatched.recovery(e -> Path.right("fallback"))))
-          .withMessageContaining("recovery must return ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in recoverWith(): expected ValidationPath"
+                  + " but recovery returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -865,7 +881,10 @@ class ValidationPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.orElse(Mismatched.alternative(() -> Path.right("alternative"))))
-          .withMessageContaining("alternative must return ValidationPath");
+          .withMessageContaining(
+              "Type mismatch in orElse(): expected ValidationPath"
+                  + " but alternative returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

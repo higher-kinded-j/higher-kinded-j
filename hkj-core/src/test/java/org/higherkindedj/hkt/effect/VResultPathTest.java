@@ -549,7 +549,9 @@ class VResultPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> execute(result))
-          .withMessageContaining("via mapper must return VResultPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected VResultPath but mapper returned IdPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -623,7 +625,9 @@ class VResultPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> execute(result))
-          .withMessageContaining("then supplier must return VResultPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected VResultPath but supplier returned IdPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -693,7 +697,9 @@ class VResultPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, n) -> s + n))
-          .withMessageContaining("Cannot zipWith non-VResultPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected VResultPath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -881,7 +887,36 @@ class VResultPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> execute(result))
-          .withMessageContaining("recoverWith must return VResultPath");
+          .withMessageContaining(
+              "Type mismatch in recoverWith(): expected VResultPath"
+                  + " but recovery returned EitherPath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("orElse() throws when alternative returns non-VResultPath")
+    void orElseThrowsForNonVResultPath() {
+      VResultPath<String, String> path = Path.vresultLeft(TEST_ERROR);
+
+      VResultPath<String, String> result =
+          path.orElse(Mismatched.alternative(() -> Path.right("other")));
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> execute(result))
+          .withMessageContaining(
+              "Type mismatch in orElse(): expected VResultPath but alternative returned EitherPath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("orElse() names the alternative when it returns null")
+    void orElseRejectsNullAlternativeResult() {
+      VResultPath<String, String> result =
+          Path.<String, String>vresultLeft(TEST_ERROR).orElse(() -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> execute(result))
+          .withMessage("alternative must not return null");
     }
 
     @Test

@@ -322,7 +322,9 @@ class LazyPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).get())
-          .withMessageContaining("via mapper must return LazyPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected LazyPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -367,7 +369,9 @@ class LazyPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::get)
-          .withMessageContaining("then supplier must return LazyPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected LazyPath but supplier returned IdPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -423,7 +427,9 @@ class LazyPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-LazyPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected LazyPath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

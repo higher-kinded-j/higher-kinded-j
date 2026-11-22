@@ -307,7 +307,34 @@ class VStreamPathTest {
 
       assertThatThrownBy(() -> result.toList().unsafeRun())
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("via mapper must return VStreamPath");
+          .hasMessageContaining(
+              "Type mismatch in via(): expected VStreamPath but mapper returned ListPath")
+          .hasMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() rejects non-VStreamPath return")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenRejectsNonVStreamPath() {
+      VStreamPath<Integer> path = Path.vstreamPure(1);
+
+      VStreamPath<Integer> result = path.then(Mismatched.supplier(() -> Path.listPath(2)));
+
+      assertThatThrownBy(() -> result.toList().unsafeRun())
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(
+              "Type mismatch in then(): expected VStreamPath but supplier returned ListPath")
+          .hasMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names the supplier when it returns null")
+    void thenRejectsNullSupplierResult() {
+      VStreamPath<Integer> result = Path.vstreamPure(1).then(() -> null);
+
+      assertThatThrownBy(() -> result.toList().unsafeRun())
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("supplier must not return null");
     }
 
     @Test
@@ -389,7 +416,9 @@ class VStreamPathTest {
 
       assertThatThrownBy(() -> path.zipWith(Mismatched.other(other), (a, b) -> a + b))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Cannot zipWith non-VStreamPath");
+          .hasMessageContaining(
+              "Type mismatch in zipWith(): expected VStreamPath but other was StreamPath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test

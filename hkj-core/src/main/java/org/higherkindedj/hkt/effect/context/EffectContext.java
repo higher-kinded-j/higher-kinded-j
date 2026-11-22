@@ -62,6 +62,8 @@ public sealed interface EffectContext<F extends WitnessArity<TypeArity.Unary>, A
    * @param <B> the type of the value in the returned context
    * @return the context returned by the function, or an error/empty context
    * @throws NullPointerException if fn is null or returns null
+   * @throws IllegalArgumentException when the context runs, if fn returns a different kind of
+   *     context
    */
   <B> EffectContext<F, B> via(Function<? super A, ? extends EffectContext<F, B>> fn);
 

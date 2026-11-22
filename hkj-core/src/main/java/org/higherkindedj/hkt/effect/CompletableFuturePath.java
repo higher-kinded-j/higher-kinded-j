@@ -283,8 +283,7 @@ public final class CompletableFuturePath<A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof CompletableFuturePath<?> otherFuture)) {
-      throw new IllegalArgumentException(
-          "Cannot zipWith non-CompletableFuturePath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(CompletableFuturePath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -350,8 +349,7 @@ public final class CompletableFuturePath<A>
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof CompletableFuturePath<?> futurePath)) {
-                throw new IllegalArgumentException(
-                    "via mapper must return CompletableFuturePath, got: " + result.getClass());
+                throw PathTypeMismatch.VIA.exception(CompletableFuturePath.class, result);
               }
 
               @SuppressWarnings("unchecked")
@@ -374,8 +372,7 @@ public final class CompletableFuturePath<A>
               Objects.requireNonNull(result, "supplier must not return null");
 
               if (!(result instanceof CompletableFuturePath<?> futurePath)) {
-                throw new IllegalArgumentException(
-                    "then supplier must return CompletableFuturePath, got: " + result.getClass());
+                throw PathTypeMismatch.THEN.exception(CompletableFuturePath.class, result);
               }
 
               @SuppressWarnings("unchecked")
@@ -417,8 +414,7 @@ public final class CompletableFuturePath<A>
               Objects.requireNonNull(result, "recovery must not return null");
 
               if (!(result instanceof CompletableFuturePath<?> futurePath)) {
-                throw new IllegalArgumentException(
-                    "recoverWith must return CompletableFuturePath, got: " + result.getClass());
+                throw PathTypeMismatch.RECOVER_WITH.exception(CompletableFuturePath.class, result);
               }
 
               @SuppressWarnings("unchecked")
@@ -434,7 +430,16 @@ public final class CompletableFuturePath<A>
       Supplier<? extends Recoverable<? extends CompletableFuturePath<?>, ? extends Exception, A>>
           alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
-    return recoverWith(ignored -> alternative.get());
+    return recoverWith(
+        ignored -> {
+          Recoverable<? extends CompletableFuturePath<?>, ? extends Exception, A> result =
+              alternative.get();
+          Objects.requireNonNull(result, "alternative must not return null");
+          if (!(result instanceof CompletableFuturePath<?>)) {
+            throw PathTypeMismatch.OR_ELSE.exception(CompletableFuturePath.class, result);
+          }
+          return result;
+        });
   }
 
   /**

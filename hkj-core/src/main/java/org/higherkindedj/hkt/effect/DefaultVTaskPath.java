@@ -127,7 +127,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof VTaskPath<?> otherVTask)) {
-      throw new IllegalArgumentException("Cannot zipWith non-VTaskPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(VTaskPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -171,8 +171,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
           Objects.requireNonNull(result, "mapper must not return null");
 
           if (!(result instanceof VTaskPath<?> vtaskPath)) {
-            throw new IllegalArgumentException(
-                "via mapper must return VTaskPath, got: " + result.getClass());
+            throw PathTypeMismatch.VIA.exception(VTaskPath.class, result);
           }
 
           @SuppressWarnings("unchecked")
@@ -201,8 +200,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
           Objects.requireNonNull(result, "supplier must not return null");
 
           if (!(result instanceof VTaskPath<?> vtaskPath)) {
-            throw new IllegalArgumentException(
-                "then supplier must return VTaskPath, got: " + result.getClass());
+            throw PathTypeMismatch.THEN.exception(VTaskPath.class, result);
           }
 
           @SuppressWarnings("unchecked")

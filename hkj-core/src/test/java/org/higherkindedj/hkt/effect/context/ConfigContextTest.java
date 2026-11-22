@@ -146,7 +146,10 @@ class ConfigContextTest {
       assertThatIllegalArgumentException()
           .isThrownBy(
               () -> ctx.via(x -> ErrorContext.success(x.toString())).runWithSync(TEST_CONFIG))
-          .withMessageContaining("via function must return a ConfigContext");
+          .withMessageContaining(
+              "Type mismatch in via(): expected ConfigContext but function returned ErrorContext")
+          .withMessageContaining(
+              "Build the step with ConfigContext's factory methods, or chain with flatMap()");
     }
 
     @Test

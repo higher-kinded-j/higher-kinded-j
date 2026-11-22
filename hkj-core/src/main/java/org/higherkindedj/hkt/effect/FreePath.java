@@ -230,7 +230,7 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof FreePath<?, ?> otherFree)) {
-      throw new IllegalArgumentException("Cannot zipWith non-FreePath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(FreePath.class, other);
     }
 
     FreePath<F, B> typedOther = (FreePath<F, B>) otherFree;
@@ -295,8 +295,7 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
               Objects.requireNonNull(result, "mapper must not return null");
 
               if (!(result instanceof FreePath<?, ?> fp)) {
-                throw new IllegalArgumentException(
-                    "FreePath.via must return FreePath. Got: " + result.getClass());
+                throw PathTypeMismatch.VIA.exception(FreePath.class, result);
               }
               return ((FreePath<F, B>) fp).free;
             });
@@ -307,7 +306,15 @@ public final class FreePath<F extends WitnessArity<TypeArity.Unary>, A>
   public <B> FreePath<F, B> then(
       Supplier<? extends Chainable<? extends FreePath<F, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return via(_ -> supplier.get());
+    return via(
+        _ -> {
+          Chainable<? extends FreePath<F, ?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
+          if (!(result instanceof FreePath<?, ?>)) {
+            throw PathTypeMismatch.THEN.exception(FreePath.class, result);
+          }
+          return result;
+        });
   }
 
   // ===== Error Recovery =====

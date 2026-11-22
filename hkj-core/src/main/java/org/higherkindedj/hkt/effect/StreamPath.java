@@ -304,7 +304,7 @@ public final class StreamPath<A> implements Chainable<StreamPath<?>, A>, Deferre
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof StreamPath<?> otherStream)) {
-      throw new IllegalArgumentException("Cannot zipWith non-StreamPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(StreamPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -349,8 +349,7 @@ public final class StreamPath<A> implements Chainable<StreamPath<?>, A>, Deferre
                       Objects.requireNonNull(result, "mapper must not return null");
 
                       if (!(result instanceof StreamPath<?> streamPath)) {
-                        throw new IllegalArgumentException(
-                            "via mapper must return StreamPath, got: " + result.getClass());
+                        throw PathTypeMismatch.VIA.exception(StreamPath.class, result);
                       }
 
                       @SuppressWarnings("unchecked")
@@ -363,7 +362,15 @@ public final class StreamPath<A> implements Chainable<StreamPath<?>, A>, Deferre
   public <B> StreamPath<B> then(
       Supplier<? extends Chainable<? extends StreamPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return via(ignored -> supplier.get());
+    return via(
+        ignored -> {
+          Chainable<? extends StreamPath<?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
+          if (!(result instanceof StreamPath<?>)) {
+            throw PathTypeMismatch.THEN.exception(StreamPath.class, result);
+          }
+          return result;
+        });
   }
 
   // ===== Stream-Specific Operations =====

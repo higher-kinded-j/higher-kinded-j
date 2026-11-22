@@ -174,8 +174,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
               EffectContext<F, B> next = fn.apply(a);
               Objects.requireNonNull(next, "fn must not return null");
               if (!(next instanceof MutableContext<?, ?, ?> nextCtx)) {
-                throw new IllegalArgumentException(
-                    "via function must return a MutableContext, got: " + next.getClass().getName());
+                throw ContextTypeMismatch.via(MutableContext.class, next);
               }
               @SuppressWarnings("unchecked")
               MutableContext<F, S, B> typedNext = (MutableContext<F, S, B>) nextCtx;

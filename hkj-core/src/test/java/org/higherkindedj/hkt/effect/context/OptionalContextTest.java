@@ -241,7 +241,10 @@ class OptionalContextTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> ctx.via(x -> ErrorContext.success(x.toString())).runIO().unsafeRun())
-          .withMessageContaining("via function must return an OptionalContext");
+          .withMessageContaining(
+              "Type mismatch in via(): expected OptionalContext but function returned ErrorContext")
+          .withMessageContaining(
+              "Build the step with OptionalContext's factory methods, or chain with flatMap()");
     }
 
     @Test

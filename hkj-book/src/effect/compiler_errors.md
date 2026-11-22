@@ -25,7 +25,7 @@ The silent case carries a snippet the book's build compiles, asserting that it s
 |-------------|------------|-----------|
 | [`Path.right`/`left` silently gets `E = Object`](#1-the-phantom-error-type-e-on-pathright) | `E` is unconstrained, so javac defaults it | Nothing. Add the witness yourself |
 | [`MaybePath<User> cannot be converted to Chainable<? extends EitherPath<…>,B>`](#2-a-step-that-returns-the-wrong-kind-of-path) | A step returns another kind of Path | javac, and the `path-type-mismatch` note |
-| [`via mapper must return EitherPath`, an `IllegalArgumentException`](#2-a-step-that-returns-the-wrong-kind-of-path) | The same mistake, through a raw type or an older build | The run-time check |
+| [`Type mismatch in via(): expected EitherPath`, an `IllegalArgumentException`](#2-a-step-that-returns-the-wrong-kind-of-path) | The same mistake, through a raw type or an older build | The run-time check |
 | [`Chainable<? extends ReaderPath<? super Config,?>,B>`, or a `WithStatePath`, `WriterPath` or witness](#2-a-step-that-returns-the-wrong-kind-of-path) | A step with another environment, state, log or witness type | javac |
 | [`method via is not applicable`](#3-method-via-is-not-applicable-for-the-arguments) | The function returns a plain value, not a Path | javac, and the `via-non-path` note for a lambda |
 | [`lambda body is neither value nor void compatible`](#4-lambda-body-is-neither-value-nor-void-compatible) | A lambda's branches return different types | javac |
@@ -177,7 +177,7 @@ EitherPath<AppError, String> result =
 
 The same message names the environment of a `ReaderPath`, the state of a `WithStatePath`, the log of a `WriterPath` and the witness of a `FreePath` or `GenericPath`. A `ReaderPath` step may need less of the environment, a supertype of the chain's; the others must match exactly.
 
-Each Path still checks a step's kind when the chain runs, for code that reaches `via` through a raw type or was compiled against an older release. There the mistake throws `IllegalArgumentException: via mapper must return EitherPath, got: …`, and the fix is the same conversion.
+Each Path still checks a step's kind, for code that reaches `via` through a raw type or was compiled against an older release. A Path that already holds its value, such as an `EitherPath` or a `WriterPath`, checks as `via` is called, while the chain is built. A deferred Path, such as an `IOPath` or a `ReaderPath`, checks when the chain runs. Either way the mistake throws an `IllegalArgumentException` that names the method and both Path types, as in `Type mismatch in via(): expected EitherPath but mapper returned MaybePath`, and the fix is the same conversion.
 ~~~
 
 ---

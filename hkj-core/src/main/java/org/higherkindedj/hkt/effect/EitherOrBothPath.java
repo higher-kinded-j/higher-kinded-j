@@ -281,8 +281,7 @@ public final class EitherOrBothPath<L, A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof EitherOrBothPath<?, ?> otherPath)) {
-      throw new IllegalArgumentException(
-          "Cannot zipWith non-EitherOrBothPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(EitherOrBothPath.class, other);
     }
     @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, B> typedOther = (EitherOrBothPath<L, B>) otherPath;
@@ -323,7 +322,7 @@ public final class EitherOrBothPath<L, A>
       BiFunction<? super A, ? super B, ? extends C> combiner) {
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
-    EitherOrBothPath<L, B> typedOther = narrowAccumulating(other);
+    EitherOrBothPath<L, B> typedOther = narrowAccumulating(other, PathTypeMismatch.ZIP_WITH_ACCUM);
     return new EitherOrBothPath<>(
         value.zipWithAccum(typedOther.value, semigroup, combiner), semigroup);
   }
@@ -344,14 +343,14 @@ public final class EitherOrBothPath<L, A>
   public EitherOrBothPath<L, A> andAlso(
       Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, ?> other) {
     Objects.requireNonNull(other, "other must not be null");
-    return zipWithAccum(other, (a, ignored) -> a);
+    return zipWithAccum(narrowAccumulating(other, PathTypeMismatch.AND_ALSO), (a, ignored) -> a);
   }
 
   @Override
   public <B> EitherOrBothPath<L, B> andThen(
       Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, B> other) {
     Objects.requireNonNull(other, "other must not be null");
-    return zipWithAccum(other, (ignored, b) -> b);
+    return zipWithAccum(narrowAccumulating(other, PathTypeMismatch.AND_THEN), (ignored, b) -> b);
   }
 
   // ===== Chainable (short-circuit, accumulating Both) =====
@@ -374,7 +373,7 @@ public final class EitherOrBothPath<L, A>
             a -> {
               Chainable<? extends EitherOrBothPath<? extends L, ?>, B> r = mapper.apply(a);
               Objects.requireNonNull(r, "mapper must not return null");
-              return EitherOrBothPath.<L, B>narrowChainable(r, "via mapper").value;
+              return EitherOrBothPath.<L, B>narrowChainable(r, PathTypeMismatch.VIA).value;
             });
     return new EitherOrBothPath<>(result, semigroup);
   }
@@ -389,7 +388,7 @@ public final class EitherOrBothPath<L, A>
             ignored -> {
               Chainable<? extends EitherOrBothPath<? extends L, ?>, B> r = supplier.get();
               Objects.requireNonNull(r, "supplier must not return null");
-              return EitherOrBothPath.<L, B>narrowChainable(r, "then supplier").value;
+              return EitherOrBothPath.<L, B>narrowChainable(r, PathTypeMismatch.THEN).value;
             });
     return new EitherOrBothPath<>(result, semigroup);
   }
@@ -417,7 +416,8 @@ public final class EitherOrBothPath<L, A>
           Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A> r =
               recovery.apply(l);
           Objects.requireNonNull(r, "recovery must not return null");
-          return onThisSemigroup(EitherOrBothPath.<L, A>narrowRecoverable(r, "recovery"));
+          return onThisSemigroup(
+              EitherOrBothPath.<L, A>narrowRecoverable(r, PathTypeMismatch.RECOVER_WITH));
         },
         r -> this,
         (l, r) -> this);
@@ -433,7 +433,8 @@ public final class EitherOrBothPath<L, A>
           Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A> r =
               alternative.get();
           Objects.requireNonNull(r, "alternative must not return null");
-          return onThisSemigroup(EitherOrBothPath.<L, A>narrowRecoverable(r, "alternative"));
+          return onThisSemigroup(
+              EitherOrBothPath.<L, A>narrowRecoverable(r, PathTypeMismatch.OR_ELSE));
         },
         r -> this,
         (l, r) -> this);
@@ -569,10 +570,9 @@ public final class EitherOrBothPath<L, A>
   }
 
   private static <L, B> EitherOrBothPath<L, B> narrowChainable(
-      Chainable<? extends EitherOrBothPath<? extends L, ?>, B> c, String op) {
+      Chainable<? extends EitherOrBothPath<? extends L, ?>, B> c, PathTypeMismatch mismatch) {
     if (!(c instanceof EitherOrBothPath<?, ?> path)) {
-      throw new IllegalArgumentException(
-          op + " must return EitherOrBothPath, got: " + c.getClass());
+      throw mismatch.exception(EitherOrBothPath.class, c);
     }
     @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, B> typed = (EitherOrBothPath<L, B>) path;
@@ -580,10 +580,10 @@ public final class EitherOrBothPath<L, A>
   }
 
   private static <L, A> EitherOrBothPath<L, A> narrowRecoverable(
-      Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A> r, String op) {
+      Recoverable<? extends EitherOrBothPath<? extends L, ?>, ? extends L, A> r,
+      PathTypeMismatch mismatch) {
     if (!(r instanceof EitherOrBothPath<?, ?> path)) {
-      throw new IllegalArgumentException(
-          op + " must return EitherOrBothPath, got: " + r.getClass());
+      throw mismatch.exception(EitherOrBothPath.class, r);
     }
     @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, A> typed = (EitherOrBothPath<L, A>) path;
@@ -591,10 +591,10 @@ public final class EitherOrBothPath<L, A>
   }
 
   private static <L, B> EitherOrBothPath<L, B> narrowAccumulating(
-      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, B> other) {
+      Accumulating<? extends EitherOrBothPath<? extends L, ?>, ? extends L, B> other,
+      PathTypeMismatch mismatch) {
     if (!(other instanceof EitherOrBothPath<?, ?> path)) {
-      throw new IllegalArgumentException(
-          "Cannot accumulate with non-EitherOrBothPath: " + other.getClass());
+      throw mismatch.exception(EitherOrBothPath.class, other);
     }
     @SuppressWarnings("unchecked") // the family bounds its warnings by L
     EitherOrBothPath<L, B> typed = (EitherOrBothPath<L, B>) path;

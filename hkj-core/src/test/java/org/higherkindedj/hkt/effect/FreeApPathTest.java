@@ -340,7 +340,9 @@ class FreeApPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (a, b) -> a + b))
-          .withMessageContaining("FreeApPath.zipWith requires FreeApPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected FreeApPath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

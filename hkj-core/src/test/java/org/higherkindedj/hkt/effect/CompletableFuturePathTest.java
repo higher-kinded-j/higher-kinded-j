@@ -408,7 +408,9 @@ class CompletableFuturePathTest {
       assertThatThrownBy(result::join)
           .isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("via mapper must return CompletableFuturePath");
+          .hasMessageContaining(
+              "Type mismatch in via(): expected CompletableFuturePath but mapper returned IdPath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -422,7 +424,10 @@ class CompletableFuturePathTest {
       assertThatThrownBy(result::join)
           .isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("then supplier must return CompletableFuturePath");
+          .hasMessageContaining(
+              "Type mismatch in then(): expected CompletableFuturePath"
+                  + " but supplier returned IdPath")
+          .hasMessageContaining("Use conversion methods");
     }
   }
 
@@ -476,7 +481,9 @@ class CompletableFuturePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, n) -> s + n))
-          .withMessageContaining("Cannot zipWith non-CompletableFuturePath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected CompletableFuturePath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -1350,7 +1357,40 @@ class CompletableFuturePathTest {
                   failedPath.recoverWith(Mismatched.recovery(ex -> Path.right("recovered"))).join())
           .isInstanceOf(CompletionException.class)
           .hasCauseInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("recoverWith must return CompletableFuturePath");
+          .hasMessageContaining(
+              "Type mismatch in recoverWith(): expected CompletableFuturePath"
+                  + " but recovery returned EitherPath")
+          .hasMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("orElse() throws when alternative returns non-CompletableFuturePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void orElseThrowsForNonCompletableFuturePath() {
+      CompletableFuturePath<String> failedPath =
+          CompletableFuturePath.failed(new RuntimeException("test error"));
+
+      assertThatThrownBy(
+              () -> failedPath.orElse(Mismatched.alternative(() -> Path.right("other"))).join())
+          .isInstanceOf(CompletionException.class)
+          .hasCauseInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(
+              "Type mismatch in orElse(): expected CompletableFuturePath"
+                  + " but alternative returned EitherPath")
+          .hasMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("orElse() names the alternative when it returns null")
+    void orElseRejectsNullAlternativeResult() {
+      CompletableFuturePath<String> failedPath =
+          CompletableFuturePath.failed(new RuntimeException("test error"));
+
+      assertThatThrownBy(() -> failedPath.orElse(() -> null).join())
+          .isInstanceOf(CompletionException.class)
+          .cause()
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("alternative must not return null");
     }
 
     @Test
