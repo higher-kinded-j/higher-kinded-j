@@ -347,7 +347,7 @@ public final class VResultPath<E, A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof VResultPath<?, ?> otherPath)) {
-      throw new IllegalArgumentException("Cannot zipWith non-VResultPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(VResultPath.class, other);
     }
 
     @SuppressWarnings("unchecked") // the family bounds its error by E
@@ -435,8 +435,7 @@ public final class VResultPath<E, A>
                       Objects.requireNonNull(result, "mapper must not return null");
 
                       if (!(result instanceof VResultPath<?, ?> vResultPath)) {
-                        throw new IllegalArgumentException(
-                            "via mapper must return VResultPath, got: " + result.getClass());
+                        throw PathTypeMismatch.VIA.exception(VResultPath.class, result);
                       }
 
                       @SuppressWarnings("unchecked") // the family bounds its error by E
@@ -462,8 +461,7 @@ public final class VResultPath<E, A>
                       Objects.requireNonNull(result, "supplier must not return null");
 
                       if (!(result instanceof VResultPath<?, ?> vResultPath)) {
-                        throw new IllegalArgumentException(
-                            "then supplier must return VResultPath, got: " + result.getClass());
+                        throw PathTypeMismatch.THEN.exception(VResultPath.class, result);
                       }
 
                       @SuppressWarnings("unchecked") // the family bounds its error by E
@@ -515,8 +513,7 @@ public final class VResultPath<E, A>
                       Objects.requireNonNull(result, "recovery must not return null");
 
                       if (!(result instanceof VResultPath<?, ?> vResultPath)) {
-                        throw new IllegalArgumentException(
-                            "recoverWith must return VResultPath, got: " + result.getClass());
+                        throw PathTypeMismatch.RECOVER_WITH.exception(VResultPath.class, result);
                       }
 
                       @SuppressWarnings("unchecked") // the family bounds its error by E
@@ -533,7 +530,16 @@ public final class VResultPath<E, A>
       Supplier<? extends Recoverable<? extends VResultPath<? extends E, ?>, ? extends E, A>>
           alternative) {
     Objects.requireNonNull(alternative, "alternative must not be null");
-    return recoverWith(_ -> alternative.get());
+    return recoverWith(
+        _ -> {
+          Recoverable<? extends VResultPath<? extends E, ?>, ? extends E, A> result =
+              alternative.get();
+          Objects.requireNonNull(result, "alternative must not return null");
+          if (!(result instanceof VResultPath<?, ?>)) {
+            throw PathTypeMismatch.OR_ELSE.exception(VResultPath.class, result);
+          }
+          return result;
+        });
   }
 
   @Override

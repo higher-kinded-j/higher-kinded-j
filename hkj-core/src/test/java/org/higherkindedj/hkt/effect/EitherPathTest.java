@@ -329,7 +329,9 @@ class EitherPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s.length()))))
-          .withMessageContaining("via mapper must return EitherPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected EitherPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -363,7 +365,9 @@ class EitherPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.just(42))))
-          .withMessageContaining("then supplier must return EitherPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected EitherPath but supplier returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -440,7 +444,9 @@ class EitherPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-EitherPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected EitherPath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -676,7 +682,9 @@ class EitherPathTest {
                 var rawPath = (EitherPath) path;
                 rawPath.recoverWith(error -> Path.just("fallback"));
               })
-          .withMessageContaining("recovery must return EitherPath");
+          .withMessageContaining(
+              "Type mismatch in recoverWith(): expected EitherPath but recovery returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -692,7 +700,9 @@ class EitherPathTest {
                 var rawPath = (EitherPath) path;
                 rawPath.orElse(() -> Path.just("alternative"));
               })
-          .withMessageContaining("alternative must return EitherPath");
+          .withMessageContaining(
+              "Type mismatch in orElse(): expected EitherPath but alternative returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 

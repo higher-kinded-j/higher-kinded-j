@@ -269,7 +269,9 @@ class WriterPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))))
-          .withMessageContaining("via mapper must return WriterPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected WriterPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -312,7 +314,9 @@ class WriterPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.id(42))))
-          .withMessageContaining("then supplier must return WriterPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected WriterPath but supplier returned IdPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -357,7 +361,9 @@ class WriterPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-WriterPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected WriterPath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

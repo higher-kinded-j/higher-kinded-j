@@ -303,7 +303,37 @@ class FreePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> result.foldMap(IDENTITY_NAT, MAYBE_MONAD))
-          .withMessageContaining("FreePath.via must return FreePath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected FreePath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() throws when supplier returns non-FreePath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenThrowsWhenSupplierReturnsNonFreePath() {
+      FreePath<MaybeKind.Witness, Integer> path = FreePath.pure(42, Instances.monadError(maybe()));
+
+      FreePath<MaybeKind.Witness, Integer> result =
+          path.then(Mismatched.supplier(() -> Path.just(100)));
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> result.foldMap(IDENTITY_NAT, MAYBE_MONAD))
+          .withMessageContaining(
+              "Type mismatch in then(): expected FreePath but supplier returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names the supplier when it returns null")
+    void thenRejectsNullSupplierResult() {
+      FreePath<MaybeKind.Witness, Integer> result =
+          FreePath.<MaybeKind.Witness, Integer>pure(42, Instances.monadError(maybe()))
+              .then(() -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> result.foldMap(IDENTITY_NAT, MAYBE_MONAD))
+          .withMessage("supplier must not return null");
     }
 
     @Test
@@ -364,7 +394,9 @@ class FreePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (a, b) -> a + b))
-          .withMessageContaining("Cannot zipWith non-FreePath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected FreePath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

@@ -163,7 +163,10 @@ class MutableContextTest {
                   ctx.via(x -> ErrorContext.success(x.toString()))
                       .runWith(INITIAL_STATE)
                       .unsafeRun())
-          .withMessageContaining("via function must return a MutableContext");
+          .withMessageContaining(
+              "Type mismatch in via(): expected MutableContext but function returned ErrorContext")
+          .withMessageContaining(
+              "Build the step with MutableContext's factory methods, or chain with flatMap()");
     }
 
     @Test

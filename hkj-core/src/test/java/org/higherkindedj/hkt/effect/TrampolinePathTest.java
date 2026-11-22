@@ -256,7 +256,34 @@ class TrampolinePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::run)
-          .withMessageContaining("TrampolinePath.via must return TrampolinePath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected TrampolinePath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() throws when supplier returns wrong type")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenThrowsWhenSupplierReturnsWrongType() {
+      TrampolinePath<Integer> path = TrampolinePath.done(42);
+
+      TrampolinePath<Integer> result = path.then(Mismatched.supplier(() -> Path.just(100)));
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(result::run)
+          .withMessageContaining(
+              "Type mismatch in then(): expected TrampolinePath but supplier returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names the supplier when it returns null")
+    void thenRejectsNullSupplierResult() {
+      TrampolinePath<Integer> result = TrampolinePath.done(42).then(() -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(result::run)
+          .withMessage("supplier must not return null");
     }
 
     @Test
@@ -326,7 +353,9 @@ class TrampolinePathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (a, b) -> a + b))
-          .withMessageContaining("Cannot zipWith non-TrampolinePath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected TrampolinePath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

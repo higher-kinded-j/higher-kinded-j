@@ -282,7 +282,9 @@ class GenericPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(other), Integer::sum))
-          .withMessageContaining("GenericPath can only zipWith another GenericPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected GenericPath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -429,7 +431,32 @@ class GenericPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(n -> Path.maybe("test"))))
-          .withMessageContaining("GenericPath.via must return GenericPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected GenericPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() throws when supplier returns non-GenericPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenThrowsOnNonGenericPath() {
+      GenericPath<MaybeKind.Witness, Integer> path = GenericPath.pure(5, MONAD);
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.maybe("test"))))
+          .withMessageContaining(
+              "Type mismatch in then(): expected GenericPath but supplier returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names the supplier when it returns null")
+    void thenRejectsNullSupplierResult() {
+      GenericPath<MaybeKind.Witness, Integer> path = GenericPath.pure(5, MONAD);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.then(() -> null))
+          .withMessage("supplier must not return null");
     }
 
     @Test

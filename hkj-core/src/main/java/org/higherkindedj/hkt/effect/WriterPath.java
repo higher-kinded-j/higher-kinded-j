@@ -202,7 +202,7 @@ public final class WriterPath<W, A> implements Chainable<WriterPath<W, ?>, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof WriterPath<?, ?> otherWriter)) {
-      throw new IllegalArgumentException("Cannot zipWith non-WriterPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(WriterPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -263,8 +263,7 @@ public final class WriterPath<W, A> implements Chainable<WriterPath<W, ?>, A> {
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof WriterPath<?, ?> writerPath)) {
-      throw new IllegalArgumentException(
-          "via mapper must return WriterPath, got: " + result.getClass());
+      throw PathTypeMismatch.VIA.exception(WriterPath.class, result);
     }
 
     @SuppressWarnings("unchecked")
@@ -283,8 +282,7 @@ public final class WriterPath<W, A> implements Chainable<WriterPath<W, ?>, A> {
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof WriterPath<?, ?> writerPath)) {
-      throw new IllegalArgumentException(
-          "then supplier must return WriterPath, got: " + result.getClass());
+      throw PathTypeMismatch.THEN.exception(WriterPath.class, result);
     }
 
     @SuppressWarnings("unchecked")

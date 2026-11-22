@@ -285,7 +285,9 @@ class IOPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::unsafeRun)
-          .withMessageContaining("via mapper must return IOPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected IOPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -353,7 +355,9 @@ class IOPathTest {
       // Exception thrown when executed
       assertThatIllegalArgumentException()
           .isThrownBy(result::unsafeRun)
-          .withMessageContaining("then supplier must return IOPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected IOPath but supplier returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -437,7 +441,9 @@ class IOPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-IOPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected IOPath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 

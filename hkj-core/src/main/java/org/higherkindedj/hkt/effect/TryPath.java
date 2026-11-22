@@ -259,7 +259,7 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof TryPath<?> otherTry)) {
-      throw new IllegalArgumentException("Cannot zipWith non-TryPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(TryPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -339,8 +339,7 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
       Objects.requireNonNull(result, "mapper must not return null");
 
       if (!(result instanceof TryPath<?> tryPath)) {
-        throw new IllegalArgumentException(
-            "via mapper must return TryPath, got: " + result.getClass());
+        throw PathTypeMismatch.VIA.exception(TryPath.class, result);
       }
 
       @SuppressWarnings("unchecked")
@@ -366,8 +365,7 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
       Objects.requireNonNull(result, "supplier must not return null");
 
       if (!(result instanceof TryPath<?> tryPath)) {
-        throw new IllegalArgumentException(
-            "then supplier must return TryPath, got: " + result.getClass());
+        throw PathTypeMismatch.THEN.exception(TryPath.class, result);
       }
 
       @SuppressWarnings("unchecked")
@@ -400,8 +398,7 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
           Recoverable<? extends TryPath<?>, ? extends Throwable, A> result = recovery.apply(ex);
           Objects.requireNonNull(result, "recovery must not return null");
           if (!(result instanceof TryPath<?> tryPath)) {
-            throw new IllegalArgumentException(
-                "recovery must return TryPath, got: " + result.getClass());
+            throw PathTypeMismatch.RECOVER_WITH.exception(TryPath.class, result);
           }
           @SuppressWarnings("unchecked")
           TryPath<A> typedResult = (TryPath<A>) tryPath;
@@ -420,8 +417,7 @@ public final class TryPath<A> implements Recoverable<TryPath<?>, Throwable, A> {
     Recoverable<? extends TryPath<?>, ? extends Throwable, A> result = alternative.get();
     Objects.requireNonNull(result, "alternative must not return null");
     if (!(result instanceof TryPath<?> tryPath)) {
-      throw new IllegalArgumentException(
-          "alternative must return TryPath, got: " + result.getClass());
+      throw PathTypeMismatch.OR_ELSE.exception(TryPath.class, result);
     }
     @SuppressWarnings("unchecked")
     TryPath<A> typedResult = (TryPath<A>) tryPath;

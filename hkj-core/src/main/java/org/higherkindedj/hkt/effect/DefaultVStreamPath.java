@@ -85,8 +85,7 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
               Objects.requireNonNull(chainable, "mapper must not return null");
 
               if (!(chainable instanceof VStreamPath<?> vsp)) {
-                throw new IllegalArgumentException(
-                    "via mapper must return VStreamPath, got: " + chainable.getClass());
+                throw PathTypeMismatch.VIA.exception(VStreamPath.class, chainable);
               }
 
               @SuppressWarnings("unchecked")
@@ -99,7 +98,15 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
   public <B> VStreamPath<B> then(
       Supplier<? extends Chainable<? extends VStreamPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return via(ignored -> supplier.get());
+    return via(
+        ignored -> {
+          Chainable<? extends VStreamPath<?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
+          if (!(result instanceof VStreamPath<?>)) {
+            throw PathTypeMismatch.THEN.exception(VStreamPath.class, result);
+          }
+          return result;
+        });
   }
 
   // ===== Combinable implementation =====
@@ -112,7 +119,7 @@ public record DefaultVStreamPath<A>(VStream<A> stream) implements VStreamPath<A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof VStreamPath<?> otherVStream)) {
-      throw new IllegalArgumentException("Cannot zipWith non-VStreamPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(VStreamPath.class, other);
     }
 
     @SuppressWarnings("unchecked")

@@ -281,7 +281,32 @@ class StreamPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).toList())
-          .withMessageContaining("via mapper must return StreamPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected StreamPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() validates result is StreamPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenValidatesResultType() {
+      StreamPath<String> path = StreamPath.pure(TEST_VALUE);
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.just(TEST_VALUE))).toList())
+          .withMessageContaining(
+              "Type mismatch in then(): expected StreamPath but supplier returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names the supplier when it returns null")
+    void thenRejectsNullSupplierResult() {
+      StreamPath<String> path = StreamPath.pure(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.then(() -> null).toList())
+          .withMessage("supplier must not return null");
     }
 
     @Test
@@ -346,7 +371,9 @@ class StreamPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-StreamPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected StreamPath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 

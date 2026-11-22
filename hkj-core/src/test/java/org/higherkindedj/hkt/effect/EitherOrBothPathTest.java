@@ -239,7 +239,20 @@ class EitherOrBothPathTest {
     void viaRejectsNonEitherOrBothPathResult() {
       assertThatThrownBy(() -> right().via(Mismatched.step(a -> Path.just(a))))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("via");
+          .hasMessageContaining(
+              "Type mismatch in via(): expected EitherOrBothPath but mapper returned MaybePath")
+          .hasMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names both types when the supplier returns another kind of Path")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenRejectsNonEitherOrBothPathResult() {
+      assertThatThrownBy(() -> right().then(Mismatched.supplier(() -> Path.just(1))))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(
+              "Type mismatch in then(): expected EitherOrBothPath but supplier returned MaybePath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -277,7 +290,9 @@ class EitherOrBothPathTest {
     void zipWithRejectsNonEitherOrBothPath() {
       assertThatThrownBy(() -> right().zipWith(Mismatched.other(Path.just(1)), Integer::sum))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("zipWith");
+          .hasMessageContaining(
+              "Type mismatch in zipWith(): expected EitherOrBothPath but other was MaybePath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -350,7 +365,27 @@ class EitherOrBothPathTest {
                   right()
                       .zipWithAccum(Mismatched.accumulating(Path.valid(1, CONCAT)), Integer::sum))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("non-EitherOrBothPath");
+          .hasMessageContaining(
+              "Type mismatch in zipWithAccum(): expected EitherOrBothPath"
+                  + " but other was ValidationPath")
+          .hasMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("andAlso() and andThen() name themselves when the other is another kind of Path")
+    void andAlsoAndThenRejectNonEitherOrBothPath() {
+      ValidationPath<String, Integer> other = Path.valid(1, CONCAT);
+
+      assertThatThrownBy(() -> right().andAlso(Mismatched.accumulating(other)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(
+              "Type mismatch in andAlso(): expected EitherOrBothPath but other was ValidationPath")
+          .hasMessageContaining("Use conversion methods");
+      assertThatThrownBy(() -> right().andThen(Mismatched.accumulating(other)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(
+              "Type mismatch in andThen(): expected EitherOrBothPath but other was ValidationPath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -403,7 +438,27 @@ class EitherOrBothPathTest {
                       .recoverWith(
                           Mismatched.recovery(l -> Path.<String, Integer>either(Either.right(0)))))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("recovery");
+          .hasMessageContaining(
+              "Type mismatch in recoverWith(): expected EitherOrBothPath but recovery returned"
+                  + " EitherPath")
+          .hasMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("orElse() names both types when the alternative returns another kind of Path")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void orElseRejectsNonEitherOrBothPath() {
+      assertThatThrownBy(
+              () ->
+                  left()
+                      .orElse(
+                          Mismatched.alternative(
+                              () -> Path.<String, Integer>either(Either.right(0)))))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining(
+              "Type mismatch in orElse(): expected EitherOrBothPath but alternative returned"
+                  + " EitherPath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test

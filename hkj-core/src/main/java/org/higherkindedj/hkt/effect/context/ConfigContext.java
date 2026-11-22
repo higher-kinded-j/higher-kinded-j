@@ -172,8 +172,7 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
               EffectContext<F, B> next = fn.apply(a);
               Objects.requireNonNull(next, "fn must not return null");
               if (!(next instanceof ConfigContext<?, ?, ?> nextCtx)) {
-                throw new IllegalArgumentException(
-                    "via function must return a ConfigContext, got: " + next.getClass().getName());
+                throw ContextTypeMismatch.via(ConfigContext.class, next);
               }
               @SuppressWarnings("unchecked")
               ConfigContext<F, R, B> typedNext = (ConfigContext<F, R, B>) nextCtx;

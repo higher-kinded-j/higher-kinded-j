@@ -175,7 +175,9 @@ class IdPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.right(s.length()))))
-          .withMessageContaining("via mapper must return IdPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected IdPath but mapper returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -210,7 +212,9 @@ class IdPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.right(42))))
-          .withMessageContaining("then supplier must return IdPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected IdPath but supplier returned EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -252,7 +256,9 @@ class IdPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(eitherPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-IdPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected IdPath but other was EitherPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

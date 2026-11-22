@@ -240,8 +240,7 @@ public final class FreeApPath<F extends WitnessArity<TypeArity.Unary>, A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof FreeApPath<?, ?> otherFreeAp)) {
-      throw new IllegalArgumentException(
-          "FreeApPath.zipWith requires FreeApPath. Got: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(FreeApPath.class, other);
     }
 
     FreeApPath<F, B> typedOther = (FreeApPath<F, B>) otherFreeAp;

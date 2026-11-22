@@ -329,7 +329,32 @@ class NonDetPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))))
-          .withMessageContaining("via mapper must return NonDetPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected NonDetPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() validates result is NonDetPath")
+    @SuppressWarnings("path-type-mismatch") // the mismatch is the behaviour under test
+    void thenValidatesResultType() {
+      NonDetPath<String> path = NonDetPath.pure(TEST_VALUE);
+
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> path.then(Mismatched.supplier(() -> Path.just(TEST_VALUE))))
+          .withMessageContaining(
+              "Type mismatch in then(): expected NonDetPath but supplier returned MaybePath")
+          .withMessageContaining("Use conversion methods");
+    }
+
+    @Test
+    @DisplayName("then() names the supplier when it returns null")
+    void thenRejectsNullSupplierResult() {
+      NonDetPath<String> path = NonDetPath.pure(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.then(() -> null))
+          .withMessage("supplier must not return null");
     }
 
     @Test
@@ -404,7 +429,9 @@ class NonDetPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-NonDetPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected NonDetPath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

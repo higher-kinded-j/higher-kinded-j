@@ -266,7 +266,7 @@ public final class ValidationPath<E, A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof ValidationPath<?, ?> otherValidated)) {
-      throw new IllegalArgumentException("Cannot zipWith non-ValidationPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(ValidationPath.class, other);
     }
 
     @SuppressWarnings("unchecked") // the family bounds its error by E
@@ -323,7 +323,7 @@ public final class ValidationPath<E, A>
     Objects.requireNonNull(other, "other must not be null");
     Objects.requireNonNull(combiner, "combiner must not be null");
 
-    ValidationPath<E, B> typedOther = castAccumulatingForZipWithAccum(other);
+    ValidationPath<E, B> typedOther = castAccumulating(other, PathTypeMismatch.ZIP_WITH_ACCUM);
 
     // Accumulate errors from both
     return switch (this.value) {
@@ -361,7 +361,7 @@ public final class ValidationPath<E, A>
       Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, ?> other) {
     Objects.requireNonNull(other, "other must not be null");
 
-    ValidationPath<E, ?> typedOther = castAccumulatingForAndAlso(other);
+    ValidationPath<E, ?> typedOther = castAccumulating(other, PathTypeMismatch.AND_ALSO);
 
     return zipWithAccum(typedOther, (a, _) -> a);
   }
@@ -371,7 +371,7 @@ public final class ValidationPath<E, A>
       Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other) {
     Objects.requireNonNull(other, "other must not be null");
 
-    ValidationPath<E, B> typedOther = castAccumulatingForAndThen(other);
+    ValidationPath<E, B> typedOther = castAccumulating(other, PathTypeMismatch.AND_THEN);
 
     return zipWithAccum(typedOther, (_, b) -> b);
   }
@@ -401,8 +401,7 @@ public final class ValidationPath<E, A>
     Objects.requireNonNull(result, "mapper must not return null");
 
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
-      throw new IllegalArgumentException(
-          "via mapper must return ValidationPath, got: " + result.getClass());
+      throw PathTypeMismatch.VIA.exception(ValidationPath.class, result);
     }
 
     return onThisSemigroup(validatedPath);
@@ -423,8 +422,7 @@ public final class ValidationPath<E, A>
     Objects.requireNonNull(result, "supplier must not return null");
 
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
-      throw new IllegalArgumentException(
-          "then supplier must return ValidationPath, got: " + result.getClass());
+      throw PathTypeMismatch.THEN.exception(ValidationPath.class, result);
     }
 
     return onThisSemigroup(validatedPath);
@@ -455,8 +453,7 @@ public final class ValidationPath<E, A>
         recovery.apply(value.getError());
     Objects.requireNonNull(result, "recovery must not return null");
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
-      throw new IllegalArgumentException(
-          "recovery must return ValidationPath, got: " + result.getClass());
+      throw PathTypeMismatch.RECOVER_WITH.exception(ValidationPath.class, result);
     }
     return onThisSemigroup(validatedPath);
   }
@@ -473,8 +470,7 @@ public final class ValidationPath<E, A>
         alternative.get();
     Objects.requireNonNull(result, "alternative must not return null");
     if (!(result instanceof ValidationPath<?, ?> validatedPath)) {
-      throw new IllegalArgumentException(
-          "alternative must return ValidationPath, got: " + result.getClass());
+      throw PathTypeMismatch.OR_ELSE.exception(ValidationPath.class, result);
     }
     return onThisSemigroup(validatedPath);
   }
@@ -645,35 +641,17 @@ public final class ValidationPath<E, A>
     return new ValidationPath<>(stepValue, semigroup);
   }
 
-  // ===== Run-time kind checks for the accumulating methods =====
-  // These instanceof checks always pass for code compiled against these signatures, because
-  // the family parameter admits only a ValidationPath. They remain for raw types and code
+  // ===== Run-time kind check for the accumulating methods =====
+  // This instanceof check always passes for code compiled against these signatures, because
+  // the family parameter admits only a ValidationPath. It remains for raw types and code
   // compiled against an older version.
 
   @SuppressWarnings("unchecked") // the family bounds its error by E
-  private static <E, B> ValidationPath<E, B> castAccumulatingForZipWithAccum(
-      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other) {
+  private static <E, B> ValidationPath<E, B> castAccumulating(
+      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other,
+      PathTypeMismatch mismatch) {
     if (!(other instanceof ValidationPath<?, ?> otherValidated)) {
-      throw new IllegalArgumentException(
-          "Cannot zipWithAccum non-ValidationPath: " + other.getClass());
-    }
-    return (ValidationPath<E, B>) otherValidated;
-  }
-
-  @SuppressWarnings("unchecked") // the family bounds its error by E
-  private static <E> ValidationPath<E, ?> castAccumulatingForAndAlso(
-      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, ?> other) {
-    if (!(other instanceof ValidationPath<?, ?> otherValidated)) {
-      throw new IllegalArgumentException("Cannot andAlso non-ValidationPath: " + other.getClass());
-    }
-    return (ValidationPath<E, ?>) otherValidated;
-  }
-
-  @SuppressWarnings("unchecked") // the family bounds its error by E
-  private static <E, B> ValidationPath<E, B> castAccumulatingForAndThen(
-      Accumulating<? extends ValidationPath<? extends E, ?>, ? extends E, B> other) {
-    if (!(other instanceof ValidationPath<?, ?> otherValidated)) {
-      throw new IllegalArgumentException("Cannot andThen non-ValidationPath: " + other.getClass());
+      throw mismatch.exception(ValidationPath.class, other);
     }
     return (ValidationPath<E, B>) otherValidated;
   }

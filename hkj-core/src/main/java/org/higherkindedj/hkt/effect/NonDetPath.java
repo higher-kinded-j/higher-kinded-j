@@ -267,7 +267,7 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof NonDetPath<?> otherList)) {
-      throw new IllegalArgumentException("Cannot zipWith non-NonDetPath: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(NonDetPath.class, other);
     }
 
     @SuppressWarnings("unchecked")
@@ -338,8 +338,7 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
                   Objects.requireNonNull(result, "mapper must not return null");
 
                   if (!(result instanceof NonDetPath<?> listPath)) {
-                    throw new IllegalArgumentException(
-                        "via mapper must return NonDetPath, got: " + result.getClass());
+                    throw PathTypeMismatch.VIA.exception(NonDetPath.class, result);
                   }
 
                   @SuppressWarnings("unchecked")
@@ -355,7 +354,15 @@ public final class NonDetPath<A> implements Chainable<NonDetPath<?>, A> {
   public <B> NonDetPath<B> then(
       Supplier<? extends Chainable<? extends NonDetPath<?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return via(ignored -> supplier.get());
+    return via(
+        ignored -> {
+          Chainable<? extends NonDetPath<?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
+          if (!(result instanceof NonDetPath<?>)) {
+            throw PathTypeMismatch.THEN.exception(NonDetPath.class, result);
+          }
+          return result;
+        });
   }
 
   // ===== List-Specific Operations =====

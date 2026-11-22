@@ -415,8 +415,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A>
     Objects.requireNonNull(combiner, "combiner must not be null");
 
     if (!(other instanceof GenericPath<?, ?> otherGeneric)) {
-      throw new IllegalArgumentException(
-          "GenericPath can only zipWith another GenericPath. Got: " + other.getClass());
+      throw PathTypeMismatch.ZIP_WITH.exception(GenericPath.class, other);
     }
 
     // Runtime check: same witness type (relies on same Monad instance in practice)
@@ -475,8 +474,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A>
               Objects.requireNonNull(chainResult, "mapper must not return null");
 
               if (!(chainResult instanceof GenericPath<?, ?> gp)) {
-                throw new IllegalArgumentException(
-                    "GenericPath.via must return GenericPath. Got: " + chainResult.getClass());
+                throw PathTypeMismatch.VIA.exception(GenericPath.class, chainResult);
               }
 
               return ((GenericPath<F, B>) gp).value;
@@ -490,7 +488,15 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A>
   public <B> GenericPath<F, B> then(
       Supplier<? extends Chainable<? extends GenericPath<F, ?>, B>> supplier) {
     Objects.requireNonNull(supplier, "supplier must not be null");
-    return via(_ -> supplier.get());
+    return via(
+        _ -> {
+          Chainable<? extends GenericPath<F, ?>, B> result = supplier.get();
+          Objects.requireNonNull(result, "supplier must not return null");
+          if (!(result instanceof GenericPath<?, ?>)) {
+            throw PathTypeMismatch.THEN.exception(GenericPath.class, result);
+          }
+          return result;
+        });
   }
 
   // ===== Object methods =====

@@ -207,8 +207,7 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
               EffectContext<F, B> next = fn.apply(a);
               Objects.requireNonNull(next, "fn must not return null");
               if (!(next instanceof ErrorContext<?, ?, ?> nextCtx)) {
-                throw new IllegalArgumentException(
-                    "via function must return an ErrorContext, got: " + next.getClass().getName());
+                throw ContextTypeMismatch.via(ErrorContext.class, next);
               }
               @SuppressWarnings("unchecked")
               ErrorContext<F, E, B> typedNext = (ErrorContext<F, E, B>) nextCtx;

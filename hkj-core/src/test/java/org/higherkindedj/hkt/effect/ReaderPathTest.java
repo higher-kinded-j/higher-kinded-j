@@ -198,7 +198,9 @@ class ReaderPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.via(Mismatched.step(s -> Path.just(s))).run(TEST_CONFIG))
-          .withMessageContaining("via mapper must return ReaderPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected ReaderPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -234,7 +236,9 @@ class ReaderPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> result.run(TEST_CONFIG))
-          .withMessageContaining("then supplier must return ReaderPath");
+          .withMessageContaining(
+              "Type mismatch in then(): expected ReaderPath but supplier returned IdPath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -276,7 +280,9 @@ class ReaderPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(idPath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-ReaderPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected ReaderPath but other was IdPath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test

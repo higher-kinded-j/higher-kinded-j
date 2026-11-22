@@ -14,7 +14,8 @@ import org.junit.jupiter.api.Test;
 class PathTypeMismatchTest {
 
   private static final String HINT =
-      " Use conversion methods (toEitherPath, toMaybePath, etc.) to change types.";
+      " Use conversion methods (toEitherPath, toMaybePath, etc.) or a Path factory to change"
+          + " types.";
 
   @Test
   @DisplayName("Each operation names itself, both types and the conversion hint")
@@ -33,6 +34,31 @@ class PathTypeMismatchTest {
         .hasMessage(
             "Type mismatch in zipWith(): expected MaybePath but other was EitherPath."
                 + " Each Path type can only combine with the same type."
+                + HINT);
+    assertThat(PathTypeMismatch.RECOVER_WITH.exception(MaybePath.class, Path.right(1)))
+        .hasMessage(
+            "Type mismatch in recoverWith(): expected MaybePath but recovery returned EitherPath."
+                + " Each Path type can only recover with the same type."
+                + HINT);
+    assertThat(PathTypeMismatch.OR_ELSE.exception(MaybePath.class, Path.right(1)))
+        .hasMessage(
+            "Type mismatch in orElse(): expected MaybePath but alternative returned EitherPath."
+                + " Each Path type can only recover with the same type."
+                + HINT);
+    assertThat(PathTypeMismatch.ZIP_WITH_ACCUM.exception(ValidationPath.class, Path.right(1)))
+        .hasMessage(
+            "Type mismatch in zipWithAccum(): expected ValidationPath but other was EitherPath."
+                + " Each Path type can only accumulate with the same type."
+                + HINT);
+    assertThat(PathTypeMismatch.AND_ALSO.exception(ValidationPath.class, Path.right(1)))
+        .hasMessage(
+            "Type mismatch in andAlso(): expected ValidationPath but other was EitherPath."
+                + " Each Path type can only accumulate with the same type."
+                + HINT);
+    assertThat(PathTypeMismatch.AND_THEN.exception(ValidationPath.class, Path.right(1)))
+        .hasMessage(
+            "Type mismatch in andThen(): expected ValidationPath but other was EitherPath."
+                + " Each Path type can only accumulate with the same type."
                 + HINT);
   }
 

@@ -380,7 +380,9 @@ class VTaskPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(result::unsafeRun)
-          .withMessageContaining("via mapper must return VTaskPath");
+          .withMessageContaining(
+              "Type mismatch in via(): expected VTaskPath but mapper returned MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -547,7 +549,9 @@ class VTaskPathTest {
 
       assertThatIllegalArgumentException()
           .isThrownBy(() -> path.zipWith(Mismatched.other(maybePath), (s, i) -> s + i))
-          .withMessageContaining("Cannot zipWith non-VTaskPath");
+          .withMessageContaining(
+              "Type mismatch in zipWith(): expected VTaskPath but other was MaybePath")
+          .withMessageContaining("Use conversion methods");
     }
   }
 
@@ -1159,7 +1163,9 @@ class VTaskPathTest {
 
       assertThatThrownBy(() -> path.zipWith(Mismatched.other(nonVTaskPath), (s, i) -> s + i))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("Cannot zipWith non-VTaskPath");
+          .hasMessageContaining(
+              "Type mismatch in zipWith(): expected VTaskPath but other was IdPath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -1173,7 +1179,9 @@ class VTaskPathTest {
 
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("via mapper must return VTaskPath");
+          .hasMessageContaining(
+              "Type mismatch in via(): expected VTaskPath but mapper returned IdPath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test
@@ -1199,7 +1207,9 @@ class VTaskPathTest {
 
       assertThatThrownBy(result::unsafeRun)
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining("then supplier must return VTaskPath");
+          .hasMessageContaining(
+              "Type mismatch in then(): expected VTaskPath but supplier returned IdPath")
+          .hasMessageContaining("Use conversion methods");
     }
 
     @Test
