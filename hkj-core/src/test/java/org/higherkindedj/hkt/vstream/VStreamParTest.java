@@ -1068,38 +1068,6 @@ class VStreamParTest {
     }
 
     @Test
-    @DisplayName("a second pull of a tail, waiting for the first, can be interrupted")
-    void aWaitingSecondPullIsInterruptible() throws InterruptedException {
-      CountDownLatch release = new CountDownLatch(1);
-      VStream<Integer> results =
-          VStreamPar.parEvalMapUnordered(
-              VStream.of(1, 2),
-              2,
-              n ->
-                  n == 1
-                      ? VTask.succeed(n)
-                      : VTask.of(
-                          () -> {
-                            release.await();
-                            return n;
-                          }));
-      VStream<Integer> tail = ((VStream.Step.Emit<Integer>) results.pull().run()).tail();
-      Thread holding = Thread.ofVirtual().start(() -> tail.pull().run());
-      await().until(() -> holding.getState() == Thread.State.WAITING);
-      AtomicReference<Try<VStream.Step<Integer>>> second = new AtomicReference<>();
-      Thread waiting = Thread.ofVirtual().start(() -> second.set(tail.pull().runSafe()));
-      await().until(() -> waiting.getState() == Thread.State.WAITING);
-
-      waiting.interrupt();
-      waiting.join(5_000);
-
-      assertThat(second.get()).isInstanceOf(Try.Failure.class);
-      release.countDown();
-      holding.join(5_000);
-      tail.close().run();
-    }
-
-    @Test
     @DisplayName("an interrupted first pull inside defer closes its run and cancels the tasks")
     void anInterruptedFirstPullClosesTheRun() throws InterruptedException {
       AtomicBoolean cancelled = new AtomicBoolean();

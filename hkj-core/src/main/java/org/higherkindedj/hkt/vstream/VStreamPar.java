@@ -9,7 +9,6 @@ import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -195,13 +194,16 @@ public final class VStreamPar {
    *
    * <p>Each run of the pulled {@code VTask} starts a virtual thread that reads the source and forks
    * each element's task. A tail the stream gives keeps its step, so pulling it again gives the same
-   * step. A failed element of the source, such as one whose {@link VStream#mapTask} task failed, is
-   * handed on as it is read. A task that fails, or gives null, hands on a failed element as it
-   * completes, in completion order, as a result is handed on. The stream goes on after either, so a
-   * {@link VStream#recover} after it gives a value in its place. If a task is interrupted, or the
-   * function fails, the tasks still running are cancelled, the source is closed where the reading
-   * got to, and the stream fails with that failure, so a {@code recover} after it ends there. If a
-   * pull from the source fails, the tasks already running finish, and their results come before the
+   * step. A pull that need not wait gives its step on an interrupted thread too. An interrupt of
+   * the pulling thread that stops a wait throws {@link InterruptedException}, with the interrupt
+   * status set again, and keeps nothing, so pulling that tail again waits again. A failed element
+   * of the source, such as one whose {@link VStream#mapTask} task failed, is handed on as it is
+   * read. A task that fails, or gives null, hands on a failed element as it completes, in
+   * completion order, as a result is handed on. The stream goes on after either, so a {@link
+   * VStream#recover} after it gives a value in its place. If a task is interrupted, or the function
+   * fails, the tasks still running are cancelled, the source is closed where the reading got to,
+   * and the stream fails with that failure, so a {@code recover} after it ends there. If a pull
+   * from the source fails, the tasks already running finish, and their results come before the
    * failure; an interrupt cancels them at once. A function that closes a tail of its own run gets
    * what closing the source throws. Closing the tail a run holds part-way, as {@link VStream#take}
    * does once it has its elements, cancels the tasks still running and closes the source. A run
@@ -306,12 +308,14 @@ public final class VStreamPar {
    *
    * <p>With more than one source, once a tail's pulled {@code VTask} has given a step, or a
    * source's failure, it gives the same one each time it runs. So a tail read twice gives the same
-   * elements, as far as the first read went, and a tail you hold keeps every step read after it. An
-   * interrupt of the reading thread keeps nothing, so pulling that tail again waits again. Running
-   * the head's pulled {@code VTask} again starts another run. A read that stops early, as {@code
-   * take} does, closes the run. A tail first pulled after that gives {@code Done}, and so does a
-   * pull still waiting when the run is closed, once the close has closed the sources, so a
-   * finaliser after the merge runs after theirs.
+   * elements, as far as the first read went, and a tail you hold keeps every step read after it. A
+   * pull that need not wait gives its step on an interrupted thread too. An interrupt of the
+   * pulling thread that stops a wait throws {@link InterruptedException}, with the interrupt status
+   * set again, and keeps nothing, so pulling that tail again waits again. Running the head's pulled
+   * {@code VTask} again starts another run. A read that stops early, as {@code take} does, closes
+   * the run. A tail first pulled after that gives {@code Done}, and so does a pull still waiting
+   * when the run is closed, once the close has closed the sources, so a finaliser after the merge
+   * runs after theirs.
    *
    * <p>With more than one source, the sources are read on threads the merge starts, which do not
    * see the caller's {@code ScopedValue} bindings, and each is read as fast as it gives elements,
@@ -496,18 +500,22 @@ public final class VStreamPar {
     }
 
     /**
-     * Waits for the run's next signal. Once the run is closed, any signal is {@link
-     * MergeSignal.Closed}, given once the close has closed the sources, so a pull that waited
-     * through the close ends after their finalisers, even if a source sent one more element as it
-     * stopped. The run stays closed for any position pulled after, an interrupted one included.
+     * Gives the run's next signal, as {@link TakeOnceTail#pollOrTake} does. Once the run is closed,
+     * any signal is {@link MergeSignal.Closed}, given once the close has closed the sources, so a
+     * pull that waited through the close ends after their finalisers, even if a source sent one
+     * more element as it stopped. The run stays closed for any position pulled after, an
+     * interrupted one included.
      */
     MergeSignal<A> take() throws InterruptedException {
-      MergeSignal<A> signal = queue.take();
+      MergeSignal<A> signal = TakeOnceTail.pollOrTake(queue);
       if (!closed.get()) {
         return signal;
       }
       queue.add(new MergeSignal.Closed<>());
-      closeFinished.await();
+      // await throws on an interrupted thread even at zero, so a finished close skips it
+      if (closeFinished.getCount() > 0) {
+        closeFinished.await();
+      }
       return new MergeSignal.Closed<>();
     }
 
@@ -544,20 +552,15 @@ public final class VStreamPar {
   }
 
   /**
-   * A position in one run of a {@link #merge}, from which it reads the run's queue. Its first pull
-   * takes the next signal, and it keeps the step that gives, or the failure, so pulling it again
-   * gives the same step, as a {@code fromPublisher} or {@code parEvalMapUnordered} tail keeps its
-   * step. Closing it stops the run.
+   * A position in one run of a {@link #merge}, a {@link TakeOnceTail} over the run's queue: its
+   * first pull takes the next signal, and it keeps the step that gives, or the failure, so pulling
+   * it again gives the same step. Closing it stops the run.
    */
-  private static final class MergeTail<A> implements VStream<A> {
+  private static final class MergeTail<A> extends TakeOnceTail<MergeSignal<A>, A> {
 
     private final MergeRun<A> run;
     // The sources that have not yet sent SourceDone, at least one
     private final int remainingSources;
-    private final ReentrantLock lock = new ReentrantLock();
-    // Guarded by lock
-    private VStream.@Nullable Step<A> step;
-    private @Nullable Throwable failure;
 
     MergeTail(MergeRun<A> run, int remainingSources) {
       this.run = run;
@@ -565,72 +568,28 @@ public final class VStreamPar {
     }
 
     @Override
-    public VTask<VStream.Step<A>> pull() {
-      return () -> {
-        lockForPull();
-        try {
-          if (step == null && failure == null) {
-            keep(nextSignal());
-          }
-          if (failure != null) {
-            // The source's own failure, an InterruptedException included, thrown as it is: it
-            // leaves this thread's interrupt status alone, since it stopped another thread
-            throw failure;
-          }
-          return Objects.requireNonNull(step);
-        } finally {
-          lock.unlock();
-        }
-      };
+    MergeSignal<A> nextSignal() throws InterruptedException {
+      return run.take();
     }
 
-    /**
-     * Takes the lock, so one pull at a time reads this position. A lock no other pull holds is
-     * taken whether or not the thread is interrupted, so a step this position keeps is given again
-     * on an interrupted thread too. A wait for another pull is stopped by an interrupt, which keeps
-     * the interrupt status, as {@link #nextSignal} does.
-     */
-    private void lockForPull() throws InterruptedException {
-      if (lock.tryLock()) {
-        return;
-      }
-      try {
-        lock.lockInterruptibly();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw e;
-      }
-    }
-
-    /** Waits for the run's next signal. An interrupt keeps nothing, so a later pull waits again. */
-    private MergeSignal<A> nextSignal() throws InterruptedException {
-      try {
-        return run.take();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw e;
-      }
-    }
-
-    /** Keeps the step, or the failure, that a signal gives this position. */
-    private void keep(MergeSignal<A> signal) {
-      switch (signal) {
+    @Override
+    VStream.Step<A> stepFor(MergeSignal<A> signal) throws Throwable {
+      return switch (signal) {
         case MergeSignal.Element<A> e ->
-            step = new VStream.Step.Emit<>(e.value(), new MergeTail<>(run, remainingSources));
+            new VStream.Step.Emit<>(e.value(), new MergeTail<>(run, remainingSources));
         case MergeSignal.SourceDone<A> _ ->
-            step =
-                remainingSources == 1
-                    ? new VStream.Step.Done<>()
-                    : new VStream.Step.Skip<>(new MergeTail<>(run, remainingSources - 1));
+            remainingSources == 1
+                ? new VStream.Step.Done<>()
+                : new VStream.Step.Skip<>(new MergeTail<>(run, remainingSources - 1));
         case MergeSignal.SourceError<A> err -> {
           // Stop this run before failing, since a consumer reading through a stream that keeps
           // nothing it built has nothing that reaches it
           Throwable cause = err.cause();
-          failure = cause;
           Closing.runAfterFailure(close(), cause);
+          throw cause;
         }
-        case MergeSignal.Closed<A> _ -> step = new VStream.Step.Done<>();
-      }
+        case MergeSignal.Closed<A> _ -> new VStream.Step.Done<>();
+      };
     }
 
     @Override

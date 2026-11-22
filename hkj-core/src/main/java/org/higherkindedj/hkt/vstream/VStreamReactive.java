@@ -110,8 +110,11 @@ public final class VStreamReactive {
    * publisher, and a pull waiting for an element gives {@code Done}. A run whose first pull fails
    * cancels its subscription itself. Closing the VStream itself cancels no run's subscription,
    * since several runs may read it at once. A tail's pulled {@code VTask} gives the same step each
-   * time it runs; running the head's again starts another run, which subscribes again. Holding the
-   * stream holds nothing a run has read.
+   * time it runs; running the head's again starts another run, which subscribes again. A pull that
+   * need not wait gives its step on an interrupted thread too. An interrupt of the pulling thread
+   * that stops a wait throws {@link InterruptedException}, with the interrupt status set again, and
+   * keeps nothing, so pulling that tail again waits again. Holding the stream holds nothing a run
+   * has read.
    *
    * <p>The Flow rules forbid a null element. If the publisher sends one, the subscription is
    * cancelled, the stream fails with a {@link NullPointerException} when it is pulled that far, and
@@ -231,18 +234,14 @@ public final class VStreamReactive {
   // ===== Internal helpers =====
 
   /**
-   * A tail of a {@link #fromPublisher} run. Its pull takes the next signal from the run's queue
-   * once, and gives the same step each time it runs; taking an element asks the publisher for one
-   * more, so the queue holds no more than the buffer.
+   * A tail of a {@link #fromPublisher} run, a {@link TakeOnceTail} over the run's queue: its pull
+   * takes the next signal once, and gives the same step each time it runs. Taking an element asks
+   * the publisher for one more, so the queue holds no more than the buffer.
    */
-  private static final class Queued<A> implements VStream<A> {
+  private static final class Queued<A> extends TakeOnceTail<Signal<A>, A> {
 
     private final LinkedBlockingQueue<Signal<A>> queue;
     private final Upstream upstream;
-    private final ReentrantLock lock = new ReentrantLock();
-    // Guarded by lock
-    private VStream.@Nullable Step<A> step;
-    private @Nullable Throwable failure;
 
     Queued(LinkedBlockingQueue<Signal<A>> queue, Upstream upstream) {
       this.queue = queue;
@@ -250,28 +249,20 @@ public final class VStreamReactive {
     }
 
     @Override
-    public VTask<VStream.Step<A>> pull() {
-      return () -> {
-        lock.lockInterruptibly();
-        try {
-          if (step == null && failure == null) {
-            switch (queue.take()) {
-              case Signal.Element<A> e -> {
-                step = new VStream.Step.Emit<>(e.value(), new Queued<>(queue, upstream));
-                upstream.request(1);
-              }
-              case Signal.Complete<A> _ -> step = new VStream.Step.Done<>();
-              // The publisher's error, as it gave it
-              case Signal.Error<A> err -> failure = err.error();
-            }
-          }
-          if (failure != null) {
-            throw failure;
-          }
-          return Objects.requireNonNull(step);
-        } finally {
-          lock.unlock();
+    Signal<A> nextSignal() throws InterruptedException {
+      return pollOrTake(queue);
+    }
+
+    @Override
+    VStream.Step<A> stepFor(Signal<A> signal) throws Throwable {
+      return switch (signal) {
+        case Signal.Element<A> e -> {
+          upstream.request(1);
+          yield new VStream.Step.Emit<>(e.value(), new Queued<>(queue, upstream));
         }
+        case Signal.Complete<A> _ -> new VStream.Step.Done<>();
+        // The publisher's error, as it gave it
+        case Signal.Error<A> err -> throw err.error();
       };
     }
 

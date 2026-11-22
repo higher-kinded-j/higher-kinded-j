@@ -4,10 +4,13 @@ package org.higherkindedj.benchmarks;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Flow;
 import java.util.concurrent.TimeUnit;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamPar;
+import org.higherkindedj.hkt.vstream.VStreamReactive;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -43,6 +46,10 @@ import org.openjdk.jmh.infra.Blackhole;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
 public class VStreamBenchmark {
+
+  private static final VTask<Unit> NOTHING = VTask.succeed(Unit.INSTANCE);
+  private static final String RESOURCE = "resource";
+  private static final int PUBLISHER_BUFFER = 16;
 
   @Param({"50"})
   private int streamSize;
@@ -261,6 +268,34 @@ public class VStreamBenchmark {
         .run();
   }
 
+  // ========== Finalisers and Resources ==========
+
+  /** onFinalize execution: every pull of the stream goes through its consumption. */
+  @Benchmark
+  public List<Integer> onFinalizeExecution() {
+    return prebuiltStream.onFinalize(NOTHING).toList().run();
+  }
+
+  /** bracket execution: acquire, read through the release's finaliser, release. */
+  @Benchmark
+  public List<Integer> bracketExecution() {
+    return VStream.bracket(VTask.succeed(RESOURCE), _ -> prebuiltStream, _ -> NOTHING)
+        .toList()
+        .run();
+  }
+
+  /** fromStream execution, which closes the Java stream through a finaliser. */
+  @Benchmark
+  public List<Integer> fromStreamExecution() {
+    return VStream.fromStream(sourceList.stream()).toList().run();
+  }
+
+  /** fromIterator execution over the same elements, which closes nothing: fromStream's baseline. */
+  @Benchmark
+  public List<Integer> fromIteratorExecution() {
+    return VStream.fromIterator(sourceList.iterator()).toList().run();
+  }
+
   // ========== Comparison Baselines (Raw Java Stream) ==========
 
   /** Baseline: raw Java Stream map + collect. */
@@ -347,6 +382,68 @@ public class VStreamBenchmark {
     return VStreamPar.parEvalMapUnordered(prebuiltStream, 4, x -> VTask.succeed(x * 2))
         .toList()
         .run();
+  }
+
+  /** merge of two streams, each read on a thread of its own. */
+  @Benchmark
+  public List<Integer> mergeTwoExecution() {
+    return VStreamPar.merge(prebuiltStream, prebuiltStream).toList().run();
+  }
+
+  // ========== Reactive Streams ==========
+
+  /**
+   * fromPublisher execution over a publisher that sends on request, on the thread that asks, with a
+   * buffer smaller than the stream, so the stream asks for more as it reads.
+   */
+  @Benchmark
+  public List<Integer> fromPublisherExecution() {
+    return VStreamReactive.fromPublisher(new RangePublisher(streamSize), PUBLISHER_BUFFER)
+        .toList()
+        .run();
+  }
+
+  /**
+   * A publisher of {@code 0} to {@code size - 1} that sends what is asked for on the thread that
+   * asks, then completes. The stream makes its calls to the subscription one at a time, so its
+   * state needs no lock.
+   */
+  private record RangePublisher(int size) implements Flow.Publisher<Integer> {
+
+    @Override
+    public void subscribe(Flow.Subscriber<? super Integer> subscriber) {
+      subscriber.onSubscribe(
+          new Flow.Subscription() {
+            private int next;
+            private long demand;
+            private boolean sending;
+            private boolean ended;
+
+            @Override
+            public void request(long n) {
+              demand += n;
+              // A request made from onNext adds to the demand the loop below is sending
+              if (sending) {
+                return;
+              }
+              sending = true;
+              while (demand > 0 && next < size && !ended) {
+                demand--;
+                subscriber.onNext(next++);
+              }
+              if (next == size && !ended) {
+                ended = true;
+                subscriber.onComplete();
+              }
+              sending = false;
+            }
+
+            @Override
+            public void cancel() {
+              ended = true;
+            }
+          });
+    }
   }
 
   // ========== Chunking Operations (Stage 5) ==========
