@@ -1622,7 +1622,10 @@ class VStreamCloseAndReplayTest {
       VStream<Integer> counted =
           VStream.generate(pulls::incrementAndGet)
               .onFinalize(VTask.exec(() -> pullsWhenClosed.set(pulls.get())));
-      VStream<Integer> merged = VStreamPar.merge(counted, endless(otherRuns));
+      // 2 passes failingAtFirst, so only the counted source's own first element fails the stream,
+      // and the merge cannot close the counted source before it has been pulled
+      VStream<Integer> other = VStream.repeat(2).onFinalize(VTask.exec(otherRuns::incrementAndGet));
+      VStream<Integer> merged = VStreamPar.merge(counted, other);
 
       assertThatThrownBy(() -> failingAtFirst(merged).toList().run()).hasMessage("map failed");
 
