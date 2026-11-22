@@ -41,6 +41,7 @@
   }
 
   let embedded = false;
+  let giscusScript = null;
 
   function embedGiscus(container, term) {
     if (embedded) {
@@ -58,7 +59,7 @@
       'data-category-id': CATEGORY_ID,
       'data-mapping': 'specific',
       'data-term': term,
-      'data-strict': '0',
+      'data-strict': '1',
       'data-reactions-enabled': '1',
       'data-emit-metadata': '0',
       'data-input-position': 'top',
@@ -67,6 +68,14 @@
       'data-loading': 'lazy',
     };
     Object.keys(attributes).forEach((name) => script.setAttribute(name, attributes[name]));
+    // A failed download leaves nothing to retry on, so drop the script and let the next
+    // activation of the icon try again.
+    script.addEventListener('error', () => {
+      script.remove();
+      giscusScript = null;
+      embedded = false;
+    });
+    giscusScript = script;
     container.appendChild(script);
   }
 
@@ -88,7 +97,8 @@
       GISCUS_ORIGIN +
       '/api/discussions?repo=' + encodeURIComponent(REPO) +
       '&term=' + encodeURIComponent(term) +
-      '&category=' + encodeURIComponent(CATEGORY);
+      '&category=' + encodeURIComponent(CATEGORY) +
+      '&strict=true';
     fetch(url)
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
@@ -166,10 +176,14 @@
       load();
     }
 
-    new MutationObserver(() => sendToGiscus({ setConfig: { theme: giscusTheme() } })).observe(
-      document.documentElement,
-      { attributes: true, attributeFilter: ['class'] }
-    );
+    new MutationObserver(() => {
+      const theme = giscusTheme();
+      // Until the frame exists, client.js reads the theme from this attribute when it runs.
+      if (giscusScript) {
+        giscusScript.setAttribute('data-theme', theme);
+      }
+      sendToGiscus({ setConfig: { theme } });
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
     loadCount(link, term);
   }
