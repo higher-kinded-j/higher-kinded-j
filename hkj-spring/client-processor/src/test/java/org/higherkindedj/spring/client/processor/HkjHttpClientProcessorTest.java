@@ -461,6 +461,68 @@ class HkjHttpClientProcessorTest {
           .contentsAsUtf8String()
           .contains("accept = \"application/json\"");
     }
+
+    @Test
+    @DisplayName("an array written empty is copied as written, wherever the annotation is")
+    void emptyArray() {
+      // Neither Listed nor Typed has a default, so leaving out an array written empty would not
+      // compile. They are on the client, a method, a parameter and a type, and nested in another
+      // annotation.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceLines(
+                  "com.example.Listed",
+                  "package com.example;",
+                  "import java.lang.annotation.ElementType;",
+                  "import java.lang.annotation.Target;",
+                  "@Target({ElementType.TYPE, ElementType.METHOD, ElementType.PARAMETER})",
+                  "public @interface Listed { String[] value(); String[] tags(); }"),
+              JavaFileObjects.forSourceLines(
+                  "com.example.Typed",
+                  "package com.example;",
+                  "import java.lang.annotation.ElementType;",
+                  "import java.lang.annotation.Target;",
+                  "@Target(ElementType.TYPE_USE)",
+                  "public @interface Typed { String[] value(); }"),
+              JavaFileObjects.forSourceLines(
+                  "com.example.Holder",
+                  "package com.example;",
+                  "import java.lang.annotation.ElementType;",
+                  "import java.lang.annotation.Target;",
+                  "@Target(ElementType.METHOD)",
+                  "public @interface Holder { Listed value(); }"),
+              JavaFileObjects.forSourceLines(
+                  "com.example.UserApi",
+                  "package com.example;",
+                  "import org.higherkindedj.hkt.effect.EitherPath;",
+                  "import org.higherkindedj.spring.client.HkjHttpClient;",
+                  "import org.springframework.web.bind.annotation.PathVariable;",
+                  "import org.springframework.web.service.annotation.GetExchange;",
+                  "import org.springframework.web.service.annotation.HttpExchange;",
+                  "@HttpExchange(\"/users\")",
+                  "@Listed(value = {}, tags = \"client\")",
+                  "@HkjHttpClient",
+                  "public interface UserApi {",
+                  "  @GetExchange(\"/{id}\")",
+                  "  @Listed(value = \"method\", tags = {})",
+                  "  @Holder(@Listed(value = {}, tags = {}))",
+                  "  EitherPath<UserError, @Typed({}) UserDto> getUser(",
+                  "      @PathVariable @Listed(value = {}, tags = \"parameter\") String id);",
+                  "}"),
+              USER_DTO,
+              USER_ERROR);
+
+      // Each generated file is compiled here too, so one missing an empty array fails the build.
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("@Listed\\(\\s*value = \\{},\\s*tags = \"client\"\\s*\\)");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("@Holder(@Listed(value = {}, tags = {}))");
+    }
   }
 
   @Nested
@@ -1211,6 +1273,25 @@ class HkjHttpClientProcessorTest {
             "@UsersExchange",
             "public @interface TeamExchange {}");
 
+    /** Composed from {@code @HttpExchange}, with headers that default to one. */
+    private static final JavaFileObject HEADED_EXCHANGE =
+        JavaFileObjects.forSourceLines(
+            "com.example.HeadedExchange",
+            "package com.example;",
+            "import java.lang.annotation.ElementType;",
+            "import java.lang.annotation.Retention;",
+            "import java.lang.annotation.RetentionPolicy;",
+            "import java.lang.annotation.Target;",
+            "import org.springframework.core.annotation.AliasFor;",
+            "import org.springframework.web.service.annotation.HttpExchange;",
+            "@Retention(RetentionPolicy.RUNTIME)",
+            "@Target(ElementType.TYPE)",
+            "@HttpExchange(\"/headed\")",
+            "public @interface HeadedExchange {",
+            "  @AliasFor(annotation = HttpExchange.class, attribute = \"headers\")",
+            "  String[] headers() default \"X-Team=hkj\";",
+            "}");
+
     /**
      * Composed from {@code @HttpExchange}, but with no {@code @Retention}, so Spring never sees it.
      */
@@ -1305,6 +1386,11 @@ class HkjHttpClientProcessorTest {
           "@HttpExchange(\"/api\") interface BaseApi",
           "@UnseenExchange interface MiddleApi extends BaseApi",
           "interface ChildApi extends MiddleApi"),
+      EMPTY_ARRAY_ON_THE_BASE(
+          "one composed from it with an array written empty, not its default",
+          "/headed/me",
+          "@HeadedExchange(headers = {}) interface BaseApi",
+          "interface ChildApi extends BaseApi"),
       TWO_EQUAL_ON_ONE_BASE(
           "two that are equal on one base, which Spring takes as one",
           "/composed/me",
@@ -1331,7 +1417,13 @@ class HkjHttpClientProcessorTest {
       /** The hierarchy's sources, with the types its method and annotations name. */
       List<JavaFileObject> sources() {
         return Stream.concat(
-                Stream.of(USER_DTO, USER_ERROR, USERS_EXCHANGE, TEAM_EXCHANGE, UNSEEN_EXCHANGE),
+                Stream.of(
+                    USER_DTO,
+                    USER_ERROR,
+                    USERS_EXCHANGE,
+                    TEAM_EXCHANGE,
+                    HEADED_EXCHANGE,
+                    UNSEEN_EXCHANGE),
                 declarations.stream().map(this::source))
             .toList();
       }
