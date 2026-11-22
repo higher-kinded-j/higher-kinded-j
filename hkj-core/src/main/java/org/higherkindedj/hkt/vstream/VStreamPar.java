@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vstream;
 
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -303,13 +304,14 @@ public final class VStreamPar {
    * since the run has already stopped. Closing the merged stream itself stops no run's producer,
    * since several runs may read it at once; before any run, it closes the sources.
    *
-   * <p>Once a tail's pulled {@code VTask} has given a step, or a source's failure, it gives the
-   * same one each time it runs. So a tail read twice gives the same elements, as far as the first
-   * read went, and a tail you hold keeps every step read after it. An interrupt of the reading
-   * thread keeps nothing, so pulling that tail again waits again. Running the head's pulled {@code
-   * VTask} again starts another run. A read that stops early, as {@code take} does, closes the run.
-   * A tail first pulled after that gives {@code Done}, as does a pull still waiting when the run is
-   * closed.
+   * <p>With more than one source, once a tail's pulled {@code VTask} has given a step, or a
+   * source's failure, it gives the same one each time it runs. So a tail read twice gives the same
+   * elements, as far as the first read went, and a tail you hold keeps every step read after it. An
+   * interrupt of the reading thread keeps nothing, so pulling that tail again waits again. Running
+   * the head's pulled {@code VTask} again starts another run. A read that stops early, as {@code
+   * take} does, closes the run. A tail first pulled after that gives {@code Done}, and so does a
+   * pull still waiting when the run is closed, once the close has closed the sources, so a
+   * finaliser after the merge runs after theirs.
    *
    * <p>With more than one source, the sources are read on threads the merge starts, which do not
    * see the caller's {@code ScopedValue} bindings, and each is read as fast as it gives elements,
@@ -464,7 +466,7 @@ public final class VStreamPar {
 
   /**
    * One run of a {@link #merge}: the queue its sources fill, the flag that tells them to stop, the
-   * producer thread that reads them, and whether the run has been closed.
+   * producer thread that reads them, and whether a close has begun and finished.
    */
   private static final class MergeRun<A> {
 
@@ -474,6 +476,8 @@ public final class VStreamPar {
     private final Thread producer;
     // Set only by close, so a source's failure is not taken for one
     private final AtomicBoolean closed = new AtomicBoolean();
+    // Counted down once a close has closed the sources
+    private final CountDownLatch closeFinished = new CountDownLatch(1);
 
     private MergeRun(
         LinkedBlockingQueue<MergeSignal<A>> queue, AtomicBoolean cancelled, Thread producer) {
@@ -493,16 +497,18 @@ public final class VStreamPar {
 
     /**
      * Waits for the run's next signal. Once the run is closed, any signal is {@link
-     * MergeSignal.Closed}, so a pull that waited through the close ends there, even if a source
-     * sent one more element as it stopped. The run stays closed for any position pulled after.
+     * MergeSignal.Closed}, given once the close has closed the sources, so a pull that waited
+     * through the close ends after their finalisers, even if a source sent one more element as it
+     * stopped. The run stays closed for any position pulled after, an interrupted one included.
      */
     MergeSignal<A> take() throws InterruptedException {
       MergeSignal<A> signal = queue.take();
-      if (closed.get()) {
-        queue.add(new MergeSignal.Closed<>());
-        return new MergeSignal.Closed<>();
+      if (!closed.get()) {
+        return signal;
       }
-      return signal;
+      queue.add(new MergeSignal.Closed<>());
+      closeFinished.await();
+      return new MergeSignal.Closed<>();
     }
 
     /**
@@ -511,7 +517,7 @@ public final class VStreamPar {
      * the producer closes the sources that did not finish. This waits for that with an interrupt
      * already pending held back, as cleanup runs, so the sources are closed when it returns; an
      * interrupt that arrives while it waits stops the wait. A position first pulled after this, or
-     * one waiting for a signal, gives {@code Done}.
+     * one waiting for a signal, then gives {@code Done}.
      */
     VTask<Unit> close() {
       return VTask.delay(
@@ -530,6 +536,7 @@ public final class VStreamPar {
             // Drop what the sources sent as they stopped, which nothing will read, and wake a
             // pull that waits
             queue.clear();
+            closeFinished.countDown();
             queue.add(new MergeSignal.Closed<>());
             return Unit.INSTANCE;
           });

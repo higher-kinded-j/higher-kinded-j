@@ -50,6 +50,25 @@ class VStreamCloseAndReplayTest {
     return VStream.repeat(1).onFinalize(VTask.exec(runs::incrementAndGet));
   }
 
+  /**
+   * Waits a moment, as a finaliser that releases something slowly does, and passes over an
+   * interrupt, so a step given before the finaliser ends would show.
+   */
+  private static void slowly() {
+    long until = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(100);
+    boolean interrupted = false;
+    while (System.nanoTime() < until) {
+      try {
+        TimeUnit.NANOSECONDS.sleep(until - System.nanoTime());
+      } catch (InterruptedException e) {
+        interrupted = true;
+      }
+    }
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
   /** A stream whose first pull waits until it is interrupted. */
   private static VStream<Integer> idle() {
     return () ->
@@ -1876,32 +1895,51 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
-    @DisplayName("closing a merge tail wakes a pull waiting on it, which gives Done")
+    @DisplayName(
+        "closing a merge tail wakes a pull waiting on it, which gives Done once the sources are"
+            + " closed")
     void closeWakesAWaitingPull() throws InterruptedException {
-      VStream<Integer> rest = tailOf(VStreamPar.merge(VStream.of(1), idle()).pull().run());
+      AtomicBoolean sourceClosed = new AtomicBoolean();
+      AtomicBoolean closedAtDone = new AtomicBoolean();
+      VStream<Integer> slowToClose =
+          idle()
+              .onFinalize(
+                  VTask.exec(
+                      () -> {
+                        slowly();
+                        sourceClosed.set(true);
+                      }));
+      VStream<Integer> rest = tailOf(VStreamPar.merge(VStream.of(1), slowToClose).pull().run());
       AtomicReference<List<Integer>> read = new AtomicReference<>();
 
-      Thread reader = Thread.ofVirtual().start(() -> read.set(rest.toList().run()));
+      Thread reader =
+          Thread.ofVirtual()
+              .start(
+                  () -> {
+                    read.set(rest.toList().run());
+                    closedAtDone.set(sourceClosed.get());
+                  });
       await().atMost(Duration.ofSeconds(5)).until(() -> reader.getState() == Thread.State.WAITING);
       rest.close().run();
       reader.join(Duration.ofSeconds(5));
 
       assertThat(reader.isAlive()).as("the pull still waits after the close").isFalse();
       assertThat(read.get()).isEmpty();
+      assertThat(closedAtDone).as("the source was closed when the pull gave Done").isTrue();
     }
 
     @Test
     @DisplayName(
-        "a pull waiting through a close gives Done, though a source sends one more element as it"
-            + " stops")
+        "a pull waiting through a close gives Done once the sources are closed, though a source"
+            + " sends one more element as it stops")
     void waitingPullEndsPastALateElement() throws InterruptedException {
       CountDownLatch pulling = new CountDownLatch(1);
       CountDownLatch passedOver = new CountDownLatch(1);
       CountDownLatch release = new CountDownLatch(1);
-      CountDownLatch read = new CountDownLatch(1);
+      AtomicBoolean sourceClosed = new AtomicBoolean();
+      AtomicBoolean closedAtDone = new AtomicBoolean();
       // Its second pull waits until released, passing over the interrupt that stops the merge.
-      // Its finaliser holds the close until the pull has read, so the late element is the only
-      // signal the pull can take
+      // Its finaliser is slow, so the pull takes the late element while the close goes on
       VStream<Integer> late =
           VStream.of(1)
               .concat(
@@ -1920,10 +1958,10 @@ class VStreamCloseAndReplayTest {
                             }
                           }))
               .onFinalize(
-                  VTask.of(
+                  VTask.exec(
                       () -> {
-                        read.await(5, TimeUnit.SECONDS);
-                        return Unit.INSTANCE;
+                        slowly();
+                        sourceClosed.set(true);
                       }));
       VStream<Integer> rest = tailOf(VStreamPar.merge(late, idle()).pull().run());
       AtomicReference<VStream.Step<Integer>> waited = new AtomicReference<>();
@@ -1933,7 +1971,7 @@ class VStreamCloseAndReplayTest {
               .start(
                   () -> {
                     waited.set(rest.pull().run());
-                    read.countDown();
+                    closedAtDone.set(sourceClosed.get());
                   });
       assertThat(pulling.await(5, TimeUnit.SECONDS)).isTrue();
       await().atMost(Duration.ofSeconds(5)).until(() -> reader.getState() == Thread.State.WAITING);
@@ -1946,6 +1984,7 @@ class VStreamCloseAndReplayTest {
       reader.join(Duration.ofSeconds(5));
 
       assertThat(waited.get()).isInstanceOf(VStream.Step.Done.class);
+      assertThat(closedAtDone).as("the source was closed when the pull gave Done").isTrue();
     }
   }
 
