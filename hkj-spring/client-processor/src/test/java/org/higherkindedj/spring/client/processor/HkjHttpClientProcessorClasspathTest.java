@@ -289,6 +289,143 @@ class HkjHttpClientProcessorClasspathTest {
   }
 
   @Test
+  @DisplayName("its type-level @HttpExchange reaches a client with none, as from a base alongside")
+  void typeLevelExchangeCrossesTheBoundary() throws IOException {
+    String members =
+        """
+          @GetExchange("/{id}")
+          EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+        """;
+    JavaFileObject usersApi =
+        JavaFileObjects.forSourceString(
+            "com.upstream.UsersApi",
+            """
+            package com.upstream;
+
+            import org.springframework.web.service.annotation.HttpExchange;
+
+            @HttpExchange(url = "/api/users", accept = "application/json")
+            public interface UsersApi extends BaseApi {}
+            """);
+    JavaFileObject child =
+        JavaFileObjects.forSourceString(
+            "com.downstream.ChildApi",
+            """
+            package com.downstream;
+
+            import com.upstream.UsersApi;
+            import org.higherkindedj.spring.client.HkjHttpClient;
+
+            @HkjHttpClient
+            public interface ChildApi extends UsersApi {}
+            """);
+
+    Compilation across = compiler(baseModule("", members, usersApi)).compile(child);
+    assertThat(across).succeeded();
+    Compilation together =
+        compiler()
+            .compile(
+                Stream.concat(baseSources(members).stream(), Stream.of(usersApi, child)).toList());
+    assertThat(together).succeeded();
+
+    // Read from the class file, the annotation is written onto the interface Spring proxies.
+    Assertions.assertThat(generatedSource(across, "com.downstream.ChildApiHttpExchange"))
+        .containsPattern(
+            "@HttpExchange\\(\\s*url = \"/api/users\",\\s*accept = \"application/json\"\\s*\\)")
+        .isEqualTo(generatedSource(together, "com.downstream.ChildApiHttpExchange"));
+  }
+
+  @Test
+  @DisplayName("a client that writes its own @HttpExchange has no other annotation looked into")
+  void ownTypeLevelExchangeLooksNoFurther() throws IOException {
+    // Two levels under Tagged, an annotation names a type the client's classpath lacks. javac reads
+    // that far only when something looks into Tagged's own annotations, and then warns of the
+    // unknown enum constant, which -Werror makes fatal. A client that already says what Spring
+    // reads must not have Tagged looked into. One that does not has it looked into, as Spring
+    // would, and that warning is the cost. Tagged comes first, so the client's own is not met
+    // before it.
+    Path base =
+        baseModule(
+            "",
+            """
+              @GetExchange("/{id}")
+              EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+            """,
+            JavaFileObjects.forSourceString(
+                "com.upstream.Level", "package com.upstream; public enum Level { LOW, HIGH }"),
+            JavaFileObjects.forSourceString(
+                "com.upstream.Graded",
+                """
+                package com.upstream;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+
+                @Retention(RetentionPolicy.RUNTIME)
+                public @interface Graded {
+                  Level value();
+                }
+                """),
+            JavaFileObjects.forSourceString(
+                "com.upstream.Grouped",
+                """
+                package com.upstream;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+
+                @Retention(RetentionPolicy.RUNTIME)
+                @Graded(Level.HIGH)
+                public @interface Grouped {}
+                """),
+            JavaFileObjects.forSourceString(
+                "com.upstream.Tagged",
+                """
+                package com.upstream;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+
+                @Retention(RetentionPolicy.RUNTIME)
+                @Grouped
+                public @interface Tagged {}
+                """));
+    Files.delete(base.resolve("com/upstream/Level.class"));
+    Files.delete(base.resolve("com/upstream/Graded.class"));
+    String child =
+        """
+        package com.downstream;
+
+        import com.upstream.BaseApi;
+        import com.upstream.Tagged;
+        import org.higherkindedj.spring.client.HkjHttpClient;
+        import org.springframework.web.service.annotation.HttpExchange;
+
+        @Tagged
+        %s
+        @HkjHttpClient
+        public interface ChildApi extends BaseApi {}
+        """;
+
+    Compilation own =
+        compiler(base)
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.downstream.ChildApi", child.formatted("@HttpExchange(\"/users\")")));
+    Compilation none =
+        compiler(base)
+            .compile(
+                JavaFileObjects.forSourceString("com.downstream.ChildApi", child.formatted("")));
+
+    assertThat(own).succeeded();
+    assertThat(own).hadWarningCount(0);
+    // The control: the same classpath warns once Tagged is looked into, so the count above means
+    // something.
+    assertThat(none).succeeded();
+    assertThat(none).hadWarningContaining("unknown enum constant com.upstream.Level.HIGH");
+  }
+
+  @Test
   @DisplayName("an error type the client misspells is left to javac, though the base is a jar's")
   void misspeltBoundErrorTypeIsLeftToJavac() throws IOException {
     Path base =

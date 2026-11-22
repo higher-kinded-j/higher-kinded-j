@@ -313,6 +313,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         builder.addAnnotation(AnnotationSpec.get(mirror));
       }
     }
+    // Spring proxies the native interface, which extends nothing, so a client with no type-level
+    // @HttpExchange of its own is given those Spring would have read from its bases.
+    HttpExchanges.inheritedBy(iface).stream()
+        .map(AnnotationSpec::get)
+        .forEach(builder::addAnnotation);
 
     for (int i = 0; i < methods.size(); i++) {
       ClientMethod clientMethod = methods.get(i);

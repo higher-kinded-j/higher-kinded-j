@@ -8,13 +8,17 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +26,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.service.invoker.HttpExchangeAdapter;
+import org.springframework.web.service.invoker.HttpRequestValues;
+import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
 @DisplayName("HkjHttpClientProcessor")
 class HkjHttpClientProcessorTest {
@@ -1165,6 +1175,292 @@ class HkjHttpClientProcessorTest {
             .hadErrorContaining("which the generated client would write differently: " + differs)
             .inFile(DIAMOND);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("gives the native interface the type-level @HttpExchange Spring would read")
+  class TypeLevelExchange {
+
+    /** Composed from {@code @HttpExchange}, as Spring's merged-annotation search reads it. */
+    private static final JavaFileObject USERS_EXCHANGE =
+        JavaFileObjects.forSourceLines(
+            "com.example.UsersExchange",
+            "package com.example;",
+            "import java.lang.annotation.ElementType;",
+            "import java.lang.annotation.Retention;",
+            "import java.lang.annotation.RetentionPolicy;",
+            "import java.lang.annotation.Target;",
+            "import org.springframework.web.service.annotation.HttpExchange;",
+            "@Retention(RetentionPolicy.RUNTIME)",
+            "@Target(ElementType.TYPE)",
+            "@HttpExchange(url = \"/composed\", accept = \"application/json\")",
+            "public @interface UsersExchange {}");
+
+    /** Composed from {@code @UsersExchange}, so {@code @HttpExchange} two levels down. */
+    private static final JavaFileObject TEAM_EXCHANGE =
+        JavaFileObjects.forSourceLines(
+            "com.example.TeamExchange",
+            "package com.example;",
+            "import java.lang.annotation.ElementType;",
+            "import java.lang.annotation.Retention;",
+            "import java.lang.annotation.RetentionPolicy;",
+            "import java.lang.annotation.Target;",
+            "@Retention(RetentionPolicy.RUNTIME)",
+            "@Target(ElementType.TYPE)",
+            "@UsersExchange",
+            "public @interface TeamExchange {}");
+
+    /**
+     * Composed from {@code @HttpExchange}, but with no {@code @Retention}, so Spring never sees it.
+     */
+    private static final JavaFileObject UNSEEN_EXCHANGE =
+        JavaFileObjects.forSourceLines(
+            "com.example.UnseenExchange",
+            "package com.example;",
+            "import java.lang.annotation.ElementType;",
+            "import java.lang.annotation.Target;",
+            "import org.springframework.web.service.annotation.HttpExchange;",
+            "@Target(ElementType.TYPE)",
+            "@HttpExchange(\"/unseen\")",
+            "public @interface UnseenExchange {}");
+
+    @Test
+    @DisplayName("a client with none of its own takes its base's")
+    void fromTheBase() {
+      Compilation compilation =
+          compile(Hierarchy.FROM_THE_BASE.sources().toArray(JavaFileObject[]::new));
+
+      // Spring proxies ChildApiHttpExchange, which extends nothing, so without the base's
+      // annotation every call would go to /me and send no Accept header.
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.ChildApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch(
+              "@HttpExchange\\(\\s*url = \"/api/users\",\\s*accept = \"application/json\",");
+    }
+
+    /**
+     * Interface hierarchies, each with the URI template Spring sends for it, or {@link
+     * Sent#REFUSED}, and one declaration per interface. The last is the client, and {@code BaseApi}
+     * declares the method.
+     */
+    enum Hierarchy {
+      FROM_THE_BASE(
+          "a base's, with every attribute",
+          "/api/users/me",
+          "@HttpExchange(url = \"/api/users\", accept = \"application/json\","
+              + " contentType = \"application/json\", headers = \"X-Team=hkj\", version = \"2\")"
+              + " interface BaseApi",
+          "interface ChildApi extends BaseApi"),
+      OWN_OVER_THE_BASE(
+          "the client's own, not joined to its base's",
+          "/users/me",
+          "@HttpExchange(\"/api\") interface BaseApi",
+          "@HttpExchange(\"/users\") interface ChildApi extends BaseApi"),
+      NEARER_BASE(
+          "the nearer of two bases in a line",
+          "/near/me",
+          "@HttpExchange(\"/far\") interface BaseApi",
+          "@HttpExchange(\"/near\") interface MiddleApi extends BaseApi",
+          "interface ChildApi extends MiddleApi"),
+      DEPTH_FIRST(
+          "the first base's own base before the second base",
+          "/deep/me",
+          "@HttpExchange(\"/deep\") interface BaseApi",
+          "interface MiddleApi extends BaseApi",
+          "@HttpExchange(\"/other\") interface OtherApi",
+          "interface ChildApi extends MiddleApi, OtherApi"),
+      DIAMOND(
+          "past a base reached twice",
+          "/right/me",
+          "interface BaseApi",
+          "interface LeftApi extends BaseApi",
+          "@HttpExchange(\"/right\") interface RightApi extends BaseApi",
+          "interface ChildApi extends LeftApi, RightApi"),
+      COMPOSED_ON_THE_BASE(
+          "one composed from it on a base",
+          "/composed/me",
+          "@UsersExchange interface BaseApi",
+          "interface ChildApi extends BaseApi"),
+      COMPOSED_TWO_DEEP(
+          "one composed from it two levels down",
+          "/composed/me",
+          "@TeamExchange interface BaseApi",
+          "interface ChildApi extends BaseApi"),
+      COMPOSED_ON_THE_CLIENT(
+          "the client's own composed one, not its base's",
+          "/composed/me",
+          "@HttpExchange(\"/api\") interface BaseApi",
+          "@UsersExchange interface ChildApi extends BaseApi"),
+      UNSEEN_ON_THE_CLIENT(
+          "its base's, past one on the client not retained at run time",
+          "/api/me",
+          "@HttpExchange(\"/api\") interface BaseApi",
+          "@UnseenExchange interface ChildApi extends BaseApi"),
+      UNSEEN_ON_A_BASE(
+          "a further base's, past one on a nearer base not retained at run time",
+          "/api/me",
+          "@HttpExchange(\"/api\") interface BaseApi",
+          "@UnseenExchange interface MiddleApi extends BaseApi",
+          "interface ChildApi extends MiddleApi"),
+      TWO_EQUAL_ON_ONE_BASE(
+          "two that are equal on one base, which Spring takes as one",
+          "/composed/me",
+          "@HttpExchange(url = \"/composed\", accept = \"application/json\") @UsersExchange"
+              + " interface BaseApi",
+          "interface ChildApi extends BaseApi"),
+      TWO_ON_ONE_BASE(
+          "two that differ on one base, which Spring refuses",
+          Sent.REFUSED,
+          "@HttpExchange(\"/api\") @UsersExchange interface BaseApi",
+          "interface ChildApi extends BaseApi"),
+      NONE("none anywhere", "/me", "interface BaseApi", "interface ChildApi extends BaseApi");
+
+      private final String description;
+      private final String uriTemplate;
+      private final List<String> declarations;
+
+      Hierarchy(String description, String uriTemplate, String... declarations) {
+        this.description = description;
+        this.uriTemplate = uriTemplate;
+        this.declarations = List.of(declarations);
+      }
+
+      /** The hierarchy's sources, with the types its method and annotations name. */
+      List<JavaFileObject> sources() {
+        return Stream.concat(
+                Stream.of(USER_DTO, USER_ERROR, USERS_EXCHANGE, TEAM_EXCHANGE, UNSEEN_EXCHANGE),
+                declarations.stream().map(this::source))
+            .toList();
+      }
+
+      private JavaFileObject source(String declaration) {
+        String name = declaration.replaceFirst(".*interface (\\w+).*", "$1");
+        boolean client = declaration.equals(declarations.getLast());
+        return JavaFileObjects.forSourceLines(
+            "com.example." + name,
+            "package com.example;",
+            "import org.higherkindedj.hkt.effect.EitherPath;",
+            "import org.higherkindedj.spring.client.HkjHttpClient;",
+            "import org.springframework.web.service.annotation.GetExchange;",
+            "import org.springframework.web.service.annotation.HttpExchange;",
+            (client ? "@HkjHttpClient " : "") + "public " + declaration + " {",
+            name.equals("BaseApi")
+                ? "@GetExchange(\"/me\") EitherPath<UserError, UserDto> me();"
+                : "",
+            "}");
+      }
+
+      @Override
+      public String toString() {
+        return description;
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Hierarchy.class)
+    @DisplayName("the generated client sends what Spring sends for the client as a plain interface")
+    void asSpringReadsIt(Hierarchy hierarchy) throws ReflectiveOperationException {
+      Compilation compilation = compile(hierarchy.sources().toArray(JavaFileObject[]::new));
+      assertThat(compilation).succeeded();
+      ClassLoader classes = classesOf(compilation);
+
+      // Spring itself is the reference: proxied as a plain HTTP interface, ChildApi has its
+      // type-level annotation read through its whole hierarchy. The generated interface extends
+      // nothing, so it must carry what that search finds. The URI template pins what Spring found,
+      // so the two cannot agree by failing alike.
+      Sent plain = requestSentBy(classes.loadClass("com.example.ChildApi"));
+      Assertions.assertThat(plain.uriTemplate()).isEqualTo(hierarchy.uriTemplate);
+      Assertions.assertThat(requestSentBy(classes.loadClass("com.example.ChildApiHttpExchange")))
+          .isEqualTo(plain);
+    }
+
+    /**
+     * What Spring sends when {@code me()} is called on a proxy of an HTTP interface: the URI
+     * template, and the method, the headers and the version. Or that Spring refused the interface,
+     * and with what.
+     */
+    private record Sent(String uriTemplate, String rest) {
+      static final String REFUSED = "refused";
+    }
+
+    private static Sent requestSentBy(Class<?> service) throws ReflectiveOperationException {
+      Recorder recorder = new Recorder();
+      Object proxy;
+      try {
+        proxy = HttpServiceProxyFactory.builderFor(recorder).build().createClient(service);
+      } catch (IllegalStateException refused) {
+        // Not the message, which names the interface: the two differ there by design.
+        return new Sent(Sent.REFUSED, refused.getClass().getName());
+      }
+      service.getMethod("me").invoke(proxy);
+      HttpRequestValues sent = recorder.sent.getFirst();
+      return new Sent(
+          String.valueOf(sent.getUriTemplate()),
+          sent.getHttpMethod() + " " + sent.getHeaders() + " version " + sent.getApiVersion());
+    }
+
+    /** Records each request Spring would send, and answers it with an empty response. */
+    private static final class Recorder implements HttpExchangeAdapter {
+
+      private final List<HttpRequestValues> sent = new ArrayList<>();
+
+      @Override
+      public boolean supportsRequestAttributes() {
+        return false;
+      }
+
+      @Override
+      public void exchange(HttpRequestValues values) {
+        sent.add(values);
+      }
+
+      @Override
+      public HttpHeaders exchangeForHeaders(HttpRequestValues values) {
+        sent.add(values);
+        return new HttpHeaders();
+      }
+
+      @Override
+      public <T> @Nullable T exchangeForBody(
+          HttpRequestValues values, ParameterizedTypeReference<T> type) {
+        sent.add(values);
+        return null;
+      }
+
+      @Override
+      public ResponseEntity<Void> exchangeForBodilessEntity(HttpRequestValues values) {
+        sent.add(values);
+        return ResponseEntity.ok().build();
+      }
+
+      @Override
+      public <T> ResponseEntity<T> exchangeForEntity(
+          HttpRequestValues values, ParameterizedTypeReference<T> type) {
+        sent.add(values);
+        return ResponseEntity.ok().build();
+      }
+    }
+
+    /** Loads the classes a compilation wrote, so Spring can read them as it would at run time. */
+    private static ClassLoader classesOf(Compilation compilation) {
+      return new ClassLoader(HkjHttpClientProcessorTest.class.getClassLoader()) {
+        @Override
+        protected Class<?> findClass(String name) throws ClassNotFoundException {
+          JavaFileObject file =
+              compilation
+                  .generatedFile(StandardLocation.CLASS_OUTPUT, name.replace('.', '/') + ".class")
+                  .orElseThrow(() -> new ClassNotFoundException(name));
+          try (InputStream in = file.openInputStream()) {
+            byte[] bytes = in.readAllBytes();
+            return defineClass(name, bytes, 0, bytes.length);
+          } catch (IOException e) {
+            throw new ClassNotFoundException(name, e);
+          }
+        }
+      };
     }
   }
 
