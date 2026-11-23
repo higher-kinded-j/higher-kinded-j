@@ -688,7 +688,9 @@ class HkjHttpClientProcessorClasspathTest {
             annotationType("Tiered", "public @interface Tiered { Tier value(); }"),
             annotationType("Revised", "public @interface Revised { int revision() default 0; }"),
             annotationType("Named", "public @interface Named { String value(); }"),
-            annotationType("Widened", "public @interface Widened { int n(); String text(); }"),
+            annotationType(
+                "Widened",
+                "public @interface Widened { int n(); String text(); int small(); char letter(); }"),
             JavaFileObjects.forSourceString(
                 "com.upstream.Hidden", "package com.upstream; class Hidden {}"),
             annotationType("Handled", "public @interface Handled { Class<?> value(); }"),
@@ -958,6 +960,37 @@ class HkjHttpClientProcessorClasspathTest {
               + " this compilation's classpath declares revision() as another type; build against"
               + " the version of it BaseApi was compiled with, or redeclare 'getUser' on ChildApi"
               + " as the client should have it."),
+      MEMBER_NARROWED(
+          "a method's annotation setting a value too large for the type the classpath's version"
+              + " declares",
+          """
+            @GetExchange("/{id}")
+            @Revised(revision = 300)
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of(),
+          List.of(annotationType("Revised", "public @interface Revised { byte revision(); }")),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Revised"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Revised on"
+              + " this compilation's classpath declares revision() as another type; build against"
+              + " the version of it BaseApi was compiled with, or redeclare 'getUser' on ChildApi"
+              + " as the client should have it."),
+      MEMBER_TYPE_MISSING(
+          "a method's annotation setting a member the classpath's version of it declares with a"
+              + " type the classpath lacks",
+          """
+            @GetExchange("/{id}")
+            @Revised(revision = 2)
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of("Grade"),
+          List.of(
+              annotationType(
+                  "Revised", "public @interface Revised { Grade revision(); } enum Grade { LOW }")),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Revised"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Grade is not"
+              + " on this compilation's classpath; add the dependency that declares it, or redeclare"
+              + " 'getUser' on ChildApi as the client should have it."),
       DEFAULT_ADDED(
           "a method's annotation whose classpath version adds a member with no default",
           """
@@ -1056,11 +1089,11 @@ class HkjHttpClientProcessorClasspathTest {
     @DisplayName("a method's or parameter's annotation the client cannot write is refused")
     void aMethodAnnotationTheClientCannotWriteIsRefused(MethodRefusal refusal) throws IOException {
       Path base = baseWith(refusal.members);
-      for (String type : refusal.deleted) {
-        Files.delete(base.resolve("com/upstream/" + type + ".class"));
-      }
       for (JavaFileObject version : refusal.replaced) {
         layOut(compileAlone(version), base);
+      }
+      for (String type : refusal.deleted) {
+        Files.delete(base.resolve("com/upstream/" + type + ".class"));
       }
       Compilation compilation = compiler(base).compile(CHILD);
 
@@ -1073,26 +1106,30 @@ class HkjHttpClientProcessorClasspathTest {
     @Test
     @DisplayName("one written against another version that javac takes as written is copied")
     void aValueJavacTakesAsWrittenIsCopied() throws IOException {
-      // An int where the classpath's member is now a long, and a single string where it now takes
-      // an array of them, are written as javac takes them in source, so the copy compiles against
-      // the version here, and means what it meant.
+      // An int where the classpath's member is now a long, an int and a char that fit where it is
+      // now a byte or a short, and a single string where it now takes an array of them, are
+      // written as javac takes them in source, so the copy compiles against the version here, and
+      // means what it meant.
       Path base =
           baseWith(
               """
                 @GetExchange("/{id}")
-                @Widened(n = 2, text = "t")
+                @Widened(n = 2, text = "t", small = 3, letter = 'c')
                 EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
               """);
       layOut(
           compileAlone(
               annotationType(
-                  "Widened", "public @interface Widened { long n(); String[] text(); }")),
+                  "Widened",
+                  "public @interface Widened { long n(); String[] text(); byte small();"
+                      + " short letter(); }")),
           base);
       Compilation compilation = compiler(base).compile(CHILD);
 
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
-          .containsPattern("@Widened\\(\\s*n = 2,\\s*text = \"t\"\\s*\\)");
+          .containsPattern(
+              "@Widened\\(\\s*n = 2,\\s*text = \"t\",\\s*small = 3,\\s*letter = 'c'\\s*\\)");
     }
 
     @Test
@@ -1162,6 +1199,66 @@ class HkjHttpClientProcessorClasspathTest {
                       """));
 
       assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("one left off that shares a simple name with one copied plays no part either")
+    void aLeftOffAnnotationSharingASimpleNameDoesNotSplitTwoDeclarations() throws IOException {
+      // LeftApi's getUser also carries a CLASS-retained com.upstream.GetExchange, and its parameter
+      // a com.upstream.PathVariable, both missing and left off. Only what the client copies names
+      // a part, so Spring's two are named alike on both declarations.
+      Path base =
+          baseWith(
+              GET_USER,
+              classOnly("GetExchange"),
+              classOnly("PathVariable"),
+              JavaFileObjects.forSourceString(
+                  "com.upstream.LeftApi",
+                  """
+                  package com.upstream;
+
+                  import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.springframework.web.bind.annotation.PathVariable;
+                  import org.springframework.web.service.annotation.GetExchange;
+
+                  public interface LeftApi {
+                    @GetExchange("/{id}")
+                    @com.upstream.GetExchange
+                    EitherPath<ApiErr, UserDto> getUser(
+                        @PathVariable @com.upstream.PathVariable String id);
+                  }
+                  """));
+      Files.delete(base.resolve("com/upstream/GetExchange.class"));
+      Files.delete(base.resolve("com/upstream/PathVariable.class"));
+      Compilation compilation =
+          compiler(base)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.downstream.ChildApi",
+                      """
+                      package com.downstream;
+
+                      import com.upstream.BaseApi;
+                      import com.upstream.LeftApi;
+                      import org.higherkindedj.spring.client.HkjHttpClient;
+                      import org.springframework.web.service.annotation.HttpExchange;
+
+                      @HttpExchange("/users")
+                      @HkjHttpClient
+                      public interface ChildApi extends BaseApi, LeftApi {}
+                      """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    /** A CLASS-retained annotation type in the base's package, as a tooling jar provides. */
+    private static JavaFileObject classOnly(String name) {
+      return JavaFileObjects.forSourceString(
+          "com.upstream." + name,
+          "package com.upstream; @java.lang.annotation.Retention("
+              + "java.lang.annotation.RetentionPolicy.CLASS) public @interface "
+              + name
+              + " {}");
     }
 
     @Test

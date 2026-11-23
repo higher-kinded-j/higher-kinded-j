@@ -374,7 +374,7 @@ The processor writes the generated `…HttpExchange` into the client's package. 
 
 | The base carries | What the processor does | What to do |
 |---|---|---|
-| An annotation, or a class or enum it names, that is not public and is in the base's own package | Refuses the client, saying it `is not public` | Redeclare the method on the client, or declare `@HttpExchange` there |
+| An annotation, or a class or enum it names, that is not public and is in the base's own package | Refuses the client, saying it `is not public` | Redeclare the method on the client, or, for a type-level one, declare `@HttpExchange` there |
 | An annotation, read from a jar, naming a type the compile classpath lacks | Refuses the client, saying it `is not on this compilation's classpath` | Add the dependency that declares it, or redeclare as for one that is not public |
 | An annotation, read from a jar, written against another version of a type than the classpath has, where javac would not take it as written | Refuses the client, saying how the type `on this compilation's classpath` differs | Build against the version the base was compiled with, or redeclare as for one that is not public |
 | A deprecated annotation, such as Spring 7's `org.springframework.lang.Nullable` | Copies it, and suppresses `deprecation`, or `removal`, on the generated declaration | Nothing: javac reports the deprecation where the annotation is written |
@@ -386,10 +386,10 @@ Each refusal is one error on the client interface, naming the base, the method, 
 
 The processor refuses an annotation the client writes itself only where it names a type the generated interfaces cannot name, such as one nested privately beside the client.
 
-At type level, a base can carry no `@HttpExchange` the processor can see, but a missing annotation retained at run time that a class file names. It may sit on the base or underneath an annotation the base carries. The processor refuses the client then, saying it `cannot tell whether` the client inherits one. Spring may read one through it, so add the dependency that declares it, or declare `@HttpExchange` on the client; a bare `@HttpExchange` will do where the client needs nothing at type level. The processor copies the client's own annotations as they stand, so should Spring read an `@HttpExchange` through one of them beside a base's, it refuses the two at startup.
+At type level, a base can carry no `@HttpExchange` the processor can see, but a missing run-time annotation that a class file names, on the base or underneath an annotation it carries. Spring may read one through it, so the processor refuses the client, saying it `cannot tell whether` the client inherits one. Add the dependency that declares it, or declare `@HttpExchange` on the client; a bare one will do where the client needs nothing at type level. The processor copies the client's own annotations as they stand, so should Spring read an `@HttpExchange` through one of them beside a base's, it refuses the two at startup.
 
-~~~admonition info title="A client that names what another processor writes"
-A client whose annotations or interfaces name a type another processor writes waits for the round that brings it. If no round does, the processor reports that it `generated nothing` for the client, and why, beside javac's own error. Where another error ends the rounds first, the processor adds no report of its own, and javac's error at the name still shows.
+~~~admonish info title="A client that names what another processor writes"
+A client whose annotations or interfaces name a type another processor writes waits for the round that brings it. If no round does, the processor reports that it `generated nothing` for the client, and why, beside javac's own error. Where another error ends the rounds first, the processor adds nothing to javac's error at the name.
 ~~~
 
 Give each generic interface its type arguments where the client extends it. Named raw, as in `extends CrudApi`, a base's methods lose their types, and the processor refuses each one that needs them, saying it `reads this method through the raw type CrudApi`.

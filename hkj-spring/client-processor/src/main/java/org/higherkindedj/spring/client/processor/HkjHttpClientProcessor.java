@@ -1294,13 +1294,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    */
   private Map<String, String> writtenParts(ClientMethod method, String packageName) {
     Map<String, String> parts = new TreeMap<>();
-    List<? extends AnnotationMirror> methodAnnotations = method.element().getAnnotationMirrors();
+    List<? extends AnnotationMirror> methodAnnotations =
+        method.element().getAnnotationMirrors().stream()
+            .filter(mirror -> !isOverride(mirror) && !isStatusOverride(mirror))
+            .filter(mirror -> isCopied(mirror, method.element(), packageName))
+            .toList();
     for (AnnotationMirror mirror : methodAnnotations) {
-      if (!isOverride(mirror)
-          && !isStatusOverride(mirror)
-          && isCopied(mirror, method.element(), packageName)) {
-        parts.put("the method's " + labelOf(mirror, methodAnnotations), normalised(mirror, null));
-      }
+      parts.put("the method's " + labelOf(mirror, methodAnnotations), normalised(mirror, null));
     }
     if (!returnsMaybePath(method)) {
       Map<Integer, String> overrides = new TreeMap<>();
@@ -1328,13 +1328,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       String label = "parameter " + (index + 1) + "'s ";
       parts.put(label + "type", positional(parameter.typeName(packageName), ownVariables));
       List<? extends AnnotationMirror> parameterAnnotations =
-          parameter.element().getAnnotationMirrors();
+          parameter.element().getAnnotationMirrors().stream()
+              .filter(mirror -> isCopied(mirror, method.element(), packageName))
+              .toList();
       for (AnnotationMirror mirror : parameterAnnotations) {
-        if (isCopied(mirror, method.element(), packageName)) {
-          parts.put(
-              label + labelOf(mirror, parameterAnnotations),
-              normalised(mirror, needsExplicitName(mirror, parameter) ? parameter.name() : null));
-        }
+        parts.put(
+            label + labelOf(mirror, parameterAnnotations),
+            normalised(mirror, needsExplicitName(mirror, parameter) ? parameter.name() : null));
       }
     }
     return parts;
@@ -1353,8 +1353,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
   /**
    * An annotation as a part's label names it: by its simple name, or by its qualified name where
-   * another annotation on the same declaration shares the simple name, so neither takes the other's
-   * place.
+   * another the client copies from the same declaration shares the simple name, so neither takes
+   * the other's place. One left off is not counted, or it would label the same copy differently on
+   * two declarations.
    */
   private static String labelOf(AnnotationMirror mirror, List<? extends AnnotationMirror> beside) {
     Name simpleName = mirror.getAnnotationType().asElement().getSimpleName();

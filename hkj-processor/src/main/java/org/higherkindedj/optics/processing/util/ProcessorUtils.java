@@ -1560,9 +1560,10 @@ public final class ProcessorUtils {
    * whose enum lacks a constant it names. javac makes up the member or constant it lacks, and the
    * file would not compile, so such an annotation is left off too, as is one whose annotation type
    * is no longer an annotation interface, or now declares a member with no default that it does not
-   * set. A member javac made up has no type, so no value it is set to is one its type holds. A
-   * value javac accepts as written is kept: an {@code int} where the member is now a {@code long},
-   * or a single value where it is now an array of its kind.
+   * set. A member javac made up has no type, and one declared with a type this classpath lacks has
+   * none javac can read, so no value either is set to is one its type holds. A value javac accepts
+   * as written is kept: an {@code int} where the member is now a {@code long}, an {@code int} that
+   * fits where it is now a {@code byte}, or a single value where it is now an array of its kind.
    *
    * <p>hkj-spring's client processor keeps the same rules, with the reasons a refusal names, in its
    * {@code AnnotationSpecs}; a change here belongs there too.
@@ -1613,22 +1614,22 @@ public final class ProcessorUtils {
 
           @Override
           public Boolean visitByte(byte value, Void unused) {
-            return widens(TypeKind.BYTE, declared.getKind());
+            return widens(TypeKind.BYTE, declared.getKind()) || fits(value, declared.getKind());
           }
 
           @Override
           public Boolean visitChar(char value, Void unused) {
-            return widens(TypeKind.CHAR, declared.getKind());
+            return widens(TypeKind.CHAR, declared.getKind()) || fits(value, declared.getKind());
           }
 
           @Override
           public Boolean visitShort(short value, Void unused) {
-            return widens(TypeKind.SHORT, declared.getKind());
+            return widens(TypeKind.SHORT, declared.getKind()) || fits(value, declared.getKind());
           }
 
           @Override
           public Boolean visitInt(int value, Void unused) {
-            return widens(TypeKind.INT, declared.getKind());
+            return widens(TypeKind.INT, declared.getKind()) || fits(value, declared.getKind());
           }
 
           @Override
@@ -1705,6 +1706,19 @@ public final class ProcessorUtils {
           case FLOAT -> to == TypeKind.DOUBLE;
           default -> false;
         };
+  }
+
+  /**
+   * Whether an integral constant fits a member declared {@code byte}, {@code short} or {@code
+   * char}, where javac narrows a constant written in source.
+   */
+  private static boolean fits(int value, TypeKind to) {
+    return switch (to) {
+      case BYTE -> value == (byte) value;
+      case SHORT -> value == (short) value;
+      case CHAR -> value == (char) value;
+      default -> false;
+    };
   }
 
   private static final Set<TypeKind> WIDER_THAN_LONG = Set.of(TypeKind.FLOAT, TypeKind.DOUBLE);

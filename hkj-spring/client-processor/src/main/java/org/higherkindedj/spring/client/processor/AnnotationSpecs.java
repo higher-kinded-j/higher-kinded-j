@@ -383,8 +383,8 @@ final class AnnotationSpecs {
      * A value, read against the type its member declares, as javac would take it written in source.
      * A class file written against another version of the annotation type can hold a value the
      * member on this classpath declares otherwise: one javac accepts as written, such as an {@code
-     * int} where the member is now a {@code long}, or a single value where it is now an array of
-     * its kind, is copied as it stands.
+     * int} where the member is now a {@code long}, an {@code int} that fits where it is now a
+     * {@code byte}, or a single value where it is now an array of its kind, is copied as it stands.
      *
      * <p>In source, javac hands over a class literal or a constant it could not resolve as a mark
      * that visits as a string but, unlike a string, is not written in quotes.
@@ -397,10 +397,15 @@ final class AnnotationSpecs {
       if (declared instanceof ArrayType array && !(value.getValue() instanceof List)) {
         return ofValue(value, member, array.getComponentType());
       }
-      // javac makes up a member a class file sets that the type lacks, with no type of its own;
-      // that member is reported on its own.
+      // A member this classpath declares with a type it lacks cannot be written whatever its value,
+      // as hkj-processor's twin leaves it off.
+      if (declared.getKind() == TypeKind.ERROR) {
+        return new Missing(declared.toString());
+      }
+      // javac makes up a member a class file sets that the type lacks, typed as null; that member
+      // is reported on its own.
       Writability otherType =
-          declared.getKind() == TypeKind.NULL || declared.getKind() == TypeKind.ERROR
+          declared.getKind() == TypeKind.NULL
               ? CLEAN
               : new Skewed(
                   nameOf(member.getEnclosingElement()),
@@ -414,22 +419,30 @@ final class AnnotationSpecs {
 
             @Override
             public Writability visitByte(byte value, Void unused) {
-              return widens(TypeKind.BYTE, declared.getKind()) ? CLEAN : otherType;
+              return widens(TypeKind.BYTE, declared.getKind()) || fits(value, declared.getKind())
+                  ? CLEAN
+                  : otherType;
             }
 
             @Override
             public Writability visitChar(char value, Void unused) {
-              return widens(TypeKind.CHAR, declared.getKind()) ? CLEAN : otherType;
+              return widens(TypeKind.CHAR, declared.getKind()) || fits(value, declared.getKind())
+                  ? CLEAN
+                  : otherType;
             }
 
             @Override
             public Writability visitShort(short value, Void unused) {
-              return widens(TypeKind.SHORT, declared.getKind()) ? CLEAN : otherType;
+              return widens(TypeKind.SHORT, declared.getKind()) || fits(value, declared.getKind())
+                  ? CLEAN
+                  : otherType;
             }
 
             @Override
             public Writability visitInt(int value, Void unused) {
-              return widens(TypeKind.INT, declared.getKind()) ? CLEAN : otherType;
+              return widens(TypeKind.INT, declared.getKind()) || fits(value, declared.getKind())
+                  ? CLEAN
+                  : otherType;
             }
 
             @Override
@@ -563,6 +576,19 @@ final class AnnotationSpecs {
           case FLOAT -> to == TypeKind.DOUBLE;
           default -> false;
         };
+  }
+
+  /**
+   * Whether an integral constant fits a member declared {@code byte}, {@code short} or {@code
+   * char}, where javac narrows a constant written in source.
+   */
+  private static boolean fits(int value, TypeKind to) {
+    return switch (to) {
+      case BYTE -> value == (byte) value;
+      case SHORT -> value == (short) value;
+      case CHAR -> value == (char) value;
+      default -> false;
+    };
   }
 
   private static final Set<TypeKind> WIDER_THAN_LONG = Set.of(TypeKind.FLOAT, TypeKind.DOUBLE);

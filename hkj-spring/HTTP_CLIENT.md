@@ -262,8 +262,9 @@ processor copies from a base, at type level, on a method or on a parameter, must
 can write. The processor refuses the client, with one error naming the base and the annotation,
 where the annotation, or a class or enum it names, is not public, or where a base's class file
 names a type the compile classpath lacks, or was written against another version of one.
-Redeclare the method, or declare `@HttpExchange`, on the client, or add the missing dependency, at
-the version the base was compiled with. A value javac would take as written against the version
+Redeclare the method on the client where a method or parameter annotation is refused, or declare
+`@HttpExchange` on it where a type-level one is, or add the missing dependency, at the version the
+base was compiled with. A value javac would take as written against the version
 here, such as an `int` where a member is now a `long`, is copied.
 
 An annotation retained for the compiler alone, which Spring never reads, is left off instead. At

@@ -1081,6 +1081,12 @@ class TypeUseAnnotationSurvivalTest {
                   typeUse("FromShort", "short value();"),
                   typeUse("FromLong", "long value();"),
                   typeUse("FromFloat", "float value();"),
+                  typeUse("IntFits", "int value();"),
+                  typeUse("IntOver", "int value();"),
+                  typeUse("ByteUnder", "byte value();"),
+                  typeUse("ShortOver", "short value();"),
+                  typeUse("CharFits", "char value();"),
+                  typeUse("CharOver", "char value();"),
                   typeUse("Classed", ""),
                   typeUse(
                       "Kinds",
@@ -1115,6 +1121,12 @@ class TypeUseAnnotationSurvivalTest {
                           @FromShort(1) String fromShort,
                           @FromLong(1L) String fromLong,
                           @FromFloat(1f) String fromFloat,
+                          @IntFits(1) String intFits,
+                          @IntOver(300) String intOver,
+                          @ByteUnder(-1) String byteUnder,
+                          @ShortOver(300) String shortOver,
+                          @CharFits('c') String charFits,
+                          @CharOver((char) 40000) String charOver,
                           @Classed String classed,
                           @Kinds(
                                   z = true,
@@ -1156,6 +1168,12 @@ class TypeUseAnnotationSurvivalTest {
                   typeUse("FromShort", "byte value();"),
                   typeUse("FromLong", "int value();"),
                   typeUse("FromFloat", "long value();"),
+                  typeUse("IntFits", "short value();"),
+                  typeUse("IntOver", "byte value();"),
+                  typeUse("ByteUnder", "char value();"),
+                  typeUse("ShortOver", "byte value();"),
+                  typeUse("CharFits", "byte value();"),
+                  typeUse("CharOver", "short value();"),
                   source("com.external.Classed", "package com.external; public class Classed {}"),
                   source("com.external.Other", "package com.external; public @interface Other {}"),
                   source("com.external.Grade", "package com.external; public enum Grade { LOW }"),
@@ -1197,10 +1215,12 @@ class TypeUseAnnotationSurvivalTest {
               "listing",
               "flagged",
               "dflt",
-              "fromByte",
-              "fromShort",
               "fromLong",
               "fromFloat",
+              "intOver",
+              "byteUnder",
+              "shortOver",
+              "charOver",
               "classed")) {
         assertGeneratedCodeContains(
             compilation,
@@ -1208,9 +1228,13 @@ class TypeUseAnnotationSurvivalTest {
             "public static Lens<Customer, String> " + skewed + "()");
       }
       assertGeneratedCodeContains(compilation, "com.external.CustomerLenses", "@Kinds(");
-      // Each widening javac applies to a constant, and a single value where the member is now an
+      // Each widening javac applies to a constant, each integral constant that fits where the
+      // member is now a byte, a short or a char, and a single value where the member is now an
       // array, is written as javac takes it, so the annotation is kept.
-      assertGeneratedCodeContains(compilation, "com.external.CustomerLenses", "@Widened(");
+      for (String kept :
+          List.of("@Widened(", "@FromByte(", "@FromShort(", "@IntFits(", "@CharFits(")) {
+        assertGeneratedCodeContains(compilation, "com.external.CustomerLenses", kept);
+      }
     }
 
     @Test
