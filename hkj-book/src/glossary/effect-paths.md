@@ -769,6 +769,30 @@ EitherPath<ApiError, User> partial = fetchUser(id)
 
 ---
 
+## TryPath
+
+**Definition:** A Path over `Try<A>` for computations that may throw an exception. Exceptions are caught and carried as a `Throwable`, allowing operations to be chained without explicit try blocks. Calling `run()` returns the underlying `Try<A>`.
+
+**Factories:** `Path.tryOf(Supplier)`, `Path.success(a)`, `Path.failure(Throwable)`, `Path.tryPath(Try)`.
+
+**Operations:** `map`, `via`, `recover`, `mapException`, `peekFailure`.
+
+**Related:** [TryPath chapter](../effect/path_try.md), [Path](#path), [Try](data-effects.md#try), [recover](#recover), [EitherPath](#eitherpath).
+
+---
+
+## ValidationPath
+
+**Definition:** A Path over `Validated<E, A>` that supports both fail-fast validation and error accumulation. The `via` operation stops at the first error. Accumulating operations use a `Semigroup<E>` to combine errors. Calling `run()` returns the underlying `Validated<E, A>`.
+
+**Factories:** `Path.valid(a, semigroup)`, `Path.invalid(e, semigroup)`, `Path.validated(validated, semigroup)`, `Path.validNel(a)`, `Path.invalidNel(e)`.
+
+**Operations:** `map`, `via`, `zipWithAccum`, `andAlso`. The last two accumulate validation errors.
+
+**Related:** [ValidationPath chapter](../effect/path_validation.md), [Path](#path), [Validated](data-effects.md#validated), [NonEmptyList](data-effects.md#nonemptylist), [Semigroup](type-classes.md#semigroup), [EitherPath](#eitherpath).
+
+---
+
 ## via
 
 **Definition:** The chaining operation on Effect Paths, equivalent to `flatMap` on monads. Applies a function that returns a new Path, allowing dependent operations to be sequenced. If the current Path is on the failure track, `via` is bypassed and the failure propagates.
