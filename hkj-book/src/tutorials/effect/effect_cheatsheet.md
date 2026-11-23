@@ -96,7 +96,7 @@ When to reach for ForPath: three or more dependent steps, or when intermediate v
 | `ConfigContext<?, R, A>` | `ReaderT` | Threading configuration through a workflow without DI |
 | `MutableContext<?, S, A>` | `StateT` | Workflow-local state without `ThreadLocal` or mutable fields |
 
-All three carry the same `map` / `via` / `recover` surface as the Path API; the suffix differs only in how we run the workflow at the boundary:
+All three chain with `map` and `via`, as the Path API does, and `ErrorContext` also has `recover`. They differ in how we run the workflow at the boundary:
 
 <!-- verify -->
 ```java
