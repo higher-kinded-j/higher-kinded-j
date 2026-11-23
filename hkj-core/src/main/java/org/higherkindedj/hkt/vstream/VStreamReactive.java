@@ -2,9 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.vstream;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Flow;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +34,7 @@ import org.jspecify.annotations.Nullable;
  * <h2>fromPublisher</h2>
  *
  * <p>Converts a {@link Flow.Publisher} to a VStream. Each run of the stream subscribes to the
- * publisher at its first pull, and buffers the incoming elements in a bounded queue. The VStream's
+ * publisher at its first pull, and buffers the incoming elements, bounded by a semaphore. The VStream's
  * {@code pull()} reads from this queue, providing pull-based access to the push-based source, and
  * each element taken asks the publisher for one more. Closing the tail a run holds cancels that
  * run's subscription; closing the VStream itself cancels none, since several runs may read it at
@@ -100,10 +103,13 @@ public final class VStreamReactive {
    * sends a run only what it publishes after the run subscribes, so what it publishes between
    * building the stream and reading it is lost to that run: publish once the run has subscribed.
    *
-   * <p>A run first asks the publisher for {@code bufferSize} elements, and buffers them in a queue
-   * as they arrive. When the stream is pulled, an element is taken from the queue, and the
-   * publisher is asked for one more. So a publisher that keeps to its demand never sends more than
-   * the queue holds, and never waits for the stream to make room.
+   * <p>A run first asks the publisher for {@code bufferSize} elements, and buffers them as they
+   * arrive, bounded by a semaphore of one permit per element, one more than the demand, as the
+   * queue was before. When the stream is pulled, an element is taken, its permit is given back,
+   * and the publisher is asked for one more. So a publisher that keeps to its demand never sends
+   * more than the queue holds, and never waits for the stream to make room. The queue itself is
+   * unbounded, so the signal that ends the run always fits behind the buffered elements, even
+   * when a publisher that sent more than it was asked for has filled the element room.
    *
    * <p>Closing the tail a run holds cancels that run's subscription, so a run that stops early,
    * through {@link VStream#take(long)} or {@link VStream#headOption()} for example, stops the
@@ -138,10 +144,14 @@ public final class VStreamReactive {
 
   /** Subscribes to the publisher for one run, and gives the stream that reads what it sends. */
   private static <A> VStream<A> subscribed(Flow.Publisher<A> publisher, int bufferSize) {
-    // Room for every element requested and the signal that ends the run, so a publisher that
-    // keeps to its demand never waits for room
-    LinkedBlockingQueue<Signal<A>> queue =
-        new LinkedBlockingQueue<>(bufferSize == Integer.MAX_VALUE ? bufferSize : bufferSize + 1);
+    // Elements are bounded by a semaphore, one permit each, so a publisher that sends more than
+    // it was asked for waits for room. The permits allow one element beyond the demand, as the
+    // queue did before, so a publisher that sends one more than it was asked for does not wait
+    // on the thread that subscribes. The queue itself is unbounded, so the signal that ends the
+    // run always fits behind the buffered elements.
+    int permits = bufferSize == Integer.MAX_VALUE ? bufferSize : bufferSize + 1;
+    Semaphore elementRoom = new Semaphore(permits);
+    LinkedBlockingQueue<Signal<A>> queue = new LinkedBlockingQueue<>();
     // A failure the stream finds itself ends the run as the publisher's error would
     Upstream upstream = new Upstream(failure -> queue.offer(new Signal.Error<>(failure)));
 
@@ -165,20 +175,24 @@ public final class VStreamReactive {
               // Sent after the stream was closed, so nothing will read it
               return;
             }
-            // The stream asks for one more as it takes each element, not here. Offered first, since
-            // put throws on an interrupted thread even with room, and a publisher may send on the
-            // thread of a pull that was interrupted, from its request(1)
+            // The stream asks for one more as it takes each element, not here. A permit is tried
+            // for first, since acquiring one throws on an interrupted thread even with room, and
+            // a publisher may send on the thread of a pull that was interrupted, from its
+            // request(1)
             Signal<A> element = new Signal.Element<>(item);
-            if (queue.offer(element)) {
+            if (elementRoom.tryAcquire()) {
+              queue.offer(element);
               return;
             }
             try {
-              queue.put(element);
+              elementRoom.acquire();
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
               // Fail the run, rather than leave it waiting for an element that is gone
               upstream.fail(e);
+              return;
             }
+            queue.offer(element);
           }
 
           @Override
@@ -193,29 +207,24 @@ public final class VStreamReactive {
 
           /**
            * Ends the run with the signal, unless the stream has been closed, when nothing will read
-           * it. A close leaves room for one element sent as it closes, and no more, so a signal
-           * kept after the close could wait for room for ever. The Flow rules send signals one at a
-           * time, so a signal after that element sees the close.
+           * it. The queue is unbounded, so the signal always fits, even when a publisher that sent
+           * more than it was asked for has filled the element room. Offer does not block, so a
+           * signal sent on an interrupted thread keeps the thread's interrupt status.
            */
           private void end(Signal<A> signal) {
             if (upstream.closed()) {
               return;
             }
-            try {
-              queue.put(signal);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              queue.offer(signal);
-            }
+            queue.offer(signal);
           }
         });
 
     // The run's head keeps no step, so a stream held for a run holds nothing the run has read
-    Queued<A> closing = new Queued<>(queue, upstream);
+    Queued<A> closing = new Queued<>(queue, upstream, elementRoom);
     return new VStream<>() {
       @Override
       public VTask<VStream.Step<A>> pull() {
-        return new Queued<>(queue, upstream).pull();
+        return new Queued<>(queue, upstream, elementRoom).pull();
       }
 
       @Override
@@ -248,15 +257,22 @@ public final class VStreamReactive {
 
     private final LinkedBlockingQueue<Signal<A>> queue;
     private final Upstream upstream;
+    private final Semaphore elementRoom;
 
-    Queued(LinkedBlockingQueue<Signal<A>> queue, Upstream upstream) {
+    Queued(LinkedBlockingQueue<Signal<A>> queue, Upstream upstream, Semaphore elementRoom) {
       this.queue = queue;
       this.upstream = upstream;
+      this.elementRoom = elementRoom;
     }
 
     @Override
     Signal<A> nextSignal() throws InterruptedException {
-      return pollOrTake(queue);
+      Signal<A> signal = pollOrTake(queue);
+      if (signal instanceof Signal.Element<A>) {
+        // The element has left the queue, so a publisher waiting for room may send again
+        elementRoom.release();
+      }
+      return signal;
     }
 
     @Override
@@ -264,7 +280,7 @@ public final class VStreamReactive {
       return switch (signal) {
         case Signal.Element<A> e -> {
           upstream.request(1);
-          yield new VStream.Step.Emit<>(e.value(), new Queued<>(queue, upstream));
+          yield new VStream.Step.Emit<>(e.value(), new Queued<>(queue, upstream, elementRoom));
         }
         case Signal.Complete<A> _ -> new VStream.Step.Done<>();
         // The publisher's error, as it gave it
@@ -279,10 +295,16 @@ public final class VStreamReactive {
             try {
               upstream.cancel();
             } finally {
-              // Make room for an element the publisher may be blocked delivering
-              queue.clear();
-              // Wakes a pull waiting on the queue, and a pull after this gives Done, even when the
-              // cancel throws
+              // Give back the permits of the elements cleared, so a publisher waiting for room
+              // may send again, and wake a pull waiting on the queue; a pull after this gives
+              // Done, even when the cancel throws
+              List<Signal<A>> cleared = new ArrayList<>();
+              queue.drainTo(cleared);
+              int elements =
+                  (int) cleared.stream().filter(Signal.Element.class::isInstance).count();
+              if (elements > 0) {
+                elementRoom.release(elements);
+              }
               queue.offer(new Signal.Complete<>());
             }
             return Unit.INSTANCE;

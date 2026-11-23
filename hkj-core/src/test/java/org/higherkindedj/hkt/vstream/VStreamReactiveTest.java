@@ -616,8 +616,8 @@ class VStreamReactiveTest {
       ((VStream.Step.Emit<Integer>) first).tail().close().run();
       assertThat(cancelled).isTrue();
 
-      // The buffer has room for one element and the end, and the end is already in it, so a
-      // second element kept rather than dropped would block this thread
+      // The run is closed, so an element sent now is dropped rather than kept, and this
+      // returns at once
       assertTimeoutPreemptively(
           Duration.ofSeconds(5),
           () -> {
@@ -652,9 +652,8 @@ class VStreamReactiveTest {
       assertThat(first).isInstanceOf(VStream.Step.Emit.class);
       ((VStream.Step.Emit<Integer>) first).tail().close().run();
 
-      // The buffer has room for one element and the end, and the close's end is already in it.
-      // The error takes the room left, as an element sent while the stream closed can, so the end
-      // after it would block this thread if signals after the close were kept
+      // The run is closed, so a signal sent now is dropped rather than kept, and this returns
+      // at once
       assertTimeoutPreemptively(
           Duration.ofSeconds(5),
           () -> {
@@ -1665,6 +1664,89 @@ class VStreamReactiveTest {
       assertThat(cancelCalled).isTrue();
       assertThat(interruptKept).isTrue();
       assertThat(((VStream.Step.Emit<String>) first).value()).isEqualTo("a");
+      // The run ends with the interrupt once the buffered elements are read, rather than
+      // waiting for ever
+      VStream.Step<String> second = ((VStream.Step.Emit<String>) first).tail().pull().run();
+      assertThat(((VStream.Step.Emit<String>) second).value()).isEqualTo("b");
+      Try<VStream.Step<String>> third =
+          ((VStream.Step.Emit<String>) second).tail().pull().runSafe();
+      assertThat(((Try.Failure<VStream.Step<String>>) third).cause())
+          .isInstanceOf(InterruptedException.class);
+    }
+
+    @Test
+    @DisplayName(
+        "onError on an interrupted thread, with no room left, fails the run with the"
+            + " publisher's error")
+    void onErrorInterruptedWithNoRoom() {
+      RuntimeException down = new RuntimeException("the feed is down");
+      AtomicBoolean interruptKept = new AtomicBoolean(false);
+
+      // Sends more than the one element asked for, as it subscribes: two fill the element
+      // room, and the error then has to reach the stream behind them
+      Flow.Publisher<String> publisher =
+          subscriber -> {
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {}
+
+                  @Override
+                  public void cancel() {}
+                });
+            subscriber.onNext("a");
+            subscriber.onNext("b");
+            Thread.currentThread().interrupt();
+            subscriber.onError(down);
+            interruptKept.set(Thread.interrupted());
+          };
+
+      // The run subscribes at its first pull, on this thread
+      VStream.Step<String> first = VStreamReactive.fromPublisher(publisher, 1).pull().run();
+
+      assertThat(((VStream.Step.Emit<String>) first).value()).isEqualTo("a");
+      VStream.Step<String> second = ((VStream.Step.Emit<String>) first).tail().pull().run();
+      assertThat(((VStream.Step.Emit<String>) second).value()).isEqualTo("b");
+      Try<VStream.Step<String>> third =
+          ((VStream.Step.Emit<String>) second).tail().pull().runSafe();
+      assertThat(((Try.Failure<VStream.Step<String>>) third).cause()).isSameAs(down);
+      assertThat(interruptKept).isTrue();
+    }
+
+    @Test
+    @DisplayName(
+        "onComplete on an interrupted thread, with no room left, ends the run with Done")
+    void onCompleteInterruptedWithNoRoom() {
+      AtomicBoolean interruptKept = new AtomicBoolean(false);
+
+      // Sends more than the one element asked for, as it subscribes: two fill the element
+      // room, and the completion then has to reach the stream behind them
+      Flow.Publisher<String> publisher =
+          subscriber -> {
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {}
+
+                  @Override
+                  public void cancel() {}
+                });
+            subscriber.onNext("a");
+            subscriber.onNext("b");
+            Thread.currentThread().interrupt();
+            subscriber.onComplete();
+            interruptKept.set(Thread.interrupted());
+          };
+
+      // The run subscribes at its first pull, on this thread
+      VStream.Step<String> first = VStreamReactive.fromPublisher(publisher, 1).pull().run();
+
+      assertThat(((VStream.Step.Emit<String>) first).value()).isEqualTo("a");
+      VStream.Step<String> second = ((VStream.Step.Emit<String>) first).tail().pull().run();
+      assertThat(((VStream.Step.Emit<String>) second).value()).isEqualTo("b");
+      VStream.Step<String> third = ((VStream.Step.Emit<String>) second).tail().pull().run();
+      assertThat(third).isInstanceOf(VStream.Step.Done.class);
+      assertThat(interruptKept).isTrue();
     }
 
     @Test
@@ -1892,6 +1974,47 @@ class VStreamReactiveTest {
           .isInstanceOf(NullPointerException.class)
           .hasMessage("VStream.fromPublisher element cannot be null");
       assertThat(cancelled).isTrue();
+    }
+
+    @Test
+    @DisplayName("a null element with no room left still fails the run with a NullPointerException")
+    @SuppressWarnings("DataFlowIssue") // the publisher deliberately sends null
+    void nullElementWithNoRoomFailsTheRun() {
+      AtomicReference<Throwable> thrownBack = new AtomicReference<>();
+      Flow.Publisher<String> publisher =
+          subscriber -> {
+            subscriber.onSubscribe(
+                new Flow.Subscription() {
+                  @Override
+                  public void request(long n) {}
+
+                  @Override
+                  public void cancel() {}
+                });
+            subscriber.onNext("a");
+            subscriber.onNext("b");
+            try {
+              subscriber.onNext(null);
+            } catch (NullPointerException e) {
+              thrownBack.set(e);
+            }
+          };
+
+      VStream<String> stream = VStreamReactive.fromPublisher(publisher, 1);
+
+      // The run subscribes at its first pull, and reads "a" and "b" before the null
+      VStream.Step<String> first = stream.pull().run();
+      assertThat(((VStream.Step.Emit<String>) first).value()).isEqualTo("a");
+      VStream.Step<String> second = ((VStream.Step.Emit<String>) first).tail().pull().run();
+      assertThat(((VStream.Step.Emit<String>) second).value()).isEqualTo("b");
+      Try<VStream.Step<String>> third =
+          ((VStream.Step.Emit<String>) second).tail().pull().runSafe();
+      assertThat(((Try.Failure<VStream.Step<String>>) third).cause())
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("VStream.fromPublisher element cannot be null");
+      assertThat(thrownBack.get())
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("VStream.fromPublisher element cannot be null");
     }
 
     @Test
