@@ -370,6 +370,28 @@ interface UserCrudApi extends CrudApi<ApiError, UserDto, String> {}
 
 A client with no type-level `@HttpExchange` of its own takes its base's, as a Spring HTTP interface would, whether the base is generic or not. With several bases, the processor searches each one, and the interfaces it extends, before the next, and stops at the first interface that carries one. An annotation composed from `@HttpExchange` counts as one when it is retained at run time, where Spring reads it. Every such annotation on that interface is copied, so two that differ stop the application at startup, as Spring refuses them. A client with its own uses only its own, as Spring does, so `@HttpExchange("/users")` on the client over `@HttpExchange("/api")` on the base sends to `/users`, not `/api/users`.
 
+The processor writes the generated `…HttpExchange` into the client's package. A base in another package can carry an annotation the client's package cannot write, so the processor checks each annotation it copies from a base: the type-level `@HttpExchange`, a method's and a parameter's.
+
+| The base carries | What the processor does | What to do |
+|---|---|---|
+| An annotation, or a class or enum it names, that is not public and is in the base's own package | Refuses the client, saying it `is not public` | Redeclare the method on the client, or, for a type-level one, declare `@HttpExchange` there |
+| An annotation, read from a jar, naming a type the compile classpath lacks | Refuses the client, saying it `is not on this compilation's classpath` | Add the dependency that declares it, or redeclare as for one that is not public |
+| An annotation, read from a jar, written against another version of a type than the classpath has, where javac would not take it as written | Refuses the client, saying how the type `on this compilation's classpath` differs | Build against the version the base was compiled with, or redeclare as for one that is not public |
+| A deprecated annotation, such as Spring 7's `org.springframework.lang.Nullable` | Copies it, and suppresses `deprecation`, or `removal`, on the generated declaration | Nothing: javac reports the deprecation where the annotation is written |
+
+Each refusal is one error on the client interface, naming the base, the method, if any, and the annotation. In two cases the processor leaves an annotation off in place of refusing the client:
+
+- **One Spring never reads is left off where it cannot be written.** That is one retained for the compiler alone.
+- **A type-use annotation is left off where it cannot be written cleanly.** That includes a deprecated one, on the types the client restates; jspecify's `@Nullable`, public and current, is kept.
+
+The processor refuses an annotation the client writes itself only where it names a type the generated interfaces cannot name, such as one nested privately beside the client.
+
+At type level, a base can carry no `@HttpExchange` the processor can see, but a missing run-time annotation that a class file names, on the base or underneath an annotation it carries. Spring may read one through it, so the processor refuses the client, saying it `cannot tell whether` the client inherits one. Add the dependency that declares it, or declare `@HttpExchange` on the client; a bare one will do where the client needs nothing at type level. The processor copies the client's own annotations as they stand, so should Spring read an `@HttpExchange` through one of them beside a base's, it refuses the two at startup.
+
+~~~admonish info title="A client that names what another processor writes"
+A client whose annotations or interfaces name a type another processor writes waits for the round that brings it. If no round does, the processor reports that it `generated nothing` for the client, and why, beside javac's own error. Where another error ends the rounds first, the processor adds nothing to javac's error at the name.
+~~~
+
 Give each generic interface its type arguments where the client extends it. Named raw, as in `extends CrudApi`, a base's methods lose their types, and the processor refuses each one that needs them, saying it `reads this method through the raw type CrudApi`.
 
 The client implements a method once, however many declarations it inherits it from. Two bases can each declare `get(String)`, and type arguments can make two methods of one base the same. The processor refuses such a method when the generated client would write its declarations differently, as it could follow only one of them. A different path, binding, override, type or type parameter counts. A parameter's name counts only where it names the binding, as an unnamed `@PathVariable String id` binds `id`, and the order of attributes does not count. Here the processor reports `which the generated client would write differently: the method's @GetExchange differs`:
@@ -405,7 +427,7 @@ interface AnyErrorApi<E> extends CrudApi<E, UserDto, String> {}
 - **A sealed error type with no `@JsonTypeInfo`.** Jackson cannot pick the subtype, so decoding fails. Add the type info, or use a concrete error type.
 - **Client interfaces outside the component scan.** If your `@HkjHttpClient` interfaces are not under your `@SpringBootApplication`'s scanned packages, the generated configuration is not picked up and Spring never creates the proxy. Add an explicit `@ImportHttpServices(basePackages = "...")`.
 - **Expecting a transport failure to become a `Left`.** Connection-refused and timeout are not domain errors; they propagate. Use the `VTaskPath` variant and `runSafe()` to capture them as the failure arm of `Try<Either<E, T>>`.
-- **Inheriting methods from a precompiled base.** A super-interface in a dependency jar must be compiled with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. A jar built against 0.4.10 or earlier also carries none of its `@OnStatus` overrides, which were discarded when it was compiled, so its methods ignore them until it is rebuilt. Interfaces compiled in your own build are fine. Wherever the base is compiled, a module declaring `@OnStatus` should expose `hkj-spring-boot-client` to the modules that use it (Gradle's `api` configuration): its class files name the annotation, and a module compiling against them without it warns under `-Xlint:all`, which fails a `-Werror` build.
+- **Inheriting methods from a precompiled base.** A super-interface in a dependency jar must be compiled with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. A jar built against 0.4.10 or earlier also carries none of its `@OnStatus` overrides, which were discarded when it was compiled, so its methods ignore them until it is rebuilt. Interfaces compiled in your own build have neither problem. Wherever the base is compiled, a module declaring `@OnStatus` should expose `hkj-spring-boot-client` to the modules that use it (Gradle's `api` configuration): its class files name the annotation, and a module compiling against them without it warns under `-Xlint:all`, which fails a `-Werror` build.
 - **An `@OnStatus` error type that is not assignable to the method's error type.** This is a compile error, by design.
 ~~~
 

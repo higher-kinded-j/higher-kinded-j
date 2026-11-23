@@ -6,15 +6,30 @@ import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Set;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor;
 import org.higherkindedj.optics.processing.effect.PathProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * A case per generator: a {@code @Nullable} the author wrote survives into what the generator
@@ -922,6 +937,20 @@ class TypeUseAnnotationSurvivalTest {
                       public @interface Old {}
                       """),
                   source(
+                      "com.home.Dated",
+                      """
+                      package com.home;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_USE)
+                      public @interface Dated {
+                        @Deprecated
+                        String since() default "";
+                      }
+                      """),
+                  source(
                       "com.home.Named",
                       """
                       package com.home;
@@ -939,7 +968,7 @@ class TypeUseAnnotationSurvivalTest {
                       @GenerateFolds
                       @GenerateFocus
                       public record Named(
-                          @Tag @Old String name,
+                          @Tag @Old @Dated(since = "1") String name,
                           List<@Tag String> tags,
                           Kind<ListKind.Witness, @Tag String> members) {}
                       """),
@@ -999,8 +1028,9 @@ class TypeUseAnnotationSurvivalTest {
                       """));
 
       assertThat(compilation).succeeded();
-      // The deprecated one is left off even at home, where it could be named: writing it would
-      // draw a warning in a file no one can put a @SuppressWarnings on.
+      // The deprecated one, and one setting a deprecated member, are left off even at home, where
+      // they could be named: writing either would draw a warning in a file no one can put a
+      // @SuppressWarnings on.
       assertGeneratedCodeContains(
           compilation, "com.home.NamedLenses", "public static Lens<Named, @Tag String> name()");
       assertGeneratedCodeContains(
@@ -1019,6 +1049,277 @@ class TypeUseAnnotationSurvivalTest {
           compilation,
           "com.away.SpecsTaggedMappingImpl",
           "public ValidatedPrism<String, N> name()");
+    }
+
+    @Test
+    @DisplayName("an annotation a jar wrote against another version of its types is left off")
+    void anAnnotationWrittenAgainstAnotherVersionIsLeftOff(@TempDir Path tmp) throws IOException {
+      // Customer's class file was compiled against one version of each annotation type below, and
+      // the classpath the optics are generated against has another: a member gone, a member of
+      // another type, or an enum without the constant. javac makes up what the class file names
+      // and the version lacks, and a lens written with it would not compile. Kinds, the same in
+      // both, sets a member of every kind a value can take, and is kept.
+      Compilation library =
+          javac()
+              .compile(
+                  typeUse("Revised", "int revision() default 0;"),
+                  typeUse("Coded", "int code() default 0;"),
+                  typeUse("Leveled", "Level value();"),
+                  typeUse("Named", "String value();"),
+                  typeUse("Typed", "Class<?> value();"),
+                  typeUse("Ranked", "Level value();"),
+                  typeUse("Graded", "Level value();"),
+                  typeUse("Nesting", "Inner value();"),
+                  typeUse("Holding", "Inner value();"),
+                  typeUse("Listing", "int[] value();"),
+                  typeUse(
+                      "Widened",
+                      "byte b(); short s(); char c(); int i(); long j(); float f(); String text();"),
+                  typeUse("Flagged", "boolean value();"),
+                  typeUse("Dflt", ""),
+                  typeUse("FromByte", "byte value();"),
+                  typeUse("FromShort", "short value();"),
+                  typeUse("FromLong", "long value();"),
+                  typeUse("FromFloat", "float value();"),
+                  typeUse("IntFits", "int value();"),
+                  typeUse("IntOver", "int value();"),
+                  typeUse("ByteUnder", "byte value();"),
+                  typeUse("ShortOver", "short value();"),
+                  typeUse("CharFits", "char value();"),
+                  typeUse("CharOver", "char value();"),
+                  typeUse("Classed", ""),
+                  typeUse(
+                      "Kinds",
+                      "boolean z(); byte b(); char c(); short s(); int i(); long j(); float f();"
+                          + " double d(); String text(); Class<?> type(); Level level();"
+                          + " Inner inner(); int[] ints();"),
+                  source("com.external.Inner", "package com.external; public @interface Inner {}"),
+                  source(
+                      "com.external.Level",
+                      "package com.external; public enum Level { LOW, HIGH }"),
+                  source(
+                      "com.external.Customer",
+                      """
+                      package com.external;
+
+                      public record Customer(
+                          @Revised(revision = 2) String name,
+                          @Coded(code = 5) String code,
+                          @Leveled(Level.HIGH) String level,
+                          @Named("n") String named,
+                          @Typed(String.class) String typed,
+                          @Ranked(Level.LOW) String ranked,
+                          @Graded(Level.LOW) String graded,
+                          @Nesting(@Inner) String nesting,
+                          @Holding(@Inner) String holding,
+                          @Listing({1, 2}) String listing,
+                          @Widened(b = 1, s = 2, c = 'c', i = 3, j = 4L, f = 5f, text = "t")
+                              String widened,
+                          @Flagged(true) String flagged,
+                          @Dflt String dflt,
+                          @FromByte(1) String fromByte,
+                          @FromShort(1) String fromShort,
+                          @FromLong(1L) String fromLong,
+                          @FromFloat(1f) String fromFloat,
+                          @IntFits(1) String intFits,
+                          @IntOver(300) String intOver,
+                          @ByteUnder(-1) String byteUnder,
+                          @ShortOver(300) String shortOver,
+                          @CharFits('c') String charFits,
+                          @CharOver((char) 40000) String charOver,
+                          @Classed String classed,
+                          @Kinds(
+                                  z = true,
+                                  b = 1,
+                                  c = 'c',
+                                  s = 2,
+                                  i = 3,
+                                  j = 4L,
+                                  f = 5f,
+                                  d = 6d,
+                                  text = "t",
+                                  type = String.class,
+                                  level = Level.LOW,
+                                  inner = @Inner,
+                                  ints = {7})
+                              String kinds) {}
+                      """));
+      assertThat(library).succeeded();
+      Compilation versions =
+          javac()
+              .compile(
+                  typeUse("Revised", ""),
+                  typeUse("Coded", "String code() default \"\";"),
+                  typeUse("Leveled", "Level value();"),
+                  typeUse("Named", "int value();"),
+                  typeUse("Typed", "String value();"),
+                  typeUse("Ranked", "int value();"),
+                  typeUse("Graded", "Grade value();"),
+                  typeUse("Nesting", "int value();"),
+                  typeUse("Holding", "Other value();"),
+                  typeUse("Listing", "int value();"),
+                  typeUse(
+                      "Widened",
+                      "short b(); int s(); int c(); long i(); float j(); double f();"
+                          + " String[] text();"),
+                  typeUse("Flagged", "int value();"),
+                  typeUse("Dflt", "String since();"),
+                  typeUse("FromByte", "char value();"),
+                  typeUse("FromShort", "byte value();"),
+                  typeUse("FromLong", "int value();"),
+                  typeUse("FromFloat", "long value();"),
+                  typeUse("IntFits", "short value();"),
+                  typeUse("IntOver", "byte value();"),
+                  typeUse("ByteUnder", "char value();"),
+                  typeUse("ShortOver", "byte value();"),
+                  typeUse("CharFits", "byte value();"),
+                  typeUse("CharOver", "short value();"),
+                  source("com.external.Classed", "package com.external; public class Classed {}"),
+                  source("com.external.Other", "package com.external; public @interface Other {}"),
+                  source("com.external.Grade", "package com.external; public enum Grade { LOW }"),
+                  source("com.external.Level", "package com.external; public enum Level { LOW }"));
+      assertThat(versions).succeeded();
+
+      // The other versions come first on the classpath, so javac reads them in place of the
+      // library's. The lenses are written into the record's own package, where a made-up constant
+      // would be visible.
+      Compilation compilation =
+          javac()
+              .withClasspath(
+                  classpathWith(
+                      classDirectory(versions, Files.createDirectory(tmp.resolve("versions"))),
+                      classDirectory(library, Files.createDirectory(tmp.resolve("library")))))
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(
+                  source(
+                      "com.external.package-info",
+                      """
+                      @ImportOptics({com.external.Customer.class})
+                      package com.external;
+
+                      import org.higherkindedj.optics.annotations.ImportOptics;
+                      """));
+
+      assertThat(compilation).succeeded();
+      for (String skewed :
+          List.of(
+              "name",
+              "code",
+              "level",
+              "named",
+              "typed",
+              "ranked",
+              "graded",
+              "nesting",
+              "holding",
+              "listing",
+              "flagged",
+              "dflt",
+              "fromLong",
+              "fromFloat",
+              "intOver",
+              "byteUnder",
+              "shortOver",
+              "charOver",
+              "classed")) {
+        assertGeneratedCodeContains(
+            compilation,
+            "com.external.CustomerLenses",
+            "public static Lens<Customer, String> " + skewed + "()");
+      }
+      assertGeneratedCodeContains(compilation, "com.external.CustomerLenses", "@Kinds(");
+      // Each widening javac applies to a constant, each integral constant that fits where the
+      // member is now a byte, a short or a char, and a single value where the member is now an
+      // array, is written as javac takes it, so the annotation is kept.
+      for (String kept :
+          List.of("@Widened(", "@FromByte(", "@FromShort(", "@IntFits(", "@CharFits(")) {
+        assertGeneratedCodeContains(compilation, "com.external.CustomerLenses", kept);
+      }
+    }
+
+    @Test
+    @DisplayName("an annotation naming a constant javac cannot resolve yet is left off")
+    void anAnnotationNamingAnUnresolvedConstantIsLeftOff() {
+      // Paths is written in the first round, after the lens is: then javac hands over the value as
+      // a mark, not a string, which written out would be the wrong value.
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesPaths(), new LensProcessor())
+              .compile(
+                  source(
+                      "com.home.Pathed",
+                      """
+                      package com.home;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_USE)
+                      public @interface Pathed {
+                        String value();
+                      }
+                      """),
+                  source(
+                      "com.home.Route",
+                      """
+                      package com.home;
+
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses
+                      public record Route(@Pathed(Paths.HOME) String path) {}
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.home.RouteLenses", "public static Lens<Route, String> path()");
+    }
+
+    /** Writes {@code com.home.Paths} in the first round, after the lens processor has read it. */
+    @SupportedAnnotationTypes("*")
+    private static final class WritesPaths extends AbstractProcessor {
+
+      private boolean written;
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        if (!written) {
+          written = true;
+          try (Writer writer =
+              processingEnv.getFiler().createSourceFile("com.home.Paths").openWriter()) {
+            writer.write(
+                "package com.home; public final class Paths { private Paths() {} public static"
+                    + " final String HOME = \"/home\"; }");
+          } catch (IOException e) {
+            throw new UncheckedIOException(e);
+          }
+        }
+        return false;
+      }
+    }
+
+    /** A type-use annotation in {@code com.external}, retained at run time, with these members. */
+    private static JavaFileObject typeUse(String name, String members) {
+      return source(
+          "com.external." + name,
+          """
+          package com.external;
+
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Retention;
+          import java.lang.annotation.RetentionPolicy;
+          import java.lang.annotation.Target;
+
+          @Retention(RetentionPolicy.RUNTIME)
+          @Target(ElementType.TYPE_USE)
+          public @interface %s { %s }
+          """
+              .formatted(name, members));
     }
 
     @Test

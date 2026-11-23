@@ -18,6 +18,7 @@ import com.palantir.javapoet.WildcardTypeName;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,7 +26,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -36,9 +39,11 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.IntersectionType;
 import javax.lang.model.type.MirroredTypeException;
@@ -47,9 +52,9 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 import org.higherkindedj.spring.client.OnStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -62,8 +67,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <ul>
  *   <li>{@code UserApiHttpExchange} — a native {@code @HttpExchange} interface with the same
- *       methods, the return type unwrapped to {@code ResponseEntity<T>} and all mapping annotations
- *       copied through. This is the piece Spring's {@code HttpServiceProxyFactory} proxies.
+ *       methods, the return type unwrapped to {@code ResponseEntity<T>} and the mapping annotations
+ *       copied through, wherever the client's package can write them. This is the piece Spring's
+ *       {@code HttpServiceProxyFactory} proxies.
  *   <li>{@code UserApiClient} — implements {@code UserApi} by delegating to the proxied native
  *       interface and folding each outcome into the declared Path via {@code HkjClientExchange},
  *       with a typed error decoded by an injected {@code ResponseErrorDecoderFactory}.
@@ -94,6 +100,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   private static final String HKJ_HTTP_CLIENT = "org.higherkindedj.spring.client.HkjHttpClient";
   private static final String ON_STATUS = "org.higherkindedj.spring.client.OnStatus";
   private static final String ON_STATUSES = "org.higherkindedj.spring.client.OnStatuses";
+
+  /** How a type javac could not resolve is reported, as the processor's other diagnostics say. */
+  private static final String NOT_ON_CLASSPATH =
+      " is not on this compilation's classpath; add the dependency that declares it";
 
   /** Marks generated types so HKJ tooling (the compile checker, JaCoCo) can skip them. */
   private static final ClassName GENERATED =
@@ -177,6 +187,18 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   /** A validated {@link OnStatus} override: a status code mapped to an error subtype. */
   private record StatusOverride(int status, TypeMirror errorType) {}
 
+  /**
+   * A client waiting for a later round, by its module's name and its own, since an element is a
+   * round's own and is looked up again in the next, and two modules compiled together may declare
+   * the same name. The unnamed module's name is empty, as is any module's where the compilation has
+   * none. hkj-processor's {@code TypeKey} keys its waiting specs by the same two parts; this
+   * processor does not depend on that module.
+   */
+  private record Waiting(String module, String name) {}
+
+  /** The clients waiting for a later round, in the order they were met. */
+  private final Set<Waiting> waiting = new LinkedHashSet<>();
+
   /** Creates a new processor. */
   public HkjHttpClientProcessor() {}
 
@@ -185,19 +207,53 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return SourceVersion.latestSupported();
   }
 
+  /**
+   * Processes each client this round can: one whose annotations or interfaces name a type javac
+   * could not resolve waits for the round that brings it (see {@link #awaited}). Nothing is written
+   * in the last round. There a client still waiting is reported with what never resolved, unless an
+   * error ended the rounds early: javac makes the round after one with an error the last, and then
+   * the client is not generated for that error, which javac reports. hkj-processor's mapping specs
+   * stay silent in the last round instead; this processor reports, as it takes an element it cannot
+   * place as source (see {@link ClassFiles#readFrom}).
+   */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    TypeElement marker = processingEnv.getElementUtils().getTypeElement(HKJ_HTTP_CLIENT);
+    Elements elements = processingEnv.getElementUtils();
+    TypeElement marker = elements.getTypeElement(HKJ_HTTP_CLIENT);
     if (marker == null) {
       return false;
     }
-    for (TypeElement type : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(marker))) {
+    List<TypeElement> waited = new ArrayList<>();
+    for (Waiting client : waiting) {
+      lookUp(client).ifPresent(waited::add);
+    }
+    waiting.clear();
+    if (roundEnv.processingOver()) {
+      if (!roundEnv.errorRaised()) {
+        waited.forEach(this::reportStillWaiting);
+      }
+      return true;
+    }
+    List<TypeElement> clients =
+        Stream.concat(
+                waited.stream(),
+                ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(marker)).stream())
+            .distinct()
+            .toList();
+    for (TypeElement type : clients) {
       if (type.getKind() != ElementKind.INTERFACE) {
         error("@HkjHttpClient can only be applied to interfaces.", type);
         continue;
       }
       try {
-        generateClient(type);
+        if (!generateClient(type)) {
+          waiting.add(
+              new Waiting(
+                  Optional.ofNullable(elements.getModuleOf(type))
+                      .map(module -> module.getQualifiedName().toString())
+                      .orElse(""),
+                  type.getQualifiedName().toString()));
+        }
       } catch (RuntimeException e) {
         // Never abort the whole round with an internal stack trace: report and move on.
         error("Failed to generate @HkjHttpClient client: " + e, type);
@@ -206,22 +262,97 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return true;
   }
 
-  private void generateClient(TypeElement iface) {
+  /** A waiting client, looked up again in this round, or reported where it cannot be. */
+  private Optional<TypeElement> lookUp(Waiting client) {
+    Elements elements = processingEnv.getElementUtils();
+    ModuleElement module = elements.getModuleElement(client.module());
+    Optional<TypeElement> found =
+        Optional.ofNullable(
+            module == null
+                ? elements.getTypeElement(client.name())
+                : elements.getTypeElement(module, client.name()));
+    if (found.isEmpty()) {
+      processingEnv
+          .getMessager()
+          .printMessage(
+              Diagnostic.Kind.ERROR,
+              "@HkjHttpClient could not find "
+                  + client.name()
+                  + " again after it waited a round for a type it names, so it generated nothing"
+                  + " for it.");
+    }
+    return found;
+  }
+
+  /**
+   * Reports, in the last round, a client still waiting, with what it waits for. javac reports a
+   * name its source wrote and could not resolve as well; this says why the client has none of its
+   * generated types.
+   */
+  private void reportStillWaiting(TypeElement iface) {
+    try {
+      String packageName =
+          processingEnv.getElementUtils().getPackageOf(iface).getQualifiedName().toString();
+      List<String> awaited = awaited(iface, inheritedBy(iface), declarationsOf(iface), packageName);
+      if (awaited.isEmpty()) {
+        return;
+      }
+      error(
+          "@HkjHttpClient generated nothing for "
+              + iface.getSimpleName()
+              + ", as no round of this compilation resolved what it names: "
+              + String.join(", ", awaited)
+              + ". Correct each name or make it accessible, or add the dependency or the processor"
+              + " that writes it.",
+          iface);
+    } catch (RuntimeException e) {
+      // Never abort the last round with an internal stack trace: report and move on.
+      error("Failed to report a waiting @HkjHttpClient client: " + e, iface);
+    }
+  }
+
+  /** Every declaration of each method a client implements, in the order the groups are read. */
+  private List<ClientMethod> declarationsOf(TypeElement iface) {
+    return ClientMethods.inheritedBy(
+            iface, processingEnv.getElementUtils(), processingEnv.getTypeUtils())
+        .stream()
+        .flatMap(List::stream)
+        .toList();
+  }
+
+  /** The type-level {@code @HttpExchange} a client inherits, as {@link HttpExchanges} finds it. */
+  private HttpExchanges.Inherited inheritedBy(TypeElement iface) {
+    return HttpExchanges.inheritedBy(
+        iface, (writer, missing) -> !classFiles().keepsForTheCompilerAlone(writer, missing));
+  }
+
+  /**
+   * Generates a client, or reports why it cannot be, and returns whether this round settled it:
+   * false where it waits for another round.
+   */
+  private boolean generateClient(TypeElement iface) {
     String packageName =
         processingEnv.getElementUtils().getPackageOf(iface).getQualifiedName().toString();
-    List<ClientMethod> methods = new ArrayList<>();
     List<ReturnInfo> infos = new ArrayList<>();
-    boolean valid = true;
+    HttpExchanges.Inherited inherited = inheritedBy(iface);
     List<List<ClientMethod>> groups =
         ClientMethods.inheritedBy(
             iface, processingEnv.getElementUtils(), processingEnv.getTypeUtils());
+    List<ClientMethod> methods = groups.stream().map(List::getFirst).toList();
+    if (!awaited(iface, inherited, groups.stream().flatMap(List::stream).toList(), packageName)
+        .isEmpty()) {
+      return false;
+    }
+    boolean valid = !refusesTypeLevelAnnotations(iface, inherited, packageName);
     for (List<ClientMethod> declarations : groups) {
       if (refusesDivergentDeclarations(iface, declarations, packageName)) {
         valid = false;
       }
-      methods.add(declarations.getFirst());
     }
     for (ClientMethod method : methods) {
+      if (refusesUnwritableAnnotations(iface, method, packageName)) {
+        valid = false;
+      }
       ReturnInfo info =
           refusesRawRead(iface, method) || refusesShadowedTypeParameter(iface, method)
               ? null
@@ -233,7 +364,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
     if (!valid) {
       // Errors already reported per offending method; skip generating an incomplete client.
-      return;
+      return true;
     }
     warnOfIneffectiveOverrides(iface, groups, infos);
 
@@ -244,12 +375,16 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .toList();
     boolean generic = !typeVars.isEmpty();
 
-    ClassName nativeName = ClassName.get(packageName, simpleName + "HttpExchange");
+    ClassName nativeName = ClassName.get(packageName, nativeNameOf(iface));
     ClassName facadeName = ClassName.get(packageName, simpleName + "Client");
     TypeName nativeType = parameterise(nativeName, typeVars);
 
+    List<AnnotationMirror> inheritedExchange =
+        inherited instanceof HttpExchanges.Found found ? found.annotations() : List.of();
     writeFile(
-        packageName, buildNativeInterface(iface, nativeName, typeVars, methods, infos), iface);
+        packageName,
+        buildNativeInterface(iface, nativeName, typeVars, methods, infos, inheritedExchange),
+        iface);
     writeFile(
         packageName,
         buildFacade(iface, nativeName, nativeType, facadeName, typeVars, methods, infos),
@@ -277,6 +412,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           buildConfiguration(ClassName.get(iface), nativeName, facadeName, simpleName, group),
           iface);
     }
+    return true;
   }
 
   /**
@@ -295,7 +431,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       ClassName nativeName,
       List<TypeVariableName> typeVars,
       List<ClientMethod> methods,
-      List<ReturnInfo> infos) {
+      List<ReturnInfo> infos,
+      List<AnnotationMirror> inheritedExchange) {
     String packageName = nativeName.packageName();
     TypeSpec.Builder builder =
         TypeSpec.interfaceBuilder(nativeName)
@@ -307,17 +444,12 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
                 IMPORT_HTTP_SERVICES,
                 ClassName.get(iface));
 
-    // Copy class-level annotations (e.g. @HttpExchange) except the HKJ client meta-annotations.
-    for (AnnotationMirror mirror : iface.getAnnotationMirrors()) {
-      if (!isClientMetaAnnotation(mirror)) {
-        builder.addAnnotation(AnnotationSpecs.copyOf(mirror));
-      }
-    }
     // Spring proxies the native interface, which extends nothing, so a client with no type-level
     // @HttpExchange of its own is given those Spring would have read from its bases.
-    HttpExchanges.inheritedBy(iface).stream()
-        .map(AnnotationSpecs::copyOf)
-        .forEach(builder::addAnnotation);
+    List<AnnotationMirror> typeLevel =
+        Stream.concat(copiedAnnotationsOf(iface).stream(), inheritedExchange.stream()).toList();
+    builder.addAnnotations(
+        AnnotationSpecs.copiesOf(typeLevel, packageName, processingEnv.getElementUtils()));
 
     for (int i = 0; i < methods.size(); i++) {
       ClientMethod clientMethod = methods.get(i);
@@ -332,14 +464,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
               .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
               .returns(ParameterizedTypeName.get(RESPONSE_ENTITY, successType))
               .addTypeVariables(clientMethod.typeVariableNames(packageName));
-      // Copy the mapping annotations (@GetExchange, @PostExchange, version attrs, …) verbatim, but
-      // not the HKJ client meta-annotations (@OnStatus/@OnStatuses) nor @Override — the generated
-      // native interface extends nothing, so a copied @Override would not compile.
-      for (AnnotationMirror mirror : method.getAnnotationMirrors()) {
-        if (!isClientMetaAnnotation(mirror) && !isOverride(mirror)) {
-          nativeMethod.addAnnotation(AnnotationSpecs.copyOf(mirror));
-        }
-      }
+      nativeMethod.addAnnotations(
+          AnnotationSpecs.copiesOf(
+              copiedAnnotationsOf(method), packageName, processingEnv.getElementUtils()));
       // Copy parameters with their binding annotations (@PathVariable, @RequestBody, …).
       // ParameterSpec.get(VariableElement) drops annotations, so copy them explicitly.
       for (ClientMethod.Parameter parameter : clientMethod.parameters()) {
@@ -623,16 +750,456 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    */
   private ParameterSpec copyParameter(ClientMethod.Parameter parameter, String packageName) {
     String parameterName = parameter.name();
-    ParameterSpec.Builder builder =
-        ParameterSpec.builder(parameter.typeName(packageName), parameterName);
-    for (AnnotationMirror mirror : parameter.element().getAnnotationMirrors()) {
-      AnnotationSpec spec = AnnotationSpecs.copyOf(mirror);
-      if (needsExplicitName(mirror, parameter)) {
-        spec = spec.toBuilder().addMember("value", "$S", parameterName).build();
-      }
-      builder.addAnnotation(spec);
+    return ParameterSpec.builder(parameter.typeName(packageName), parameterName)
+        .addAnnotations(
+            AnnotationSpecs.copiesOf(
+                parameter.element().getAnnotationMirrors(),
+                packageName,
+                processingEnv.getElementUtils(),
+                mirror -> {
+                  AnnotationSpec copy = AnnotationSpecs.copyOf(mirror);
+                  return needsExplicitName(mirror, parameter)
+                      ? copy.toBuilder().addMember("value", "$S", parameterName).build()
+                      : copy;
+                }))
+        .build();
+  }
+
+  /**
+   * The annotations a method's native counterpart is given: the mapping annotations
+   * ({@code @GetExchange}, {@code @PostExchange}, version attributes, …) as written, but not the
+   * HKJ client meta-annotations ({@code @OnStatus}/{@code @OnStatuses}) nor {@code @Override}. The
+   * generated native interface extends nothing, so a copied {@code @Override} would not compile.
+   */
+  private static List<? extends AnnotationMirror> copiedAnnotationsOf(ExecutableElement method) {
+    return method.getAnnotationMirrors().stream()
+        .filter(mirror -> !isClientMetaAnnotation(mirror) && !isOverride(mirror))
+        .toList();
+  }
+
+  /**
+   * The client's own type-level annotations its native interface is given: all but the HKJ client
+   * meta-annotations.
+   */
+  private static List<? extends AnnotationMirror> copiedAnnotationsOf(TypeElement iface) {
+    return iface.getAnnotationMirrors().stream()
+        .filter(mirror -> !isClientMetaAnnotation(mirror))
+        .toList();
+  }
+
+  /**
+   * Reports each type-level annotation the native interface cannot carry, and returns whether it
+   * reported any. One the client writes may name a type the generated interfaces cannot, such as
+   * one nested privately where the client is. One it inherits may be written through an annotation
+   * its package cannot write. Or the processor cannot see which it inherits, since a base carries
+   * an annotation javac could not resolve, through which Spring may read one. The generated client
+   * would then not compile, or would call another URL than Spring would, so the author says which
+   * it is.
+   */
+  private boolean refusesTypeLevelAnnotations(
+      TypeElement iface, HttpExchanges.Inherited inherited, String packageName) {
+    String client = iface.getSimpleName().toString();
+    String declare = "declare @HttpExchange on " + client + " as the client should have it.";
+    Stream<String> inheritedRefusals =
+        switch (inherited) {
+          case HttpExchanges.None _ -> Stream.empty();
+          case HttpExchanges.Found(TypeElement base, List<AnnotationMirror> annotations) ->
+              refusalsOf(
+                  iface,
+                  annotations,
+                  annotation ->
+                      nameOf(annotation)
+                          + ", the type-level @HttpExchange "
+                          + client
+                          + " inherits from "
+                          + base.getSimpleName()
+                          + ",",
+                  base,
+                  packageName,
+                  _ -> declare);
+          // In source, javac reports the name it cannot resolve.
+          case HttpExchanges.Unreadable(
+                  TypeElement base,
+                  AnnotationMirror annotation,
+                  DeclaredType missing,
+                  TypeElement writer) ->
+              classFiles().readFrom(writer)
+                  ? Stream.of(unreadableRefusal(iface, base, annotation, missing, writer, declare))
+                  : Stream.empty();
+        };
+    List<String> refusals =
+        Stream.concat(
+                refusalsOf(
+                    iface,
+                    copiedAnnotationsOf(iface),
+                    HkjHttpClientProcessor::nameOf,
+                    iface,
+                    packageName,
+                    HkjHttpClientProcessor::ownRemedy),
+                inheritedRefusals)
+            .toList();
+    refusals.forEach(refusal -> error(refusal, iface));
+    return !refusals.isEmpty();
+  }
+
+  /**
+   * The refusal of a type-level {@code @HttpExchange} the processor cannot see, as {@code base}
+   * carries an annotation leading to a type javac could not resolve.
+   */
+  private static String unreadableRefusal(
+      TypeElement iface,
+      TypeElement base,
+      AnnotationMirror annotation,
+      DeclaredType missing,
+      TypeElement writer,
+      String remedy) {
+    // The base names the missing type itself exactly when its own annotation is the one missing.
+    String carried =
+        writer.equals(base)
+            ? nameOf(annotation) + ", which"
+            : nameOf(annotation) + ", composed from @" + missing + ", which";
+    return "@HkjHttpClient cannot tell whether "
+        + iface.getSimpleName()
+        + " inherits a type-level @HttpExchange from "
+        + base.getSimpleName()
+        + ": "
+        + base.getSimpleName()
+        + " carries "
+        + carried
+        + NOT_ON_CLASSPATH
+        + ", or "
+        + remedy;
+  }
+
+  /**
+   * Reports each annotation a method carries, on itself or on a parameter, that its native
+   * counterpart cannot carry, and returns whether it reported any. Spring reads each one retained
+   * at run time on the request, so none of those can be left off. A method the client declares is
+   * refused only for a type the generated interfaces cannot name, such as one nested privately
+   * where the client is: javac reports any other name the client's own source cannot reach.
+   */
+  private boolean refusesUnwritableAnnotations(
+      TypeElement iface, ClientMethod method, String packageName) {
+    ExecutableElement element = method.element();
+    String redeclare =
+        "redeclare '"
+            + element.getSimpleName()
+            + "' on "
+            + iface.getSimpleName()
+            + " as the client should have it.";
+    Function<AnnotationSpecs.Unwritable, String> remedy =
+        method.declaring().equals(iface) ? HkjHttpClientProcessor::ownRemedy : _ -> redeclare;
+    List<String> refusals =
+        Stream.concat(
+                refusalsOf(
+                    iface,
+                    copiedAnnotationsOf(element),
+                    HkjHttpClientProcessor::nameOf,
+                    element,
+                    packageName,
+                    remedy),
+                method.parameters().stream()
+                    .flatMap(
+                        parameter ->
+                            refusalsOf(
+                                iface,
+                                parameter.element().getAnnotationMirrors(),
+                                annotation ->
+                                    nameOf(annotation) + " on parameter '" + parameter.name() + "'",
+                                element,
+                                packageName,
+                                remedy)))
+            .toList();
+    refusals.forEach(refusal -> error(refusal, iface, element));
+    return !refusals.isEmpty();
+  }
+
+  /**
+   * The remedy for an annotation the client writes itself that its package cannot name: one nested
+   * privately where the client is needs package access, and one in another package, such as a
+   * protected one a class the client is nested in inherits, needs to be public.
+   */
+  private static String ownRemedy(AnnotationSpecs.Unwritable obstacle) {
+    return switch (obstacle) {
+      case AnnotationSpecs.NotPublic(String _, boolean inPackage) ->
+          inPackage ? "make it package-private or public." : "make it public.";
+      // The client is source, where javac reports a name it cannot resolve, so none of these is
+      // ever reported on the client's own annotation; obstacleTo leaves an Unresolved one out
+      // before it asks for a remedy.
+      case AnnotationSpecs.Missing _, AnnotationSpecs.Unresolved _, AnnotationSpecs.Skewed _ ->
+          "add the dependency it names.";
+    };
+  }
+
+  /**
+   * The refusal of each of {@code annotations}, which {@code writer} carries, that the client's
+   * package cannot write and Spring could read, each labelled as {@code label} names it.
+   */
+  private Stream<String> refusalsOf(
+      TypeElement iface,
+      List<? extends AnnotationMirror> annotations,
+      Function<AnnotationMirror, String> label,
+      Element writer,
+      String packageName,
+      Function<AnnotationSpecs.Unwritable, String> remedy) {
+    return annotations.stream()
+        .flatMap(
+            annotation ->
+                obstacleTo(iface, annotation, writer, packageName, remedy)
+                    .map(
+                        obstacle ->
+                            "@HkjHttpClient cannot copy "
+                                + label.apply(annotation)
+                                + " onto "
+                                + nativeNameOf(iface)
+                                + ", the interface Spring proxies: "
+                                + obstacle)
+                    .stream());
+  }
+
+  /**
+   * Why the client's package cannot write an annotation that {@code writer} carries, ending with
+   * the remedy, or nothing where it can, or where it need not: one Spring never reads, kept for the
+   * compiler alone, is left out of the copy instead, which changes nothing Spring sends. A type
+   * missing from the classpath, or another version of one, is the processor's to report only where
+   * a class file names it: in source, javac reports a name it cannot resolve.
+   */
+  private Optional<String> obstacleTo(
+      TypeElement iface,
+      AnnotationMirror annotation,
+      Element writer,
+      String packageName,
+      Function<AnnotationSpecs.Unwritable, String> remedy) {
+    if (!seenBySpring(annotation, writer)) {
+      return Optional.empty();
     }
-    return builder.build();
+    boolean fromClassFile = classFiles().readFrom(writer);
+    return switch (AnnotationSpecs.writabilityIn(
+        annotation, packageName, processingEnv.getElementUtils())) {
+      case AnnotationSpecs.Writable _ -> Optional.empty();
+      case AnnotationSpecs.NotPublic notPublic ->
+          Optional.of(
+              itOr(notPublic.named(), annotation)
+                  + " is not public, so "
+                  + nativeNameOf(iface)
+                  + " cannot name it; "
+                  + remedy.apply(notPublic));
+      case AnnotationSpecs.Missing missing ->
+          fromClassFile
+              ? Optional.of(
+                  itOr(missing.named(), annotation)
+                      + NOT_ON_CLASSPATH
+                      + ", or "
+                      + remedy.apply(missing))
+              : Optional.empty();
+      // javac hands over this mark only in source, where it reports the name itself, and the
+      // client waits for the round that may bring it.
+      case AnnotationSpecs.Unresolved _ -> Optional.empty();
+      case AnnotationSpecs.Skewed skewed ->
+          fromClassFile
+              ? Optional.of(
+                  skewed.type()
+                      + " on this compilation's classpath "
+                      + skewed.differs()
+                      + "; build against the version of it "
+                      + declaringTypeOf(writer).getSimpleName()
+                      + " was compiled with, or "
+                      + remedy.apply(skewed))
+              : Optional.empty();
+    };
+  }
+
+  /**
+   * Whether Spring could read an annotation {@code writer} carries: one whose type is retained at
+   * run time, which Spring reads by reflection. For a type javac could not resolve, the writer's
+   * class file says, as {@link ClassFiles#keepsForTheCompilerAlone} reads it.
+   */
+  private boolean seenBySpring(AnnotationMirror annotation, Element writer) {
+    DeclaredType type = annotation.getAnnotationType();
+    return type.getKind() == TypeKind.ERROR
+        ? !classFiles().keepsForTheCompilerAlone(writer, type)
+        : HttpExchanges.retainedAtRunTime((TypeElement) type.asElement());
+  }
+
+  /**
+   * What a client waits for another round to bring, by name, or nothing where it is ready. A type
+   * another processor writes in a later round may resolve what javac could not resolve this round:
+   * a type, or another version of one, that an annotation names where the client copies or reads it
+   * from source; an interface the client extends; or a type-use annotation on a type it restates
+   * from source, which would otherwise be left off. Every declaration of each method counts, as the
+   * client may follow any of them. In the last round javac reports a name its source wrote that is
+   * still unresolved, and nothing is written.
+   */
+  private List<String> awaited(
+      TypeElement iface,
+      HttpExchanges.Inherited inherited,
+      List<ClientMethod> declarations,
+      String packageName) {
+    record Written(AnnotationMirror annotation, Element writer) {}
+    Stream<Written> typeLevel =
+        Stream.concat(
+            copiedAnnotationsOf(iface).stream().map(annotation -> new Written(annotation, iface)),
+            inherited
+                    instanceof
+                    HttpExchanges.Found(TypeElement base, List<AnnotationMirror> annotations)
+                ? annotations.stream().map(annotation -> new Written(annotation, base))
+                : Stream.empty());
+    Stream<Written> onMethods =
+        declarations.stream()
+            .flatMap(
+                method ->
+                    Stream.concat(
+                        copiedAnnotationsOf(method.element()).stream()
+                            .map(annotation -> new Written(annotation, method.element())),
+                        method.parameters().stream()
+                            .flatMap(
+                                parameter -> parameter.element().getAnnotationMirrors().stream())
+                            .map(annotation -> new Written(annotation, method.element()))));
+    Stream<String> annotations =
+        Stream.concat(typeLevel, onMethods)
+            .filter(written -> !classFiles().readFrom(written.writer()))
+            .flatMap(written -> awaitedBy(written.annotation(), packageName));
+    Stream<String> unreadable =
+        inherited instanceof HttpExchanges.Unreadable found
+                && !classFiles().readFrom(found.writer())
+            ? Stream.of(found.missing().toString())
+            : Stream.empty();
+    Stream<String> typeUse =
+        Stream.concat(
+            iface.getTypeParameters().stream()
+                .flatMap(parameter -> parameter.getBounds().stream())
+                .flatMap(type -> unresolvedTypeUseAnnotations(type, packageName)),
+            Stream.concat(
+                    declarations.stream()
+                        .filter(method -> !classFiles().readFrom(method.declaring()))
+                        .flatMap(method -> restatedTypesOf(method.element())),
+                    // The clauses the client and each base in source write, whose type arguments
+                    // the client restates where it binds a base's type variables.
+                    sourceHierarchyOf(iface).stream()
+                        .flatMap(type -> type.getInterfaces().stream()))
+                .flatMap(type -> unresolvedTypeUseAnnotations(type, packageName)));
+    return Stream.of(annotations, unreadable, unresolvedInterfacesOf(iface), typeUse)
+        .flatMap(names -> names)
+        .distinct()
+        .toList();
+  }
+
+  /**
+   * What an annotation written in source names that a later round could resolve: a type javac could
+   * not resolve, or another version of one.
+   */
+  private Stream<String> awaitedBy(AnnotationMirror annotation, String packageName) {
+    return switch (AnnotationSpecs.writabilityIn(
+        annotation, packageName, processingEnv.getElementUtils())) {
+      case AnnotationSpecs.Missing missing -> Stream.of(missing.named());
+      case AnnotationSpecs.Unresolved unresolved ->
+          Stream.of("a value of @" + unresolved.annotation() + "'s " + unresolved.member());
+      case AnnotationSpecs.Skewed skewed -> Stream.of(skewed.type());
+      case AnnotationSpecs.NotPublic _, AnnotationSpecs.Writable _ -> Stream.empty();
+    };
+  }
+
+  /** The types a method declares that the generated client restates. */
+  private static Stream<TypeMirror> restatedTypesOf(ExecutableElement method) {
+    return Stream.of(
+            Stream.of(method.getReturnType()),
+            method.getParameters().stream().map(Element::asType),
+            method.getTypeParameters().stream()
+                .flatMap(parameter -> parameter.getBounds().stream()))
+        .flatMap(types -> types);
+  }
+
+  /**
+   * The type-use annotations on a type, and on the types it is made of, that name what javac could
+   * not resolve, as their type or in a value. A type variable's bounds are read where the variable
+   * is declared.
+   */
+  private Stream<String> unresolvedTypeUseAnnotations(TypeMirror type, String packageName) {
+    Stream<String> own =
+        type.getAnnotationMirrors().stream()
+            .flatMap(annotation -> awaitedBy(annotation, packageName));
+    Stream<TypeMirror> parts =
+        switch (type.getKind()) {
+          case DECLARED ->
+              Stream.concat(
+                  Stream.of(((DeclaredType) type).getEnclosingType())
+                      .filter(enclosing -> enclosing.getKind() == TypeKind.DECLARED),
+                  ((DeclaredType) type).getTypeArguments().stream().map(TypeMirror.class::cast));
+          case ARRAY -> Stream.of(((ArrayType) type).getComponentType());
+          case WILDCARD ->
+              Stream.of(
+                      ((WildcardType) type).getExtendsBound(),
+                      ((WildcardType) type).getSuperBound())
+                  .filter(Objects::nonNull);
+          default -> Stream.empty();
+        };
+    return Stream.concat(
+        own, parts.flatMap(part -> unresolvedTypeUseAnnotations(part, packageName)));
+  }
+
+  /**
+   * The interfaces in a type's hierarchy that javac could not resolve, by name, each as written
+   * without its type arguments, read level by level in the order each clause names them.
+   */
+  private static Stream<String> unresolvedInterfacesOf(TypeElement type) {
+    List<String> unresolved = new ArrayList<>();
+    Set<TypeElement> visited = new HashSet<>();
+    List<TypeElement> pending = new ArrayList<>(List.of(type));
+    while (!pending.isEmpty()) {
+      TypeElement current = pending.removeFirst();
+      if (visited.add(current)) {
+        for (TypeMirror parent : current.getInterfaces()) {
+          if (parent.getKind() == TypeKind.DECLARED) {
+            pending.add((TypeElement) ((DeclaredType) parent).asElement());
+          } else if (parent.getKind() == TypeKind.ERROR) {
+            unresolved.add(((DeclaredType) parent).asElement().toString());
+          }
+        }
+      }
+    }
+    return unresolved.stream();
+  }
+
+  /** The client and every interface in its hierarchy read from source. */
+  private List<TypeElement> sourceHierarchyOf(TypeElement iface) {
+    List<TypeElement> found = new ArrayList<>();
+    List<TypeElement> pending = new ArrayList<>(List.of(iface));
+    while (!pending.isEmpty()) {
+      TypeElement current = pending.removeFirst();
+      if (!found.contains(current) && !classFiles().readFrom(current)) {
+        found.add(current);
+        for (TypeMirror parent : current.getInterfaces()) {
+          if (parent.getKind() == TypeKind.DECLARED) {
+            pending.add((TypeElement) ((DeclaredType) parent).asElement());
+          }
+        }
+      }
+    }
+    return found;
+  }
+
+  /** "it" for the annotation itself, since the refusal has just named it, or else the name. */
+  private static String itOr(String named, AnnotationMirror annotation) {
+    return named.equals(String.valueOf(annotation.getAnnotationType())) ? "it" : named;
+  }
+
+  /** An annotation's type as a diagnostic names it, such as {@code @com.upstream.LocalGet}. */
+  private static String nameOf(AnnotationMirror annotation) {
+    return "@" + annotation.getAnnotationType();
+  }
+
+  private static String nativeNameOf(TypeElement iface) {
+    return iface.getSimpleName() + "HttpExchange";
+  }
+
+  /** The type an element is declared in, or the type itself. */
+  private static TypeElement declaringTypeOf(Element element) {
+    return element instanceof TypeElement type ? type : (TypeElement) element.getEnclosingElement();
+  }
+
+  /** The compilation's class files, as {@link ClassFiles} reads them. */
+  private ClassFiles classFiles() {
+    return new ClassFiles(processingEnv.getElementUtils());
   }
 
   /**
@@ -727,11 +1294,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    */
   private Map<String, String> writtenParts(ClientMethod method, String packageName) {
     Map<String, String> parts = new TreeMap<>();
-    List<? extends AnnotationMirror> methodAnnotations = method.element().getAnnotationMirrors();
+    List<? extends AnnotationMirror> methodAnnotations =
+        method.element().getAnnotationMirrors().stream()
+            .filter(mirror -> !isOverride(mirror) && !isStatusOverride(mirror))
+            .filter(mirror -> isCopied(mirror, method.element(), packageName))
+            .toList();
     for (AnnotationMirror mirror : methodAnnotations) {
-      if (!isOverride(mirror) && !isStatusOverride(mirror)) {
-        parts.put("the method's " + labelOf(mirror, methodAnnotations), normalised(mirror, null));
-      }
+      parts.put("the method's " + labelOf(mirror, methodAnnotations), normalised(mirror, null));
     }
     if (!returnsMaybePath(method)) {
       Map<Integer, String> overrides = new TreeMap<>();
@@ -759,7 +1328,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       String label = "parameter " + (index + 1) + "'s ";
       parts.put(label + "type", positional(parameter.typeName(packageName), ownVariables));
       List<? extends AnnotationMirror> parameterAnnotations =
-          parameter.element().getAnnotationMirrors();
+          parameter.element().getAnnotationMirrors().stream()
+              .filter(mirror -> isCopied(mirror, method.element(), packageName))
+              .toList();
       for (AnnotationMirror mirror : parameterAnnotations) {
         parts.put(
             label + labelOf(mirror, parameterAnnotations),
@@ -770,9 +1341,21 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
+   * Whether the generated client copies an annotation: one its package can write, or one Spring
+   * reads, which the processor refuses where it cannot be written. One Spring never reads, left off
+   * where it cannot be written, plays no part in what the client writes.
+   */
+  private boolean isCopied(AnnotationMirror annotation, Element writer, String packageName) {
+    return seenBySpring(annotation, writer)
+        || AnnotationSpecs.writabilityIn(annotation, packageName, processingEnv.getElementUtils())
+            instanceof AnnotationSpecs.Writable;
+  }
+
+  /**
    * An annotation as a part's label names it: by its simple name, or by its qualified name where
-   * another annotation on the same declaration shares the simple name, so neither takes the other's
-   * place.
+   * another the client copies from the same declaration shares the simple name, so neither takes
+   * the other's place. One left off is not counted, or it would label the same copy differently on
+   * two declarations.
    */
   private static String labelOf(AnnotationMirror mirror, List<? extends AnnotationMirror> beside) {
     Name simpleName = mirror.getAnnotationType().asElement().getSimpleName();
@@ -1079,31 +1662,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    *     ClientMethods#writerOf} finds it
    */
   private boolean isMissingFromClasspath(TypeMirror type, Element writer) {
-    return type.getKind() == TypeKind.ERROR && readFromClassFile(writer);
-  }
-
-  /**
-   * Whether an element was read from a class file. {@code Elements.getFileObjectOf} may be
-   * unsupported outside javac; there the element is treated as source, so an unresolvable type
-   * falls through to the checks that follow rather than being reported as a missing dependency the
-   * processor could not confirm.
-   */
-  private boolean readFromClassFile(Element element) {
-    try {
-      return Optional.ofNullable(processingEnv.getElementUtils().getFileObjectOf(element))
-          .map(JavaFileObject::getKind)
-          .filter(JavaFileObject.Kind.CLASS::equals)
-          .isPresent();
-    } catch (UnsupportedOperationException e) {
-      return false;
-    }
+    return type.getKind() == TypeKind.ERROR && classFiles().readFrom(writer);
   }
 
   private static String notOnClasspath(String annotation, TypeMirror type) {
-    return annotation
-        + " error type "
-        + type
-        + " is not on this compilation's classpath; add the dependency that declares it.";
+    return annotation + " error type " + type + NOT_ON_CLASSPATH + ".";
   }
 
   private @Nullable ReturnInfo unsupported(TypeElement iface, ExecutableElement method) {

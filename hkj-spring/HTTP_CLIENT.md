@@ -253,9 +253,29 @@ it redeclared each inherited method with those arguments in place of the base's 
 bean wiring included. A client with no type-level `@HttpExchange` of its own takes those Spring
 would read from its bases. A client with its own uses only its own, so a base's prefix is not
 joined to it. To find a composed one, the processor looks into the annotations the client and its
-bases carry. Where one of them names a class the compile classpath lacks, javac may warn of it;
-writing `@HttpExchange` on the client avoids that. The error type must be a concrete class, and the
+bases carry. Where one of them sets a value naming an enum or class the compile classpath lacks,
+javac may warn of it; writing `@HttpExchange` on the client avoids that. The error type must be a concrete class, and the
 processor refuses a client that passes one of its own type variables on as the error type.
+
+The generated `…HttpExchange` is written into the client's package, so each annotation the
+processor copies from a base, at type level, on a method or on a parameter, must be one that package
+can write. The processor refuses the client, with one error naming the base and the annotation,
+where the annotation, or a class or enum it names, is not public, or where a base's class file
+names a type the compile classpath lacks, or was written against another version of one.
+Redeclare the method on the client where a method or parameter annotation is refused, or declare
+`@HttpExchange` on it where a type-level one is, or add the missing dependency, at the version the
+base was compiled with. A value javac would take as written against the version
+here, such as an `int` where a member is now a `long`, is copied.
+
+An annotation retained for the compiler alone, which Spring never reads, is left off instead. At
+type level, a missing annotation retained at run time, on a base with no `@HttpExchange` the
+processor can see, is refused too, since Spring may read one through it; a bare `@HttpExchange` on
+the client will do where it needs nothing at type level. A deprecated annotation, such as Spring 7's
+`org.springframework.lang.Nullable`, is copied with its warning suppressed on the generated
+declaration, as javac reports it where it is written.
+
+A client whose annotations or interfaces name a type another processor writes waits for the round
+that brings it; if none does, the processor reports that it generated nothing for the client.
 
 A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and the
 facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a
