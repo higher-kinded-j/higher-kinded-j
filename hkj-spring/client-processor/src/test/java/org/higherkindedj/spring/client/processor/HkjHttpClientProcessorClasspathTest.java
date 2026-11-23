@@ -17,11 +17,13 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.Completion;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -37,8 +39,11 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * A client interface extending a base interface compiled into a dependency. The base module is
@@ -78,6 +83,10 @@ class HkjHttpClientProcessorClasspathTest {
               "com.upstream.Old",
               "package com.upstream; @Deprecated @java.lang.annotation.Target("
                   + "java.lang.annotation.ElementType.TYPE_USE) public @interface Old {}"),
+          JavaFileObjects.forSourceString(
+              "com.upstream.Dated",
+              "package com.upstream; @java.lang.annotation.Target(java.lang.annotation.ElementType"
+                  + ".TYPE_USE) public @interface Dated { @Deprecated String since() default \"\"; }"),
           JavaFileObjects.forSourceString(
               "com.upstream.Local",
               "package com.upstream; @java.lang.annotation.Target(java.lang.annotation.ElementType"
@@ -181,6 +190,23 @@ class HkjHttpClientProcessorClasspathTest {
                     .toList());
     assertThat(compilation).succeeded();
     Path dir = Files.createTempDirectory(tmp, "base");
+    layOut(compilation, dir);
+    return dir;
+  }
+
+  /**
+   * Compiles a type on its own against the test classpath, as another version of one the base
+   * module declares, for {@link #layOut} to put in its place.
+   */
+  private static Compilation compileAlone(JavaFileObject source) {
+    Compilation compilation =
+        javac().withProcessors().withClasspath(TEST_CLASSPATH).compile(source);
+    assertThat(compilation).succeeded();
+    return compilation;
+  }
+
+  /** Lays a compilation's class files out on a directory, over any already there. */
+  private static void layOut(Compilation compilation, Path dir) throws IOException {
     for (JavaFileObject file : compilation.generatedFiles()) {
       if (file.getKind() != JavaFileObject.Kind.CLASS) {
         continue;
@@ -191,10 +217,9 @@ class HkjHttpClientProcessorClasspathTest {
       Path target = dir.resolve(path.substring(path.indexOf(marker) + marker.length()));
       Files.createDirectories(target.getParent());
       try (InputStream in = file.openInputStream()) {
-        Files.copy(in, target);
+        Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
       }
     }
-    return dir;
   }
 
   private static String generatedSource(Compilation compilation, String qualifiedName) {
@@ -601,15 +626,15 @@ class HkjHttpClientProcessorClasspathTest {
   void anAnnotationTheClientCannotWriteIsLeftOff() throws IOException {
     // A type-use annotation the base module compiled against but did not pass on, as Gradle's
     // compileOnly does: read back from the class file unresolved, it cannot be written into the
-    // client, which restates the inherited method's parameter and return types. A deprecated one
-    // can, but would draw a warning there that no one can suppress, and one package-private to
-    // the base's own package cannot be named from the client's package at all.
+    // client, which restates the inherited method's parameter and return types. A deprecated one,
+    // or one setting a deprecated member, can, but would draw a warning there, and one
+    // package-private to the base's own package cannot be named from the client's package at all.
     Path base =
         baseModule(
             """
               @GetExchange("/{id}")
               EitherPath<ApiErr, @Marked UserDto> getUser(
-                  @PathVariable @Marked @Old @Local String id);
+                  @PathVariable @Marked @Old @Dated(since = "1") @Local String id);
             """);
     Files.delete(base.resolve("com/upstream/Marked.class"));
     Compilation compilation = compiler(base).compile(CHILD);
@@ -619,7 +644,665 @@ class HkjHttpClientProcessorClasspathTest {
         .contains("getUser(String id)")
         .doesNotContain("Marked")
         .doesNotContain("Old")
+        .doesNotContain("Dated")
         .doesNotContain("Local");
+  }
+
+  /**
+   * The annotations a client copies from a base in a jar: kept as written where the client's
+   * package can write them, refused where it cannot, and copied with their warnings suppressed
+   * where they are deprecated.
+   */
+  @Nested
+  @DisplayName("an annotation a jar's base carries, copied onto the generated interface")
+  class CopiedAnnotations {
+
+    /**
+     * Annotations the base module declares for the cases below: some its own package alone can
+     * name, some the client's classpath will lack once their class files are deleted, and some
+     * deprecated.
+     */
+    private static final List<JavaFileObject> ANNOTATION_TYPES =
+        List.of(
+            annotationType(
+                "LocalExchange",
+                "@HttpExchange(\"/local\") @Target(ElementType.TYPE) @interface LocalExchange {}"),
+            annotationType(
+                "LocalGet",
+                "@HttpExchange(method = \"GET\") @Target(ElementType.METHOD) @interface LocalGet {"
+                    + " @AliasFor(annotation = HttpExchange.class) String value() default \"\"; }"),
+            annotationType(
+                "LocalBinding", "@Target(ElementType.PARAMETER) @interface LocalBinding {}"),
+            annotationType(
+                "AbsentExchange",
+                "@HttpExchange(\"/absent\") @Target({ElementType.TYPE, ElementType.ANNOTATION_TYPE})"
+                    + " public @interface AbsentExchange {}"),
+            annotationType("Wrapped", "@AbsentExchange public @interface Wrapped {}"),
+            annotationType("Absent", "public @interface Absent {}"),
+            JavaFileObjects.forSourceString(
+                "com.upstream.ClassOnly",
+                "package com.upstream; @java.lang.annotation.Retention("
+                    + "java.lang.annotation.RetentionPolicy.CLASS) public @interface ClassOnly {}"),
+            JavaFileObjects.forSourceString(
+                "com.upstream.Tier", "package com.upstream; public enum Tier { LOW, HIGH }"),
+            annotationType("Tiered", "public @interface Tiered { Tier value(); }"),
+            annotationType("Revised", "public @interface Revised { int revision() default 0; }"),
+            annotationType("Named", "public @interface Named { String value(); }"),
+            annotationType("Widened", "public @interface Widened { int n(); String text(); }"),
+            JavaFileObjects.forSourceString(
+                "com.upstream.Hidden", "package com.upstream; class Hidden {}"),
+            annotationType("Handled", "public @interface Handled { Class<?> value(); }"),
+            annotationType(
+                "OldExchange",
+                "@Deprecated @HttpExchange(\"/old\") @Target(ElementType.TYPE)"
+                    + " public @interface OldExchange {}"),
+            annotationType(
+                "Retired",
+                "@Deprecated @Target({ElementType.METHOD, ElementType.PARAMETER})"
+                    + " public @interface Retired {}"),
+            annotationType(
+                "Doomed",
+                "@Deprecated(forRemoval = true) @Target(ElementType.PARAMETER)"
+                    + " public @interface Doomed {}"),
+            annotationType(
+                "Versioned",
+                "public @interface Versioned { @Deprecated String since() default \"\"; }"),
+            JavaFileObjects.forSourceString(
+                "com.upstream.Legacy",
+                """
+                package com.upstream;
+
+                /**
+                 * Deprecated by its javadoc alone.
+                 *
+                 * @deprecated use {@link Retired}
+                 */
+                @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+                public @interface Legacy {}
+                """),
+            JavaFileObjects.forSourceString(
+                "com.upstream.ExchangeApi",
+                "package com.upstream; @org.springframework.web.service.annotation.HttpExchange("
+                    + "\"/users\") public interface ExchangeApi {}"));
+
+    /** A run-time annotation type in the base's package, declared as given. */
+    private static JavaFileObject annotationType(String name, String declaration) {
+      return JavaFileObjects.forSourceString(
+          "com.upstream." + name,
+          """
+          package com.upstream;
+
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Retention;
+          import java.lang.annotation.RetentionPolicy;
+          import java.lang.annotation.Target;
+          import org.springframework.core.annotation.AliasFor;
+          import org.springframework.web.service.annotation.HttpExchange;
+
+          @Retention(RetentionPolicy.RUNTIME)
+          %s
+          """
+              .formatted(declaration));
+    }
+
+    /** {@code UsersApi}, a base of the base interface carrying the given type-level annotations. */
+    private static JavaFileObject usersApi(String annotations) {
+      return JavaFileObjects.forSourceString(
+          "com.upstream.UsersApi",
+          """
+          package com.upstream;
+
+          import org.springframework.web.service.annotation.HttpExchange;
+
+          %s
+          public interface UsersApi extends BaseApi {}
+          """
+              .formatted(annotations));
+    }
+
+    /**
+     * A client of {@code UsersApi}, and of any other interfaces given, with the given type-level
+     * annotations and no {@code @HttpExchange} of its own.
+     */
+    private static JavaFileObject usersChild(String annotations, String... alsoExtends) {
+      return JavaFileObjects.forSourceString(
+          "com.downstream.ChildApi",
+          """
+          package com.downstream;
+
+          import com.upstream.UsersApi;
+          import org.higherkindedj.spring.client.HkjHttpClient;
+
+          %s
+          @HkjHttpClient
+          public interface ChildApi extends UsersApi%s {}
+          """
+              .formatted(
+                  annotations,
+                  Stream.of(alsoExtends).map(type -> ", " + type).collect(Collectors.joining())));
+    }
+
+    /** The base module with these annotation types, and any other interfaces given. */
+    private Path baseWith(String members, JavaFileObject... others) throws IOException {
+      return baseModule(
+          "",
+          members,
+          Stream.concat(ANNOTATION_TYPES.stream(), Stream.of(others))
+              .toArray(JavaFileObject[]::new));
+    }
+
+    private static final String GET_USER =
+        """
+          @GetExchange("/{id}")
+          EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+        """;
+
+    /**
+     * A type-level {@code @HttpExchange} a jar's base gives the client that its native interface
+     * cannot carry, or that the processor cannot see. The base's annotations are on {@code
+     * UsersApi}, which the client extends; each row names the class files the client's classpath
+     * lacks, and the message the processor reports.
+     */
+    enum TypeLevelRefusal {
+      NOT_PUBLIC(
+          "composed through a package-private annotation",
+          "@LocalExchange",
+          List.of(),
+          "@HkjHttpClient cannot copy @com.upstream.LocalExchange, the type-level @HttpExchange"
+              + " ChildApi inherits from UsersApi, onto ChildApiHttpExchange, the interface Spring"
+              + " proxies: it is not public, so ChildApiHttpExchange cannot name it; declare"
+              + " @HttpExchange on ChildApi as the client should have it."),
+      MISSING(
+          "carried by an annotation the classpath lacks, which may be Spring's @HttpExchange",
+          "@AbsentExchange",
+          List.of("AbsentExchange"),
+          "@HkjHttpClient cannot tell whether ChildApi inherits a type-level @HttpExchange from"
+              + " UsersApi: UsersApi carries @com.upstream.AbsentExchange, which is not on this"
+              + " compilation's classpath; add the dependency that declares it, or declare"
+              + " @HttpExchange on ChildApi as the client should have it."),
+      MISSING_UNDERNEATH(
+          "carried by an annotation composed from one the classpath lacks",
+          "@Wrapped",
+          List.of("AbsentExchange"),
+          "@HkjHttpClient cannot tell whether ChildApi inherits a type-level @HttpExchange from"
+              + " UsersApi: UsersApi carries @com.upstream.Wrapped, composed from"
+              + " @com.upstream.AbsentExchange, which is not on this compilation's classpath; add"
+              + " the dependency that declares it, or declare @HttpExchange on ChildApi as the"
+              + " client should have it.");
+
+      private final String description;
+      private final String annotations;
+      private final List<String> deleted;
+      private final String message;
+
+      TypeLevelRefusal(
+          String description, String annotations, List<String> deleted, String message) {
+        this.description = description;
+        this.annotations = annotations;
+        this.deleted = deleted;
+        this.message = message;
+      }
+
+      @Override
+      public String toString() {
+        return description;
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(TypeLevelRefusal.class)
+    @DisplayName("a type-level @HttpExchange the client cannot carry, or see, is refused")
+    void aTypeLevelExchangeTheClientCannotCarryIsRefused(TypeLevelRefusal refusal)
+        throws IOException {
+      Path base = baseWith(GET_USER, usersApi(refusal.annotations));
+      for (String type : refusal.deleted) {
+        Files.delete(base.resolve("com/upstream/" + type + ".class"));
+      }
+      JavaFileObject child = usersChild("");
+      Compilation compilation = compiler(base).compile(child);
+
+      // One error, on the client, in place of errors inside generated code or a client that sends
+      // its requests somewhere else.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining(refusal.message).inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    /**
+     * An annotation a jar's base method carries, on itself or a parameter, that the client's
+     * package cannot write and Spring reads. Each row gives the base's methods, the class files the
+     * client's classpath lacks or has in another version, and the message the processor reports.
+     * The rows that are not public read the modifiers from class files; {@code
+     * HkjHttpClientProcessorTest} reads the same shapes from source.
+     */
+    enum MethodRefusal {
+      NOT_PUBLIC(
+          "a method's package-private mapping annotation",
+          """
+            @LocalGet("/{id}")
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of(),
+          List.of(),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.LocalGet"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: it is not public, so"
+              + " ChildApiHttpExchange cannot name it; redeclare 'getUser' on ChildApi as the client"
+              + " should have it."),
+      MISSING(
+          "a method's annotation the classpath lacks",
+          """
+            @GetExchange("/{id}")
+            @Absent
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of("Absent"),
+          List.of(),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Absent"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: it is not on this"
+              + " compilation's classpath; add the dependency that declares it, or redeclare"
+              + " 'getUser' on ChildApi as the client should have it."),
+      VALUE_MISSING(
+          "a method's annotation naming an enum the classpath lacks",
+          """
+            @GetExchange("/{id}")
+            @Tiered(Tier.HIGH)
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of("Tier"),
+          List.of(),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Tiered"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Tier is not"
+              + " on this compilation's classpath; add the dependency that declares it, or redeclare"
+              + " 'getUser' on ChildApi as the client should have it."),
+      CONSTANT_GONE(
+          "a method's annotation naming a constant the classpath's version of its enum lacks",
+          """
+            @GetExchange("/{id}")
+            @Tiered(Tier.HIGH)
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of(),
+          List.of(
+              JavaFileObjects.forSourceString(
+                  "com.upstream.Tier", "package com.upstream; public enum Tier { LOW }")),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Tiered"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Tier on this"
+              + " compilation's classpath has no constant HIGH; build against the version of it"
+              + " BaseApi was compiled with, or redeclare 'getUser' on ChildApi as the client"
+              + " should have it."),
+      MEMBER_GONE(
+          "a method's annotation setting a member the classpath's version of it lacks",
+          """
+            @GetExchange("/{id}")
+            @Revised(revision = 2)
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of(),
+          List.of(annotationType("Revised", "public @interface Revised {}")),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Revised"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Revised on"
+              + " this compilation's classpath has no member revision(); build against the version"
+              + " of it BaseApi was compiled with, or redeclare 'getUser' on ChildApi as the client"
+              + " should have it."),
+      MEMBER_RETYPED(
+          "a method's annotation setting a member the classpath's version of it declares otherwise",
+          """
+            @GetExchange("/{id}")
+            @Revised(revision = 2)
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of(),
+          List.of(annotationType("Revised", "public @interface Revised { String revision(); }")),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Revised"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Revised on"
+              + " this compilation's classpath declares revision() as another type; build against"
+              + " the version of it BaseApi was compiled with, or redeclare 'getUser' on ChildApi"
+              + " as the client should have it."),
+      DEFAULT_ADDED(
+          "a method's annotation whose classpath version adds a member with no default",
+          """
+            @GetExchange("/{id}")
+            @Revised(revision = 2)
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of(),
+          List.of(
+              annotationType(
+                  "Revised",
+                  "public @interface Revised { int revision() default 0; String since(); }")),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Revised"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Revised on"
+              + " this compilation's classpath declares since() with no default; build against the"
+              + " version of it BaseApi was compiled with, or redeclare 'getUser' on ChildApi as the"
+              + " client should have it."),
+      STRING_TO_CLASS(
+          "a method's annotation setting a string where the classpath's version takes a class",
+          """
+            @GetExchange("/{id}")
+            @Named("n")
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+          """,
+          List.of(),
+          List.of(annotationType("Named", "public @interface Named { Class<?> value(); }")),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Named"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: com.upstream.Named on"
+              + " this compilation's classpath declares value() as another type; build against the"
+              + " version of it BaseApi was compiled with, or redeclare 'getUser' on ChildApi as the"
+              + " client should have it."),
+      PARAMETER_NOT_PUBLIC(
+          "a parameter's package-private annotation",
+          """
+            @GetExchange("/{id}")
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable @LocalBinding String id);
+          """,
+          List.of(),
+          List.of(),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy"
+              + " @com.upstream.LocalBinding on parameter 'id' onto ChildApiHttpExchange, the"
+              + " interface Spring proxies: it is not public, so ChildApiHttpExchange cannot name it;"
+              + " redeclare 'getUser' on ChildApi as the client should have it."),
+      PARAMETER_VALUE_NOT_PUBLIC(
+          "a parameter's annotation naming a package-private class",
+          """
+            @GetExchange("/{id}")
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable @Handled(Hidden.class) String id);
+          """,
+          List.of(),
+          List.of(),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Handled"
+              + " on parameter 'id' onto ChildApiHttpExchange, the interface Spring proxies:"
+              + " com.upstream.Hidden is not public, so ChildApiHttpExchange cannot name it; redeclare"
+              + " 'getUser' on ChildApi as the client should have it."),
+      PARAMETER_MISSING(
+          "a parameter's annotation the classpath lacks",
+          """
+            @GetExchange("/{id}")
+            EitherPath<ApiErr, UserDto> getUser(@PathVariable @Absent String id);
+          """,
+          List.of("Absent"),
+          List.of(),
+          "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot copy @com.upstream.Absent"
+              + " on parameter 'id' onto ChildApiHttpExchange, the interface Spring proxies: it is"
+              + " not on this compilation's classpath; add the dependency that declares it, or"
+              + " redeclare 'getUser' on ChildApi as the client should have it.");
+
+      private final String description;
+      private final String members;
+      private final List<String> deleted;
+      private final List<JavaFileObject> replaced;
+      private final String message;
+
+      MethodRefusal(
+          String description,
+          String members,
+          List<String> deleted,
+          List<JavaFileObject> replaced,
+          String message) {
+        this.description = description;
+        this.members = members;
+        this.deleted = deleted;
+        this.replaced = replaced;
+        this.message = message;
+      }
+
+      @Override
+      public String toString() {
+        return description;
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(MethodRefusal.class)
+    @DisplayName("a method's or parameter's annotation the client cannot write is refused")
+    void aMethodAnnotationTheClientCannotWriteIsRefused(MethodRefusal refusal) throws IOException {
+      Path base = baseWith(refusal.members);
+      for (String type : refusal.deleted) {
+        Files.delete(base.resolve("com/upstream/" + type + ".class"));
+      }
+      for (JavaFileObject version : refusal.replaced) {
+        layOut(compileAlone(version), base);
+      }
+      Compilation compilation = compiler(base).compile(CHILD);
+
+      // One error, on the client, in place of errors inside generated code.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining(refusal.message).inFile(CHILD);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("one written against another version that javac takes as written is copied")
+    void aValueJavacTakesAsWrittenIsCopied() throws IOException {
+      // An int where the classpath's member is now a long, and a single string where it now takes
+      // an array of them, are written as javac takes them in source, so the copy compiles against
+      // the version here, and means what it meant.
+      Path base =
+          baseWith(
+              """
+                @GetExchange("/{id}")
+                @Widened(n = 2, text = "t")
+                EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+              """);
+      layOut(
+          compileAlone(
+              annotationType(
+                  "Widened", "public @interface Widened { long n(); String[] text(); }")),
+          base);
+      Compilation compilation = compiler(base).compile(CHILD);
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .containsPattern("@Widened\\(\\s*n = 2,\\s*text = \"t\"\\s*\\)");
+    }
+
+    @Test
+    @DisplayName("one whose type the classpath has as a class, not an annotation, is left off")
+    void anAnnotationWhoseTypeIsNoLongerOneIsLeftOff() throws IOException {
+      // javac keeps a marker annotation whose type is now a class, and Spring cannot read a class
+      // as an annotation, so the copy leaves it off in place of writing what would not compile.
+      Path base =
+          baseWith(
+              """
+                @GetExchange("/{id}")
+                @Absent
+                EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+              """);
+      layOut(
+          compileAlone(
+              JavaFileObjects.forSourceString(
+                  "com.upstream.Absent", "package com.upstream; public class Absent {}")),
+          base);
+      Compilation compilation = compiler(base).compile(CHILD);
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .doesNotContain("Absent");
+    }
+
+    @Test
+    @DisplayName("one left off plays no part in whether two declarations of a method agree")
+    void aLeftOffAnnotationDoesNotSplitTwoDeclarations() throws IOException {
+      // The client implements getUser once for BaseApi's and LeftApi's, which differ only in a
+      // CLASS-retained annotation the classpath lacks, which the generated client leaves off.
+      Path base =
+          baseWith(
+              GET_USER,
+              JavaFileObjects.forSourceString(
+                  "com.upstream.LeftApi",
+                  """
+                  package com.upstream;
+
+                  import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.springframework.web.bind.annotation.PathVariable;
+                  import org.springframework.web.service.annotation.GetExchange;
+
+                  public interface LeftApi {
+                    @GetExchange("/{id}")
+                    @ClassOnly
+                    EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+                  }
+                  """));
+      Files.delete(base.resolve("com/upstream/ClassOnly.class"));
+      Compilation compilation =
+          compiler(base)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.downstream.ChildApi",
+                      """
+                      package com.downstream;
+
+                      import com.upstream.BaseApi;
+                      import com.upstream.LeftApi;
+                      import org.higherkindedj.spring.client.HkjHttpClient;
+                      import org.springframework.web.service.annotation.HttpExchange;
+
+                      @HttpExchange("/users")
+                      @HkjHttpClient
+                      public interface ChildApi extends BaseApi, LeftApi {}
+                      """));
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("one the client carries itself that it cannot look into is copied as it stands")
+    void theClientsOwnUnreadableAnnotationIsCopiedBesideABasesExchange() throws IOException {
+      // The client's own annotations are all copied, so whatever Spring reads through @Wrapped it
+      // reads on the generated interface too. Should that be an @HttpExchange, Spring refuses the
+      // two at startup, as it refuses any two that differ; the processor need not.
+      Path base = baseWith(GET_USER, usersApi("@HttpExchange(\"/users\")"));
+      Files.delete(base.resolve("com/upstream/AbsentExchange.class"));
+      Compilation compilation = compiler(base).compile(usersChild("@com.upstream.Wrapped"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .containsPattern("@Wrapped\\s+@HttpExchange\\(\"/users\"\\)");
+    }
+
+    @Test
+    @DisplayName("a missing one its class file keeps for the compiler alone is left off a method")
+    void aMissingClassRetainedAnnotationIsLeftOffAMethod() throws IOException {
+      // Spring never reads a CLASS-retained annotation, as a compileOnly tooling jar provides on a
+      // method or a parameter, so leaving it off changes nothing the client sends.
+      Path base =
+          baseWith(
+              """
+                @GetExchange("/{id}")
+                @ClassOnly
+                EitherPath<ApiErr, UserDto> getUser(@PathVariable @ClassOnly String id);
+              """);
+      Files.delete(base.resolve("com/upstream/ClassOnly.class"));
+      Compilation compilation = compiler(base).compile(CHILD);
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .contains("ResponseEntity<UserDto> getUser(@PathVariable(\"id\") String id)")
+          .doesNotContain("ClassOnly");
+    }
+
+    @Test
+    @DisplayName("a deprecated one is copied with its warning suppressed")
+    void aDeprecatedAnnotationIsCopiedWithItsWarningSuppressed() throws IOException {
+      // Spring 7 deprecates its own @Nullable, so a base written against Spring 6 carries one on
+      // each optional parameter. A deprecated member counts too, as javac reports one where it is
+      // set, and so does a deprecation written as a javadoc tag, which javac keeps in the class
+      // file.
+      Path base =
+          baseWith(
+              """
+                @GetExchange("/{id}")
+                @Retired
+                EitherPath<ApiErr, UserDto> getUser(
+                    @PathVariable @org.springframework.lang.Nullable @Doomed String id);
+
+                @GetExchange("/{id}/profile")
+                @Versioned(since = "1")
+                EitherPath<ApiErr, UserDto> getProfile(@PathVariable String id);
+
+                @GetExchange("/{id}/settings")
+                @Legacy
+                EitherPath<ApiErr, UserDto> getSettings(@PathVariable String id);
+              """,
+              usersApi("@OldExchange"));
+      List<String> lint = List.of("-Xlint:deprecation", "-Xlint:removal");
+      Compilation compilation = compiler(base).withOptions(lint).compile(usersChild(""));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadWarningCount(0);
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .containsPattern("@OldExchange\\s+@SuppressWarnings\\(\"deprecation\"\\)\\s+public")
+          .containsPattern(
+              "@GetExchange\\(\"/\\{id}\"\\)\\s+@Retired\\s+@SuppressWarnings\\(\"deprecation\"\\)")
+          .containsPattern(
+              "@Versioned\\(\\s*since = \"1\"\\s*\\)\\s+@SuppressWarnings\\(\"deprecation\"\\)")
+          .containsPattern("@Legacy\\s+@SuppressWarnings\\(\"deprecation\"\\)")
+          .containsPattern(
+              "@PathVariable\\(\"id\"\\) @Nullable @Doomed"
+                  + " @SuppressWarnings\\(\\{\\s*\"deprecation\",\\s*\"removal\"\\s*}\\) String id");
+
+      // The control: the same annotations, written in the client's own package, draw the warnings
+      // the generated interface must not.
+      Compilation written =
+          compiler(base)
+              .withOptions(lint)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.downstream.Written",
+                      """
+                      package com.downstream;
+
+                      @com.upstream.OldExchange
+                      interface Written {
+                        @com.upstream.Retired
+                        void get(@com.upstream.Doomed String id);
+
+                        @com.upstream.Versioned(since = "1")
+                        void getProfile();
+
+                        @com.upstream.Legacy
+                        void getSettings();
+                      }
+                      """));
+      assertThat(written).hadWarningContaining("OldExchange in com.upstream has been deprecated");
+      assertThat(written).hadWarningContaining("Retired in com.upstream has been deprecated");
+      assertThat(written)
+          .hadWarningContaining(
+              "Doomed in com.upstream has been deprecated and marked for removal");
+      assertThat(written)
+          .hadWarningContaining("since() in com.upstream.Versioned has been deprecated");
+      assertThat(written).hadWarningContaining("Legacy in com.upstream has been deprecated");
+    }
+
+    @Test
+    @DisplayName("a base's @HttpExchange is copied past another annotation the classpath lacks")
+    void aMissingAnnotationBesideAnHttpExchangeIsPassedOver() throws IOException {
+      Path base = baseWith(GET_USER, usersApi("@Absent @HttpExchange(\"/users\")"));
+      Files.delete(base.resolve("com/upstream/Absent.class"));
+      Compilation compilation = compiler(base).compile(usersChild(""));
+
+      // Spring reads UsersApi's @HttpExchange whatever else UsersApi carries, so the search ends
+      // there, and the missing annotation, which is not copied, does not matter.
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .contains("@HttpExchange(\"/users\")")
+          .doesNotContain("Absent");
+    }
+
+    @Test
+    @DisplayName("a missing annotation its class file keeps for the compiler alone is passed over")
+    void aMissingClassRetainedAnnotationIsPassedOver() throws IOException {
+      // A CLASS-retained annotation, as a compileOnly tooling jar provides, is in UsersApi's class
+      // file for the compiler alone, so Spring never reads it, and the search goes on to the next
+      // base, as Spring's does.
+      Path base = baseWith(GET_USER, usersApi("@ClassOnly"));
+      Files.delete(base.resolve("com/upstream/ClassOnly.class"));
+      Compilation compilation = compiler(base).compile(usersChild("", "com.upstream.ExchangeApi"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .contains("@HttpExchange(\"/users\")")
+          .doesNotContain("ClassOnly");
+    }
   }
 
   @Test

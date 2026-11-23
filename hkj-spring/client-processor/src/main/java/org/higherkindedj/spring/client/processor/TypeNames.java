@@ -17,14 +17,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.IntersectionType;
@@ -32,7 +27,6 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
-import javax.lang.model.util.SimpleAnnotationValueVisitor14;
 import javax.lang.model.util.Types;
 
 /**
@@ -51,12 +45,13 @@ import javax.lang.model.util.Types;
  * depending on that module, which is an annotation processor: it would join this one on the
  * consumer's processor path and generate optics they never asked for. The walk they perform is
  * javapoet's own; if one copy changes, the other should, and {@code ProcessorUtils} points back
- * here. Both forms are needed: a client restates each method as a member of the client interface,
- * read under the type arguments the client gives the interfaces it extends, and that reading drops
- * what the plain form keeps. The member form of {@link #typeVariableOf(TypeVariable,
- * TypeParameterElement, DeclaredType, String)} has no counterpart there: it follows the loop {@code
- * PathProcessor} writes a bridge's type parameters with, but pairs the bounds from the end, for the
- * reason the method gives.
+ * here. Which annotations the client can write is read by {@link AnnotationSpecs#writesCleanlyIn},
+ * the counterpart of {@code ProcessorUtils}' {@code writableFrom}. Both forms are needed: a client
+ * restates each method as a member of the client interface, read under the type arguments the
+ * client gives the interfaces it extends, and that reading drops what the plain form keeps. The
+ * member form of {@link #typeVariableOf(TypeVariable, TypeParameterElement, DeclaredType, String)}
+ * has no counterpart there: it follows the loop {@code PathProcessor} writes a bridge's type
+ * parameters with, but pairs the bounds from the end, for the reason the method gives.
  */
 final class TypeNames {
 
@@ -68,15 +63,25 @@ final class TypeNames {
    * The name of a type as written, with its type-use annotations kept, for a client written into
    * {@code targetPackage}.
    *
-   * <p>An annotation is kept only where that package can write it cleanly. One javac could not
-   * resolve, which is one missing from the compile classpath, as an annotation a base interface in
-   * a jar was compiled against can be, one private or package-private to another package, and one
-   * deprecated anywhere in its nesting are left off: the first three fail the build compiling the
-   * client, and the last draws a warning there that no one can suppress. So is one whose arguments
-   * name a class, an enum constant or an annotation that fails the same test, as
-   * {@code @Tag(Internal.class)} does where {@code Internal} is package-private to another package.
-   * The package matters because a client restates the methods it inherits, which a base interface
-   * in another package may have annotated with something only that package can name.
+   * <p>An annotation is kept only where that package can write it cleanly, as {@link
+   * AnnotationSpecs#writesCleanlyIn} reads it. One javac could not resolve, which is one missing
+   * from the compile classpath, as an annotation a base interface in a jar was compiled against can
+   * be, and one private or package-private to another package are left off, as either fails the
+   * build compiling the client. So is one whose arguments name a class, an enum constant or an
+   * annotation that fails the same test, as {@code @Tag(Internal.class)} does where {@code
+   * Internal} is package-private to another package. The package matters because a client restates
+   * the methods it inherits, which a base interface in another package may have annotated with
+   * something only that package can name.
+   *
+   * <p>So is one a class file wrote against another version of a type than this classpath has,
+   * where javac would not take it as written, and one naming a constant javac has not resolved yet,
+   * which would be written with the wrong value.
+   *
+   * <p>One deprecated anywhere in its nesting, or in a member its arguments set, is left off too,
+   * as it would draw a warning in the client. A declaration annotation the client copies is kept
+   * with that warning suppressed instead, since leaving it off changes the request Spring sends.
+   * Keeping a type-use annotation would take the same suppression on every generated declaration
+   * that restates the type, the facade's included, which the processor does not write.
    *
    * <p>A type read with {@link Types#asMemberOf} has already lost the annotations written on a type
    * variable's use; name one of those with {@link #typeNameOf(TypeMirror, TypeMirror, DeclaredType,
@@ -123,86 +128,6 @@ final class TypeNames {
   static TypeName typeNameOf(
       TypeMirror type, TypeMirror declared, DeclaredType owner, String targetPackage) {
     return new Naming(clausesOf(owner), targetPackage).name(type, declared);
-  }
-
-  /**
-   * Whether a client in {@code targetPackage} can write this annotation cleanly: its type, and
-   * every class, enum constant and annotation its arguments name, as {@link
-   * #writableFrom(TypeMirror, String)} decides for a type. Only the arguments written count, as
-   * javapoet writes no others.
-   */
-  private static boolean writableFrom(AnnotationMirror annotation, String targetPackage) {
-    return writableFrom(annotation.getAnnotationType(), targetPackage)
-        && annotation.getElementValues().values().stream()
-            .allMatch(value -> writableFrom(value, targetPackage));
-  }
-
-  private static boolean writableFrom(AnnotationValue value, String targetPackage) {
-    return value.accept(
-        new SimpleAnnotationValueVisitor14<Boolean, Void>(true) {
-          @Override
-          public Boolean visitType(TypeMirror type, Void unused) {
-            return writableFrom(type, targetPackage);
-          }
-
-          @Override
-          public Boolean visitEnumConstant(VariableElement constant, Void unused) {
-            return nestingWritableFrom(constant, targetPackage);
-          }
-
-          @Override
-          public Boolean visitAnnotation(AnnotationMirror nested, Void unused) {
-            return writableFrom(nested, targetPackage);
-          }
-
-          @Override
-          public Boolean visitArray(List<? extends AnnotationValue> values, Void unused) {
-            return values.stream().allMatch(element -> writableFrom(element, targetPackage));
-          }
-        },
-        null);
-  }
-
-  /**
-   * Whether a client in {@code targetPackage} can write this type cleanly: resolved, with every
-   * type in its nesting visible from there, and none of them deprecated. A primitive is, and an
-   * array is where its component is.
-   *
-   * <p>A deprecation written only as a javadoc tag is not seen here: reading that needs the round's
-   * {@code Elements}, which this walk does not take. Such an annotation is copied, as it was
-   * before.
-   */
-  private static boolean writableFrom(TypeMirror type, String targetPackage) {
-    return switch (type.getKind()) {
-      case DECLARED -> nestingWritableFrom(((DeclaredType) type).asElement(), targetPackage);
-      case ARRAY -> writableFrom(((ArrayType) type).getComponentType(), targetPackage);
-      case ERROR -> false;
-      default -> true;
-    };
-  }
-
-  /** Whether an element, and each type it is nested in, is visible from the package and current. */
-  private static boolean nestingWritableFrom(Element element, String targetPackage) {
-    for (Element current = element;
-        current.getKind() != ElementKind.PACKAGE;
-        current = current.getEnclosingElement()) {
-      Set<Modifier> modifiers = current.getModifiers();
-      if (modifiers.contains(Modifier.PRIVATE)
-          || current.getAnnotation(Deprecated.class) != null
-          || (!modifiers.contains(Modifier.PUBLIC) && !packageOf(current).equals(targetPackage))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /** The package a type is declared in, walked out from the type itself. */
-  private static String packageOf(Element element) {
-    Element current = element;
-    while (current.getKind() != ElementKind.PACKAGE) {
-      current = current.getEnclosingElement();
-    }
-    return ((PackageElement) current).getQualifiedName().toString();
   }
 
   /**
@@ -287,7 +212,7 @@ final class TypeNames {
       }
       List<AnnotationSpec> specs =
           annotations.values().stream()
-              .filter(annotation -> writableFrom(annotation, targetPackage))
+              .filter(annotation -> AnnotationSpecs.writesCleanlyIn(annotation, targetPackage))
               .map(AnnotationSpecs::copyOf)
               .toList();
       // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's

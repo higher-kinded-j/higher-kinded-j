@@ -10,11 +10,19 @@ import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
@@ -1306,6 +1314,22 @@ class HkjHttpClientProcessorTest {
             "@HttpExchange(\"/unseen\")",
             "public @interface UnseenExchange {}");
 
+    /** Composed from {@code @HttpExchange}, and deprecated. */
+    private static final JavaFileObject OLD_EXCHANGE =
+        JavaFileObjects.forSourceLines(
+            "com.example.OldExchange",
+            "package com.example;",
+            "import java.lang.annotation.ElementType;",
+            "import java.lang.annotation.Retention;",
+            "import java.lang.annotation.RetentionPolicy;",
+            "import java.lang.annotation.Target;",
+            "import org.springframework.web.service.annotation.HttpExchange;",
+            "@Deprecated",
+            "@Retention(RetentionPolicy.RUNTIME)",
+            "@Target(ElementType.TYPE)",
+            "@HttpExchange(url = \"/old\", accept = \"application/json\")",
+            "public @interface OldExchange {}");
+
     @Test
     @DisplayName("a client with none of its own takes its base's")
     void fromTheBase() {
@@ -1391,6 +1415,11 @@ class HkjHttpClientProcessorTest {
           "/headed/me",
           "@HeadedExchange(headers = {}) interface BaseApi",
           "interface ChildApi extends BaseApi"),
+      DEPRECATED_ON_THE_BASE(
+          "one composed from it that is deprecated, copied with its warning suppressed",
+          "/old/me",
+          "@OldExchange interface BaseApi",
+          "interface ChildApi extends BaseApi"),
       TWO_EQUAL_ON_ONE_BASE(
           "two that are equal on one base, which Spring takes as one",
           "/composed/me",
@@ -1423,7 +1452,8 @@ class HkjHttpClientProcessorTest {
                     USERS_EXCHANGE,
                     TEAM_EXCHANGE,
                     HEADED_EXCHANGE,
-                    UNSEEN_EXCHANGE),
+                    UNSEEN_EXCHANGE,
+                    OLD_EXCHANGE),
                 declarations.stream().map(this::source))
             .toList();
       }
@@ -1553,6 +1583,884 @@ class HkjHttpClientProcessorTest {
           }
         }
       };
+    }
+  }
+
+  @Nested
+  @DisplayName(
+      "copies the annotations a client carries and inherits where its package can write them")
+  class CopiedAnnotations {
+
+    /** A run-time annotation type in the given package, declared as given. */
+    private static JavaFileObject annotationType(String qualifiedName, String declaration) {
+      return JavaFileObjects.forSourceString(
+          qualifiedName,
+          """
+          package %s;
+
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Retention;
+          import java.lang.annotation.RetentionPolicy;
+          import java.lang.annotation.Target;
+          import org.springframework.web.service.annotation.HttpExchange;
+
+          @Retention(RetentionPolicy.RUNTIME)
+          %s
+          """
+              .formatted(qualifiedName.substring(0, qualifiedName.lastIndexOf('.')), declaration));
+    }
+
+    /** {@code UsersApi} in the given package, a base the client inherits {@code getUser} from. */
+    private static JavaFileObject usersApi(String packageName, String declaration) {
+      return JavaFileObjects.forSourceString(
+          packageName + ".UsersApi",
+          """
+          package %s;
+
+          import com.example.UserDto;
+          import com.example.UserError;
+          import org.higherkindedj.hkt.effect.EitherPath;
+          import org.springframework.web.bind.annotation.PathVariable;
+          import org.springframework.web.service.annotation.GetExchange;
+          import org.springframework.web.service.annotation.HttpExchange;
+
+          %s
+          """
+              .formatted(packageName, declaration));
+    }
+
+    /** A client of the given package's {@code UsersApi}, with no type-level exchange of its own. */
+    private static JavaFileObject childOf(String packageName) {
+      return JavaFileObjects.forSourceString(
+          "com.example.ChildApi",
+          """
+          package com.example;
+
+          import org.higherkindedj.spring.client.HkjHttpClient;
+
+          @HkjHttpClient
+          public interface ChildApi extends %s.UsersApi {}
+          """
+              .formatted(packageName));
+    }
+
+    /** Annotations each package below declares that only that package can name. */
+    private static List<JavaFileObject> localTo(String packageName) {
+      return List.of(
+          annotationType(
+              packageName + ".LocalExchange",
+              "@HttpExchange(\"/local\") @Target(ElementType.TYPE) @interface LocalExchange {}"),
+          annotationType(
+              packageName + ".Local",
+              "@Target({ElementType.METHOD, ElementType.PARAMETER}) @interface Local {}"));
+    }
+
+    /**
+     * Each place a client copies a base's annotations, with one there that only the base's package
+     * can name, and the error the processor gives for it when that package is another.
+     */
+    enum Place {
+      TYPE_LEVEL(
+          "the type-level @HttpExchange",
+          """
+          @LocalExchange
+          public interface UsersApi {
+            @GetExchange("/{id}")
+            EitherPath<UserError, UserDto> getUser(@PathVariable String id);
+          }
+          """,
+          "@HkjHttpClient cannot copy @com.upstream.LocalExchange, the type-level @HttpExchange"
+              + " ChildApi inherits from UsersApi, onto ChildApiHttpExchange, the interface Spring"
+              + " proxies: it is not public, so ChildApiHttpExchange cannot name it; declare @HttpExchange"
+              + " on ChildApi as the client should have it."),
+      METHOD(
+          "a method",
+          """
+          @HttpExchange("/users")
+          public interface UsersApi {
+            @GetExchange("/{id}")
+            @Local
+            EitherPath<UserError, UserDto> getUser(@PathVariable String id);
+          }
+          """,
+          "'getUser', inherited from 'UsersApi': @HkjHttpClient cannot copy @com.upstream.Local"
+              + " onto ChildApiHttpExchange, the interface Spring proxies: it is not public, so"
+              + " ChildApiHttpExchange cannot name it; redeclare 'getUser' on ChildApi as the client should"
+              + " have it."),
+      PARAMETER(
+          "a parameter",
+          """
+          @HttpExchange("/users")
+          public interface UsersApi {
+            @GetExchange("/{id}")
+            EitherPath<UserError, UserDto> getUser(@PathVariable @Local String id);
+          }
+          """,
+          "'getUser', inherited from 'UsersApi': @HkjHttpClient cannot copy @com.upstream.Local"
+              + " on parameter 'id' onto ChildApiHttpExchange, the interface Spring proxies: it is"
+              + " not public, so ChildApiHttpExchange cannot name it; redeclare 'getUser' on ChildApi as the"
+              + " client should have it.");
+
+      private final String description;
+      private final String base;
+      private final String message;
+
+      Place(String description, String base, String message) {
+        this.description = description;
+        this.base = base;
+        this.message = message;
+      }
+
+      @Override
+      public String toString() {
+        return description;
+      }
+    }
+
+    @ParameterizedTest(name = "on {0}")
+    @EnumSource(Place.class)
+    @DisplayName("an annotation package-private to a base's other package is refused")
+    void notPublicInAnotherPackageIsRefused(Place place) {
+      // Compiled alongside, the base's package names the annotation as it may, and only the
+      // processor can say that the client's cannot.
+      JavaFileObject child = childOf("com.upstream");
+      Compilation compilation =
+          compile(
+              Stream.concat(
+                      localTo("com.upstream").stream(),
+                      Stream.of(usersApi("com.upstream", place.base), child, USER_DTO, USER_ERROR))
+                  .toArray(JavaFileObject[]::new));
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining(place.message).inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an annotation package-private to the client's own package is copied")
+    void notPublicInTheClientsPackageIsCopied() {
+      Compilation compilation =
+          compile(
+              Stream.concat(
+                      localTo("com.example").stream(),
+                      Stream.of(
+                          usersApi(
+                              "com.example",
+                              """
+                              @LocalExchange
+                              public interface UsersApi {
+                                @GetExchange("/{id}")
+                                @Local
+                                EitherPath<UserError, UserDto> getUser(@PathVariable @Local String id);
+                              }
+                              """),
+                          childOf("com.example"),
+                          USER_DTO,
+                          USER_ERROR))
+                  .toArray(JavaFileObject[]::new));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.ChildApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("@LocalExchange\\s+public interface ChildApiHttpExchange");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.ChildApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("@GetExchange\\(\"/\\{id}\"\\)\\s+@Local\\s+ResponseEntity");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.ChildApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("getUser(@PathVariable(\"id\") @Local String id)");
+    }
+
+    @Test
+    @DisplayName("an annotation a base's source cannot resolve is left to javac, with no client")
+    void anUnresolvedAnnotationInSourceIsLeftToJavac() {
+      Compilation compilation =
+          compile(
+              annotationType(
+                  "com.upstream.Handled", "public @interface Handled { Class<?> value(); }"),
+              usersApi(
+                  "com.upstream",
+                  """
+                  @NoSuchExchange
+                  public interface UsersApi {
+                    @GetExchange("/{id}")
+                    @NoSuchAnnotation
+                    EitherPath<UserError, UserDto> getUser(
+                        @PathVariable @Handled(NoSuchType.class) String id);
+                  }
+                  """),
+              childOf("com.upstream"),
+              USER_DTO,
+              USER_ERROR);
+
+      // The base's source wrote the names, so javac reports them there; the advice to add a
+      // dependency is for a type a class file names, and would misdirect a typo. The client waits
+      // for a round that never brings them, so nothing is written that names them again, and the
+      // last round says why the client has none of its generated types.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@HkjHttpClient generated nothing for ChildApi, as no round of this compilation"
+                  + " resolved what it names:");
+      assertThat(compilation).hadErrorContaining("a value of @com.upstream.Handled's value()");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@HkjHttpClient cannot"))
+          .noneMatch(CopiedAnnotations::isInGeneratedSource);
+    }
+
+    private static boolean isInGeneratedSource(Diagnostic<? extends JavaFileObject> diagnostic) {
+      return diagnostic.getSource() != null
+          && diagnostic.getSource().getName().contains("SOURCE_OUTPUT");
+    }
+
+    @Test
+    @DisplayName("an annotation the client cannot reach on its own method is left to javac")
+    void theClientsOwnAnnotationIsLeftToJavac() {
+      JavaFileObject client =
+          JavaFileObjects.forSourceString(
+              "com.example.UserApi",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.bind.annotation.PathVariable;
+              import org.springframework.web.service.annotation.GetExchange;
+              import org.springframework.web.service.annotation.HttpExchange;
+
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface UserApi {
+                @GetExchange("/{id}")
+                @com.upstream.Local
+                EitherPath<UserError, UserDto> getUser(@PathVariable String id);
+              }
+              """);
+      Compilation compilation =
+          compile(
+              Stream.concat(
+                      localTo("com.upstream").stream(), Stream.of(client, USER_DTO, USER_ERROR))
+                  .toArray(JavaFileObject[]::new));
+
+      // The client wrote it in its own package, so javac reports it there, and hands the
+      // processor the annotation unresolved, for which the client waits in vain.
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("is not public in com.upstream").inFile(client);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@HkjHttpClient generated nothing for UserApi, as no round of this compilation"
+                  + " resolved what it names: com.upstream.Local. Correct each name or make it"
+                  + " accessible, or add the dependency or the processor that writes it.")
+          .inFile(client);
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@HkjHttpClient cannot"))
+          .noneMatch(CopiedAnnotations::isInGeneratedSource);
+    }
+
+    @Test
+    @DisplayName(
+        "an annotation protected to a class in another package the client is nested in is refused")
+    void anAnnotationProtectedElsewhereIsRefusedNamingPublicAccess() {
+      // Holder inherits Support's protected Prot, so the client nested in Holder can name it, and
+      // the interfaces generated beside Holder cannot; package access in com.example would not do.
+      JavaFileObject support =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Support",
+              """
+              package com.upstream;
+
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+
+              public class Support {
+                @Retention(RetentionPolicy.RUNTIME)
+                protected @interface Prot {}
+              }
+              """);
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.bind.annotation.PathVariable;
+              import org.springframework.web.service.annotation.GetExchange;
+              import org.springframework.web.service.annotation.HttpExchange;
+
+              public class Holder extends com.upstream.Support {
+                @HttpExchange("/users")
+                @HkjHttpClient
+                public interface ChildApi {
+                  @GetExchange("/{id}")
+                  @Prot
+                  EitherPath<UserError, UserDto> getUser(@PathVariable String id);
+                }
+              }
+              """);
+      Compilation compilation = compile(support, holder, USER_DTO, USER_ERROR);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@HkjHttpClient cannot copy @com.upstream.Support.Prot onto ChildApiHttpExchange, the"
+                  + " interface Spring proxies: it is not public, so ChildApiHttpExchange cannot name it;"
+                  + " make it public.")
+          .inFile(holder);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName(
+        "an annotation Spring never reads is left off where the client's package cannot name it")
+    void anAnnotationSpringNeverReadsIsLeftOff() {
+      // A SOURCE- or CLASS-retained annotation cannot change the request, so the processor leaves
+      // off one the client's package cannot name, in place of refusing the client for it.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.upstream.Unread",
+                  """
+                  package com.upstream;
+
+                  import java.lang.annotation.Retention;
+                  import java.lang.annotation.RetentionPolicy;
+
+                  @Retention(RetentionPolicy.SOURCE)
+                  @interface Unread {}
+                  """),
+              usersApi(
+                  "com.upstream",
+                  """
+                  @HttpExchange("/users")
+                  public interface UsersApi {
+                    @GetExchange("/{id}")
+                    @Unread
+                    EitherPath<UserError, UserDto> getUser(@PathVariable @Unread String id);
+                  }
+                  """),
+              childOf("com.upstream"),
+              USER_DTO,
+              USER_ERROR);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.ChildApiHttpExchange")
+          .contentsAsUtf8String()
+          .doesNotContain("Unread");
+    }
+
+    @Test
+    @DisplayName("a client whose annotations name a type a later round brings waits for it")
+    void aClientWaitsForTheRoundThatBringsItsAnnotations() {
+      // WritesTypes writes Tagged, Thing and GenExchange in the first round, so the client's
+      // annotations name types javac cannot resolve until the second: on the type, a method and a
+      // parameter. Read then, the client keeps each of them, and its own GenExchange, composed from
+      // @HttpExchange, is the one Spring reads in place of the base's.
+      JavaFileObject client =
+          JavaFileObjects.forSourceString(
+              "com.example.UserApi",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.bind.annotation.PathVariable;
+              import org.springframework.web.service.annotation.GetExchange;
+
+              @GenExchange
+              @HkjHttpClient
+              public interface UserApi extends UsersApi {
+                @GetExchange("/{id}/profile")
+                @Tagged
+                EitherPath<UserError, UserDto> getProfile(
+                    @PathVariable @Tagged @Handled(Thing.class) String id);
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .compile(
+                  annotationType(
+                      "com.example.Handled", "public @interface Handled { Class<?> value(); }"),
+                  usersApi(
+                      "com.example",
+                      """
+                      @HttpExchange("/base")
+                      public interface UsersApi {
+                        @GetExchange("/{id}")
+                        EitherPath<UserError, UserDto> getUser(@PathVariable String id);
+                      }
+                      """),
+                  client,
+                  USER_DTO,
+                  USER_ERROR);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("@GenExchange\\s+public interface UserApiHttpExchange");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("@PathVariable(\"id\") @Tagged @Handled(Thing.class) String id");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .doesNotContain("/base");
+    }
+
+    /**
+     * One thing a client names that WritesTypes brings in the first round, alone on the client, so
+     * that it is what the client waits for.
+     */
+    enum LaterRound {
+      TYPE_LEVEL(
+          "an annotation on the client",
+          "@Tagged",
+          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search();",
+          "@Tagged"),
+      METHOD(
+          "an annotation on a method",
+          "",
+          "@GetExchange(\"/search\") @Tagged EitherPath<UserError, UserDto> search();",
+          "@Tagged"),
+      PARAMETER(
+          "an annotation on a parameter",
+          "",
+          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search(@RequestParam(\"q\")"
+              + " @Tagged String q);",
+          "@Tagged String q"),
+      CONSTANT(
+          "a constant a mapping annotation names",
+          "",
+          "@GetExchange(Paths.SEARCH) EitherPath<UserError, UserDto> search(@RequestParam(\"q\")"
+              + " String q);",
+          "@GetExchange(\"/search\")"),
+      PARAMETER_CONSTANT(
+          "a constant a parameter's annotation names",
+          "",
+          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search(@RequestParam(Paths.Q)"
+              + " String q);",
+          "@RequestParam(\"q\") String q"),
+      TYPE_USE(
+          "a type-use annotation in a type argument",
+          "",
+          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search("
+              + "@RequestParam(\"ids\") List<@TypeTag String> ids);",
+          "List<@TypeTag String> ids"),
+      ENCLOSING_TYPE(
+          "a type-use annotation on an enclosing type's argument",
+          "",
+          "class Outer<T> { class Inner {} } @GetExchange(\"/search\") EitherPath<UserError,"
+              + " Outer<@TypeTag String>.Inner> search();",
+          "Outer<@TypeTag String>.Inner");
+
+      private final String description;
+      private final String annotations;
+      private final String method;
+      private final String generated;
+
+      LaterRound(String description, String annotations, String method, String generated) {
+        this.description = description;
+        this.annotations = annotations;
+        this.method = method;
+        this.generated = generated;
+      }
+
+      @Override
+      public String toString() {
+        return description;
+      }
+    }
+
+    /** A client with the given type-level annotations and one method, as written. */
+    private static JavaFileObject laterRoundClient(String annotations, String method) {
+      return JavaFileObjects.forSourceString(
+          "com.example.UserApi",
+          """
+          package com.example;
+
+          import java.util.List;
+          import org.higherkindedj.hkt.effect.EitherPath;
+          import org.higherkindedj.spring.client.HkjHttpClient;
+          import org.springframework.web.bind.annotation.RequestParam;
+          import org.springframework.web.service.annotation.GetExchange;
+          import org.springframework.web.service.annotation.HttpExchange;
+
+          %s
+          @HttpExchange("/users")
+          @HkjHttpClient
+          public interface UserApi {
+            %s
+          }
+          """
+              .formatted(annotations, method));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LaterRound.class)
+    @DisplayName("a client waits for the round that brings what it names, alone on the client")
+    void aClientWaitsForWhatALaterRoundBrings(LaterRound later) {
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .compile(laterRoundClient(later.annotations, later.method), USER_DTO, USER_ERROR);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains(later.generated);
+    }
+
+    @Test
+    @DisplayName("a client waits where the compilation has no modules")
+    void aClientWaitsWhereTheCompilationHasNoModules() {
+      // Under -source 8 javac has no modules, and names a waiting client by its name alone. Records
+      // are not Java 8, so the client's types are plain classes here.
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .withOptions("-source", "8", "-target", "8", "-Xlint:-options")
+              .compile(
+                  laterRoundClient(
+                      "",
+                      "@GetExchange(\"/search\") @Tagged EitherPath<UserError, UserDto> search();"),
+                  JavaFileObjects.forSourceString(
+                      "com.example.UserDto", "package com.example; public class UserDto {}"),
+                  JavaFileObjects.forSourceString(
+                      "com.example.UserError", "package com.example; public class UserError {}"));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("@Tagged");
+    }
+
+    @Test
+    @DisplayName("a client waits for what a second declaration of a method names")
+    void aClientWaitsForWhatASecondDeclarationNames() {
+      // Both interfaces declare search(); the client implements it once, and waits for the constant
+      // the second names before comparing the two.
+      JavaFileObject client =
+          JavaFileObjects.forSourceString(
+              "com.example.UserApi",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.service.annotation.GetExchange;
+              import org.springframework.web.service.annotation.HttpExchange;
+
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface UserApi extends Plain, Named {}
+
+              interface Plain {
+                @GetExchange("/search")
+                EitherPath<UserError, UserDto> search();
+              }
+
+              interface Named {
+                @GetExchange(Paths.SEARCH)
+                EitherPath<UserError, UserDto> search();
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .compile(client, USER_DTO, USER_ERROR);
+
+      assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("a client waits for a type-use annotation its extends clause names")
+    void aClientWaitsForATypeUseAnnotationItsClauseNames() {
+      JavaFileObject client =
+          JavaFileObjects.forSourceString(
+              "com.example.UserApi",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.service.annotation.GetExchange;
+              import org.springframework.web.service.annotation.HttpExchange;
+
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface UserApi extends Repo<@TypeTag UserDto> {}
+
+              interface Repo<T> {
+                @GetExchange("/{id}")
+                EitherPath<UserError, T> find();
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .compile(client, USER_DTO, USER_ERROR);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("ResponseEntity<@TypeTag UserDto> find()");
+    }
+
+    @Test
+    @DisplayName("a client the rounds end early for is left to the error that ended them")
+    void aClientTheRoundsEndEarlyForIsLeftToTheError() {
+      // Wrong is refused in the first round, so javac makes the next round the last. The client is
+      // not generated, for that error, and nothing more is said of it, though it also names
+      // Nowhere,
+      // which no round brings and javac reports.
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .compile(
+                  laterRoundClient(
+                      "",
+                      "@GetExchange(\"/search\") @Tagged @Nowhere EitherPath<UserError, UserDto>"
+                          + " search();"),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Wrong",
+                      "package com.example; @org.higherkindedj.spring.client.HkjHttpClient"
+                          + " public class Wrong {}"),
+                  USER_DTO,
+                  USER_ERROR);
+
+      assertThat(compilation)
+          .hadErrorContaining("@HkjHttpClient can only be applied to interfaces.");
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("generated nothing"));
+    }
+
+    @Test
+    @DisplayName("a client whose base a later round brings waits for it")
+    void aClientWaitsForTheRoundThatBringsItsBase() {
+      // GenBase, written in the first round, carries the type-level @HttpExchange Spring reads on
+      // Kid, and the method Kid's client implements.
+      JavaFileObject kid =
+          JavaFileObjects.forSourceString(
+              "com.example.Kid",
+              """
+              package com.example;
+
+              import org.higherkindedj.spring.client.HkjHttpClient;
+
+              @HkjHttpClient
+              public interface Kid extends GenBase {}
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .compile(kid, USER_DTO, USER_ERROR);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.KidHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("@HttpExchange\\(\"/gb\"\\)\\s+public interface KidHttpExchange");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.KidHttpExchange")
+          .contentsAsUtf8String()
+          .contains("ResponseEntity<UserDto> m()");
+    }
+
+    /**
+     * Writes, in the first round, the types a client names. It runs ahead of the client processor,
+     * which claims {@code @HkjHttpClient}, so javac offers it the round even where that is the only
+     * annotation.
+     */
+    @SupportedAnnotationTypes("*")
+    private static final class WritesTypes extends AbstractProcessor {
+
+      private boolean written;
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        if (written) {
+          return false;
+        }
+        written = true;
+        write(
+            "com.example.Tagged",
+            "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
+                + ".RetentionPolicy.RUNTIME) public @interface Tagged {}");
+        write("com.example.Thing", "package com.example; public class Thing {}");
+        write(
+            "com.example.GenExchange",
+            "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
+                + ".RetentionPolicy.RUNTIME) @org.springframework.web.service.annotation"
+                + ".HttpExchange(\"/gen\") public @interface GenExchange {}");
+        write(
+            "com.example.Paths",
+            "package com.example; public final class Paths { private Paths() {} public static"
+                + " final String SEARCH = \"/search\"; public static final String Q = \"q\"; }");
+        write(
+            "com.example.TypeTag",
+            "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
+                + ".RetentionPolicy.RUNTIME) @java.lang.annotation.Target(java.lang.annotation"
+                + ".ElementType.TYPE_USE) public @interface TypeTag {}");
+        write(
+            "com.example.GenBase",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.EitherPath;
+            import org.springframework.web.service.annotation.GetExchange;
+            import org.springframework.web.service.annotation.HttpExchange;
+
+            @HttpExchange("/gb")
+            public interface GenBase {
+              @GetExchange("/m")
+              EitherPath<UserError, UserDto> m();
+            }
+            """);
+        return false;
+      }
+
+      private void write(String name, String source) {
+        try (Writer writer = processingEnv.getFiler().createSourceFile(name).openWriter()) {
+          writer.write(source);
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }
+    }
+
+    @Test
+    @DisplayName("an annotation private to where the client is nested is refused")
+    void anAnnotationPrivateToTheClientsEnclosingClassIsRefused() {
+      // The client can name Secret, nested privately beside it, but the interfaces generated
+      // beside Holder cannot, and javac reports nothing in the client's own source.
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder",
+              """
+              package com.example;
+
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.bind.annotation.PathVariable;
+              import org.springframework.web.service.annotation.GetExchange;
+              import org.springframework.web.service.annotation.HttpExchange;
+
+              public class Holder {
+                @Retention(RetentionPolicy.RUNTIME)
+                private @interface Secret {}
+
+                @Secret
+                @HttpExchange("/users")
+                @HkjHttpClient
+                public interface ChildApi {
+                  @GetExchange("/{id}")
+                  @Secret
+                  EitherPath<UserError, UserDto> getUser(@PathVariable @Secret String id);
+                }
+              }
+              """);
+      Compilation compilation = compile(holder, USER_DTO, USER_ERROR);
+
+      String cannotCopy = "@HkjHttpClient cannot copy @com.example.Holder.Secret";
+      String because =
+          " onto ChildApiHttpExchange, the interface Spring proxies: it is not public, so"
+              + " ChildApiHttpExchange cannot name it; make it package-private or public.";
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining(cannotCopy + because).inFile(holder);
+      assertThat(compilation)
+          .hadErrorContaining(cannotCopy + " on parameter 'id'" + because)
+          .inFile(holder);
+      assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    @DisplayName(
+        "a deprecated annotation is copied with its warning suppressed beside the client's")
+    void deprecatedIsCopiedWithItsWarningSuppressed() {
+      JavaFileObject client =
+          JavaFileObjects.forSourceString(
+              "com.example.UserApi",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.bind.annotation.PathVariable;
+              import org.springframework.web.service.annotation.GetExchange;
+
+              @SuppressWarnings("unchecked")
+              @OldExchange
+              @HkjHttpClient
+              public interface UserApi {
+                @GetExchange("/{id}")
+                @SuppressWarnings("deprecation")
+                @Retired
+                EitherPath<UserError, UserDto> getUser(
+                    @PathVariable @SuppressWarnings({}) @Doomed String id);
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new HkjHttpClientProcessor())
+              .withOptions("-Xlint:deprecation", "-Xlint:removal")
+              .compile(
+                  annotationType(
+                      "com.example.OldExchange",
+                      "@Deprecated @HttpExchange(\"/old\") @Target(ElementType.TYPE)"
+                          + " public @interface OldExchange {}"),
+                  annotationType(
+                      "com.example.Retired",
+                      "@Deprecated @Target(ElementType.METHOD) public @interface Retired {}"),
+                  annotationType(
+                      "com.example.Doomed",
+                      "@Deprecated(forRemoval = true) @Target(ElementType.PARAMETER)"
+                          + " public @interface Doomed {}"),
+                  client,
+                  USER_DTO,
+                  USER_ERROR);
+
+      // Where the client's own suppressions leave a deprecation reported, it is reported where it
+      // is written. A copy takes the categories into the suppression it carries, once each, so no
+      // generated file reports one again.
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining("OldExchange in com.example has been deprecated")
+          .inFile(client);
+      Assertions.assertThat(compilation.warnings())
+          .noneMatch(CopiedAnnotations::isInGeneratedSource);
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch(
+              "@SuppressWarnings\\(\\{\\s*\"unchecked\",\\s*\"deprecation\"\\s*}\\)\\s+@OldExchange\\s+public");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .containsMatch("@SuppressWarnings\\(\"deprecation\"\\)\\s+@Retired\\s+Response");
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiHttpExchange")
+          .contentsAsUtf8String()
+          .contains("@SuppressWarnings(\"removal\") @Doomed String id");
     }
   }
 

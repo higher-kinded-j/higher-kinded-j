@@ -1531,7 +1531,8 @@ public final class ProcessorUtils {
   /**
    * Whether some generated file can write this annotation cleanly: its type, and every class, enum
    * constant and annotation its arguments name, resolved, and neither private nor deprecated
-   * anywhere in its nesting.
+   * anywhere in its nesting, with no member it sets deprecated, and written against the version of
+   * its types this classpath has.
    */
   private static boolean writableSomewhere(AnnotationMirror annotation) {
     return writable(annotation, element -> !element.getModifiers().contains(Modifier.PRIVATE));
@@ -1540,7 +1541,8 @@ public final class ProcessorUtils {
   /**
    * Whether a generated file in {@code targetPackage} can write this annotation cleanly: its type,
    * and every class, enum constant and annotation its arguments name, resolved, and every type in
-   * its nesting public or declared in that package, and neither private nor deprecated.
+   * its nesting public or declared in that package, and neither private nor deprecated, with no
+   * member it sets deprecated, and written against the version of its types this classpath has.
    * {@code @Tag(Internal.class)} is left off another package's file where {@code Internal} is
    * package-private.
    */
@@ -1550,39 +1552,168 @@ public final class ProcessorUtils {
 
   /**
    * Whether an annotation can be written, given what counts as visible to the file writing it. Only
-   * the arguments written count, as javapoet writes no others.
+   * the arguments written count, as javapoet writes no others. A deprecated member draws a warning
+   * where it is set, as a deprecated annotation does.
+   *
+   * <p>A class file may have been compiled against another version of a type its annotation names:
+   * one whose annotation type lacks a member it sets, or declares the member as another type, or
+   * whose enum lacks a constant it names. javac makes up the member or constant it lacks, and the
+   * file would not compile, so such an annotation is left off too, as is one whose annotation type
+   * is no longer an annotation interface, or now declares a member with no default that it does not
+   * set. A member javac made up has no type, so no value it is set to is one its type holds. A
+   * value javac accepts as written is kept: an {@code int} where the member is now a {@code long},
+   * or a single value where it is now an array of its kind.
+   *
+   * <p>hkj-spring's client processor keeps the same rules, with the reasons a refusal names, in its
+   * {@code AnnotationSpecs}; a change here belongs there too.
    */
   private static boolean writable(AnnotationMirror annotation, Predicate<Element> visible) {
     return writable(annotation.getAnnotationType(), visible)
-        && annotation.getElementValues().values().stream()
-            .allMatch(value -> writable(value, visible));
+        && shaped(annotation)
+        && annotation.getElementValues().entrySet().stream()
+            .allMatch(
+                entry ->
+                    entry.getKey().getAnnotation(Deprecated.class) == null
+                        && writable(entry.getValue(), entry.getKey().getReturnType(), visible));
   }
 
-  private static boolean writable(AnnotationValue value, Predicate<Element> visible) {
+  /**
+   * Whether the annotation type on this classpath takes the annotation as written: an annotation
+   * interface still, with each member it declares with no default set.
+   */
+  private static boolean shaped(AnnotationMirror annotation) {
+    Element type = annotation.getAnnotationType().asElement();
+    return type.getKind() == ElementKind.ANNOTATION_TYPE
+        && ElementFilter.methodsIn(type.getEnclosedElements()).stream()
+            .allMatch(
+                member ->
+                    member.getDefaultValue() != null
+                        || annotation.getElementValues().containsKey(member));
+  }
+
+  /**
+   * Whether a value can be written, and is one the member's declared type takes as written. In
+   * source, javac hands over a class literal or a constant it could not resolve as a mark that
+   * visits as a string but, unlike a string, is not written in quotes.
+   */
+  private static boolean writable(
+      AnnotationValue value, TypeMirror declared, Predicate<Element> visible) {
+    if (value.getValue() instanceof String && !value.toString().startsWith("\"")) {
+      return false;
+    }
+    if (declared instanceof ArrayType array && !(value.getValue() instanceof List)) {
+      return writable(value, array.getComponentType(), visible);
+    }
     return value.accept(
-        new SimpleAnnotationValueVisitor14<Boolean, Void>(true) {
+        new SimpleAnnotationValueVisitor14<Boolean, Void>(false) {
+          @Override
+          public Boolean visitBoolean(boolean value, Void unused) {
+            return widens(TypeKind.BOOLEAN, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitByte(byte value, Void unused) {
+            return widens(TypeKind.BYTE, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitChar(char value, Void unused) {
+            return widens(TypeKind.CHAR, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitShort(short value, Void unused) {
+            return widens(TypeKind.SHORT, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitInt(int value, Void unused) {
+            return widens(TypeKind.INT, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitLong(long value, Void unused) {
+            return widens(TypeKind.LONG, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitFloat(float value, Void unused) {
+            return widens(TypeKind.FLOAT, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitDouble(double value, Void unused) {
+            return widens(TypeKind.DOUBLE, declared.getKind());
+          }
+
+          @Override
+          public Boolean visitString(String string, Void unused) {
+            return isNamed(declared, "java.lang.String");
+          }
+
           @Override
           public Boolean visitType(TypeMirror type, Void unused) {
-            return writable(type, visible);
+            return isNamed(declared, "java.lang.Class") && writable(type, visible);
           }
 
           @Override
           public Boolean visitEnumConstant(VariableElement constant, Void unused) {
-            return nestingWritable(constant, visible);
+            // A constant the enum on this classpath lacks is one javac made up.
+            return constant.getKind() == ElementKind.ENUM_CONSTANT
+                && declared.getKind() == TypeKind.DECLARED
+                && ((DeclaredType) declared).asElement().equals(constant.getEnclosingElement())
+                && nestingWritable(constant, visible);
           }
 
           @Override
           public Boolean visitAnnotation(AnnotationMirror nested, Void unused) {
-            return writable(nested, visible);
+            return declared.getKind() == TypeKind.DECLARED
+                && ((DeclaredType) declared)
+                    .asElement()
+                    .equals(nested.getAnnotationType().asElement())
+                && writable(nested, visible);
           }
 
           @Override
           public Boolean visitArray(List<? extends AnnotationValue> values, Void unused) {
-            return values.stream().allMatch(element -> writable(element, visible));
+            return declared instanceof ArrayType array
+                && values.stream()
+                    .allMatch(element -> writable(element, array.getComponentType(), visible));
           }
         },
         null);
   }
+
+  private static boolean isNamed(TypeMirror type, String qualifiedName) {
+    return type.getKind() == TypeKind.DECLARED
+        && ((TypeElement) ((DeclaredType) type).asElement())
+            .getQualifiedName()
+            .contentEquals(qualifiedName);
+  }
+
+  /**
+   * Whether a value of one primitive kind can be written where a member declares another: the same
+   * kind, or a widening javac applies to a constant written in source.
+   */
+  private static boolean widens(TypeKind from, TypeKind to) {
+    return from == to
+        || switch (from) {
+          case BYTE -> WIDER_THAN_BYTE.contains(to);
+          case SHORT, CHAR -> WIDER_THAN_SHORT.contains(to);
+          case INT -> WIDER_THAN_INT.contains(to);
+          case LONG -> WIDER_THAN_LONG.contains(to);
+          case FLOAT -> to == TypeKind.DOUBLE;
+          default -> false;
+        };
+  }
+
+  private static final Set<TypeKind> WIDER_THAN_LONG = Set.of(TypeKind.FLOAT, TypeKind.DOUBLE);
+  private static final Set<TypeKind> WIDER_THAN_INT =
+      Set.of(TypeKind.LONG, TypeKind.FLOAT, TypeKind.DOUBLE);
+  private static final Set<TypeKind> WIDER_THAN_SHORT =
+      Set.of(TypeKind.INT, TypeKind.LONG, TypeKind.FLOAT, TypeKind.DOUBLE);
+  private static final Set<TypeKind> WIDER_THAN_BYTE =
+      Set.of(TypeKind.SHORT, TypeKind.INT, TypeKind.LONG, TypeKind.FLOAT, TypeKind.DOUBLE);
 
   /**
    * Whether a type an annotation names can be written: resolved, and visible and current throughout
@@ -1590,8 +1721,7 @@ public final class ProcessorUtils {
    *
    * <p>A deprecation written only as a javadoc {@code @deprecated} tag is not seen: reading that
    * needs the round's {@link Elements}, which naming a type does not take. Such an annotation is
-   * written, and the generated file carries javac's deprecation warning for it, as it did before
-   * any of them were left off.
+   * written, and the generated file carries javac's deprecation warning for it.
    */
   private static boolean writable(TypeMirror type, Predicate<Element> visible) {
     return switch (type.getKind()) {
@@ -1667,8 +1797,8 @@ public final class ProcessorUtils {
    * the file being written can carry.
    *
    * <p>hkj-spring's client processor keeps a copy of this walk and of the {@code typeNameOf} forms
-   * that name a type for a target package, in its {@code TypeNames}; a change here belongs there
-   * too.
+   * that name a type for a target package, in its {@code TypeNames}, and of which annotations a
+   * file can write, in its {@code AnnotationSpecs}; a change here belongs there too.
    */
   private record Naming(
       Map<Element, TypeMirror> clauses, Predicate<? super AnnotationMirror> writable) {
