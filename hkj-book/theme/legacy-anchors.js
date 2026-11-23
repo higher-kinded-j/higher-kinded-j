@@ -19,6 +19,9 @@
   "use strict";
 
   var MOVED = {
+    "effect/effect_contexts_error.html#flatmap-type-preserving-chain": "effect/effect_contexts_error.html#flatmap-another-name-for-via",
+    "effect/effect_contexts_config.html#flatmap-type-preserving-chain": "effect/effect_contexts_config.html#flatmap-another-name-for-via",
+    "effect/effect_contexts_optional.html#flatmap-type-preserving-chain": "effect/effect_contexts_optional.html#flatmap-another-name-for-via",
     "effect/compiler_errors.html#5-the-error-type-is-silently-erased-across-a-chain": "effect/compiler_errors.html#5-a-step-that-fails-with-another-error-type",
     "optics/compiler_errors.html#instanceof--names--which-carries-type-parameters-of-its-own-and-is-a-member-of-a-generic-type": "optics/optics_spec_interfaces.html#parameterised-targets",
     "transformers/common_errors.html#3-method-mapt-cannot-be-applied-on-statet": "transformers/statet_transformer.html#transforming-the-outer-monad-with-mapt",

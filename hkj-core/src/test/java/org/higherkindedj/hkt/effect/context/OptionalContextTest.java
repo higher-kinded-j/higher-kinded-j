@@ -235,19 +235,6 @@ class OptionalContextTest {
     }
 
     @Test
-    @DisplayName("via() throws when function returns wrong context type")
-    void viaThrowsOnWrongContextType() {
-      OptionalContext<IOKind.Witness, Integer> ctx = OptionalContext.some(TEST_VALUE);
-
-      assertThatIllegalArgumentException()
-          .isThrownBy(() -> ctx.via(x -> ErrorContext.success(x.toString())).runIO().unsafeRun())
-          .withMessageContaining(
-              "Type mismatch in via(): expected OptionalContext but function returned ErrorContext")
-          .withMessageContaining(
-              "Build the step with OptionalContext's factory methods, or chain with flatMap()");
-    }
-
-    @Test
     @DisplayName("flatMap() chains contexts")
     void flatMapChainsContexts() {
       OptionalContext<IOKind.Witness, Integer> result =

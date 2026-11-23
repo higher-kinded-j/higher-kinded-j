@@ -163,7 +163,9 @@ private ConfigContext<IOKind.Witness, AppConfig, List<Order>> fetchOrders(UserId
 
 Each step has access to the same configuration. The config flows through without explicit passing.
 
-### flatMap: Type-Preserving Chain
+### flatMap: Another Name for via
+
+`flatMap` is another name for `via`, for readers who know the monad vocabulary:
 
 <!-- verify -->
 ```java
@@ -182,6 +184,34 @@ ConfigContext<IOKind.Witness, Config, String> workflow =
         .then(() -> doWork())
         .then(() -> logComplete())
         .then(() -> ConfigContext.pure("done"));
+```
+
+### What a Step May Return {#what-a-step-may-return}
+
+javac checks each step of `via`, `flatMap` and `then`. A step must be a `ConfigContext` over the same effect. It may read the chain's configuration type or a supertype of it, such as an interface the configuration implements, because such a step needs less of it. A step that reads another type does not compile. Here `databaseUrl` reads a `DbConfig`, in a chain whose configuration is `PlatformConfig`:
+
+<!-- verify:rejects "PlatformConfig,B>" -->
+```java
+ConfigContext<IOKind.Witness, PlatformConfig, String> url =
+    ConfigContext.<PlatformConfig>ask()
+        .via(config -> databaseUrl());
+```
+
+javac reports the step's type and the type the chain needs:
+
+```text
+error: incompatible types: cannot infer type-variable(s) B
+    (argument mismatch; bad return type in lambda expression
+      ConfigContext<Witness,DbConfig,String> cannot be converted to ConfigContext<Witness,? super PlatformConfig,B>)
+```
+
+Give the step the part of the configuration it reads with [`contramap`](#contramap-transform-the-required-config):
+
+<!-- verify -->
+```java
+ConfigContext<IOKind.Witness, PlatformConfig, String> url =
+    ConfigContext.<PlatformConfig>ask()
+        .via(config -> databaseUrl().contramap(PlatformConfig::database));
 ```
 
 ---

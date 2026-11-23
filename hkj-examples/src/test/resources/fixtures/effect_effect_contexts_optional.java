@@ -118,6 +118,10 @@ class Fixture {
     return new DashboardData("simple");
   }
 
+  static JavaOptionalContext<IOKind.Witness, Address> findAddress(User user) {
+    return JavaOptionalContext.some(new Address("1 High Street"));
+  }
+
   static OptionalContext<IOKind.Witness, User> lookupUser(String id) {
     return OptionalContext.some(new User(id, "p-1"));
   }

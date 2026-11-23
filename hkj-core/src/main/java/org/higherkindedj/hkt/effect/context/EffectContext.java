@@ -12,7 +12,22 @@ import org.higherkindedj.hkt.WitnessArity;
  *
  * <p>Effect contexts wrap monad transformers with user-friendly APIs, hiding the complexity of
  * higher-kinded types while preserving their power. They provide familiar operations like {@link
- * #map} and {@link #via} that match the Effect Path API vocabulary.
+ * #map}, {@code via} and {@code flatMap} that match the Effect Path API vocabulary.
+ *
+ * <h2>Chaining</h2>
+ *
+ * <p>Each context declares {@code via}, its alias {@code flatMap}, and {@code then} on itself,
+ * typed to its own class, so javac checks every step. A step must be the chain's own kind of
+ * context over the same effect, and its other type parameter varies as an Effect Path's does:
+ *
+ * <ul>
+ *   <li>{@link ErrorContext} takes a step that fails with its error type or a subtype of it.
+ *   <li>{@link ConfigContext} takes a step that reads its configuration type or a supertype of it.
+ *   <li>{@link MutableContext} takes a step with its own state type only.
+ * </ul>
+ *
+ * <p>This interface leaves chaining out because it cannot name the implementing class in a step's
+ * type. Code written over any context can map it; code that chains takes the concrete context.
  *
  * <h2>Available Contexts</h2>
  *
@@ -47,25 +62,6 @@ public sealed interface EffectContext<F extends WitnessArity<TypeArity.Unary>, A
    * @throws NullPointerException if mapper is null
    */
   <B> EffectContext<F, B> map(Function<? super A, ? extends B> mapper);
-
-  /**
-   * Chains a dependent computation that returns a context.
-   *
-   * <p>This is the monadic bind operation, named {@code via} to match the Effect Path API
-   * vocabulary. The function is applied to the contained value, and the resulting context becomes
-   * the new context.
-   *
-   * <p>If this context contains an error or is empty, the function is not applied and the
-   * error/empty state is propagated.
-   *
-   * @param fn the function to apply, returning a new context; must not be null
-   * @param <B> the type of the value in the returned context
-   * @return the context returned by the function, or an error/empty context
-   * @throws NullPointerException if fn is null or returns null
-   * @throws IllegalArgumentException when the context runs, if fn returns a different kind of
-   *     context
-   */
-  <B> EffectContext<F, B> via(Function<? super A, ? extends EffectContext<F, B>> fn);
 
   /**
    * Returns the underlying Kind for advanced usage.

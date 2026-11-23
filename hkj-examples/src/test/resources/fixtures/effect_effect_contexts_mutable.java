@@ -32,6 +32,13 @@ record Counter(int value) {
 
 record AnyState(String value) {}
 
+record AppState(Counter counter, String user) {
+
+  AppState withCounter(Counter next) {
+    return new AppState(next, user);
+  }
+}
+
 record Item(String sku) {}
 
 record Result(String value) {
@@ -61,6 +68,10 @@ class Fixture {
       MutableContext.<Counter>get().map(counter -> "Count: " + counter.value());
 
   static void process(byte[] content) {}
+
+  static MutableContext<IOKind.Witness, Counter, Unit> increment() {
+    return MutableContext.modify(Counter::increment);
+  }
 
   static final Processor processor = new Processor();
 

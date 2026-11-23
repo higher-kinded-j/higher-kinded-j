@@ -11,6 +11,7 @@
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.IOPath;
 import org.higherkindedj.hkt.effect.context.ErrorContext;
+import org.higherkindedj.hkt.effect.context.OptionalContext;
 import org.higherkindedj.hkt.either.Either;
 import java.util.Optional;
 import org.higherkindedj.hkt.io.IOKind;
@@ -87,6 +88,12 @@ record ApiError(int status, String message) {
 }
 
 record ValidationError(String message) {}
+
+sealed interface LookupError permits UserMissing, ProfileMissing {}
+
+record UserMissing(String id) implements LookupError {}
+
+record ProfileMissing(String id) implements LookupError {}
 
 record DbError(String message) {
 
@@ -186,6 +193,18 @@ class Fixture {
 
   static ErrorContext<IOKind.Witness, ApiError, Profile> enrichProfile(Profile profile) {
     return ErrorContext.success(profile);
+  }
+
+  static ErrorContext<IOKind.Witness, UserMissing, User> findUser(String id) {
+    return ErrorContext.success(new User(id, "p-1"));
+  }
+
+  static ErrorContext<IOKind.Witness, LookupError, Profile> loadProfile(User user) {
+    return ErrorContext.success(new Profile(user.profileId()));
+  }
+
+  static OptionalContext<IOKind.Witness, User> findCachedUser(String id) {
+    return OptionalContext.some(new User(id, "p-1"));
   }
 
   static ErrorContext<IOKind.Witness, String, User> fetchFromCache(String id) {

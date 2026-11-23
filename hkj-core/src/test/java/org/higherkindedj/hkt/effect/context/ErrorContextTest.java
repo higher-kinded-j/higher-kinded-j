@@ -18,7 +18,8 @@ import org.junit.jupiter.api.Test;
  *
  * <ul>
  *   <li>Factory methods: io(), ioEither(), success(), failure(), fromEither()
- *   <li>Chainable operations: map(), via(), flatMap()
+ *   <li>Chainable operations: map(), via(), flatMap(), then()
+ *   <li>Steps typed on a subtype of the chain's error
  *   <li>Recovery operations: recover(), recoverWith(), orElse(), mapError()
  *   <li>Execution methods: runIO(), runIOOrThrow(), runIOOrElse(), runIOOrElseGet()
  *   <li>Escape hatch: toEitherT()
@@ -29,6 +30,17 @@ class ErrorContextTest {
 
   private static final String TEST_ERROR = "test error";
   private static final Integer TEST_VALUE = 42;
+
+  /** A chain's error, with a variant that a step can be typed on. */
+  sealed interface LookupError permits Missing, Unavailable {}
+
+  record Missing(String id) implements LookupError {}
+
+  record Unavailable(String reason) implements LookupError {}
+
+  private static ErrorContext<IOKind.Witness, Missing, Integer> missing(String id) {
+    return ErrorContext.failure(new Missing(id));
+  }
 
   @Nested
   @DisplayName("Factory Methods")
@@ -251,18 +263,6 @@ class ErrorContextTest {
     }
 
     @Test
-    @DisplayName("via() throws when function returns wrong context type")
-    void viaThrowsOnWrongContextType() {
-      ErrorContext<IOKind.Witness, String, Integer> ctx = ErrorContext.success(TEST_VALUE);
-
-      assertThatIllegalArgumentException()
-          .isThrownBy(() -> ctx.via(x -> OptionalContext.some(x.toString())).runIO().unsafeRun())
-          .withMessageContaining(
-              "Type mismatch in via(): expected ErrorContext but function returned OptionalContext")
-          .withMessageContaining("Convert the step with toErrorContext, or chain with flatMap()");
-    }
-
-    @Test
     @DisplayName("flatMap() chains contexts")
     void flatMapChainsContexts() {
       ErrorContext<IOKind.Witness, String, Integer> result =
@@ -301,6 +301,68 @@ class ErrorContextTest {
       result.runIO().unsafeRun();
       assertThat(firstCalled.get()).isTrue();
       assertThat(secondCalled.get()).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("A step typed on a subtype of the chain's error")
+  class SubtypeErrorStepTests {
+
+    private final ErrorContext<IOKind.Witness, LookupError, Integer> found =
+        ErrorContext.success(TEST_VALUE);
+    private final ErrorContext<IOKind.Witness, LookupError, Integer> lost =
+        ErrorContext.failure(new Unavailable("down"));
+
+    @Test
+    @DisplayName("via() runs a step typed on a variant and keeps its success")
+    void viaKeepsVariantStepSuccess() {
+      ErrorContext<IOKind.Witness, LookupError, Integer> result =
+          found.via(x -> ErrorContext.<Missing, Integer>success(x + 1));
+
+      assertThat(result.runIO().unsafeRun().getRight()).isEqualTo(TEST_VALUE + 1);
+    }
+
+    @Test
+    @DisplayName("via() fails the chain with a variant step's error")
+    void viaFailsWithVariantStepError() {
+      ErrorContext<IOKind.Witness, LookupError, Integer> result = found.via(x -> missing("u-" + x));
+
+      assertThat(result.runIO().unsafeRun().getLeft()).isEqualTo(new Missing("u-42"));
+    }
+
+    @Test
+    @DisplayName("flatMap() fails the chain with a variant step's error")
+    void flatMapFailsWithVariantStepError() {
+      ErrorContext<IOKind.Witness, LookupError, Integer> result =
+          found.flatMap(x -> missing("u-" + x));
+
+      assertThat(result.runIO().unsafeRun().getLeft()).isEqualTo(new Missing("u-42"));
+    }
+
+    @Test
+    @DisplayName("then() fails the chain with a variant step's error")
+    void thenFailsWithVariantStepError() {
+      ErrorContext<IOKind.Witness, LookupError, Integer> result = found.then(() -> missing("next"));
+
+      assertThat(result.runIO().unsafeRun().getLeft()).isEqualTo(new Missing("next"));
+    }
+
+    @Test
+    @DisplayName("recoverWith() fails with a variant fallback's error")
+    void recoverWithFailsWithVariantFallbackError() {
+      ErrorContext<IOKind.Witness, LookupError, Integer> result =
+          lost.recoverWith(error -> missing("retry"));
+
+      assertThat(result.runIO().unsafeRun().getLeft()).isEqualTo(new Missing("retry"));
+    }
+
+    @Test
+    @DisplayName("orElse() fails with a variant fallback's error")
+    void orElseFailsWithVariantFallbackError() {
+      ErrorContext<IOKind.Witness, LookupError, Integer> result =
+          lost.orElse(() -> missing("fallback"));
+
+      assertThat(result.runIO().unsafeRun().getLeft()).isEqualTo(new Missing("fallback"));
     }
   }
 
