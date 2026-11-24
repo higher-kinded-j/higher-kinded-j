@@ -442,7 +442,8 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     for (RecordComponentElement component : context.getRecordComponents()) {
       args.add(
           first ? "($T) null" : ", ($T) null",
-          ProcessorUtils.typeNameOf(component.asType(), packageName));
+          ProcessorUtils.typeNameOf(
+              processingEnv.getElementUtils(), component.asType(), packageName));
       first = false;
     }
     return FieldSpec.builder(
@@ -481,7 +482,10 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     CodeBlock.Builder args = CodeBlock.builder().add("$T.system()", TIME_SOURCE);
     for (RecordComponentElement component : domainComponents(variant)) {
       String name = component.getSimpleName().toString();
-      method.addParameter(ProcessorUtils.typeNameOf(component.asType(), packageName), name);
+      method.addParameter(
+          ProcessorUtils.typeNameOf(
+              processingEnv.getElementUtils(), component.asType(), packageName),
+          name);
       args.add(", $N", name);
     }
     return method
@@ -511,7 +515,8 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
             .addParameter(TIME_SOURCE, "time");
     for (RecordComponentElement component : domainComponents(variant)) {
       method.addParameter(
-          ProcessorUtils.typeNameOf(component.asType(), packageName),
+          ProcessorUtils.typeNameOf(
+              processingEnv.getElementUtils(), component.asType(), packageName),
           component.getSimpleName().toString());
     }
     method.addStatement("$T.requireNonNull(time, $S)", OBJECTS, "time must not be null");
@@ -595,7 +600,9 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     boolean first = true;
     for (RecordComponentElement component : context.getRecordComponents()) {
       String name = component.getSimpleName().toString();
-      TypeName type = ProcessorUtils.typeNameOf(component.asType(), packageName);
+      TypeName type =
+          ProcessorUtils.typeNameOf(
+              processingEnv.getElementUtils(), component.asType(), packageName);
       // The builder holds each context component's type and takes it in its setter.
       List<AnnotationSpec> componentRaw =
           ProcessorUtils.rawTypesSuppression(List.of(component.asType()));

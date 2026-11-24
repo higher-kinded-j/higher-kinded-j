@@ -164,12 +164,12 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * #type} stays the type its accessor declares. A message field whose getter answers a subtype
      * of its type is read as its type ({@link MessageField#widened}).
      */
-    CodeBlock readFrom(String receiver) {
+    CodeBlock readFrom(Elements elements, String receiver) {
       CodeBlock call = CodeBlock.of("$L.$L()", receiver, accessor.orElseThrow());
       // A getter answering a subtype is read as the type the field is, which a copy hands back.
       CodeBlock read =
           field.filter(MessageField::widened).isPresent()
-              ? CodeBlock.of("(($T) $L)", ProcessorUtils.typeNameOf(type), call)
+              ? CodeBlock.of("(($T) $L)", ProcessorUtils.typeNameOf(elements, type), call)
               : call;
       return presence()
           .map(has -> CodeBlock.of("($L.$L() ? $L : null)", receiver, has, read))

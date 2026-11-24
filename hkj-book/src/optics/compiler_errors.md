@@ -44,6 +44,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`is widened without it`, `holds no container widenFields widens`](#generatefocus-widenfields-cannot-widen) | **Warning.** A `widenFields` name whose path widening cannot change |
 | [`no traversal was generated for component`](#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note) | **Note.** `@GenerateTraversals` found no generator for a container |
 | [`Multiple TraversableGenerator SPI providers with equal priority`](#multiple-traversablegenerator-spi-providers-with-equal-priority-n-support-type-x-a-warning) | **Warning.** Two generators claim one type and neither outranks the other |
+| [`A TraversableGenerator plugin on the annotation processor path cannot be loaded`](#traversablegenerator-plugin-cannot-be-loaded) | A plugin on the annotation processor path is missing a class or was built for an earlier hkj-processor, or a jar there cannot be read |
 | [`the annotation on record component 'X.y' is not applied`](#traversefield-the-annotation-on-record-component-xy-is-not-applied-a-note) | **Note.** `@TraverseField` is on something that is not a `Kind` with a declared witness |
 | [`names a witness the processor does not recognise`](#generatefocus-record-component-xy-names-a-witness-the-processor-does-not-recognise-a-note) | **Note.** A `Kind` field's witness has no registered `Traverse`, so nothing widens it |
 
@@ -845,6 +846,30 @@ Two generators on the annotation processor path both claim the type, and neither
 
 ~~~admonish note title="Why" collapsible=true
 Selection is still deterministic, the first registered wins, but which one that is depends on registration order alone, which is what the warning points out. The same warning is raised whichever annotation asks: `@GenerateTraversals`, `@GenerateFocus` widening or `@ImportOptics`. `@GenerateFocus` raises it once per component.
+~~~
+
+### "A TraversableGenerator plugin on the annotation processor path cannot be loaded" {#traversablegenerator-plugin-cannot-be-loaded}
+
+The JVM cannot load or create a plugin a `META-INF/services` entry names, or cannot read a service file at all. The other generators still load, and the build fails on these errors.
+
+```
+error: A TraversableGenerator plugin on the annotation processor path cannot be loaded. It does not link against this hkj-processor, as a plugin built against an earlier one does where it extends a built-in generator and overrides a form of generateModifyF the built-in declares final. Update the plugin to a release built for this hkj-processor, or remove it from the annotation processor path. To fix the plugin itself, override the generateModifyF form that takes a GenerationContext instead. The JVM reported: java.lang.IncompatibleClassChangeError: class com.acme.AcmeOptionalGenerator overrides final method org.higherkindedj.optics.processing.generator.basejdk.OptionalGenerator.generateModifyF(Ljavax/lang/model/element/RecordComponentElement;Lcom/palantir/javapoet/ClassName;Ljava/util/List;Ljava/lan
+```
+
+**Fix.** The message's second sentence says which case it is.
+
+- **It does not link against this hkj-processor.** Update the plugin to a release built for this hkj-processor, or remove it from the annotation processor path. The plugin overrides a form of `generateModifyF` a built-in generator declares final, and its author overrides the form that takes a `GenerationContext` instead. See [The TraversableGenerator Interface](../tooling/generator_plugins.md#the-traversablegenerator-interface).
+- **A service file names a class badly, or a class it names is missing, does not link or threw.** Add the jar holding the missing class to the annotation processor path, or update or remove the plugin. Where the JVM's report names a missing class rather than a plugin, the plugin is one that needs that class.
+- **The service files could not be read.** A jar on the annotation processor path may be damaged. Replace it with a fresh copy, or remove it.
+
+~~~admonish note title="Why" collapsible=true
+The JVM's own report ends the message, after hkj's. The JVM cuts its report of a class that does not link at 255 characters, which is why the quote of one stops mid-word, but it never cuts hkj's text. Where a plugin's own code threw, the report ends with the line it threw from, here a static initialiser's:
+
+```
+error: A TraversableGenerator plugin on the annotation processor path cannot be loaded. A service file names a class badly, or a class it names is missing, does not link or is not a TraversableGenerator, or its constructor or static initialiser threw. Add the jar holding any class the plugin is missing to the annotation processor path, update the plugin to a release built for this hkj-processor, or remove it from the annotation processor path. The JVM reported: java.util.ServiceConfigurationError: org.higherkindedj.optics.processing.spi.TraversableGenerator: Provider com.example.StaticBoom could not be instantiated, caused by java.lang.IllegalStateException: plugin.properties is missing, at com.example.StaticBoom.load(StaticBoom.java:10)
+```
+
+The plugins are loaded once per compilation, so each failure is reported once, however many of the hkj processors load them. Two plugins that fail alike, as two that need the same missing class do, share one error.
 ~~~
 
 ### "@TraverseField: the annotation on record component 'X.y' is not applied" (a note)

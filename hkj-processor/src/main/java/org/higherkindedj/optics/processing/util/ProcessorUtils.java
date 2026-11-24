@@ -103,6 +103,10 @@ public final class ProcessorUtils {
    * <p>A generated method focuses on this type, and writes it out wherever an explicit type
    * argument is needed, because the wildcard the declaration wrote can be neither.
    *
+   * <p>The type is named as {@link #typeNameOf(TypeMirror, String)} names it, a deprecation read
+   * from {@code @Deprecated} alone; {@link #resolvedTypeNameOf(Elements, TypeMirror, String)} reads
+   * a javadoc tag too.
+   *
    * @param typeArgument a type argument as written
    * @param targetPackage the package the generated file is written into; must not be null
    * @return the type it stands for, boxed
@@ -113,6 +117,25 @@ public final class ProcessorUtils {
     return resolved == null
         ? ClassName.get(Object.class)
         : typeNameOf(resolved, targetPackage).box();
+  }
+
+  /**
+   * {@link #resolvedTypeNameOf(TypeMirror, String)}, with the type named as {@link
+   * #typeNameOf(Elements, TypeMirror, String)} names it, so an annotation deprecated by a javadoc
+   * tag alone is left off too.
+   *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
+   * @param typeArgument a type argument as written
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return the type it stands for, boxed
+   * @since 0.6.0
+   */
+  public static TypeName resolvedTypeNameOf(
+      Elements elements, TypeMirror typeArgument, String targetPackage) {
+    TypeMirror resolved = resolveWildcard(typeArgument);
+    return resolved == null
+        ? ClassName.get(Object.class)
+        : typeNameOf(elements, resolved, targetPackage).box();
   }
 
   /**
@@ -572,6 +595,8 @@ public final class ProcessorUtils {
    * @since 0.6.0
    */
   public static List<Lint> deprecationOf(Elements elements, Stream<? extends Element> used) {
+    // hkj-spring's client processor reads a deprecation the same way, in its Deprecations; a change
+    // here belongs there too.
     return used.filter(elements::isDeprecated)
         .map(
             element ->
@@ -594,25 +619,27 @@ public final class ProcessorUtils {
    * element type by declaring the component, where javac reports it to them and their own
    * suppression answers for it. The generated file is a compilation unit of its own, which that
    * suppression does not reach, so a member naming the type answers for it itself. Deprecation is
-   * read from the {@code @Deprecated} annotation; a class deprecated only by a javadoc tag is not
-   * found.
+   * read as {@link #deprecationOf(Elements, Stream)} reads it, a javadoc tag included.
    *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param types the types the member may write out or infer; a wider set only widens where the
    *     suppression lands; must not be null
    * @return the suppression, or no annotations when none of the categories applies
    * @since 0.6.0
    */
-  public static List<AnnotationSpec> writtenTypesSuppression(List<? extends TypeMirror> types) {
+  public static List<AnnotationSpec> writtenTypesSuppression(
+      Elements elements, List<? extends TypeMirror> types) {
     return suppression(
-        Stream.concat(rawTypesOf(types).stream(), deprecationNamedBy(types)).toList());
+        Stream.concat(rawTypesOf(types).stream(), deprecationNamedBy(elements, types)).toList());
   }
 
   /**
-   * As {@link #writtenTypesSuppression(List)} for a member generated around {@code written} that
-   * also redeclares {@code owner}'s type parameters and names {@code owner} itself, so a raw or
-   * deprecated bound, or a deprecated {@code owner}, reaches it even where {@code written} names
-   * none.
+   * As {@link #writtenTypesSuppression(Elements, List)} for a member generated around {@code
+   * written} that also redeclares {@code owner}'s type parameters and names {@code owner} itself,
+   * so a raw or deprecated bound, or a deprecated {@code owner}, reaches it even where {@code
+   * written} names none.
    *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param written the type the member is generated around; must not be null
    * @param owner the type whose type parameters the member redeclares and which it names; must not
    *     be null
@@ -620,50 +647,47 @@ public final class ProcessorUtils {
    * @since 0.6.0
    */
   public static List<AnnotationSpec> writtenTypesSuppression(
-      TypeMirror written, TypeElement owner) {
+      Elements elements, TypeMirror written, TypeElement owner) {
     List<TypeMirror> redeclared = withBounds(written, owner.getTypeParameters());
     return suppression(
         Stream.concat(
                 rawTypesOf(redeclared).stream(),
                 deprecationNamedBy(
+                    elements,
                     Stream.concat(redeclared.stream(), Stream.of(owner.asType())).toList()))
             .toList());
   }
 
   /**
-   * As {@link #writtenTypesSuppression(List)} for a member generated around {@code written} that
-   * redeclares the given type parameters, bounds and all.
+   * As {@link #writtenTypesSuppression(Elements, List)} for a member generated around {@code
+   * written} that redeclares the given type parameters, bounds and all.
    *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param written the type the member is generated around; must not be null
    * @param redeclared the type parameters the member redeclares; must not be null
    * @return the suppression, or no annotations when none of the categories applies
    * @since 0.6.0
    */
   public static List<AnnotationSpec> writtenTypesSuppression(
-      TypeMirror written, List<? extends TypeParameterElement> redeclared) {
-    return writtenTypesSuppression(withBounds(written, redeclared));
+      Elements elements, TypeMirror written, List<? extends TypeParameterElement> redeclared) {
+    return writtenTypesSuppression(elements, withBounds(written, redeclared));
   }
 
   /**
    * The deprecation categories raised by writing these types out: those of the deprecated classes
-   * {@link #typesNamedBy} finds, each once, in {@link Lint}'s order.
+   * {@link #typesNamedBy} finds, each once, in {@link Lint}'s order, read as {@link
+   * #deprecationOf(Elements, Stream)} reads them, a javadoc tag included.
    *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param types the types written out; must not be null
    * @return the categories raised, as a stream
    * @since 0.6.0
    */
-  public static Stream<Lint> deprecationNamedBy(List<? extends TypeMirror> types) {
-    return types.stream()
-        .flatMap(ProcessorUtils::typesNamedBy)
-        .map(ProcessorUtils::deprecationOf)
-        .flatMap(Optional::stream)
-        .distinct();
-  }
-
-  /** The category using a class raises, or none for one that is not deprecated. */
-  private static Optional<Lint> deprecationOf(Element element) {
-    return Optional.ofNullable(element.getAnnotation(Deprecated.class))
-        .map(deprecated -> deprecated.forRemoval() ? Lint.REMOVAL : Lint.DEPRECATION);
+  public static Stream<Lint> deprecationNamedBy(
+      Elements elements, List<? extends TypeMirror> types) {
+    // hkj-spring's client processor reads the types a generated declaration names the same way,
+    // in its Deprecations; a change here belongs there too.
+    return deprecationOf(elements, types.stream().flatMap(ProcessorUtils::typesNamedBy)).stream();
   }
 
   /**
@@ -684,6 +708,9 @@ public final class ProcessorUtils {
    * @since 0.6.0
    */
   public static Stream<TypeElement> typesNamedBy(TypeMirror type) {
+    // hkj-spring's client processor keeps a copy of this walk in its Deprecations, with an arm for
+    // an intersection, which a client reads its method's type variables' bounds as; a change here
+    // belongs there too.
     return switch (type.getKind()) {
       case ARRAY -> typesNamedBy(((ArrayType) type).getComponentType());
       case WILDCARD -> {
@@ -1468,13 +1495,38 @@ public final class ProcessorUtils {
    * generated file lands unless a target package says otherwise. A generator that knows its package
    * names with {@link #typeNameOf(TypeMirror, String)}, which decides exactly.
    *
+   * <p>A deprecation is read from {@code @Deprecated} alone, so an annotation deprecated only by a
+   * javadoc {@code @deprecated} tag is kept, and draws javac's warning where it is written. A
+   * generator holding the round's {@link Elements} names with {@link #typeNameOf(Elements,
+   * TypeMirror, String)}, or {@link #typeNameOf(Elements, TypeMirror)} where it knows no package,
+   * each of which reads the tag too.
+   *
    * @param type the type to name; must not be null
    * @return its name, annotated as the source annotated it wherever some file could say so
    *     (non-null)
    * @since 0.4.10
    */
   public static TypeName typeNameOf(TypeMirror type) {
-    return new Naming(Map.of(), ProcessorUtils::writableSomewhere).name(type, type);
+    return new Naming(
+            Map.of(),
+            annotation -> writableSomewhere(annotation, ProcessorUtils::annotatedDeprecated))
+        .name(type, type);
+  }
+
+  /**
+   * {@link #typeNameOf(TypeMirror)}, with a deprecation read as {@link Elements#isDeprecated} reads
+   * it: from {@code @Deprecated}, and from the mark javac keeps for a javadoc {@code @deprecated}
+   * tag, in source and in a class file alike. An annotation deprecated either way is left off.
+   *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
+   * @param type the type to name; must not be null
+   * @return its name, annotated as the source annotated it wherever some file could say so
+   *     (non-null)
+   * @since 0.6.0
+   */
+  public static TypeName typeNameOf(Elements elements, TypeMirror type) {
+    return new Naming(Map.of(), annotation -> writableSomewhere(annotation, elements::isDeprecated))
+        .name(type, type);
   }
 
   /**
@@ -1483,13 +1535,35 @@ public final class ProcessorUtils {
    * public or declared in that package, and none of them private or deprecated, and so is every
    * class, enum constant and annotation its arguments name.
    *
+   * <p>A deprecation is read from {@code @Deprecated} alone, as {@link #typeNameOf(TypeMirror)}
+   * reads it; {@link #typeNameOf(Elements, TypeMirror, String)} reads a javadoc tag too.
+   *
    * @param type the type to name; must not be null
    * @param targetPackage the package the generated file is written into; must not be null
    * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
    * @since 0.4.11
    */
   public static TypeName typeNameOf(TypeMirror type, String targetPackage) {
-    return new Naming(Map.of(), annotation -> writableFrom(annotation, targetPackage))
+    return new Naming(
+            Map.of(),
+            annotation ->
+                writableFrom(annotation, targetPackage, ProcessorUtils::annotatedDeprecated))
+        .name(type, type);
+  }
+
+  /**
+   * {@link #typeNameOf(TypeMirror, String)}, with a deprecation read as {@link
+   * #typeNameOf(Elements, TypeMirror)} reads it, a javadoc tag included.
+   *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
+   * @param type the type to name; must not be null
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
+   * @since 0.6.0
+   */
+  public static TypeName typeNameOf(Elements elements, TypeMirror type, String targetPackage) {
+    return new Naming(
+            Map.of(), annotation -> writableFrom(annotation, targetPackage, elements::isDeprecated))
         .name(type, type);
   }
 
@@ -1511,7 +1585,9 @@ public final class ProcessorUtils {
    * superinterface clauses as written, from the variable to what each clause binds it to, and keeps
    * what each of them wrote. Where the declaration and the substituted type part company, below a
    * replaced variable, it goes on with the substituted type alone. Annotations are kept as {@link
-   * #typeNameOf(TypeMirror, String)} keeps them.
+   * #typeNameOf(TypeMirror, String)} keeps them, a deprecation read from {@code @Deprecated} alone;
+   * {@link #typeNameOf(Elements, TypeMirror, TypeMirror, DeclaredType, String)} reads a javadoc tag
+   * too.
    *
    * @param type the member's type as the owner has it, {@code asMemberOf}'s answer; must not be
    *     null
@@ -1524,7 +1600,36 @@ public final class ProcessorUtils {
    */
   public static TypeName typeNameOf(
       TypeMirror type, TypeMirror declared, DeclaredType owner, String targetPackage) {
-    return new Naming(clausesOf(owner), annotation -> writableFrom(annotation, targetPackage))
+    return new Naming(
+            clausesOf(owner),
+            annotation ->
+                writableFrom(annotation, targetPackage, ProcessorUtils::annotatedDeprecated))
+        .name(type, declared);
+  }
+
+  /**
+   * {@link #typeNameOf(TypeMirror, TypeMirror, DeclaredType, String)}, with a deprecation read as
+   * {@link #typeNameOf(Elements, TypeMirror)} reads it, a javadoc tag included.
+   *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
+   * @param type the member's type as the owner has it, {@code asMemberOf}'s answer; must not be
+   *     null
+   * @param declared the same type as the member declares it, such as its own {@code
+   *     getReturnType()}; must not be null
+   * @param owner the instantiation the member was read under; must not be null
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
+   * @since 0.6.0
+   */
+  public static TypeName typeNameOf(
+      Elements elements,
+      TypeMirror type,
+      TypeMirror declared,
+      DeclaredType owner,
+      String targetPackage) {
+    return new Naming(
+            clausesOf(owner),
+            annotation -> writableFrom(annotation, targetPackage, elements::isDeprecated))
         .name(type, declared);
   }
 
@@ -1532,10 +1637,12 @@ public final class ProcessorUtils {
    * Whether some generated file can write this annotation cleanly: its type, and every class, enum
    * constant and annotation its arguments name, resolved, and neither private nor deprecated
    * anywhere in its nesting, with no member it sets deprecated, and written against the version of
-   * its types this classpath has.
+   * its types this classpath has. {@code deprecated} says whether an element is deprecated.
    */
-  private static boolean writableSomewhere(AnnotationMirror annotation) {
-    return writable(annotation, element -> !element.getModifiers().contains(Modifier.PRIVATE));
+  private static boolean writableSomewhere(
+      AnnotationMirror annotation, Predicate<Element> deprecated) {
+    return writable(
+        annotation, element -> !element.getModifiers().contains(Modifier.PRIVATE), deprecated);
   }
 
   /**
@@ -1544,10 +1651,20 @@ public final class ProcessorUtils {
    * its nesting public or declared in that package, and neither private nor deprecated, with no
    * member it sets deprecated, and written against the version of its types this classpath has.
    * {@code @Tag(Internal.class)} is left off another package's file where {@code Internal} is
-   * package-private.
+   * package-private. {@code deprecated} says whether an element is deprecated.
    */
-  private static boolean writableFrom(AnnotationMirror annotation, String targetPackage) {
-    return writable(annotation, element -> visibleFrom(element, packageOf(element), targetPackage));
+  private static boolean writableFrom(
+      AnnotationMirror annotation, String targetPackage, Predicate<Element> deprecated) {
+    return writable(
+        annotation, element -> visibleFrom(element, packageOf(element), targetPackage), deprecated);
+  }
+
+  /**
+   * Whether an element carries {@code @Deprecated}: a deprecation as a caller with no {@link
+   * Elements} reads it, which misses one written only as a javadoc tag.
+   */
+  private static boolean annotatedDeprecated(Element element) {
+    return element.getAnnotation(Deprecated.class) != null;
   }
 
   /**
@@ -1568,14 +1685,16 @@ public final class ProcessorUtils {
    * <p>hkj-spring's client processor keeps the same rules, with the reasons a refusal names, in its
    * {@code AnnotationSpecs}; a change here belongs there too.
    */
-  private static boolean writable(AnnotationMirror annotation, Predicate<Element> visible) {
-    return writable(annotation.getAnnotationType(), visible)
+  private static boolean writable(
+      AnnotationMirror annotation, Predicate<Element> visible, Predicate<Element> deprecated) {
+    return writable(annotation.getAnnotationType(), visible, deprecated)
         && shaped(annotation)
         && annotation.getElementValues().entrySet().stream()
             .allMatch(
                 entry ->
-                    entry.getKey().getAnnotation(Deprecated.class) == null
-                        && writable(entry.getValue(), entry.getKey().getReturnType(), visible));
+                    !deprecated.test(entry.getKey())
+                        && writable(
+                            entry.getValue(), entry.getKey().getReturnType(), visible, deprecated));
   }
 
   /**
@@ -1598,12 +1717,15 @@ public final class ProcessorUtils {
    * visits as a string but, unlike a string, is not written in quotes.
    */
   private static boolean writable(
-      AnnotationValue value, TypeMirror declared, Predicate<Element> visible) {
+      AnnotationValue value,
+      TypeMirror declared,
+      Predicate<Element> visible,
+      Predicate<Element> deprecated) {
     if (value.getValue() instanceof String && !value.toString().startsWith("\"")) {
       return false;
     }
     if (declared instanceof ArrayType array && !(value.getValue() instanceof List)) {
-      return writable(value, array.getComponentType(), visible);
+      return writable(value, array.getComponentType(), visible, deprecated);
     }
     return value.accept(
         new SimpleAnnotationValueVisitor14<Boolean, Void>(false) {
@@ -1654,7 +1776,7 @@ public final class ProcessorUtils {
 
           @Override
           public Boolean visitType(TypeMirror type, Void unused) {
-            return isNamed(declared, "java.lang.Class") && writable(type, visible);
+            return isNamed(declared, "java.lang.Class") && writable(type, visible, deprecated);
           }
 
           @Override
@@ -1663,7 +1785,7 @@ public final class ProcessorUtils {
             return constant.getKind() == ElementKind.ENUM_CONSTANT
                 && declared.getKind() == TypeKind.DECLARED
                 && ((DeclaredType) declared).asElement().equals(constant.getEnclosingElement())
-                && nestingWritable(constant, visible);
+                && nestingWritable(constant, visible, deprecated);
           }
 
           @Override
@@ -1672,14 +1794,16 @@ public final class ProcessorUtils {
                 && ((DeclaredType) declared)
                     .asElement()
                     .equals(nested.getAnnotationType().asElement())
-                && writable(nested, visible);
+                && writable(nested, visible, deprecated);
           }
 
           @Override
           public Boolean visitArray(List<? extends AnnotationValue> values, Void unused) {
             return declared instanceof ArrayType array
                 && values.stream()
-                    .allMatch(element -> writable(element, array.getComponentType(), visible));
+                    .allMatch(
+                        element ->
+                            writable(element, array.getComponentType(), visible, deprecated));
           }
         },
         null);
@@ -1733,24 +1857,26 @@ public final class ProcessorUtils {
    * Whether a type an annotation names can be written: resolved, and visible and current throughout
    * its nesting. A primitive can, and an array can where its component can.
    *
-   * <p>A deprecation written only as a javadoc {@code @deprecated} tag is not seen: reading that
-   * needs the round's {@link Elements}, which naming a type does not take. Such an annotation is
-   * written, and the generated file carries javac's deprecation warning for it.
+   * <p>A deprecation is read as {@code deprecated} reads it: a javadoc {@code @deprecated} tag
+   * counts where the caller reads one with the round's {@link Elements}, and is missed where it
+   * reads {@code @Deprecated} alone.
    */
-  private static boolean writable(TypeMirror type, Predicate<Element> visible) {
+  private static boolean writable(
+      TypeMirror type, Predicate<Element> visible, Predicate<Element> deprecated) {
     return switch (type.getKind()) {
-      case DECLARED -> nestingWritable(((DeclaredType) type).asElement(), visible);
-      case ARRAY -> writable(((ArrayType) type).getComponentType(), visible);
+      case DECLARED -> nestingWritable(((DeclaredType) type).asElement(), visible, deprecated);
+      case ARRAY -> writable(((ArrayType) type).getComponentType(), visible, deprecated);
       case ERROR -> false;
       default -> true;
     };
   }
 
-  private static boolean nestingWritable(Element element, Predicate<Element> visible) {
+  private static boolean nestingWritable(
+      Element element, Predicate<Element> visible, Predicate<Element> deprecated) {
     for (Element current = element;
         current.getKind() != ElementKind.PACKAGE;
         current = current.getEnclosingElement()) {
-      if (current.getAnnotation(Deprecated.class) != null || !visible.test(current)) {
+      if (deprecated.test(current) || !visible.test(current)) {
         return false;
       }
     }
@@ -1943,7 +2069,9 @@ public final class ProcessorUtils {
    *
    * <p>Annotations are kept as {@link #typeNameOf(TypeMirror)} keeps them, so a generator that
    * knows the package it is writing into declares its parameters with {@link
-   * #typeVariableOf(TypeParameterElement, String)} instead.
+   * #typeVariableOf(TypeParameterElement, String)} instead, or {@link #typeVariableOf(Elements,
+   * TypeParameterElement, String)}, which reads a javadoc {@code @deprecated} tag as well as
+   * {@code @Deprecated}.
    *
    * <p>The bounds are all that is copied. An annotation written on the parameter itself, as in
    * {@code <@Marker T>}, is left behind: one {@code TypeVariableName} both declares a parameter and
@@ -1965,7 +2093,9 @@ public final class ProcessorUtils {
 
   /**
    * {@link #typeVariableOf(TypeParameterElement)} for a file written into {@code targetPackage},
-   * its bounds named as {@link #typeNameOf(TypeMirror, String)} names a type.
+   * its bounds named as {@link #typeNameOf(TypeMirror, String)} names a type, a deprecation read
+   * from {@code @Deprecated} alone; {@link #typeVariableOf(Elements, TypeParameterElement, String)}
+   * reads a javadoc tag too.
    *
    * @param parameter the type parameter to name; must not be null
    * @param targetPackage the package the generated file is written into; must not be null
@@ -1977,6 +2107,25 @@ public final class ProcessorUtils {
     TypeName[] bounds =
         parameter.getBounds().stream()
             .map(bound -> typeNameOf(bound, targetPackage))
+            .toArray(TypeName[]::new);
+    return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
+  }
+
+  /**
+   * {@link #typeVariableOf(TypeParameterElement, String)}, its bounds named as {@link
+   * #typeNameOf(Elements, TypeMirror, String)} names a type.
+   *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
+   * @param parameter the type parameter to name; must not be null
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return its name, with its bounds annotated wherever the file can say so (non-null)
+   * @since 0.6.0
+   */
+  public static TypeVariableName typeVariableOf(
+      Elements elements, TypeParameterElement parameter, String targetPackage) {
+    TypeName[] bounds =
+        parameter.getBounds().stream()
+            .map(bound -> typeNameOf(elements, bound, targetPackage))
             .toArray(TypeName[]::new);
     return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
   }

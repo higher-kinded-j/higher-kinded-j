@@ -17,6 +17,7 @@ import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -25,6 +26,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.GeneratorRegistry;
+import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
@@ -46,34 +48,27 @@ public class ExternalLensGenerator {
 
   private final Filer filer;
   private final Messager messager;
+  private final Elements elements;
   private final GeneratorRegistry generatorRegistry;
 
   /**
-   * Creates a new ExternalLensGenerator.
+   * Creates a new ExternalLensGenerator over the given traversal generators, which the processor
+   * loads once ({@code GeneratorRegistry.load}).
    *
    * @param filer the filer for writing generated files
    * @param messager the messager for reporting diagnostics
+   * @param elements the element utilities, which read whether a type-use annotation the optics
+   *     restate is deprecated
+   * @param traversalGenerators the traversal generators the processor loaded
    */
-  public ExternalLensGenerator(Filer filer, Messager messager) {
+  public ExternalLensGenerator(
+      Filer filer,
+      Messager messager,
+      Elements elements,
+      List<TraversableGenerator> traversalGenerators) {
     this.filer = filer;
     this.messager = messager;
-    this.generatorRegistry =
-        GeneratorRegistry.fromServiceLoader(getClass().getClassLoader(), messager);
-  }
-
-  /**
-   * Creates a new ExternalLensGenerator with an explicit list of traversal generators.
-   *
-   * <p>Package-private; intended for tests that need to control the available generators.
-   *
-   * @param filer the filer for writing generated files
-   * @param messager the messager for reporting diagnostics
-   * @param traversalGenerators the traversal generators to use instead of SPI discovery
-   */
-  ExternalLensGenerator(
-      Filer filer, Messager messager, List<TraversableGenerator> traversalGenerators) {
-    this.filer = filer;
-    this.messager = messager;
+    this.elements = elements;
     this.generatorRegistry = GeneratorRegistry.of(traversalGenerators, messager);
   }
 
@@ -228,7 +223,7 @@ public class ExternalLensGenerator {
   private MethodSpec createRecordLensMethod(
       FieldInfo field, TypeElement recordElement, TypeName recordTypeName, String targetPackage) {
 
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(field.type(), targetPackage);
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(elements, field.type(), targetPackage);
 
     ParameterizedTypeName lensTypeName =
         ParameterizedTypeName.get(
@@ -245,12 +240,14 @@ public class ExternalLensGenerator {
                 recordTypeName,
                 componentTypeName.box())
             // The lens type and the record's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), recordElement))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(elements, field.type(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, targetPackage));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(elements, typeParam, targetPackage));
     }
 
     String constructorArgs = ProcessorUtils.rebuildArguments(recordElement, field.name());
@@ -273,7 +270,7 @@ public class ExternalLensGenerator {
       TypeName classTypeName,
       String targetPackage) {
 
-    TypeName fieldTypeName = ProcessorUtils.typeNameOf(field.type(), targetPackage);
+    TypeName fieldTypeName = ProcessorUtils.typeNameOf(elements, field.type(), targetPackage);
     List<TypeParameterElement> typeParameters = ProcessorUtils.typeParametersInScope(classElement);
 
     ParameterizedTypeName lensTypeName =
@@ -290,12 +287,14 @@ public class ExternalLensGenerator {
                 classTypeName,
                 fieldTypeName.box())
             // The lens type and the class's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), typeParameters))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(elements, field.type(), typeParameters))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, targetPackage));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(elements, typeParam, targetPackage));
     }
 
     // Set through the wither: source.withYear(newValue). The lens hands the setter a boxed value,
@@ -325,7 +324,7 @@ public class ExternalLensGenerator {
       ClassName lensesClass,
       String targetPackage) {
 
-    TypeName fieldTypeName = ProcessorUtils.typeNameOf(field.type(), targetPackage);
+    TypeName fieldTypeName = ProcessorUtils.typeNameOf(elements, field.type(), targetPackage);
     String methodName = "with" + ProcessorUtils.capitalise(field.name());
     String parameterName = "new" + ProcessorUtils.capitalise(field.name());
     List<TypeParameterElement> typeParameters = ProcessorUtils.typeParametersInScope(typeElement);
@@ -345,14 +344,16 @@ public class ExternalLensGenerator {
                 parameterName,
                 field.name(),
                 typeName)
-            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), typeParameters))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(elements, field.type(), typeParameters))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(typeName)
             .addParameter(typeName, "source")
             .addParameter(fieldTypeName, parameterName);
 
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, targetPackage));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(elements, typeParam, targetPackage));
     }
 
     String typeArguments =
@@ -415,7 +416,11 @@ public class ExternalLensGenerator {
         ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
-        generator.generateModifyF(component, recordClassName, allComponents, targetPackage);
+        generator.generateModifyF(
+            component,
+            recordClassName,
+            allComponents,
+            new GenerationContext(targetPackage, elements));
 
     // Create F extends WitnessArity<TypeArity.Unary>
     final ParameterizedTypeName witnessArityBound =
@@ -433,7 +438,8 @@ public class ExternalLensGenerator {
             .addAnnotation(GENERATED_ANNOTATION)
             // The class names the traversal type in its superinterface clause and redeclares the
             // record's type parameters, neither of which a member annotation reaches.
-            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), recordElement))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(elements, field.type(), recordElement))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(
@@ -462,7 +468,8 @@ public class ExternalLensGenerator {
 
     final MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(methodName)
-            .addAnnotations(ProcessorUtils.writtenTypesSuppression(field.type(), recordElement))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(elements, field.type(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n"
@@ -481,7 +488,8 @@ public class ExternalLensGenerator {
     // The record's own parameters, as the lens methods beside this one already declare them, and
     // on the implementation too, which is declared beside the factory rather than inside it.
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter, targetPackage);
+      TypeVariableName typeVariable =
+          ProcessorUtils.typeVariableOf(elements, typeParameter, targetPackage);
       methodBuilder.addTypeVariable(typeVariable);
       implementation.addTypeVariable(typeVariable);
     }
@@ -495,7 +503,7 @@ public class ExternalLensGenerator {
   // Package-private for tests.
   TypeName getFocusType(TypeMirror type, TraversableGenerator generator, String targetPackage) {
     if (type instanceof ArrayType arrayType) {
-      return ProcessorUtils.typeNameOf(arrayType.getComponentType(), targetPackage).box();
+      return ProcessorUtils.typeNameOf(elements, arrayType.getComponentType(), targetPackage).box();
     } else if (type instanceof DeclaredType declaredType) {
       if (declaredType.getTypeArguments().isEmpty()) {
         return null; // Cannot traverse a raw type.
@@ -514,7 +522,7 @@ public class ExternalLensGenerator {
       }
       // A wildcard argument is resolved: no class can implement a traversal type that names one.
       return ProcessorUtils.resolvedTypeNameOf(
-          declaredType.getTypeArguments().get(typeArgumentIndex), targetPackage);
+          elements, declaredType.getTypeArguments().get(typeArgumentIndex), targetPackage);
     }
     return null;
   }
@@ -522,7 +530,7 @@ public class ExternalLensGenerator {
   // The type under its own type variables, and an inner class under its enclosing class's too,
   // Outer<X>.Line: named from the element alone it would be raw.
   private TypeName getParameterisedTypeName(TypeElement typeElement, String targetPackage) {
-    return ProcessorUtils.typeNameOf(typeElement.asType(), targetPackage);
+    return ProcessorUtils.typeNameOf(elements, typeElement.asType(), targetPackage);
   }
 
   @ExcludeFromJacocoGeneratedReport

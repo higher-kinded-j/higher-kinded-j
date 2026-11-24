@@ -17,6 +17,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.Prism;
 
 /**
@@ -40,6 +41,7 @@ public final class SubtypePrismGenerator {
    * declaration instead would name variables the method never declares. An inner class of a generic
    * class is named under its enclosing class's arguments as well, as {@link #nameUnder} explains.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param messager the round's messager, for a rejection
    * @param tag the annotation tag naming the caller, for the diagnostic
    * @param sumType the sealed type
@@ -48,6 +50,7 @@ public final class SubtypePrismGenerator {
    * @return the factory method, or null when the subtype was rejected and an error reported
    */
   public static MethodSpec prismMethodFor(
+      Elements elements,
       Messager messager,
       String tag,
       TypeElement sumType,
@@ -56,7 +59,7 @@ public final class SubtypePrismGenerator {
 
     String methodName = ProcessorUtils.toMethodName(subtype.getSimpleName().toString());
     DeclaredType namedSumType = ProcessorUtils.sumTypeAsNamedBy(sumType, subtype);
-    TypeName sourceTypeName = ProcessorUtils.typeNameOf(namedSumType, targetPackage);
+    TypeName sourceTypeName = ProcessorUtils.typeNameOf(elements, namedSumType, targetPackage);
     if (rejectsUnboundParameter(messager, tag, sumType, subtype, namedSumType)) {
       return null;
     }
@@ -73,7 +76,8 @@ public final class SubtypePrismGenerator {
         messager, tag, sumType, subtype, namedSumType, inScope, declared)) {
       return null;
     }
-    TypeName subTypeName = nameUnder((DeclaredType) subtype.asType(), declared, targetPackage);
+    TypeName subTypeName =
+        nameUnder(elements, (DeclaredType) subtype.asType(), declared, targetPackage);
 
     ParameterizedTypeName prismTypeName =
         ParameterizedTypeName.get(ClassName.get(Prism.class), sourceTypeName, subTypeName);
@@ -91,12 +95,14 @@ public final class SubtypePrismGenerator {
                 subTypeName)
             // The prism type is written in the subtype's vocabulary, and the method redeclares the
             // type parameters it names with their bounds.
-            .addAnnotations(ProcessorUtils.writtenTypesSuppression(namedSumType, declared))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(elements, namedSumType, declared))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(prismTypeName);
 
     for (TypeParameterElement typeParameter : declared) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter, targetPackage));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(elements, typeParameter, targetPackage));
     }
 
     return methodBuilder
@@ -125,6 +131,7 @@ public final class SubtypePrismGenerator {
    * Prism<Shape, Shapes<?>.Circle>}. javac proves both casts, so neither draws a warning. An
    * {@code @InstanceOf} target is named the same way, by {@code InstanceOfNarrowing}.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param type the subtype's own type, or one of its enclosing types, as {@code asType()} gives
    *     it, so that every argument is a type variable of the class it belongs to
    * @param declared the type parameters the prism method declares
@@ -132,7 +139,10 @@ public final class SubtypePrismGenerator {
    * @return the name, with a wildcard wherever the clause binds nothing
    */
   private static TypeName nameUnder(
-      DeclaredType type, List<TypeParameterElement> declared, String targetPackage) {
+      Elements elements,
+      DeclaredType type,
+      List<TypeParameterElement> declared,
+      String targetPackage) {
     ClassName rawType = ClassName.get((TypeElement) type.asElement());
     List<TypeName> arguments =
         type.getTypeArguments().stream()
@@ -140,13 +150,14 @@ public final class SubtypePrismGenerator {
             .map(
                 parameter ->
                     declared.contains(parameter)
-                        ? ProcessorUtils.typeVariableOf(parameter, targetPackage)
+                        ? ProcessorUtils.typeVariableOf(elements, parameter, targetPackage)
                         : WildcardTypeName.subtypeOf(Object.class))
             .toList();
     // A static member, like a top-level type, has no enclosing instance type: javac reports a
     // NoType for it, and the element's own name is the whole of it.
     if (type.getEnclosingType() instanceof DeclaredType enclosing
-        && nameUnder(enclosing, declared, targetPackage) instanceof ParameterizedTypeName outer) {
+        && nameUnder(elements, enclosing, declared, targetPackage)
+            instanceof ParameterizedTypeName outer) {
       return outer.nestedClass(rawType.simpleName(), arguments);
     }
     return arguments.isEmpty()

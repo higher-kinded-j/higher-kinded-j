@@ -5,8 +5,10 @@ package org.higherkindedj.optics.processing;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.palantir.javapoet.ClassName;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.annotations.KindSemantics;
 import org.higherkindedj.optics.processing.WideningAnalysis.Step;
 import org.higherkindedj.optics.processing.WideningAnalysis.StepKind;
@@ -47,8 +49,21 @@ class WideningExpressionTest {
     return new Step(kind, kindInfo, null, null, null);
   }
 
+  /**
+   * Element utilities no step here reads: a step names a type only where it holds one, and none of
+   * these does.
+   */
+  private static final Elements UNREAD =
+      (Elements)
+          Proxy.newProxyInstance(
+              Elements.class.getClassLoader(),
+              new Class<?>[] {Elements.class},
+              (proxy, method, args) -> {
+                throw new AssertionError("no step here names a type: " + method.getName());
+              });
+
   private static String build(Step... steps) {
-    return WideningAnalysis.expression(List.of(steps), new ArrayList<>(), "com.example");
+    return WideningAnalysis.expression(UNREAD, List.of(steps), new ArrayList<>(), "com.example");
   }
 
   @Test
@@ -102,7 +117,7 @@ class WideningExpressionTest {
     List<Object> args = new ArrayList<>();
 
     String expression =
-        WideningAnalysis.expression(List.of(step(StepKind.MAYBE)), args, "com.example");
+        WideningAnalysis.expression(UNREAD, List.of(step(StepKind.MAYBE)), args, "com.example");
 
     assertThat(expression).isEqualTo(".some($T.just())");
     assertThat(args).containsExactly(AFFINES);
@@ -114,7 +129,7 @@ class WideningExpressionTest {
     List<Object> args = new ArrayList<>();
 
     String expression =
-        WideningAnalysis.expression(List.of(step(StepKind.SET)), args, "com.example");
+        WideningAnalysis.expression(UNREAD, List.of(step(StepKind.SET)), args, "com.example");
 
     assertThat(expression).isEqualTo(".each($T.setEach())");
     assertThat(args).containsExactly(EACH_INSTANCES);
@@ -126,7 +141,8 @@ class WideningExpressionTest {
     List<Object> args = new ArrayList<>();
 
     String expression =
-        WideningAnalysis.expression(List.of(step(StepKind.COLLECTION)), args, "com.example");
+        WideningAnalysis.expression(
+            UNREAD, List.of(step(StepKind.COLLECTION)), args, "com.example");
 
     assertThat(expression).isEqualTo(".each($T.collectionEach())");
     assertThat(args).containsExactly(EACH_INSTANCES);

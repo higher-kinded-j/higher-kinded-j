@@ -131,6 +131,7 @@ public class PrismProcessor extends AbstractProcessor {
             (TypeElement) processingEnv.getTypeUtils().asElement(permittedSubclass);
         MethodSpec prism =
             SubtypePrismGenerator.prismMethodFor(
+                processingEnv.getElementUtils(),
                 processingEnv.getMessager(),
                 "@GeneratePrisms",
                 sumTypeElement,

@@ -28,7 +28,9 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1357,6 +1359,185 @@ class ProcessorUtilsTest {
       javac().withProcessors(processor).compile(subject);
 
       assertThat(processor.names).containsEntry("unresolved", "Missing");
+    }
+  }
+
+  /**
+   * Contract tests for how each naming form reads a deprecation: a form given the round's {@link
+   * Elements} reads a javadoc {@code @deprecated} tag as well as {@code @Deprecated}, and one given
+   * none reads {@code @Deprecated} alone. Both leave off what they read as deprecated.
+   */
+  @Nested
+  @DisplayName("how each naming form reads a deprecation")
+  class DeprecationReading {
+
+    /** Renders each probe under each form, keyed "form.probe". */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, String> names = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        Elements elements = processingEnv.getElementUtils();
+        TypeElement subject = elements.getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        for (VariableElement field : ElementFilter.fieldsIn(subject.getEnclosedElements())) {
+          String name = field.getSimpleName().toString();
+          TypeMirror type = field.asType();
+          names.put("plain." + name, ProcessorUtils.typeNameOf(type).toString());
+          names.put("plainRead." + name, ProcessorUtils.typeNameOf(elements, type).toString());
+          names.put("packaged." + name, ProcessorUtils.typeNameOf(type, "com.test").toString());
+          names.put(
+              "packagedRead." + name,
+              ProcessorUtils.typeNameOf(elements, type, "com.test").toString());
+          TypeMirror argument = ((DeclaredType) type).getTypeArguments().getFirst();
+          names.put(
+              "resolved." + name,
+              ProcessorUtils.resolvedTypeNameOf(argument, "com.test").toString());
+          names.put(
+              "resolvedRead." + name,
+              ProcessorUtils.resolvedTypeNameOf(elements, argument, "com.test").toString());
+        }
+        TypeParameterElement parameter = subject.getTypeParameters().getFirst();
+        names.put("variable.T", bounds(ProcessorUtils.typeVariableOf(parameter, "com.test")));
+        names.put(
+            "variableRead.T",
+            bounds(ProcessorUtils.typeVariableOf(elements, parameter, "com.test")));
+        DeclaredType owner = (DeclaredType) subject.asType();
+        for (ExecutableElement method : ElementFilter.methodsIn(subject.getEnclosedElements())) {
+          TypeMirror read =
+              ProcessorUtils.memberOf(processingEnv.getTypeUtils(), owner, method).getReturnType();
+          String name = method.getSimpleName().toString();
+          names.put(
+              "member." + name,
+              ProcessorUtils.typeNameOf(read, method.getReturnType(), owner, "com.test")
+                  .toString());
+          names.put(
+              "memberRead." + name,
+              ProcessorUtils.typeNameOf(elements, read, method.getReturnType(), owner, "com.test")
+                  .toString());
+        }
+        return false;
+      }
+
+      private static String bounds(TypeVariableName variable) {
+        return variable.bounds().toString();
+      }
+    }
+
+    /** The rendered names, from one compilation every test here shares. */
+    private static final Map<String, String> NAMES = probe();
+
+    private static Map<String, String> probe() {
+      var processor = new CapturingProcessor();
+      Compilation compilation =
+          javac()
+              .withProcessors(processor)
+              .compile(
+                  typeUse(
+                      "com.test.Old",
+                      """
+                      /**
+                       * A mark deprecated by its javadoc alone.
+                       *
+                       * @deprecated mark nothing
+                       */
+                      """),
+                  typeUse("com.test.Dep", "@Deprecated\n"),
+                  typeUse("com.test.Fine", ""),
+                  JavaFileObjects.forSourceString(
+                      "com.test.Subject",
+                      """
+                      package com.test;
+                      import java.util.List;
+                      @SuppressWarnings({"deprecation", "unused"})
+                      public abstract class Subject<T extends @Old @Fine Object> {
+                          List<? extends @Old @Fine String> tagged;
+                          List<? extends @Dep @Fine String> marked;
+                          List<?> any;
+                          abstract @Old @Fine T value();
+                      }
+                      """));
+      assertThat(compilation).succeeded();
+      return processor.names;
+    }
+
+    private static JavaFileObject typeUse(String qualifiedName, String header) {
+      String simpleName = qualifiedName.substring(qualifiedName.lastIndexOf('.') + 1);
+      return JavaFileObjects.forSourceString(
+          qualifiedName,
+          """
+          package com.test;
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Target;
+          %s@Target(ElementType.TYPE_USE)
+          public @interface %s {}
+          """
+              .formatted(header, simpleName));
+    }
+
+    private static final String FINE = "@com.test.Fine";
+    private static final String OLD = "@com.test.Old";
+
+    /** {@code java.lang.String} carrying the given annotations, as javapoet writes it. */
+    private static String string(String annotations) {
+      return "java.lang. " + annotations + " String";
+    }
+
+    @Test
+    @DisplayName("a form given Elements leaves off an annotation a javadoc tag alone deprecates")
+    void aFormGivenElementsReadsTheJavadocTag() {
+      assertThat(NAMES.get("plainRead.tagged"))
+          .isEqualTo("java.util.List<? extends " + string(FINE) + ">");
+      assertThat(NAMES.get("packagedRead.tagged"))
+          .isEqualTo("java.util.List<? extends " + string(FINE) + ">");
+      assertThat(NAMES.get("resolvedRead.tagged")).isEqualTo(string(FINE));
+      assertThat(NAMES.get("variableRead.T")).isEqualTo("[java.lang. " + FINE + " Object]");
+      assertThat(NAMES.get("memberRead.value")).isEqualTo(FINE + " T");
+    }
+
+    @Test
+    @DisplayName("a form given no Elements keeps it, as it reads @Deprecated alone")
+    void aFormGivenNoElementsKeepsIt() {
+      String both = OLD + " " + FINE;
+      assertThat(NAMES.get("plain.tagged"))
+          .isEqualTo("java.util.List<? extends " + string(both) + ">");
+      assertThat(NAMES.get("packaged.tagged"))
+          .isEqualTo("java.util.List<? extends " + string(both) + ">");
+      assertThat(NAMES.get("resolved.tagged")).isEqualTo(string(both));
+      assertThat(NAMES.get("variable.T")).isEqualTo("[java.lang. " + both + " Object]");
+      assertThat(NAMES.get("member.value")).isEqualTo(both + " T");
+    }
+
+    @Test
+    @DisplayName("every form leaves off an annotation @Deprecated marks")
+    void everyFormLeavesOffWhatDeprecatedMarks() {
+      for (String form : List.of("plain", "plainRead", "packaged", "packagedRead")) {
+        assertThat(NAMES.get(form + ".marked"))
+            .as(form)
+            .isEqualTo("java.util.List<? extends " + string(FINE) + ">");
+      }
+      for (String form : List.of("resolved", "resolvedRead")) {
+        assertThat(NAMES.get(form + ".marked")).as(form).isEqualTo(string(FINE));
+      }
+    }
+
+    @Test
+    @DisplayName("either resolved form names a wildcard standing for anything Object")
+    void eitherResolvedFormNamesAnUnboundedWildcardObject() {
+      assertThat(NAMES.get("resolved.any")).isEqualTo("java.lang.Object");
+      assertThat(NAMES.get("resolvedRead.any")).isEqualTo("java.lang.Object");
     }
   }
 

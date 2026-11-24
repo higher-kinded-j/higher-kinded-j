@@ -13,6 +13,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.annotations.TraverseField;
 import org.higherkindedj.optics.processing.kind.KindRegistry.KindMapping;
 import org.higherkindedj.optics.processing.util.Diagnostics;
@@ -97,7 +98,8 @@ public class KindFieldAnalyser {
    * @return an Optional containing the analysis result, or empty if not a recognised Kind field
    */
   public Optional<KindFieldInfo> analyse(RecordComponentElement component) {
-    if (!(shapeOf(component.asType(), targetPackage) instanceof Shape.KindOf kind)) {
+    if (!(shapeOf(processingEnv.getElementUtils(), component.asType(), targetPackage)
+        instanceof Shape.KindOf kind)) {
       return Optional.empty();
     }
 
@@ -132,7 +134,7 @@ public class KindFieldAnalyser {
     if (fieldType.getKind() == TypeKind.ERROR) {
       return;
     }
-    Shape shape = shapeOf(fieldType, targetPackage);
+    Shape shape = shapeOf(processingEnv.getElementUtils(), fieldType, targetPackage);
     if (component.getAnnotation(TraverseField.class) != null) {
       reportUnappliedTraverseField(component, fieldType, shape);
     } else if (shape instanceof Shape.KindOf kind) {
@@ -291,7 +293,7 @@ public class KindFieldAnalyser {
   }
 
   /** Classifies a component's declared type. */
-  private static Shape shapeOf(TypeMirror fieldType, String targetPackage) {
+  private static Shape shapeOf(Elements elements, TypeMirror fieldType, String targetPackage) {
     if (!isKindType(fieldType)) {
       return new Shape.NotAKind();
     }
@@ -309,8 +311,8 @@ public class KindFieldAnalyser {
           ProcessorUtils.simpleTypeName(witness), ProcessorUtils.simpleTypeName(typeArgs.get(1)));
     }
     return new Shape.KindOf(
-        witnessNameOf(witness, targetPackage),
-        ProcessorUtils.resolvedTypeNameOf(typeArgs.get(1), targetPackage));
+        witnessNameOf(elements, witness, targetPackage),
+        ProcessorUtils.resolvedTypeNameOf(elements, typeArgs.get(1), targetPackage));
   }
 
   /**
@@ -323,11 +325,12 @@ public class KindFieldAnalyser {
    * only as one javac could not resolve, or one outside {@code Kind}'s bound that javac is about to
    * reject, and is named as written; that compilation is already failing on javac's own report.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param witness the witness type argument, with a wildcard of its own already resolved
    * @param targetPackage the package the generated file is written into
    * @return the witness as the generated code names it
    */
-  private static String witnessNameOf(TypeMirror witness, String targetPackage) {
+  private static String witnessNameOf(Elements elements, TypeMirror witness, String targetPackage) {
     if (witness.getKind() != TypeKind.DECLARED) {
       return witness.toString();
     }
@@ -340,7 +343,9 @@ public class KindFieldAnalyser {
     return ParameterizedTypeName.get(
             raw,
             arguments.stream()
-                .map(argument -> ProcessorUtils.resolvedTypeNameOf(argument, targetPackage))
+                .map(
+                    argument ->
+                        ProcessorUtils.resolvedTypeNameOf(elements, argument, targetPackage))
                 .toArray(TypeName[]::new))
         .toString();
   }

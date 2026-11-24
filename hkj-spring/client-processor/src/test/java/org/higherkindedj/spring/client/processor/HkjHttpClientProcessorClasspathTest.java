@@ -1402,6 +1402,34 @@ class HkjHttpClientProcessorClasspathTest {
     }
   }
 
+  @Nested
+  @DisplayName(
+      "a deprecated method or type a jar's base declares, restated with its warning"
+          + " suppressed")
+  class DeprecatedSignatureSuppression {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(DeprecatedSignatures.Shape.class)
+    @DisplayName("each compiles under every lint and -Werror")
+    void compilesClean(DeprecatedSignatures.Shape shape) throws IOException {
+      // The base module is compiled on its own, where javac reads its deprecations from the class
+      // files, a javadoc tag's included.
+      Compilation base =
+          javac()
+              .withProcessors()
+              .withOptions("-parameters")
+              .withClasspath(TEST_CLASSPATH)
+              .compile(shape.baseSources());
+      assertThat(base).succeeded();
+      Path dir = Files.createTempDirectory(tmp, "base");
+      layOut(base, dir);
+      Compilation compilation =
+          compiler(dir).withOptions(DeprecatedSignatures.LINT).compile(shape.client());
+
+      DeprecatedSignatures.assertCompiledClean(shape, compilation);
+    }
+  }
+
   @Test
   @DisplayName("an inherited method with an unsupported return type is reported on the client")
   void inheritedUnsupportedReturnIsReportedOnTheClient() throws IOException {

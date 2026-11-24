@@ -123,7 +123,10 @@ public class SetterProcessor extends AbstractProcessor {
     } else {
       List<TypeVariableName> typeVars =
           typeParameters.stream()
-              .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+              .map(
+                  parameter ->
+                      ProcessorUtils.typeVariableOf(
+                          processingEnv.getElementUtils(), parameter, packageName))
               .toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
@@ -137,7 +140,8 @@ public class SetterProcessor extends AbstractProcessor {
       String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
+    TypeName componentTypeName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), component.asType(), packageName);
 
     ParameterizedTypeName setterTypeName =
         ParameterizedTypeName.get(
@@ -155,12 +159,14 @@ public class SetterProcessor extends AbstractProcessor {
                 componentTypeName.box())
             // The setter type and the record's type-parameter bounds are written out here.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(setterTypeName);
 
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(processingEnv.getElementUtils(), typeParam, packageName));
     }
 
     String constructorArgs = ProcessorUtils.rebuildArguments(recordElement, componentName);
@@ -183,7 +189,8 @@ public class SetterProcessor extends AbstractProcessor {
       String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
+    TypeName componentTypeName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), component.asType(), packageName);
     String methodName = "with" + ProcessorUtils.capitalise(componentName);
     String parameterName = "new" + ProcessorUtils.capitalise(componentName);
     String settersClassName = recordElement.getSimpleName().toString() + "Setters";
@@ -204,7 +211,8 @@ public class SetterProcessor extends AbstractProcessor {
                 componentName,
                 recordTypeName)
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(recordTypeName)
             .addParameter(recordTypeName, "source")
@@ -212,7 +220,8 @@ public class SetterProcessor extends AbstractProcessor {
 
     List<? extends TypeParameterElement> typeParameters = recordElement.getTypeParameters();
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(processingEnv.getElementUtils(), typeParam, packageName));
     }
 
     String typeArguments =

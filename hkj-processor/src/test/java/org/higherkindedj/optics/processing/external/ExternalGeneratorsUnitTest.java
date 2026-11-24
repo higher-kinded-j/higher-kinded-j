@@ -123,14 +123,20 @@ class ExternalGeneratorsUnitTest {
       // createTraversal returns null, so generateForRecord skips the traversal method.
       ExternalLensGenerator withoutGenerators =
           new ExternalLensGenerator(
-              processingEnv.getFiler(), processingEnv.getMessager(), List.of());
+              processingEnv.getFiler(),
+              processingEnv.getMessager(),
+              processingEnv.getElementUtils(),
+              List.of());
       TypeAnalysis basketAnalysis =
           new TypeKindAnalyser(processingEnv.getTypeUtils()).analyseType(basket);
       withoutGenerators.generateForRecord(basketAnalysis, "com.test.gen", basket);
 
       ExternalLensGenerator withStub =
           new ExternalLensGenerator(
-              processingEnv.getFiler(), processingEnv.getMessager(), List.of(new StubGenerator(0)));
+              processingEnv.getFiler(),
+              processingEnv.getMessager(),
+              processingEnv.getElementUtils(),
+              List.of(new StubGenerator(0)));
 
       List<? extends RecordComponentElement> components = mixed.getRecordComponents();
       TypeMirror itemsType = components.get(0).asType(); // List<String>
@@ -177,7 +183,10 @@ class ExternalGeneratorsUnitTest {
 
       // 5. SpecInterfaceGenerator.getParameterisedTypeName with a non-declared type.
       SpecInterfaceGenerator specGenerator =
-          new SpecInterfaceGenerator(processingEnv.getFiler(), processingEnv.getMessager());
+          new SpecInterfaceGenerator(
+              processingEnv.getFiler(),
+              processingEnv.getMessager(),
+              processingEnv.getElementUtils());
       parameterisedNameForPrimitive =
           specGenerator.getParameterisedTypeName(primitiveInt, "com.example");
 

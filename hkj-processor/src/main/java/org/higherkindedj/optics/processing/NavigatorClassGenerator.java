@@ -26,6 +26,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
@@ -1163,7 +1164,10 @@ public class NavigatorClassGenerator {
         TypeVariableName.get(ProcessorUtils.freeTypeVariableName("S", targetRecord));
     List<TypeVariableName> targetTypeVars =
         targetRecord.getTypeParameters().stream()
-            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, analysis.targetPackage()))
+            .map(
+                parameter ->
+                    ProcessorUtils.typeVariableOf(
+                        processingEnv.getElementUtils(), parameter, analysis.targetPackage()))
             .toList();
 
     // The navigator is a path of the component's own tier, and is built from the very path the
@@ -1176,7 +1180,9 @@ public class NavigatorClassGenerator {
             .map(
                 element ->
                     targetTypeName.annotated(
-                        ProcessorUtils.typeNameOf(element, analysis.targetPackage()).annotations()))
+                        ProcessorUtils.typeNameOf(
+                                processingEnv.getElementUtils(), element, analysis.targetPackage())
+                            .annotations()))
             .orElse(targetTypeName);
     ClassName pathClass = tier.pathClass();
     ParameterizedTypeName pathType =
@@ -1196,7 +1202,8 @@ public class NavigatorClassGenerator {
         TypeSpec.classBuilder(navigatorClassName)
             .addAnnotation(GENERATED)
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(targetRecord.asType(), targetRecord))
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), targetRecord.asType(), targetRecord))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC, Modifier.FINAL)
             .addTypeVariable(sourceTypeVar)
             .addTypeVariables(targetTypeVars)
@@ -1276,7 +1283,10 @@ public class NavigatorClassGenerator {
   /** Type arguments as the generated Focus class writes them. */
   private List<TypeName> typeNamesOf(List<? extends TypeMirror> arguments) {
     return arguments.stream()
-        .map(argument -> ProcessorUtils.typeNameOf(argument, analysis.targetPackage()))
+        .map(
+            argument ->
+                ProcessorUtils.typeNameOf(
+                    processingEnv.getElementUtils(), argument, analysis.targetPackage()))
         .toList();
   }
 
@@ -1308,6 +1318,7 @@ public class NavigatorClassGenerator {
         case FieldShape.Path path ->
             navigatorBuilder.addMethod(
                 navigationMethod(
+                        processingEnv.getElementUtils(),
                         component,
                         fieldName,
                         sourceTypeVar,
@@ -1319,7 +1330,12 @@ public class NavigatorClassGenerator {
           Tier composed = currentTier.widen(navigator.tier());
           MethodSpec.Builder methodBuilder =
               navigationMethod(
-                  component, fieldName, sourceTypeVar, composed, navigator.focusType());
+                  processingEnv.getElementUtils(),
+                  component,
+                  fieldName,
+                  sourceTypeVar,
+                  composed,
+                  navigator.focusType());
           addNavigatorComposition(
               methodBuilder,
               navigator,
@@ -1538,6 +1554,7 @@ public class NavigatorClassGenerator {
 
   /** A navigation method's declaration: its name, the path it returns, and its javadoc. */
   private static MethodSpec.Builder navigationMethod(
+      Elements elements,
       RecordComponentElement component,
       String fieldName,
       TypeVariableName sourceTypeVar,
@@ -1546,7 +1563,8 @@ public class NavigatorClassGenerator {
     return MethodSpec.methodBuilder(fieldName)
         // The method writes the target's field type out. The target's type-parameter bounds are
         // the navigator class's, and answered there.
-        .addAnnotations(ProcessorUtils.writtenTypesSuppression(List.of(component.asType())))
+        .addAnnotations(
+            ProcessorUtils.writtenTypesSuppression(elements, List.of(component.asType())))
         .addModifiers(Modifier.PUBLIC)
         .returns(ParameterizedTypeName.get(composed.pathClass(), sourceTypeVar, focusType))
         .addJavadoc(
@@ -1934,7 +1952,12 @@ public class NavigatorClassGenerator {
     return constructibleFrom(navigator, wraps)
         ? new FieldShape.Navigator(
             path.tier(),
-            ProcessorUtils.typeNameOf(focusType, declaredFocus, declared, analysis.targetPackage()),
+            ProcessorUtils.typeNameOf(
+                processingEnv.getElementUtils(),
+                focusType,
+                declaredFocus,
+                declared,
+                analysis.targetPackage()),
             ClassName.get(navigator),
             typeNamesOf(arguments.subList(1, arguments.size())),
             List.of())
@@ -2020,7 +2043,9 @@ public class NavigatorClassGenerator {
                 new FieldShape.Path(
                     tier,
                     ProcessorUtils.typeNameOf(
-                        declared.getTypeArguments().get(1), analysis.targetPackage())))
+                        processingEnv.getElementUtils(),
+                        declared.getTypeArguments().get(1),
+                        analysis.targetPackage())))
         .findFirst()
         .orElseGet(FieldShape.Unrecognised::new);
   }
@@ -2742,14 +2767,16 @@ public class NavigatorClassGenerator {
             // The navigator type and the record's type-parameter bounds are written out here, and
             // so may a cast to a raw or wildcard container.
             .addAnnotations(
-                WideningAnalysis.warningSuppression(component, recordElement, declared.steps()))
+                WideningAnalysis.warningSuppression(
+                    processingEnv.getElementUtils(), component, recordElement, declared.steps()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnType);
 
     // Add type parameters if the record is generic
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
       methodBuilder.addTypeVariable(
-          ProcessorUtils.typeVariableOf(typeParam, analysis.targetPackage()));
+          ProcessorUtils.typeVariableOf(
+              processingEnv.getElementUtils(), typeParam, analysis.targetPackage()));
     }
 
     // Build the constructor arguments for the setter lambda
@@ -2774,7 +2801,8 @@ public class NavigatorClassGenerator {
                 constructorArgs,
                 componentName));
     String wideningExpression =
-        WideningAnalysis.expression(declared.steps(), args, analysis.targetPackage());
+        WideningAnalysis.expression(
+            processingEnv.getElementUtils(), declared.steps(), args, analysis.targetPackage());
     methodBuilder.addStatement(
         "return new $T($T.of($T.of($T::$L, (source, newValue) -> new $T($L)), \"$L\")"
             + wideningExpression

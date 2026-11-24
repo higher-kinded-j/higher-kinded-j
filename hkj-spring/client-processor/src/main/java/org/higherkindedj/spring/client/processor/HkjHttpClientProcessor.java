@@ -7,6 +7,7 @@ import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ArrayTypeName;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
+import com.palantir.javapoet.FieldSpec;
 import com.palantir.javapoet.JavaFile;
 import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.ParameterSpec;
@@ -17,6 +18,7 @@ import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -371,7 +373,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     String simpleName = iface.getSimpleName().toString();
     List<TypeVariableName> typeVars =
         iface.getTypeParameters().stream()
-            .map(parameter -> TypeNames.typeVariableOf(parameter, packageName))
+            .map(
+                parameter ->
+                    TypeNames.typeVariableOf(
+                        parameter, packageName, processingEnv.getElementUtils()))
             .toList();
     boolean generic = !typeVars.isEmpty();
 
@@ -387,7 +392,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         iface);
     writeFile(
         packageName,
-        buildFacade(iface, nativeName, nativeType, facadeName, typeVars, methods, infos),
+        buildFacade(iface, nativeName, nativeType, facadeName, typeVars, groups, infos),
         iface);
 
     // A generic client cannot be a singleton bean (no concrete type argument), so the
@@ -408,9 +413,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     } else {
       String group = groupName(iface, simpleName);
       writeFile(
-          packageName,
-          buildConfiguration(ClassName.get(iface), nativeName, facadeName, simpleName, group),
-          iface);
+          packageName, buildConfiguration(iface, nativeName, facadeName, simpleName, group), iface);
     }
     return true;
   }
@@ -446,10 +449,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
     // Spring proxies the native interface, which extends nothing, so a client with no type-level
     // @HttpExchange of its own is given those Spring would have read from its bases.
+    Elements elements = processingEnv.getElementUtils();
     List<AnnotationMirror> typeLevel =
         Stream.concat(copiedAnnotationsOf(iface).stream(), inheritedExchange.stream()).toList();
     builder.addAnnotations(
-        AnnotationSpecs.copiesOf(typeLevel, packageName, processingEnv.getElementUtils()));
+        AnnotationSpecs.copiesOf(typeLevel, packageName, elements, drawnByTypeParameters(iface)));
 
     for (int i = 0; i < methods.size(); i++) {
       ClientMethod clientMethod = methods.get(i);
@@ -458,15 +462,24 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       TypeName successType =
           info.ignoresBody()
               ? ClassName.get(Void.class)
-              : info.successNameIn(clientMethod.returnTypeName(packageName));
+              : info.successNameIn(clientMethod.returnTypeName(packageName, elements));
       MethodSpec.Builder nativeMethod =
           MethodSpec.methodBuilder(method.getSimpleName().toString())
               .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
               .returns(ParameterizedTypeName.get(RESPONSE_ENTITY, successType))
-              .addTypeVariables(clientMethod.typeVariableNames(packageName));
+              .addTypeVariables(clientMethod.typeVariableNames(packageName, elements));
+      // The native method writes the success type alone of the return type, and overrides
+      // nothing, as the native interface extends nothing.
+      Stream<TypeMirror> written =
+          Stream.concat(
+              info.ignoresBody() ? Stream.empty() : Stream.of(info.success()),
+              clientMethod.parameterTypesAndBounds().stream());
       nativeMethod.addAnnotations(
           AnnotationSpecs.copiesOf(
-              copiedAnnotationsOf(method), packageName, processingEnv.getElementUtils()));
+              copiedAnnotationsOf(method),
+              packageName,
+              elements,
+              Deprecations.namedBy(written, elements)));
       // Copy parameters with their binding annotations (@PathVariable, @RequestBody, …).
       // ParameterSpec.get(VariableElement) drops annotations, so copy them explicitly.
       for (ClientMethod.Parameter parameter : clientMethod.parameters()) {
@@ -485,13 +498,22 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       TypeName nativeType,
       ClassName facadeName,
       List<TypeVariableName> typeVars,
-      List<ClientMethod> methods,
+      List<List<ClientMethod>> groups,
       List<ReturnInfo> infos) {
     String packageName = facadeName.packageName();
+    Elements elements = processingEnv.getElementUtils();
+    List<ClientMethod> methods = groups.stream().map(List::getFirst).toList();
+    // The facade implements the client and redeclares its type parameters, bounds and all, and a
+    // deprecated client's native interface carries the copied @Deprecated it names in a field.
+    Set<Lint> classDrawn =
+        Stream.of(drawnByClient(iface), drawnByTypeParameters(iface))
+            .flatMap(Set::stream)
+            .collect(Lint.inNameOrder());
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(facadeName)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
+            .addAnnotations(AnnotationSpecs.suppressing(classDrawn, List.of()))
             .addTypeVariables(typeVars)
             .addSuperinterface(parameterise(ClassName.get(iface), typeVars))
             .addJavadoc("Generated Effect-Path client. Do not edit.\n")
@@ -508,6 +530,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     // facade does not rebuild the decoder chain on every HTTP call.
     Set<String> usedFieldNames = new HashSet<>();
     List<@Nullable String> decoderFields = new ArrayList<>();
+    // Each decoder names its error classes, in its field's type and in the constructor that
+    // builds it.
+    Set<Lint> constructorDrawn = EnumSet.noneOf(Lint.class);
     for (int i = 0; i < methods.size(); i++) {
       ExecutableElement method = methods.get(i).element();
       ReturnInfo info = infos.get(i);
@@ -520,21 +545,32 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       while (!usedFieldNames.add(fieldName)) {
         fieldName = method.getSimpleName() + "Decoder" + suffix++;
       }
+      TypeMirror error = Objects.requireNonNull(info.error());
+      List<StatusOverride> overrides = readStatusOverrides(iface, method, error);
       builder.addField(
-          ParameterizedTypeName.get(RESPONSE_ERROR_DECODER, rawClass(info.error())),
-          fieldName,
-          Modifier.PRIVATE,
-          Modifier.FINAL);
-      constructor.addStatement("this.$L = $L", fieldName, decoderExpression(iface, method, info));
+          FieldSpec.builder(
+                  ParameterizedTypeName.get(RESPONSE_ERROR_DECODER, rawClass(error)),
+                  fieldName,
+                  Modifier.PRIVATE,
+                  Modifier.FINAL)
+              .addAnnotations(
+                  AnnotationSpecs.suppressing(drawnByClassLiterals(Stream.of(error)), List.of()))
+              .build());
+      constructorDrawn.addAll(
+          drawnByClassLiterals(
+              Stream.concat(Stream.of(error), overrides.stream().map(StatusOverride::errorType))));
+      constructor.addStatement("this.$L = $L", fieldName, decoderExpression(error, overrides));
       decoderFields.add(fieldName);
     }
 
-    builder.addMethod(constructor.build());
+    builder.addMethod(
+        constructor
+            .addAnnotations(AnnotationSpecs.suppressing(constructorDrawn, List.of()))
+            .build());
 
     for (int i = 0; i < methods.size(); i++) {
       builder.addMethod(
-          buildFacadeMethod(
-              iface, methods.get(i), infos.get(i), decoderFields.get(i), packageName));
+          buildFacadeMethod(iface, groups.get(i), infos.get(i), decoderFields.get(i), packageName));
     }
     return builder.build();
   }
@@ -560,26 +596,44 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
   }
 
+  /**
+   * The facade's implementation of one method. It overrides each of the method's declarations, and
+   * each method one of them overrides in turn, and calls the native method, which carries the first
+   * declaration's annotations, {@code @Deprecated} among them; it writes the client's return type,
+   * parameter types and type parameters. A deprecated one among them is suppressed on it.
+   */
   private MethodSpec buildFacadeMethod(
       TypeElement iface,
-      ClientMethod clientMethod,
+      List<ClientMethod> declarations,
       ReturnInfo info,
       @Nullable String decoderField,
       String packageName) {
+    Elements elements = processingEnv.getElementUtils();
+    ClientMethod clientMethod = declarations.getFirst();
     ExecutableElement method = clientMethod.element();
     String name = method.getSimpleName().toString();
+    Set<Lint> drawn =
+        Stream.of(
+                Deprecations.drawnBy(
+                    ClientMethods.overriddenBy(iface, declarations, elements), elements),
+                Deprecations.namedBy(clientMethod.written().stream(), elements))
+            .flatMap(Set::stream)
+            .collect(Lint.inNameOrder());
     MethodSpec.Builder facadeMethod =
         MethodSpec.methodBuilder(name)
-            .addAnnotation(Override.class)
+            .addAnnotations(
+                AnnotationSpecs.suppressing(
+                    drawn, List.of(AnnotationSpec.builder(Override.class).build())))
             .addModifiers(Modifier.PUBLIC)
-            .returns(clientMethod.returnTypeName(packageName))
-            .addTypeVariables(clientMethod.typeVariableNames(packageName));
+            .returns(clientMethod.returnTypeName(packageName, elements))
+            .addTypeVariables(clientMethod.typeVariableNames(packageName, elements));
     List<ClientMethod.Parameter> parameters = clientMethod.parameters();
     String args =
         parameters.stream().map(ClientMethod.Parameter::name).collect(Collectors.joining(", "));
     for (ClientMethod.Parameter parameter : parameters) {
       facadeMethod.addParameter(
-          ParameterSpec.builder(parameter.typeName(packageName), parameter.name()).build());
+          ParameterSpec.builder(parameter.typeName(packageName, elements), parameter.name())
+              .build());
     }
 
     CodeBlock call = CodeBlock.of("() -> this.http.$L($L)", name, args);
@@ -614,10 +668,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * decoderFactory.create(E.class)} by default, or a {@code ResponseErrorDecoders} status-dispatch
    * chain when the method carries {@link org.higherkindedj.spring.client.OnStatus} overrides.
    */
-  private CodeBlock decoderExpression(
-      TypeElement iface, ExecutableElement method, ReturnInfo info) {
-    ClassName errorRaw = rawClass(info.error());
-    List<StatusOverride> overrides = readStatusOverrides(iface, method, info.error());
+  private static CodeBlock decoderExpression(TypeMirror error, List<StatusOverride> overrides) {
+    ClassName errorRaw = rawClass(error);
     if (overrides.isEmpty()) {
       return CodeBlock.of("decoderFactory.create($T.class)", errorRaw);
     }
@@ -634,7 +686,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return builder.add(".build()").build();
   }
 
-  /** Reads valid {@link org.higherkindedj.spring.client.OnStatus} overrides off a method. */
+  /**
+   * Reads valid {@link org.higherkindedj.spring.client.OnStatus} overrides off a method, reporting
+   * each that is not, so it is read once per method.
+   */
   private List<StatusOverride> readStatusOverrides(
       TypeElement iface, ExecutableElement method, TypeMirror methodError) {
     List<StatusOverride> result = new ArrayList<>();
@@ -683,7 +738,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       }
       result.add(new StatusOverride(annotation.value(), errorType));
     }
-    return result;
+    return List.copyOf(result);
   }
 
   /** Extracts the {@code error()} class of an {@link OnStatus} as a {@link TypeMirror}. */
@@ -699,11 +754,12 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   // ---- the @Configuration wiring ------------------------------------------------------------
 
   private TypeSpec buildConfiguration(
-      ClassName ifaceName,
+      TypeElement iface,
       ClassName nativeName,
       ClassName facadeName,
       String simpleName,
       String group) {
+    ClassName ifaceName = ClassName.get(iface);
     MethodSpec bean =
         MethodSpec.methodBuilder(decapitalise(simpleName) + "Client")
             .addAnnotation(BEAN)
@@ -714,9 +770,12 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .addStatement("return new $T(http, decoderFactory)", facadeName)
             .build();
 
+    // The configuration names the client, and the native interface, which carries a deprecated
+    // client's copied @Deprecated, in its annotations as well as its bean method.
     return TypeSpec.classBuilder(simpleName + "ClientConfiguration")
         .addModifiers(Modifier.PUBLIC)
         .addAnnotation(GENERATED)
+        .addAnnotations(AnnotationSpecs.suppressing(drawnByClient(iface), List.of()))
         .addJavadoc(
             "Registers the {@link $T} HTTP Service group and the client bean. Generated; do not edit.\n",
             nativeName)
@@ -750,7 +809,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    */
   private ParameterSpec copyParameter(ClientMethod.Parameter parameter, String packageName) {
     String parameterName = parameter.name();
-    return ParameterSpec.builder(parameter.typeName(packageName), parameterName)
+    return ParameterSpec.builder(
+            parameter.typeName(packageName, processingEnv.getElementUtils()), parameterName)
         .addAnnotations(
             AnnotationSpecs.copiesOf(
                 parameter.element().getAnnotationMirrors(),
@@ -1313,9 +1373,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         method.element().getTypeParameters().stream()
             .map(parameter -> parameter.getSimpleName().toString())
             .toList();
+    Elements elements = processingEnv.getElementUtils();
     parts.put(
-        "the method's return type", positional(method.returnTypeName(packageName), ownVariables));
-    List<TypeVariableName> typeVariables = method.typeVariableNames(packageName);
+        "the method's return type",
+        positional(method.returnTypeName(packageName, elements), ownVariables));
+    List<TypeVariableName> typeVariables = method.typeVariableNames(packageName, elements);
     for (int index = 0; index < typeVariables.size(); index++) {
       TypeVariableName variable = typeVariables.get(index);
       parts.put(
@@ -1326,7 +1388,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     for (int index = 0; index < parameters.size(); index++) {
       ClientMethod.Parameter parameter = parameters.get(index);
       String label = "parameter " + (index + 1) + "'s ";
-      parts.put(label + "type", positional(parameter.typeName(packageName), ownVariables));
+      parts.put(
+          label + "type", positional(parameter.typeName(packageName, elements), ownVariables));
       List<? extends AnnotationMirror> parameterAnnotations =
           parameter.element().getAnnotationMirrors().stream()
               .filter(mirror -> isCopied(mirror, method.element(), packageName))
@@ -1783,6 +1846,31 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       return parameterized.rawType();
     }
     return (ClassName) name;
+  }
+
+  /**
+   * What naming the client draws: the client, or a class it is nested in, deprecated. The facade
+   * implements it and the configuration names it.
+   */
+  private Set<Lint> drawnByClient(TypeElement iface) {
+    return Deprecations.drawnBy(
+        Deprecations.enclosingTypes(iface), processingEnv.getElementUtils());
+  }
+
+  /**
+   * What redeclaring the client's type parameters draws: a deprecated class among their bounds. The
+   * facade and the native interface both declare them.
+   */
+  private Set<Lint> drawnByTypeParameters(TypeElement iface) {
+    return Deprecations.namedBy(
+        iface.getTypeParameters().stream().flatMap(parameter -> parameter.getBounds().stream()),
+        processingEnv.getElementUtils());
+  }
+
+  /** What writing each type as a class literal draws, as {@link #rawClass} writes it. */
+  private Set<Lint> drawnByClassLiterals(Stream<? extends TypeMirror> types) {
+    Types typeUtils = processingEnv.getTypeUtils();
+    return Deprecations.namedBy(types.map(typeUtils::erasure), processingEnv.getElementUtils());
   }
 
   private String groupName(TypeElement iface, String simpleName) {

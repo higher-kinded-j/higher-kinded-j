@@ -10,6 +10,7 @@ import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
@@ -29,15 +30,19 @@ public class ExternalPrismGenerator {
 
   private final Filer filer;
   private final Messager messager;
+  private final Elements elements;
 
   /**
    * Creates a new ExternalPrismGenerator.
    *
    * @param filer the filer for writing generated files
    * @param messager the messager for reporting diagnostics
+   * @param elements the element utilities, which read whether a type-use annotation the prisms
+   *     restate is deprecated
    */
-  public ExternalPrismGenerator(Filer filer, Messager messager) {
+  public ExternalPrismGenerator(Filer filer, Messager messager, Elements elements) {
     this.filer = filer;
+    this.elements = elements;
     this.messager = messager;
   }
 
@@ -67,7 +72,7 @@ public class ExternalPrismGenerator {
     for (TypeElement subtype : analysis.permittedSubtypes()) {
       MethodSpec prism =
           SubtypePrismGenerator.prismMethodFor(
-              messager, "@ImportOptics", sealedInterface, subtype, targetPackage);
+              elements, messager, "@ImportOptics", sealedInterface, subtype, targetPackage);
       if (prism != null) {
         prismsClassBuilder.addMethod(prism);
       }

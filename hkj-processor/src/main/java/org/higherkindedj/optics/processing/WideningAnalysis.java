@@ -21,6 +21,7 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.processing.kind.KindFieldAnalyser;
 import org.higherkindedj.optics.processing.kind.KindFieldInfo;
 import org.higherkindedj.optics.processing.spi.Cardinality;
@@ -313,6 +314,7 @@ public final class WideningAnalysis {
   private final KindFieldAnalyser kindAnalyser;
   private final GeneratorRegistry generatorRegistry;
   private final String targetPackage;
+  private final Elements elements;
 
   /**
    * Creates the analysis over a set of SPI generators.
@@ -330,6 +332,7 @@ public final class WideningAnalysis {
     this.generatorRegistry =
         GeneratorRegistry.of(traversableGenerators, processingEnv.getMessager());
     this.targetPackage = targetPackage;
+    this.elements = processingEnv.getElementUtils();
   }
 
   /**
@@ -396,7 +399,10 @@ public final class WideningAnalysis {
       steps.addFirst(new Step(StepKind.NULLABLE, null, null, null, null));
     }
     return new Widening(
-        tier(steps), focusType(componentType, steps, targetPackage), List.copyOf(steps), declined);
+        tier(steps),
+        focusType(elements, componentType, steps, targetPackage),
+        List.copyOf(steps),
+        declined);
   }
 
   /**
@@ -605,9 +611,9 @@ public final class WideningAnalysis {
 
   /** The type the widened path focuses on: what the last layer peeled unwraps to. */
   private static TypeName focusType(
-      TypeMirror componentType, List<Step> steps, String targetPackage) {
+      Elements elements, TypeMirror componentType, List<Step> steps, String targetPackage) {
     if (steps.isEmpty()) {
-      return ProcessorUtils.typeNameOf(componentType, targetPackage).box();
+      return ProcessorUtils.typeNameOf(elements, componentType, targetPackage).box();
     }
     Step last = steps.getLast();
     return switch (last.kind()) {
@@ -615,7 +621,8 @@ public final class WideningAnalysis {
       // but without the annotation that put the step there. Affines.nullable() is
       // Affine<@Nullable A, A>: the widening is what makes the focus non-null, and repeating
       // @Nullable on it would describe a value the affine never yields.
-      case NULLABLE -> nullRuledOut(ProcessorUtils.typeNameOf(componentType, targetPackage).box());
+      case NULLABLE ->
+          nullRuledOut(ProcessorUtils.typeNameOf(elements, componentType, targetPackage).box());
       case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE, KIND_ZERO_OR_MORE -> last.kindInfo().elementType();
       case OPTIONAL,
           MAYBE,
@@ -625,7 +632,7 @@ public final class WideningAnalysis {
           SPI_ZERO_OR_ONE,
           SPI_ZERO_OR_MORE,
           NULLABLE_LAYER ->
-          elementOf(last, targetPackage);
+          elementOf(elements, last, targetPackage);
     };
   }
 
@@ -658,12 +665,14 @@ public final class WideningAnalysis {
    * .some(FocusPaths.optionalSome()).each(EachInstances.listEach())}, and {@code Either<E, Map<K,
    * V>>} produces {@code .some(Affines.eitherRight()).each(EachInstances.mapValuesEach())}.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param steps the layers to render
    * @param args the mutable list of JavaPoet arguments, appended to for SPI import resolution
    * @param targetPackage the package the expression is written into
    * @return the chained expression, empty when nothing widens
    */
-  public static String expression(List<Step> steps, List<Object> args, String targetPackage) {
+  public static String expression(
+      Elements elements, List<Step> steps, List<Object> args, String targetPackage) {
     StringBuilder expression = new StringBuilder();
     for (Step step : steps) {
       // Rendered as a value rather than appended arm by arm: the kinds are the whole enum,
@@ -672,6 +681,7 @@ public final class WideningAnalysis {
           switch (step.kind()) {
             case OPTIONAL ->
                 typedInstance(
+                    elements,
                     "some",
                     AFFINE_CLASS,
                     FOCUS_PATHS_CLASS,
@@ -681,9 +691,17 @@ public final class WideningAnalysis {
                     targetPackage);
             case MAYBE ->
                 typedInstance(
-                    "some", AFFINE_CLASS, AFFINES_CLASS, "just", step, args, targetPackage);
+                    elements,
+                    "some",
+                    AFFINE_CLASS,
+                    AFFINES_CLASS,
+                    "just",
+                    step,
+                    args,
+                    targetPackage);
             case LIST ->
                 typedInstance(
+                    elements,
                     "each",
                     EACH_CLASS,
                     EACH_INSTANCES_CLASS,
@@ -693,9 +711,17 @@ public final class WideningAnalysis {
                     targetPackage);
             case SET ->
                 typedInstance(
-                    "each", EACH_CLASS, EACH_INSTANCES_CLASS, "setEach", step, args, targetPackage);
+                    elements,
+                    "each",
+                    EACH_CLASS,
+                    EACH_INSTANCES_CLASS,
+                    "setEach",
+                    step,
+                    args,
+                    targetPackage);
             case COLLECTION ->
                 typedInstance(
+                    elements,
                     "each",
                     EACH_CLASS,
                     EACH_INSTANCES_CLASS,
@@ -708,8 +734,8 @@ public final class WideningAnalysis {
             case SPI_ZERO_OR_ONE -> ".some(" + opticExpression(step, args) + ")";
             case SPI_ZERO_OR_MORE -> ".each(" + opticExpression(step, args) + ")";
             case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE ->
-                traverseEach(step, args, targetPackage) + ".headOption()";
-            case KIND_ZERO_OR_MORE -> traverseEach(step, args, targetPackage);
+                traverseEach(elements, step, args, targetPackage) + ".headOption()";
+            case KIND_ZERO_OR_MORE -> traverseEach(elements, step, args, targetPackage);
           });
     }
     return expression.toString();
@@ -720,13 +746,14 @@ public final class WideningAnalysis {
    * component's type or its record's type-parameter bounds name a raw type, and {@code unchecked}
    * where a layer's instance is cast to a raw or wildcard container.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param component the component the method widens
    * @param record the record that declares it, whose type parameters the method redeclares
    * @param steps the layers its widening renders
    * @return the one suppression annotation the method needs, or none
    */
   public static List<AnnotationSpec> warningSuppression(
-      RecordComponentElement component, TypeElement record, List<Step> steps) {
+      Elements elements, RecordComponentElement component, TypeElement record, List<Step> steps) {
     List<TypeMirror> written =
         Stream.concat(
                 Stream.of(component.asType(), record.asType()),
@@ -736,7 +763,7 @@ public final class WideningAnalysis {
     return ProcessorUtils.suppression(
         Stream.of(
                 ProcessorUtils.rawTypesOf(written).stream(),
-                ProcessorUtils.deprecationNamedBy(written),
+                ProcessorUtils.deprecationNamedBy(elements, written),
                 steps.stream().anyMatch(step -> step.undenotableContainer() != null)
                     ? Stream.of(Lint.UNCHECKED)
                     : Stream.<Lint>empty())
@@ -757,6 +784,7 @@ public final class WideningAnalysis {
    * is cast to the container as written.
    */
   private static String typedInstance(
+      Elements elements,
       String method,
       ClassName opticType,
       ClassName factories,
@@ -767,8 +795,8 @@ public final class WideningAnalysis {
     if (step.undenotableContainer() == null) {
       return stockInstance(method, factories, factory, args);
     }
-    TypeName element = elementOf(step, targetPackage);
-    String cast = castTo(opticType, step, element, args, targetPackage);
+    TypeName element = elementOf(elements, step, targetPackage);
+    String cast = castTo(elements, opticType, step, element, args, targetPackage);
     args.addAll(List.of(factories, element));
     return "." + method + "(" + cast + "$T.<$T>" + factory + "())";
   }
@@ -780,11 +808,17 @@ public final class WideningAnalysis {
    * so the path this instance widens focuses on the container without it.
    */
   private static String castTo(
-      ClassName opticType, Step step, TypeName element, List<Object> args, String targetPackage) {
+      Elements elements,
+      ClassName opticType,
+      Step step,
+      TypeName element,
+      List<Object> args,
+      String targetPackage) {
     args.addAll(
         List.of(
             opticType,
-            nullRuledOut(ProcessorUtils.typeNameOf(step.undenotableContainer(), targetPackage)),
+            nullRuledOut(
+                ProcessorUtils.typeNameOf(elements, step.undenotableContainer(), targetPackage)),
             element,
             opticType));
     return "($T<$T, $T>) ($T<?, ?>) ";
@@ -796,7 +830,8 @@ public final class WideningAnalysis {
    * <p>The type parameters are written out because javac has nothing else to infer the witness and
    * element from. A wildcard element casts the instance to the {@code Kind} as written.
    */
-  private static String traverseEach(Step step, List<Object> args, String targetPackage) {
+  private static String traverseEach(
+      Elements elements, Step step, List<Object> args, String targetPackage) {
     KindFieldInfo kindInfo = step.kindInfo();
     String witnessType = kindInfo.witnessType();
     if (kindInfo.isParameterised() && !kindInfo.witnessTypeArgs().isEmpty()) {
@@ -805,7 +840,7 @@ public final class WideningAnalysis {
     String cast =
         step.undenotableContainer() == null
             ? ""
-            : castTo(EACH_CLASS, step, kindInfo.elementType(), args, targetPackage);
+            : castTo(elements, EACH_CLASS, step, kindInfo.elementType(), args, targetPackage);
     args.add(EACH_INSTANCES_CLASS);
     return String.format(
         Locale.ROOT,
@@ -840,11 +875,11 @@ public final class WideningAnalysis {
    * nullness annotation on that bound is left out: {@code Maybe<? extends @Nullable String>} holds
    * a {@code String}, and {@code Affines.just()} is typed for a non-null element.
    */
-  private static TypeName elementOf(Step step, String targetPackage) {
+  private static TypeName elementOf(Elements elements, Step step, String targetPackage) {
     if (step.innerType() == null) {
       return ClassName.get(Object.class);
     }
-    TypeName element = ProcessorUtils.typeNameOf(step.innerType(), targetPackage).box();
+    TypeName element = ProcessorUtils.typeNameOf(elements, step.innerType(), targetPackage).box();
     return step.undenotableContainer() != null
             && (step.kind() == StepKind.OPTIONAL || step.kind() == StepKind.MAYBE)
         ? nullRuledOut(element)

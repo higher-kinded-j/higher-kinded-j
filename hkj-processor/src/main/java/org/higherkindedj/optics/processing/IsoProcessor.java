@@ -202,8 +202,12 @@ public final class IsoProcessor extends AbstractProcessor {
     final List<? extends TypeMirror> typeArguments =
         ((DeclaredType) method.getReturnType()).getTypeArguments();
 
-    final TypeName sTypeName = ProcessorUtils.typeNameOf(typeArguments.get(0), packageName);
-    final TypeName aTypeName = ProcessorUtils.typeNameOf(typeArguments.get(1), packageName);
+    final TypeName sTypeName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), typeArguments.get(0), packageName);
+    final TypeName aTypeName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), typeArguments.get(1), packageName);
     final TypeName isoTypeName =
         ParameterizedTypeName.get(ClassName.get(Iso.class), sTypeName, aTypeName);
 
@@ -212,7 +216,9 @@ public final class IsoProcessor extends AbstractProcessor {
     final FieldSpec isoField =
         FieldSpec.builder(isoTypeName, methodName, PUBLIC, STATIC, FINAL)
             // The field restates the Iso the annotated method declares, raw arguments and all.
-            .addAnnotations(ProcessorUtils.writtenTypesSuppression(typeArguments))
+            .addAnnotations(
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), typeArguments))
             .initializer("$T.$L()", ClassName.get(classElement), methodName)
             .build();
 

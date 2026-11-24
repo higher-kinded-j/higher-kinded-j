@@ -10,11 +10,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
+import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.util.Traversals;
@@ -48,9 +50,12 @@ public class ArrayGenerator extends BaseTraversableGenerator {
     return Set.of("org.higherkindedj.optics.each.EachInstances");
   }
 
-  /** Generates the body of the `modifyF` method for a traversal over an array. */
+  /**
+   * Generates the body of the {@code modifyF} method for a traversal over an array. Final, as hkj's
+   * processors call the {@link GenerationContext} form.
+   */
   @Override
-  public CodeBlock generateModifyF(
+  public final CodeBlock generateModifyF(
       final RecordComponentElement component,
       final ClassName recordClassName,
       final List<? extends RecordComponentElement> allComponents) {
@@ -60,15 +65,42 @@ public class ArrayGenerator extends BaseTraversableGenerator {
         component, recordClassName, allComponents, recordClassName.packageName());
   }
 
+  /**
+   * {@inheritDoc} Final, as hkj's processors call the {@link GenerationContext} form; a type-use
+   * annotation deprecated by a javadoc tag alone is kept here, as this form reads
+   * {@code @Deprecated} alone.
+   */
+  @Override
+  public final CodeBlock generateModifyF(
+      final RecordComponentElement component,
+      final ClassName recordClassName,
+      final List<? extends RecordComponentElement> allComponents,
+      final String targetPackage) {
+    return modifyF(
+        component,
+        recordClassName,
+        allComponents,
+        type -> ProcessorUtils.typeNameOf(type, targetPackage));
+  }
+
   @Override
   public CodeBlock generateModifyF(
       final RecordComponentElement component,
       final ClassName recordClassName,
       final List<? extends RecordComponentElement> allComponents,
-      final String targetPackage) {
+      final GenerationContext context) {
+    return modifyF(component, recordClassName, allComponents, context::typeNameOf);
+  }
+
+  /** The body each form writes, with every type it names named by {@code naming}. */
+  private CodeBlock modifyF(
+      final RecordComponentElement component,
+      final ClassName recordClassName,
+      final List<? extends RecordComponentElement> allComponents,
+      final Function<TypeMirror, TypeName> naming) {
 
     final String componentName = component.getSimpleName().toString();
-    final TypeName elementType = elementType(component, targetPackage);
+    final TypeName elementType = elementType(component, naming);
     final TypeName focusType = elementType.box();
 
     // The new value is in a variable named `newArray`.
@@ -176,9 +208,10 @@ public class ArrayGenerator extends BaseTraversableGenerator {
    * The array's element type, unboxed: {@code int} for an {@code int[]}, {@code String} for a
    * {@code String[]}. The base implementation reads a type argument, which an array does not have.
    */
-  private TypeName elementType(final RecordComponentElement component, final String targetPackage) {
+  private TypeName elementType(
+      final RecordComponentElement component, final Function<TypeMirror, TypeName> naming) {
     if (component.asType() instanceof ArrayType arrayType) {
-      return ProcessorUtils.typeNameOf(arrayType.getComponentType(), targetPackage);
+      return naming.apply(arrayType.getComponentType());
     }
     return ClassName.get(Object.class); // Fallback
   }

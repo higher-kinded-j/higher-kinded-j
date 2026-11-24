@@ -126,7 +126,10 @@ public class FoldProcessor extends AbstractProcessor {
     } else {
       List<TypeVariableName> typeVars =
           typeParameters.stream()
-              .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+              .map(
+                  parameter ->
+                      ProcessorUtils.typeVariableOf(
+                          processingEnv.getElementUtils(), parameter, packageName))
               .toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
@@ -141,7 +144,8 @@ public class FoldProcessor extends AbstractProcessor {
       String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
+    TypeName componentTypeName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), component.asType(), packageName);
 
     // Check if this is an Iterable type (List, Set, etc.)
     boolean isIterable = isIterableType(component.asType());
@@ -191,7 +195,8 @@ public class FoldProcessor extends AbstractProcessor {
             // The class declares the record's type parameters and names the fold type in its
             // superinterface clause, neither of which a member annotation reaches.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), component.asType(), recordElement))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(foldTypeName)
             .addMethod(foldMap.build());
@@ -208,14 +213,17 @@ public class FoldProcessor extends AbstractProcessor {
                 targetType)
             // The fold type and the record's type-parameter bounds are written out here.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(foldTypeName);
 
     // The implementation is declared beside the factory, not inside it, so it declares the
     // record's type variables for itself.
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter, packageName);
+      TypeVariableName typeVariable =
+          ProcessorUtils.typeVariableOf(
+              processingEnv.getElementUtils(), typeParameter, packageName);
       factory.addTypeVariable(typeVariable);
       implementation.addTypeVariable(typeVariable);
     }
@@ -254,7 +262,9 @@ public class FoldProcessor extends AbstractProcessor {
     DeclaredType containerType = (DeclaredType) component.asType();
     if (!containerType.getTypeArguments().isEmpty()) {
       return ProcessorUtils.resolvedTypeNameOf(
-              containerType.getTypeArguments().getFirst(), packageName)
+              processingEnv.getElementUtils(),
+              containerType.getTypeArguments().getFirst(),
+              packageName)
           .box();
     }
     return ClassName.get(Object.class);
