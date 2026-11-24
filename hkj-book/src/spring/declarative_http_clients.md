@@ -281,6 +281,8 @@ EitherPath<DomainError, UserDto> getUser(@PathVariable String id);
 
 An `@OnStatus` on a method your client inherits from a base interface applies as well, whether the base is compiled alongside the client or comes from a dependency jar. A problem with an inherited override is reported on your client interface, naming the method and the interface it came from.
 
+javac refuses a repeated `@OnStatus` whose status is a constant another annotation processor writes, saying `expression not allowed as annotation value`. It also reports the constant missing, though that processor ran. Write the repeats inside `@OnStatuses({...})` instead, which javac accepts.
+
 #### 2. Global: `hkj.client.status-error-mappings`
 
 **The problem:** the same status maps to the same error type across every client, and repeating `@OnStatus` everywhere is noise.
@@ -391,7 +393,7 @@ The processor refuses an annotation the client writes itself only where it names
 At type level, a base can carry no `@HttpExchange` the processor can see, but a missing run-time annotation that a class file names, on the base or underneath an annotation it carries. Spring may read one through it, so the processor refuses the client, saying it `cannot tell whether` the client inherits one. Add the dependency that declares it, or declare `@HttpExchange` on the client; a bare one will do where the client needs nothing at type level. The processor copies the client's own annotations as they stand, so should Spring read an `@HttpExchange` through one of them beside a base's, it refuses the two at startup.
 
 ~~~admonish info title="A client that names what another processor writes"
-A client whose annotations or interfaces name a type another processor writes waits for the round that brings it. If no round does, the processor reports that it `generated nothing` for the client, and why, beside javac's own error. Where another error ends the rounds first, the processor adds nothing to javac's error at the name.
+A client waits for the round that brings a type another processor writes, wherever it names one, its `@HkjHttpClient` and each `@OnStatus` included. If no round does, the processor reports that it `generated nothing` for the client, and why, beside javac's error. Where another error ends the rounds first, the processor adds nothing to javac's error.
 ~~~
 
 Give each generic interface its type arguments where the client extends it. Named raw, as in `extends CrudApi`, a base's methods lose their types, and the processor refuses each one that needs them, saying it `reads this method through the raw type CrudApi`.

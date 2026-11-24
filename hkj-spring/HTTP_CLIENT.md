@@ -292,8 +292,13 @@ javac reads the names as `arg0`, `arg1`, and the processor refuses the binding (
 binding of`) rather than bind that name. Compile the base with the flag, write the
 name, as `@PathVariable("id")`, or redeclare the method on the client.
 
-A client whose annotations or interfaces name a type another processor writes waits for the round
-that brings it; if none does, the processor reports that it generated nothing for the client.
+A client waits for the round that brings a type another processor writes, wherever it names one:
+in an annotation, its `@HkjHttpClient` and each `@OnStatus` included, in a method's signature, in
+a type parameter's bound, or in an interface it extends or that clause's type arguments. If no
+round brings it, the processor reports that it generated nothing for the client, beside javac's own
+error, and code that uses the generated types reports them missing too. javac itself refuses a
+repeated `@OnStatus` whose status is such a constant (`expression not allowed as annotation
+value`); write the repeats inside `@OnStatuses({...})`.
 
 A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and the
 facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a

@@ -60,6 +60,15 @@ class HkjHttpClientProcessorTest {
     return javac().withProcessors(new HkjHttpClientProcessor()).compile(sources);
   }
 
+  /** A generated file's contents, as written. */
+  private static String contents(JavaFileObject file) {
+    try {
+      return file.getCharContent(true).toString();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   private static JavaFileObject userApi(String... methodLines) {
     String[] header = {
       "package com.example;",
@@ -2059,61 +2068,254 @@ class HkjHttpClientProcessorTest {
     }
 
     /**
-     * One thing a client names that WritesTypes brings in the first round, alone on the client, so
-     * that it is what the client waits for.
+     * One thing a client names that WritesTypes brings in the first round, alone on the client or
+     * its base, so that it is what the client waits for, with what its generated sources then write
+     * and what the last round reports where no round brings it.
      */
     enum LaterRound {
       TYPE_LEVEL(
           "an annotation on the client",
+          laterRoundClient(
+              "@Tagged", "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search();"),
           "@Tagged",
-          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search();",
-          "@Tagged"),
+          "Tagged"),
       METHOD(
           "an annotation on a method",
-          "",
-          "@GetExchange(\"/search\") @Tagged EitherPath<UserError, UserDto> search();",
-          "@Tagged"),
+          laterRoundClient(
+              "", "@GetExchange(\"/search\") @Tagged EitherPath<UserError, UserDto> search();"),
+          "@Tagged",
+          "Tagged"),
       PARAMETER(
           "an annotation on a parameter",
-          "",
-          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search(@RequestParam(\"q\")"
-              + " @Tagged String q);",
-          "@Tagged String q"),
+          laterRoundClient(
+              "",
+              "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search(@RequestParam(\"q\")"
+                  + " @Tagged String q);"),
+          "@Tagged String q",
+          "Tagged"),
       CONSTANT(
           "a constant a mapping annotation names",
-          "",
-          "@GetExchange(Paths.SEARCH) EitherPath<UserError, UserDto> search(@RequestParam(\"q\")"
-              + " String q);",
-          "@GetExchange(\"/search\")"),
+          laterRoundClient(
+              "",
+              "@GetExchange(Paths.SEARCH) EitherPath<UserError, UserDto> search(@RequestParam(\"q\")"
+                  + " String q);"),
+          "@GetExchange(\"/search\")",
+          "a value of @org.springframework.web.service.annotation.GetExchange's value()"),
       PARAMETER_CONSTANT(
           "a constant a parameter's annotation names",
-          "",
-          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search(@RequestParam(Paths.Q)"
-              + " String q);",
-          "@RequestParam(\"q\") String q"),
+          laterRoundClient(
+              "",
+              "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search(@RequestParam(Paths.Q)"
+                  + " String q);"),
+          "@RequestParam(\"q\") String q",
+          "a value of @org.springframework.web.bind.annotation.RequestParam's value()"),
       TYPE_USE(
           "a type-use annotation in a type argument",
-          "",
-          "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search("
-              + "@RequestParam(\"ids\") List<@TypeTag String> ids);",
-          "List<@TypeTag String> ids"),
+          laterRoundClient(
+              "",
+              "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search("
+                  + "@RequestParam(\"ids\") List<@TypeTag String> ids);"),
+          "List<@TypeTag String> ids",
+          "TypeTag"),
       ENCLOSING_TYPE(
           "a type-use annotation on an enclosing type's argument",
-          "",
-          "class Outer<T> { class Inner {} } @GetExchange(\"/search\") EitherPath<UserError,"
-              + " Outer<@TypeTag String>.Inner> search();",
-          "Outer<@TypeTag String>.Inner");
+          laterRoundClient(
+              "",
+              "class Outer<T> { class Inner {} } @GetExchange(\"/search\") EitherPath<UserError,"
+                  + " Outer<@TypeTag String>.Inner> search();"),
+          "Outer<@TypeTag String>.Inner",
+          "TypeTag"),
+      IMPORTED_TYPE(
+          "a return type's argument, named through an import",
+          laterRoundClient(
+              "import com.gen.Profile;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") EitherPath<UserError, Profile> search();"),
+          "ResponseEntity<Profile> search()",
+          "Profile"),
+      IMPORTED_BOUND(
+          "a bound on a method's type parameter, named through an import",
+          laterRoundClient(
+              "import com.gen.Profile;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") <T extends Profile> EitherPath<UserError, List<T>>"
+                  + " search();"),
+          "<T extends Profile>",
+          "Profile"),
+      IMPORTED_ARRAY(
+          "an array's component type, named through an import",
+          laterRoundClient(
+              "import com.gen.Profile;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") EitherPath<UserError, Profile[]> search();"),
+          "ResponseEntity<Profile[]> search()",
+          "Profile"),
+      IMPORTED_WILDCARD(
+          "a wildcard's bound, named through an import",
+          laterRoundClient(
+              "import com.gen.Profile;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search("
+                  + "@RequestParam(\"p\") List<? extends Profile> p);"),
+          "List<? extends Profile> p",
+          "Profile"),
+      IMPORTED_PARAMETER_TYPE(
+          "a parameter type, named through an import",
+          laterRoundClient(
+              "import com.gen.Profile;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search("
+                  + "@RequestParam(\"p\") Profile p);"),
+          "@RequestParam(\"p\") Profile p",
+          "Profile"),
+      IMPORTED_ERROR_TYPE(
+          "an error type, named through an import",
+          laterRoundClient(
+              "import com.gen.Gone;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") EitherPath<Gone, UserDto> search();"),
+          "decoderFactory.create(Gone.class)",
+          "Gone"),
+      IMPORTED_INTERSECTION_BOUND(
+          "an intersection bound on a method's type parameter, named through an import",
+          laterRoundClient(
+              "import com.gen.Named;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") <T extends Comparable<T> & Named> EitherPath<UserError,"
+                  + " List<T>> search();"),
+          "<T extends Comparable<T> & Named>",
+          "Named"),
+      IMPORTED_TYPE_ARGUMENT(
+          "a type argument of a type, both named through an import",
+          laterRoundClient(
+              "import com.gen.Page; import com.gen.Profile;",
+              "",
+              "@HkjHttpClient",
+              "@GetExchange(\"/search\") EitherPath<UserError, Page<Profile>> search();"),
+          "ResponseEntity<Page<Profile>> search()",
+          "Page, Profile"),
+      CLIENT_BOUND(
+          "a bound on the client's type parameter, named through an import",
+          withBase(
+              """
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface UserApi<T extends Profile> {
+                @GetExchange("/search")
+                EitherPath<UserError, T> search();
+              }
+              """),
+          "public interface UserApiHttpExchange<T extends Profile>",
+          "Profile"),
+      EXTENDS_CLAUSE(
+          "a type argument in the client's extends clause, named through an import",
+          withBase(
+              """
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface UserApi extends Repo<Profile> {}
+
+              interface Repo<T> {
+                @GetExchange("/search")
+                EitherPath<UserError, T> search();
+              }
+              """),
+          "ResponseEntity<Profile> search()",
+          "Profile"),
+      BASE_SIGNATURE(
+          "a base's signature, named through an import",
+          withBase(
+              """
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface UserApi extends Base {}
+
+              interface Base {
+                @GetExchange("/search")
+                EitherPath<UserError, Profile> search();
+              }
+              """),
+          "ResponseEntity<Profile> search()",
+          "Profile"),
+      ON_STATUS_ERROR(
+          "an @OnStatus error class",
+          laterRoundClient(
+              "",
+              "@GetExchange(\"/search\") @OnStatus(value = 404, error = com.gen.Gone.class)"
+                  + " EitherPath<Object, UserDto> search();"),
+          ".on(404, Gone.class)",
+          "a value of @org.higherkindedj.spring.client.OnStatus's error()"),
+      ON_STATUS_VALUE(
+          "an @OnStatus status constant",
+          laterRoundClient(
+              "",
+              "@GetExchange(\"/search\") @OnStatus(value = com.gen.Codes.GONE, error ="
+                  + " UserError.class) EitherPath<UserError, UserDto> search();"),
+          ".on(410, UserError.class)",
+          "a value of @org.higherkindedj.spring.client.OnStatus's value()"),
+      REPEATED_ON_STATUS(
+          "an error class in a repeated @OnStatus",
+          laterRoundClient(
+              "",
+              "@GetExchange(\"/search\") @OnStatus(value = 404, error = UserError.class)"
+                  + " @OnStatus(value = 410, error = com.gen.Gone.class)"
+                  + " EitherPath<Object, UserDto> search();"),
+          ".on(410, Gone.class)",
+          "a value of @org.higherkindedj.spring.client.OnStatus's error()"),
+      // javac itself refuses a repeated @OnStatus whose status is a constant a later round brings,
+      // "expression not allowed as annotation value", so the container is written out for that.
+      ON_STATUSES(
+          "a status constant in @OnStatuses",
+          laterRoundClient(
+              "",
+              "@GetExchange(\"/search\") @OnStatuses({@OnStatus(value = 404, error ="
+                  + " UserError.class), @OnStatus(value = com.gen.Codes.GONE, error ="
+                  + " UserError.class)}) EitherPath<UserError, UserDto> search();"),
+          ".on(410, UserError.class)",
+          "a value of @org.higherkindedj.spring.client.OnStatus's value()"),
+      BASE_ON_STATUS(
+          "a status constant on a base's @OnStatus, named through an import",
+          withBase(
+              """
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface UserApi extends Base {}
+
+              interface Base {
+                @GetExchange("/search")
+                @OnStatus(value = Codes.GONE, error = UserError.class)
+                EitherPath<UserError, UserDto> search();
+              }
+              """),
+          ".on(410, UserError.class)",
+          "a value of @org.higherkindedj.spring.client.OnStatus's value()"),
+      GROUP(
+          "a group constant",
+          laterRoundClient(
+              "",
+              "",
+              "@HkjHttpClient(group = com.gen.Codes.GROUP)",
+              "@GetExchange(\"/search\") EitherPath<UserError, UserDto> search();"),
+          "group = \"people\"",
+          "a value of @org.higherkindedj.spring.client.HkjHttpClient's group()");
 
       private final String description;
-      private final String annotations;
-      private final String method;
+      private final JavaFileObject client;
       private final String generated;
+      private final String awaited;
 
-      LaterRound(String description, String annotations, String method, String generated) {
+      LaterRound(String description, JavaFileObject client, String generated, String awaited) {
         this.description = description;
-        this.annotations = annotations;
-        this.method = method;
+        this.client = client;
         this.generated = generated;
+        this.awaited = awaited;
       }
 
       @Override
@@ -2124,6 +2326,15 @@ class HkjHttpClientProcessorTest {
 
     /** A client with the given type-level annotations and one method, as written. */
     private static JavaFileObject laterRoundClient(String annotations, String method) {
+      return laterRoundClient("", annotations, "@HkjHttpClient", method);
+    }
+
+    /**
+     * A client with the given imports, type-level annotations, {@code @HkjHttpClient} and one
+     * method, as written.
+     */
+    private static JavaFileObject laterRoundClient(
+        String imports, String annotations, String marker, String method) {
       return JavaFileObjects.forSourceString(
           "com.example.UserApi",
           """
@@ -2132,34 +2343,101 @@ class HkjHttpClientProcessorTest {
           import java.util.List;
           import org.higherkindedj.hkt.effect.EitherPath;
           import org.higherkindedj.spring.client.HkjHttpClient;
+          import org.higherkindedj.spring.client.OnStatus;
+          import org.higherkindedj.spring.client.OnStatuses;
           import org.springframework.web.bind.annotation.RequestParam;
           import org.springframework.web.service.annotation.GetExchange;
           import org.springframework.web.service.annotation.HttpExchange;
+          %s
 
           %s
           @HttpExchange("/users")
-          @HkjHttpClient
+          %s
           public interface UserApi {
             %s
           }
           """
-              .formatted(annotations, method));
+              .formatted(imports, annotations, marker, method));
+    }
+
+    /** A client written in full, with any base beside it, importing what WritesTypes brings. */
+    private static JavaFileObject withBase(String declarations) {
+      return JavaFileObjects.forSourceString(
+          "com.example.UserApi",
+          """
+          package com.example;
+
+          import com.gen.Codes;
+          import com.gen.Profile;
+          import org.higherkindedj.hkt.effect.EitherPath;
+          import org.higherkindedj.spring.client.HkjHttpClient;
+          import org.higherkindedj.spring.client.OnStatus;
+          import org.springframework.web.service.annotation.GetExchange;
+          import org.springframework.web.service.annotation.HttpExchange;
+
+          """
+              + declarations);
     }
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(LaterRound.class)
-    @DisplayName("a client waits for the round that brings what it names, alone on the client")
+    @DisplayName("a client waits for the round that brings what it names")
     void aClientWaitsForWhatALaterRoundBrings(LaterRound later) {
+      Assertions.assertThat(generatedOnceBrought(later.client))
+          .isNotEmpty()
+          .anySatisfy((name, source) -> Assertions.assertThat(source).contains(later.generated));
+    }
+
+    /**
+     * The sources generated for a client whose types WritesTypes brings in the first round, checked
+     * to be the same as where the client's compilation has them by hand from the start.
+     */
+    private static Map<String, String> generatedOnceBrought(JavaFileObject client) {
       Compilation compilation =
           javac()
               .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
-              .compile(laterRoundClient(later.annotations, later.method), USER_DTO, USER_ERROR);
+              .compile(client, USER_DTO, USER_ERROR);
+      Compilation byHand =
+          javac()
+              .withProcessors(new HkjHttpClientProcessor())
+              .compile(
+                  Stream.concat(Stream.of(client, USER_DTO, USER_ERROR), WritesTypes.byHand())
+                      .toList());
 
       assertThat(compilation).succeeded();
+      assertThat(byHand).succeeded();
+      Map<String, String> generated = clientSourcesOf(compilation);
+      Assertions.assertThat(generated).isEqualTo(clientSourcesOf(byHand));
+      return generated;
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LaterRound.class)
+    @DisplayName("a client reports what it names that no round brings")
+    void aClientReportsWhatNoRoundBrings(LaterRound later) {
+      Compilation compilation =
+          javac()
+              .withProcessors(new HkjHttpClientProcessor())
+              .compile(later.client, USER_DTO, USER_ERROR);
+
       assertThat(compilation)
-          .generatedSourceFile("com.example.UserApiHttpExchange")
-          .contentsAsUtf8String()
-          .contains(later.generated);
+          .hadErrorContaining(
+              "@HkjHttpClient generated nothing for UserApi, as no round of this compilation"
+                  + " resolved what it names: "
+                  + later.awaited
+                  + ". Correct each name or make it accessible, or add the dependency or the"
+                  + " processor that writes it.")
+          .inFile(later.client);
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("Failed to generate"))
+          .noneMatch(CopiedAnnotations::isInGeneratedSource);
+    }
+
+    /** The sources generated for the client, by file name, each as written. */
+    private static Map<String, String> clientSourcesOf(Compilation compilation) {
+      return compilation.generatedSourceFiles().stream()
+          .filter(file -> file.getName().contains("/com/example/UserApi"))
+          .collect(Collectors.toMap(JavaFileObject::getName, HkjHttpClientProcessorTest::contents));
     }
 
     @Test
@@ -2329,7 +2607,67 @@ class HkjHttpClientProcessorTest {
     @SupportedAnnotationTypes("*")
     private static final class WritesTypes extends AbstractProcessor {
 
+      /** A type it writes: its name and its source. */
+      private record Source(String name, String text) {}
+
+      /**
+       * Each type it writes, in the order written: some in the client's package and some in
+       * another.
+       */
+      private static final List<Source> SOURCES =
+          List.of(
+              new Source(
+                  "com.example.Tagged",
+                  "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
+                      + ".RetentionPolicy.RUNTIME) public @interface Tagged {}"),
+              new Source("com.example.Thing", "package com.example; public class Thing {}"),
+              new Source(
+                  "com.example.GenExchange",
+                  "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
+                      + ".RetentionPolicy.RUNTIME) @org.springframework.web.service.annotation"
+                      + ".HttpExchange(\"/gen\") public @interface GenExchange {}"),
+              new Source(
+                  "com.example.Paths",
+                  "package com.example; public final class Paths { private Paths() {} public"
+                      + " static final String SEARCH = \"/search\"; public static final String Q ="
+                      + " \"q\"; }"),
+              new Source(
+                  "com.example.TypeTag",
+                  "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
+                      + ".RetentionPolicy.RUNTIME) @java.lang.annotation.Target(java.lang"
+                      + ".annotation.ElementType.TYPE_USE) public @interface TypeTag {}"),
+              new Source(
+                  "com.example.GenBase",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.EitherPath;
+                  import org.springframework.web.service.annotation.GetExchange;
+                  import org.springframework.web.service.annotation.HttpExchange;
+
+                  @HttpExchange("/gb")
+                  public interface GenBase {
+                    @GetExchange("/m")
+                    EitherPath<UserError, UserDto> m();
+                  }
+                  """),
+              new Source("com.gen.Profile", "package com.gen; public final class Profile {}"),
+              new Source("com.gen.Gone", "package com.gen; public class Gone {}"),
+              new Source(
+                  "com.gen.Codes",
+                  "package com.gen; public final class Codes { private Codes() {} public static"
+                      + " final int GONE = 410; public static final String GROUP = \"people\";"
+                      + " }"),
+              new Source("com.gen.Page", "package com.gen; public final class Page<T> {}"),
+              new Source("com.gen.Named", "package com.gen; public interface Named {}"));
+
       private boolean written;
+
+      /** The same types, written by hand, for a compilation to name from its first round. */
+      static Stream<JavaFileObject> byHand() {
+        return SOURCES.stream()
+            .map(type -> JavaFileObjects.forSourceString(type.name(), type.text()));
+      }
 
       @Override
       public SourceVersion getSupportedSourceVersion() {
@@ -2342,40 +2680,7 @@ class HkjHttpClientProcessorTest {
           return false;
         }
         written = true;
-        write(
-            "com.example.Tagged",
-            "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
-                + ".RetentionPolicy.RUNTIME) public @interface Tagged {}");
-        write("com.example.Thing", "package com.example; public class Thing {}");
-        write(
-            "com.example.GenExchange",
-            "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
-                + ".RetentionPolicy.RUNTIME) @org.springframework.web.service.annotation"
-                + ".HttpExchange(\"/gen\") public @interface GenExchange {}");
-        write(
-            "com.example.Paths",
-            "package com.example; public final class Paths { private Paths() {} public static"
-                + " final String SEARCH = \"/search\"; public static final String Q = \"q\"; }");
-        write(
-            "com.example.TypeTag",
-            "package com.example; @java.lang.annotation.Retention(java.lang.annotation"
-                + ".RetentionPolicy.RUNTIME) @java.lang.annotation.Target(java.lang.annotation"
-                + ".ElementType.TYPE_USE) public @interface TypeTag {}");
-        write(
-            "com.example.GenBase",
-            """
-            package com.example;
-
-            import org.higherkindedj.hkt.effect.EitherPath;
-            import org.springframework.web.service.annotation.GetExchange;
-            import org.springframework.web.service.annotation.HttpExchange;
-
-            @HttpExchange("/gb")
-            public interface GenBase {
-              @GetExchange("/m")
-              EitherPath<UserError, UserDto> m();
-            }
-            """);
+        SOURCES.forEach(type -> write(type.name(), type.text()));
         return false;
       }
 
@@ -2578,15 +2883,7 @@ class HkjHttpClientProcessorTest {
 
     private static Map<String, String> generatedSources(Compilation compilation) {
       return compilation.generatedSourceFiles().stream()
-          .collect(Collectors.toMap(JavaFileObject::getName, GenericBase::contents));
-    }
-
-    private static String contents(JavaFileObject file) {
-      try {
-        return file.getCharContent(true).toString();
-      } catch (IOException e) {
-        throw new UncheckedIOException(e);
-      }
+          .collect(Collectors.toMap(JavaFileObject::getName, HkjHttpClientProcessorTest::contents));
     }
 
     /**
