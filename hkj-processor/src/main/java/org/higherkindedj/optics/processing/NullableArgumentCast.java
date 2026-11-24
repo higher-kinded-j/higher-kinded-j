@@ -9,6 +9,7 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.util.stream.Stream;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -49,6 +50,7 @@ final class NullableArgumentCast {
    * {@code value}, the copy {@code copy} makes of a {@code from}, typed as {@code to} where that
    * widens it, or as it is otherwise.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param copy the copy, or null where the value is handed over as it is
    * @param from the type copied
    * @param to the type the copy is handed on as
@@ -57,16 +59,21 @@ final class NullableArgumentCast {
    * @return the copy, cast where {@code to} widens it
    */
   static CodeBlock on(
-      ContainerCopy copy, TypeMirror from, TypeMirror to, String targetPackage, CodeBlock value) {
+      Elements elements,
+      ContainerCopy copy,
+      TypeMirror from,
+      TypeMirror to,
+      String targetPackage,
+      CodeBlock value) {
     if (ProcessorUtils.namesTypeVariable(from)
         || ContainerCopy.retyping(copy, from, to) != ContainerCopy.Retyping.CAST) {
       return value;
     }
-    TypeName type = ProcessorUtils.typeNameOf(to, targetPackage);
+    TypeName type = ProcessorUtils.typeNameOf(elements, to, targetPackage);
     if (!NullableAnnotations.nullableHere(to) && NullableAnnotations.nullableHere(from)) {
       type =
           type.withoutAnnotations()
-              .annotated(ProcessorUtils.typeNameOf(from, targetPackage).annotations());
+              .annotated(ProcessorUtils.typeNameOf(elements, from, targetPackage).annotations());
     }
     return annotated(type) ? CodeBlock.of("($T) $L", type, value) : value;
   }
@@ -79,15 +86,16 @@ final class NullableArgumentCast {
    * written out. Null where nothing inside is declared nullable, and where the class cannot write
    * the annotation, as {@link #on} leaves such a cast out.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param type the component the setter writes
    * @param targetPackage the package the generated class is written into
    * @return the type to write out, or null
    */
-  static TypeName named(TypeMirror type, String targetPackage) {
+  static TypeName named(Elements elements, TypeMirror type, String targetPackage) {
     if (!NullableAnnotations.hasNullableTypeArgument(type)) {
       return null;
     }
-    TypeName name = ProcessorUtils.typeNameOf(type, targetPackage);
+    TypeName name = ProcessorUtils.typeNameOf(elements, type, targetPackage);
     return annotated(name) ? name : null;
   }
 

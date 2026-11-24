@@ -274,6 +274,17 @@ the client will do where it needs nothing at type level. A deprecated annotation
 `org.springframework.lang.Nullable`, is copied with its warning suppressed on the generated
 declaration, as javac reports it where it is written.
 
+The facade and the native interface restate each method the client declares or inherits. Where the
+method is deprecated, or its signature names a deprecated type, each generated declaration that
+would draw the warning suppresses `deprecation`, or `removal`: the facade's method, which overrides
+the method and names its types; the native method, which carries the copied `@Deprecated` and
+suppresses the types it names; the decoder's field, for a deprecated error type; and the facade's
+constructor, for a deprecated error or `@OnStatus` error type. The facade and the native interface
+suppress a deprecated bound of a generic client's type parameter. For a deprecated client, or one
+nested in a deprecated class, the facade and its configuration class suppress the warning that
+naming it draws. A type-use annotation deprecated by `@Deprecated` or by a javadoc `@deprecated` tag
+alone is left off the restated types.
+
 A client whose annotations or interfaces name a type another processor writes waits for the round
 that brings it; if none does, the processor reports that it generated nothing for the client.
 

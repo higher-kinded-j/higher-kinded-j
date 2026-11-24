@@ -16,6 +16,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.Elements;
 
 /**
  * A method the client must implement, as the client inherits it.
@@ -65,8 +66,8 @@ record ClientMethod(
     }
 
     /** The type's name, keeping the annotations the declaration wrote on what it binds. */
-    TypeName typeName(String targetPackage) {
-      return TypeNames.typeNameOf(type, element.asType(), owner, targetPackage);
+    TypeName typeName(String targetPackage, Elements elements) {
+      return TypeNames.typeNameOf(type, element.asType(), owner, targetPackage, elements);
     }
   }
 
@@ -80,8 +81,9 @@ record ClientMethod(
   }
 
   /** The return type's name, keeping the annotations the declaration wrote on what it binds. */
-  TypeName returnTypeName(String targetPackage) {
-    return TypeNames.typeNameOf(returnType(), element.getReturnType(), owner, targetPackage);
+  TypeName returnTypeName(String targetPackage, Elements elements) {
+    return TypeNames.typeNameOf(
+        returnType(), element.getReturnType(), owner, targetPackage, elements);
   }
 
   List<Parameter> parameters() {
@@ -97,14 +99,14 @@ record ClientMethod(
    * on a {@code Repo<T>} the client extends as {@code Repo<UserDto>} is {@code <X extends
    * UserDto>}.
    */
-  List<TypeVariableName> typeVariableNames(String targetPackage) {
+  List<TypeVariableName> typeVariableNames(String targetPackage, Elements elements) {
     List<? extends TypeVariable> variables = signature.getTypeVariables();
     List<? extends TypeParameterElement> declared = element.getTypeParameters();
     return IntStream.range(0, variables.size())
         .mapToObj(
             index ->
                 TypeNames.typeVariableOf(
-                    variables.get(index), declared.get(index), owner, targetPackage))
+                    variables.get(index), declared.get(index), owner, targetPackage, elements))
         .toList();
   }
 
@@ -113,9 +115,18 @@ record ClientMethod(
    * method's own type parameters.
    */
   List<TypeMirror> written() {
+    return Stream.concat(Stream.of(signature.getReturnType()), parameterTypesAndBounds().stream())
+        .toList();
+  }
+
+  /**
+   * The types the signature writes besides its return type: its parameter types, and the bounds of
+   * the method's own type parameters, each variable's as one type, an intersection where it has
+   * more than one.
+   */
+  List<TypeMirror> parameterTypesAndBounds() {
     return Stream.concat(
-            Stream.concat(
-                Stream.of(signature.getReturnType()), signature.getParameterTypes().stream()),
+            signature.getParameterTypes().stream(),
             signature.getTypeVariables().stream().map(TypeVariable::getUpperBound))
         .toList();
   }

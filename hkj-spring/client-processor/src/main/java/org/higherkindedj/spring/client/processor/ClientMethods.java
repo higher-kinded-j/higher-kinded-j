@@ -5,6 +5,7 @@ package org.higherkindedj.spring.client.processor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -16,6 +17,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -26,6 +28,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
@@ -90,6 +93,44 @@ final class ClientMethods {
       }
     }
     return groups.values().stream().map(List::copyOf).toList();
+  }
+
+  /**
+   * Every method the client's implementation of one method overrides: each of its declarations, and
+   * each method of an interface in the client's hierarchy that one of them overrides in turn. An
+   * interface that redeclares a method hides the declaration it overrides from {@code
+   * getAllMembers}, but an implementation of the one overrides the other too, and javac reads a
+   * deprecation from each.
+   *
+   * @param client the client interface
+   * @param declarations the declarations of one method, as {@link #inheritedBy} groups them
+   * @param elements the round's element utilities
+   * @return the methods overridden, each once, in no order a caller should rely on
+   */
+  static Stream<ExecutableElement> overriddenBy(
+      TypeElement client, List<ClientMethod> declarations, Elements elements) {
+    Name name = declarations.getFirst().element().getSimpleName();
+    return hierarchyOf(client, new LinkedHashSet<>()).stream()
+        .flatMap(type -> ElementFilter.methodsIn(type.getEnclosedElements()).stream())
+        .filter(method -> method.getSimpleName().equals(name))
+        .filter(
+            method ->
+                declarations.stream()
+                    .map(ClientMethod::element)
+                    .anyMatch(
+                        declaration ->
+                            declaration.equals(method)
+                                || elements.overrides(declaration, method, client)));
+  }
+
+  /** An interface and every interface it extends, each once, the interface itself first. */
+  private static Set<TypeElement> hierarchyOf(TypeElement type, Set<TypeElement> visited) {
+    if (visited.add(type)) {
+      for (TypeMirror parent : type.getInterfaces()) {
+        hierarchyOf((TypeElement) ((DeclaredType) parent).asElement(), visited);
+      }
+    }
+    return visited;
   }
 
   /**

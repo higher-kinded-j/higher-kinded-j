@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.ServiceLoader;
 import java.util.Set;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -101,8 +100,11 @@ public class FocusProcessor extends AbstractProcessor {
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
-    ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
-        .forEach(traversableGenerators::add);
+    traversableGenerators.addAll(
+        GeneratorRegistry.load(
+            processingEnv.getElementUtils(),
+            getClass().getClassLoader(),
+            processingEnv.getMessager()));
   }
 
   /** ClassName for FocusPath, the path every generated method is built from. */
@@ -283,7 +285,10 @@ public class FocusProcessor extends AbstractProcessor {
     } else {
       List<TypeVariableName> typeVars =
           typeParameters.stream()
-              .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+              .map(
+                  parameter ->
+                      ProcessorUtils.typeVariableOf(
+                          processingEnv.getElementUtils(), parameter, packageName))
               .toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
@@ -338,13 +343,15 @@ public class FocusProcessor extends AbstractProcessor {
             // The path type, the setter lambda's inferred value and the record's type-parameter
             // bounds all land in this method, and so may a cast to a raw or wildcard container.
             .addAnnotations(
-                WideningAnalysis.warningSuppression(component, recordElement, widening.steps()))
+                WideningAnalysis.warningSuppression(
+                    processingEnv.getElementUtils(), component, recordElement, widening.steps()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnTypeName);
 
     // Add type parameters if the record is generic
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(processingEnv.getElementUtils(), typeParam, packageName));
     }
 
     // Build the constructor arguments for the setter lambda
@@ -364,7 +371,9 @@ public class FocusProcessor extends AbstractProcessor {
     // method's shape and its body cannot disagree.
     List<Object> args =
         new ArrayList<>(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));
-    String wideningExpression = WideningAnalysis.expression(widening.steps(), args, packageName);
+    String wideningExpression =
+        WideningAnalysis.expression(
+            processingEnv.getElementUtils(), widening.steps(), args, packageName);
     methodBuilder.addStatement("return " + baseLens + wideningExpression, args.toArray());
 
     return methodBuilder.build();

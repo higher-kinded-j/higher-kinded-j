@@ -161,7 +161,7 @@ The processor uses a three-layer mechanism to discover generators:
 
 1. **SPI Interface**: `TraversableGenerator` in `hkj-processor` defines the contract. Any class implementing this interface can be discovered.
 
-2. **ServiceLoader**: At compile time, the processors discover every registered implementation through `ServiceLoader.load(TraversableGenerator.class)`; `@GenerateTraversals` and `@GenerateFocus` load directly, and `@ImportOptics` loads through the shared registry.
+2. **ServiceLoader**: At compile time, `@GenerateTraversals`, `@GenerateFocus` and `@ImportOptics` share one discovery of every registered implementation through `ServiceLoader.load(TraversableGenerator.class)`, made once per compilation, when the first of them starts. One instance of each generator serves every record, every round and all three processors, so a generator must keep no state that changes between calls.
 
 3. **Avaje SPI**: Each generator class is annotated with `@ServiceProvider(TraversableGenerator.class)`. The [Avaje SPI](https://avaje.io/spi/) annotation processor automatically generates the `META-INF/services` files and validates that the `module-info.java` `provides` clause is complete. A missing entry causes a compile error with a copy-pasteable fix.
 
@@ -178,6 +178,8 @@ ServiceLoader.load(TraversableGenerator.class)
     ├── GuavaImmutableListGenerator  (supports ImmutableList<A>)
     └── ... 27 more generators
 ```
+
+A plugin that cannot be loaded is reported as an error, once, and every other generator still loads. See [the message it prints](../optics/compiler_errors.md#traversablegenerator-plugin-cannot-be-loaded).
 
 For each record component, the processor asks every loaded generator `supports(TypeMirror)`, and the highest-priority generator that answers `true` handles code generation for that field, wherever its registration entry lands. Generators rank themselves through `priority()`: `PRIORITY_OVERRIDE` (100) beats `PRIORITY_DEFAULT` (0) beats `PRIORITY_FALLBACK` (-100). Two generators claiming the same type at the same priority draw a compile-time warning naming both, and the first registered wins. The same resolution serves `@GenerateTraversals`, the Focus DSL's widening and `@ImportOptics`, so the three annotations always agree about which generator claims a type. The exceptions are the five types `@GenerateFocus` recognises by name, which it widens without asking a generator, and a primitive array, which it never widens.
 
@@ -263,8 +265,8 @@ public interface TraversableGenerator {
         List<? extends RecordComponentElement> allComponents);
 
     /**
-     * The same, for a body written into targetPackage. Override this one when the
-     * body names a component's type; the default calls the form above.
+     * The same, for a body written into targetPackage. The default calls the form
+     * above.
      */
     default CodeBlock generateModifyF(
         RecordComponentElement component,
@@ -273,11 +275,67 @@ public interface TraversableGenerator {
         String targetPackage) {
         return generateModifyF(component, recordClassName, allComponents);
     }
+
+    /**
+     * The same, for a body written where the context says: the form hkj's
+     * processors call. Override this one when the body names a component's type.
+     * The default calls the form above with the context's package.
+     */
+    default CodeBlock generateModifyF(
+        RecordComponentElement component,
+        ClassName recordClassName,
+        List<? extends RecordComponentElement> allComponents,
+        GenerationContext context) {
+        return generateModifyF(component, recordClassName, allComponents, context.targetPackage());
+    }
 }
 ```
 
 ~~~admonish note title="Naming a type in the body"
-A body that writes out a component's type, such as a local it declares, is not always written into that type's package: a companion generated under a `targetPackage`, or the optics generated for a type reached with `@ImportOptics`, land elsewhere. Name such a type with `ProcessorUtils.typeNameOf(type, targetPackage)` from the four-argument `generateModifyF`, and a type-use annotation that package cannot name, one package-private to the component's own package, is left off rather than copied into a file that could not compile with it. `BaseTraversableGenerator.getTypeArgumentName(component, index, targetPackage)` does the same for a type argument. A generator that names no type of its own needs neither.
+A body that writes out a component's type, such as a local it declares, is not always written into that type's package: a companion generated under a `targetPackage`, or the optics generated for a type reached with `@ImportOptics`, land elsewhere. Override the `GenerationContext` form of `generateModifyF` and name such a type with `context.typeNameOf(type)`. A type-use annotation the file cannot write cleanly is then left off rather than copied: one package-private to the component's own package, and one deprecated, by `@Deprecated` or by a javadoc `@deprecated` tag alone, which would draw a warning in the generated file that no one can suppress. `BaseTraversableGenerator.getTypeArgumentName(component, index, context)` does the same for a type argument. A generator that names no type of its own needs neither.
+
+The three-argument form has no default, so a generator that overrides the context form still writes a body there, which a caller of that form reaches. hkj's processors call the context form, and a generator written for an earlier release, which overrides only the older forms, runs unchanged through its default, naming types as it did. The exception is one that extends a built-in generator and overrides a form the built-in declares final. It no longer compiles, and a jar built before [cannot be loaded](../optics/compiler_errors.md#traversablegenerator-plugin-cannot-be-loaded). The built-in generators that name types share one body between their forms, each handing it the naming to use: `context::typeNameOf`, or `ProcessorUtils.typeNameOf(type, targetPackage)`, which reads a deprecation from `@Deprecated` alone, where there is no context. A type argument the body names goes through the same naming, after `resolveEffectiveType`, so the shared body needs no context of its own.
+
+```java
+@Override
+public final CodeBlock generateModifyF(
+    RecordComponentElement component,
+    ClassName recordClassName,
+    List<? extends RecordComponentElement> allComponents) {
+  return generateModifyF(
+      component, recordClassName, allComponents, recordClassName.packageName());
+}
+
+@Override
+public final CodeBlock generateModifyF(
+    RecordComponentElement component,
+    ClassName recordClassName,
+    List<? extends RecordComponentElement> allComponents,
+    String targetPackage) {
+  return modifyF(
+      component,
+      recordClassName,
+      allComponents,
+      type -> ProcessorUtils.typeNameOf(type, targetPackage));
+}
+
+@Override
+public CodeBlock generateModifyF(
+    RecordComponentElement component,
+    ClassName recordClassName,
+    List<? extends RecordComponentElement> allComponents,
+    GenerationContext context) {
+  return modifyF(component, recordClassName, allComponents, context::typeNameOf);
+}
+
+private CodeBlock modifyF(
+    RecordComponentElement component,
+    ClassName recordClassName,
+    List<? extends RecordComponentElement> allComponents,
+    Function<TypeMirror, TypeName> naming) {
+  // the body, naming each type it writes out with naming.apply(type)
+}
+```
 ~~~
 
 ~~~admonish note title="Cardinality, the optic expression and @GenerateFocus"
@@ -285,7 +343,7 @@ Only `@GenerateFocus` reads `getCardinality()` and `generateOpticExpression()`; 
 ~~~
 
 ~~~admonish tip title="Replacing a Built-in Generator"
-To take over a type a built-in generator already claims, implement `supports()` for that type and return `PRIORITY_OVERRIDE` from `priority()`. Registration order does not matter: the higher priority wins on every route that chooses a generator, so no fork of the built-in plugin is needed. Name an optic expression too, or extend the built-in generator to inherit its one: an override with none takes the type out of `@GenerateFocus` widening.
+To take over a type a built-in generator already claims, implement `supports()` for that type and return `PRIORITY_OVERRIDE` from `priority()`. Registration order does not matter: the higher priority wins on every route that chooses a generator, so no fork of the built-in plugin is needed. Name an optic expression too, or extend the built-in generator to inherit its one: an override with none takes the type out of `@GenerateFocus` widening. A built-in generator that names types, such as `OptionalGenerator`, makes its forms of `generateModifyF` with no context final, so a generator extending it overrides the `GenerationContext` form, the one hkj's processors call.
 
 `@GenerateFocus` asks no generator about `Optional`, `Maybe`, `List`, `Set` or `Collection`: it recognises them by name and widens them itself, so a build without the plugins widens them too. An override for one of those changes what `@GenerateTraversals` and `@ImportOptics` generate, not its Focus path.
 ~~~
@@ -387,10 +445,11 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 
 ### Implementation Tips
 
-- **Extend `BaseTraversableGenerator`** to inherit `getGenericTypeName()`, `getTypeArgumentName(component, index)` and `generateConstructorArgs()` helper methods. Read every type argument through one of the first two: they resolve a wildcard to the type it stands for, and a wildcard written into generated source does not compile.
+- **Extend `BaseTraversableGenerator`** to inherit `getGenericTypeName()`, `getTypeArgumentName(component, index)` and `generateConstructorArgs()` helper methods. Read every type argument through one of the first two: they resolve a wildcard to the type it stands for, and a wildcard written into generated source does not compile. In a `GenerationContext` form, read it through `getTypeArgumentName(component, index, context)`, which also leaves off an annotation the file cannot write cleanly.
 - **Construct the record through `recordTypeName(component, recordClassName)`**, not the class name you were handed: a generic record's traversal is generated in a method carrying its type variables, and naming the record without them constructs a raw instance.
 - **Name the effect through `effectVariable(component)`** wherever the body you emit writes a `Kind<F, …>`: a record is free to declare a type parameter called `F`, and the generated method then declares the effect under another name.
 - **Map over what `f` returns as it is.** The body is written against `source`, `f` and `applicative`, and `f` is a `Function<A, Kind<F, A>>` at the focus type, so its result needs no cast. A cast to `Kind<F, A>` names the type it already has, and javac reports it under `-Xlint:cast` in every build that compiles your generated source.
+- **Keep no state that changes between calls.** One instance of each generator serves a whole compilation: every record, every round and each hkj processor that loads generators. A final field set in the constructor, such as the type a generator supports, is fine.
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
 - **Name `Traversals` with `ClassName.get`**, as the example does: it is in hkj-core, which a generator module does not depend on, so `Traversals.class` does not compile there.

@@ -199,6 +199,8 @@ Every supported return type maps to the same native method shape, `ResponseEntit
 
 You never reference the generated names. You autowire your own interface.
 
+The generated files restate each method the client declares or inherits: the facade, `UserClientApiClient`, implements it, and the native interface, `UserClientApiHttpExchange`, declares it again. Your own `@SuppressWarnings` cannot reach them. So where a method is deprecated, or its signature names a deprecated type, each generated declaration that would draw the warning suppresses `deprecation`, or `removal`, itself. The facade's method overrides the deprecated method and names its types, so it suppresses both; the native method carries the method's copied `@Deprecated`, and suppresses only the types it names. A deprecated error type is suppressed on the facade's decoder field and constructor as well, and a deprecated `@OnStatus` error type on the constructor. A deprecated bound of a generic client's type parameter is suppressed on the facade and the native interface. A deprecated client, or one nested in a deprecated class, is suppressed on the facade and its configuration class. javac reports each deprecation where your own source names it, so the client builds under `-Werror` wherever that source does. A type-use annotation deprecated by a javadoc `@deprecated` tag alone is left off the restated types, as one marked `@Deprecated` is.
+
 ---
 
 ## Choosing a Return Type

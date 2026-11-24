@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
@@ -34,6 +35,7 @@ import org.higherkindedj.optics.processing.external.SpecInterfaceAnalyser;
 import org.higherkindedj.optics.processing.external.SpecInterfaceGenerator;
 import org.higherkindedj.optics.processing.external.TypeAnalysis;
 import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
+import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
@@ -96,6 +98,19 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
   /** The importers met but not processed yet: arriving this round, or waiting for a type. */
   private final Set<WaitingImporters.Key> unprocessed = new LinkedHashSet<>();
+
+  /** The traversal generators on the processor path, loaded once. */
+  private final List<TraversableGenerator> generators = new ArrayList<>();
+
+  @Override
+  public synchronized void init(ProcessingEnvironment processingEnv) {
+    super.init(processingEnv);
+    generators.addAll(
+        GeneratorRegistry.load(
+            processingEnv.getElementUtils(),
+            getClass().getClassLoader(),
+            processingEnv.getMessager()));
+  }
 
   /**
    * Processes each importer once every type it names resolves. One naming a type another processor
@@ -294,7 +309,8 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     }
 
     SpecInterfaceGenerator generator =
-        new SpecInterfaceGenerator(processingEnv.getFiler(), processingEnv.getMessager());
+        new SpecInterfaceGenerator(
+            processingEnv.getFiler(), processingEnv.getMessager(), processingEnv.getElementUtils());
 
     generator.generate(analysis, targetPackage, specInterface);
   }
@@ -370,9 +386,14 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
     TypeKindAnalyser typeAnalyser = new TypeKindAnalyser(processingEnv.getTypeUtils());
     ExternalLensGenerator lensGenerator =
-        new ExternalLensGenerator(processingEnv.getFiler(), processingEnv.getMessager());
+        new ExternalLensGenerator(
+            processingEnv.getFiler(),
+            processingEnv.getMessager(),
+            processingEnv.getElementUtils(),
+            generators);
     ExternalPrismGenerator prismGenerator =
-        new ExternalPrismGenerator(processingEnv.getFiler(), processingEnv.getMessager());
+        new ExternalPrismGenerator(
+            processingEnv.getFiler(), processingEnv.getMessager(), processingEnv.getElementUtils());
 
     // Asked before the shape, not after a wither pairs: read from a class file, a hidden
     // parameter's own signatures resolve both names to the inner one, so none would pair.

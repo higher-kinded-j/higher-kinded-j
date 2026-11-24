@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -63,7 +64,8 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
    * {@link #getTypeArgumentName(RecordComponentElement, int)} for a file written into {@code
    * targetPackage}: a type-use annotation that package cannot name is left off, rather than copied
    * into a file that could not compile with it. The two-argument form keeps a package-private one,
-   * which is right only where the file lands in the type's own package.
+   * which is right only where the file lands in the type's own package. Neither reads a deprecation
+   * written as a javadoc tag; the {@link GenerationContext} form does.
    *
    * @param component The record component to inspect.
    * @param index The type argument to read.
@@ -75,6 +77,25 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
   protected TypeName getTypeArgumentName(
       final RecordComponentElement component, final int index, final String targetPackage) {
     return argumentName(component, index, type -> ProcessorUtils.typeNameOf(type, targetPackage));
+  }
+
+  /**
+   * {@link #getTypeArgumentName(RecordComponentElement, int, String)} for a file written where
+   * {@code context} says, the argument named as {@link GenerationContext#typeNameOf} names it, so a
+   * type-use annotation deprecated by a javadoc tag alone is left off too. A body written in {@link
+   * #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)} names its type
+   * arguments with this.
+   *
+   * @param component The record component to inspect.
+   * @param index The type argument to read.
+   * @param context Where the generated file is written, and the round's element utilities.
+   * @return The {@link TypeName} of that argument, or {@code Object} when the component has no such
+   *     argument.
+   * @since 0.6.0
+   */
+  protected TypeName getTypeArgumentName(
+      final RecordComponentElement component, final int index, final GenerationContext context) {
+    return argumentName(component, index, context::typeNameOf);
   }
 
   /** The type argument at {@code index}, named by {@code naming}, or {@code Object}. */

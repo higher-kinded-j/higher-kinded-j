@@ -914,6 +914,7 @@ public class MergeProcessor extends AbstractProcessor {
     }
     return MappingProcessor.threadedNestingPrism(
         processingEnv.getTypeUtils(),
+        processingEnv.getElementUtils(),
         spec,
         match,
         targetType,
@@ -1059,6 +1060,7 @@ public class MergeProcessor extends AbstractProcessor {
       Set<String> taken,
       String targetPackage) {
     return NullableArgumentCast.on(
+        processingEnv.getElementUtils(),
         fill.copy(),
         sourceType(mergeMethod, fill),
         GuardedConstruction.takenAs(processingEnv.getTypeUtils(), target, fill.component()),
@@ -1119,10 +1121,14 @@ public class MergeProcessor extends AbstractProcessor {
             .addAnnotations(ProcessorUtils.rawTypesSuppression(inferred))
             .addModifiers(Modifier.PUBLIC)
             .returns(
-                ProcessorUtils.typeNameOf(mergeMethod.getReturnType(), specName.packageName()));
+                ProcessorUtils.typeNameOf(
+                    processingEnv.getElementUtils(),
+                    mergeMethod.getReturnType(),
+                    specName.packageName()));
     for (VariableElement source : mergeMethod.getParameters()) {
       method.addParameter(
-          ProcessorUtils.typeNameOf(source.asType(), specName.packageName()),
+          ProcessorUtils.typeNameOf(
+              processingEnv.getElementUtils(), source.asType(), specName.packageName()),
           source.getSimpleName().toString());
       method.addStatement(
           "$T.requireNonNull($L, $S)",
@@ -1183,6 +1189,7 @@ public class MergeProcessor extends AbstractProcessor {
       }
       List<TypeName> types =
           GuardedConstruction.parameterTypes(
+              processingEnv.getElementUtils(),
               fills.stream().map(fill -> legType(mergeMethod, shape.target(), fill)).toList(),
               specName.packageName());
       if (legs.size() <= ArityCeilings.ASSEMBLY) {

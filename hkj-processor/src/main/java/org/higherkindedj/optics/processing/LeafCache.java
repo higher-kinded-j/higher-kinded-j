@@ -109,6 +109,7 @@ final class LeafCache {
       String field = "hkj$leaf$" + name;
       TypeName typeName =
           ProcessorUtils.typeNameOf(
+              env.getElementUtils(),
               leafType,
               method.getReturnType(),
               (DeclaredType) spec.asType(),

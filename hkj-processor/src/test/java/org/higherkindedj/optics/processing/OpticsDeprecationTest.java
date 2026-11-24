@@ -30,7 +30,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  * The same row is then compiled with the type left undeprecated, and must draw no warning either,
  * so a row whose fixture reached no deprecated type would be seen to prove nothing: its deprecated
  * form must first warn once the generated suppression is out of the picture, which the {@code
- * forRemoval} rows show for the {@code removal} category that {@code deprecation} does not quiet.
+ * forRemoval} rows show for the {@code removal} category that {@code deprecation} does not quiet. A
+ * type deprecated by its javadoc tag alone draws the warning too, and is suppressed the same way.
  */
 @DisplayName("Optic generators - a deprecated type in a generated file")
 class OpticsDeprecationTest {
@@ -46,6 +47,16 @@ class OpticsDeprecationTest {
   private static final String DEPRECATED = "@Deprecated";
   private static final String REMOVAL = "@Deprecated(forRemoval = true)";
 
+  /** Deprecated by its javadoc tag alone, which javac reads as it reads {@code @Deprecated}. */
+  private static final String JAVADOC =
+      """
+      /**
+       * A legacy record.
+       *
+       * @deprecated use another
+       */
+      @SuppressWarnings("dep-ann")""";
+
   private record Generator(String label, Supplier<Processor> processor, String annotation) {}
 
   static Stream<Row> rows() {
@@ -58,11 +69,16 @@ class OpticsDeprecationTest {
             new Generator("Focus", FocusProcessor::new, "GenerateFocus"))
         .flatMap(
             generator ->
-                Stream.of(DEPRECATED, REMOVAL)
+                Stream.of(DEPRECATED, REMOVAL, JAVADOC)
                     .map(
                         legacy ->
                             new Row(
-                                generator.label() + (legacy.equals(REMOVAL) ? " for removal" : ""),
+                                generator.label()
+                                    + switch (legacy) {
+                                      case REMOVAL -> " for removal";
+                                      case JAVADOC -> " by its javadoc tag alone";
+                                      default -> "";
+                                    },
                                 generator.processor(),
                                 generator.annotation(),
                                 legacy)));

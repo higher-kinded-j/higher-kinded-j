@@ -7,7 +7,6 @@ import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -35,6 +34,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
@@ -80,8 +80,11 @@ public class TraversalProcessor extends AbstractProcessor {
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
-    ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
-        .forEach(generators::add);
+    generators.addAll(
+        GeneratorRegistry.load(
+            processingEnv.getElementUtils(),
+            getClass().getClassLoader(),
+            processingEnv.getMessager()));
   }
 
   @Override
@@ -184,7 +187,10 @@ public class TraversalProcessor extends AbstractProcessor {
     final TypeMirror componentType = component.asType();
 
     if (componentType instanceof ArrayType arrayType) {
-      focusType = ProcessorUtils.typeNameOf(arrayType.getComponentType(), packageName).box();
+      focusType =
+          ProcessorUtils.typeNameOf(
+                  processingEnv.getElementUtils(), arrayType.getComponentType(), packageName)
+              .box();
     } else if (componentType instanceof DeclaredType declaredType) {
       if (declaredType.getTypeArguments().isEmpty()) {
         // A raw List, or a type the generator claims that declares no type parameter at all: the
@@ -245,7 +251,9 @@ public class TraversalProcessor extends AbstractProcessor {
       }
       focusType =
           ProcessorUtils.resolvedTypeNameOf(
-              declaredType.getTypeArguments().get(typeArgumentIndex), packageName);
+              processingEnv.getElementUtils(),
+              declaredType.getTypeArguments().get(typeArgumentIndex),
+              packageName);
 
     } else {
       noteNoTraversal(
@@ -266,7 +274,10 @@ public class TraversalProcessor extends AbstractProcessor {
 
     final CodeBlock modifyFBody =
         generator.generateModifyF(
-            component, recordClassName, recordElement.getRecordComponents(), packageName);
+            component,
+            recordClassName,
+            recordElement.getRecordComponents(),
+            new GenerationContext(packageName, processingEnv.getElementUtils()));
 
     // Create F extends WitnessArity<TypeArity.Unary>
     final ParameterizedTypeName witnessArityBound =
@@ -282,7 +293,8 @@ public class TraversalProcessor extends AbstractProcessor {
             // The class names the traversal type in its superinterface clause and redeclares the
             // record's type parameters, neither of which a member annotation reaches.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), component.asType(), recordElement))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(
@@ -311,7 +323,9 @@ public class TraversalProcessor extends AbstractProcessor {
     // record's type variables for itself.
     final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(componentName);
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter, packageName);
+      TypeVariableName typeVariable =
+          ProcessorUtils.typeVariableOf(
+              processingEnv.getElementUtils(), typeParameter, packageName);
       methodBuilder.addTypeVariable(typeVariable);
       implementation.addTypeVariable(typeVariable);
     }
@@ -320,7 +334,8 @@ public class TraversalProcessor extends AbstractProcessor {
     final MethodSpec factory =
         methodBuilder
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(component.asType(), recordElement))
+                ProcessorUtils.writtenTypesSuppression(
+                    processingEnv.getElementUtils(), component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of {@link $T}.\n"
@@ -357,7 +372,10 @@ public class TraversalProcessor extends AbstractProcessor {
     return ParameterizedTypeName.get(
         recordClassName,
         typeParameters.stream()
-            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+            .map(
+                parameter ->
+                    ProcessorUtils.typeVariableOf(
+                        processingEnv.getElementUtils(), parameter, packageName))
             .toArray(TypeName[]::new));
   }
 

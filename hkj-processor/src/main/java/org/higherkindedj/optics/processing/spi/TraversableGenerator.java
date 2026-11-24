@@ -31,6 +31,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * {@code Maybe}, {@code List}, {@code Set} and {@code Collection} by name and widens them without
  * asking any generator, so these methods are not read for those types.
  *
+ * <p>hkj's processors load each generator once per compilation, and that one instance serves every
+ * record, every round and each processor that loads generators. Keep no state that changes between
+ * calls, and hold no {@code Element}, {@code TypeMirror} or other compiler object beyond the call
+ * that hands it over.
+ *
  * @since 0.3.8
  */
 public interface TraversableGenerator {
@@ -243,6 +248,11 @@ public interface TraversableGenerator {
    * it already has, which javac reports under {@code -Xlint:cast} in every build that compiles the
    * generated source.
    *
+   * <p>hkj's processors call the {@link GenerationContext} form, {@link
+   * #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, whose default
+   * reaches this one. A generator whose body names a type overrides that form too, and names each
+   * type there with {@link GenerationContext#typeNameOf}.
+   *
    * @param component The record component being processed (e.g., the 'items' field).
    * @param recordClassName The ClassName of the record containing the component.
    * @param allComponents A list of all components in the record, for reconstruction.
@@ -265,8 +275,13 @@ public interface TraversableGenerator {
    * ProcessorUtils#typeNameOf(TypeMirror, String)} and this package, and each one that cannot be
    * written from there is left off.
    *
-   * <p>Override this rather than the three-argument form when the body names a type. The default
-   * calls that form, so a generator that writes no type of its own needs nothing.
+   * <p>hkj's processors call the {@link GenerationContext} form, {@link
+   * #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, whose default
+   * calls this one. Override the {@code GenerationContext} form when the body names a type: {@link
+   * ProcessorUtils#typeNameOf(TypeMirror, String)} reads a deprecation from {@code @Deprecated}
+   * alone, so a type-use annotation deprecated only by a javadoc tag is written by this form, and
+   * draws a warning in the generated file. A generator that writes no type of its own needs
+   * neither.
    *
    * @param component The record component being processed.
    * @param recordClassName The ClassName of the record containing the component.
@@ -281,5 +296,35 @@ public interface TraversableGenerator {
       List<? extends RecordComponentElement> allComponents,
       String targetPackage) {
     return generateModifyF(component, recordClassName, allComponents);
+  }
+
+  /**
+   * The body of the {@code modifyF} method for a file written where {@code context} says: the form
+   * hkj's processors call.
+   *
+   * <p>Override this one when the body names a type, and name each type it writes out with {@link
+   * GenerationContext#typeNameOf}. That keeps each type-use annotation the author wrote where the
+   * file can write it cleanly, and leaves off one the file cannot name or one that is deprecated,
+   * by {@code @Deprecated} or by a javadoc {@code @deprecated} tag alone, since it would draw a
+   * warning in the generated file that no one can suppress.
+   *
+   * <p>The default calls {@link #generateModifyF(RecordComponentElement, ClassName, List, String)}
+   * with the context's package, so a generator written for an earlier release, and one that writes
+   * no type of its own, needs nothing. A generator extending a built-in one that names types
+   * overrides this form, as the built-in's other forms are final.
+   *
+   * @param component The record component being processed.
+   * @param recordClassName The ClassName of the record containing the component.
+   * @param allComponents A list of all components in the record, for reconstruction.
+   * @param context where the generated file is written, and the round's element utilities
+   * @return A CodeBlock from Javapoet representing the implementation of the traversal.
+   * @since 0.6.0
+   */
+  default CodeBlock generateModifyF(
+      RecordComponentElement component,
+      ClassName recordClassName,
+      List<? extends RecordComponentElement> allComponents,
+      GenerationContext context) {
+    return generateModifyF(component, recordClassName, allComponents, context.targetPackage());
   }
 }

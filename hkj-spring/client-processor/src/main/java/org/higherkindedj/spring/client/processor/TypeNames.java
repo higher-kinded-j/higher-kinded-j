@@ -27,6 +27,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 /**
@@ -41,17 +42,18 @@ import javax.lang.model.util.Types;
  * author wrote, on a facade that is meant to mirror their interface exactly.
  *
  * <p>Both {@code typeNameOf} forms are copies of the ones in {@code hkj-processor}'s {@code
- * ProcessorUtils} that name a type for a known package, kept rather than shared. Sharing would mean
- * depending on that module, which is an annotation processor: it would join this one on the
- * consumer's processor path and generate optics they never asked for. The walk they perform is
- * javapoet's own; if one copy changes, the other should, and {@code ProcessorUtils} points back
- * here. Which annotations the client can write is read by {@link AnnotationSpecs#writesCleanlyIn},
- * the counterpart of {@code ProcessorUtils}' {@code writableFrom}. Both forms are needed: a client
- * restates each method as a member of the client interface, read under the type arguments the
- * client gives the interfaces it extends, and that reading drops what the plain form keeps. The
- * member form of {@link #typeVariableOf(TypeVariable, TypeParameterElement, DeclaredType, String)}
- * has no counterpart there: it follows the loop {@code PathProcessor} writes a bridge's type
- * parameters with, but pairs the bounds from the end, for the reason the method gives.
+ * ProcessorUtils} that name a type for a known package and take {@code Elements}, kept rather than
+ * shared. Sharing would mean depending on that module, which is an annotation processor: it would
+ * join this one on the consumer's processor path and generate optics they never asked for. The walk
+ * they perform is javapoet's own; if one copy changes, the other should, and {@code ProcessorUtils}
+ * points back here. Which annotations the client can write is read by {@link
+ * AnnotationSpecs#writesCleanlyIn}, the counterpart of {@code ProcessorUtils}' {@code
+ * writableFrom}. Both forms are needed: a client restates each method as a member of the client
+ * interface, read under the type arguments the client gives the interfaces it extends, and that
+ * reading drops what the plain form keeps. The member form of {@link #typeVariableOf(TypeVariable,
+ * TypeParameterElement, DeclaredType, String, Elements)} has no counterpart there: it follows the
+ * loop {@code PathProcessor} writes a bridge's type parameters with, but pairs the bounds from the
+ * end, for the reason the method gives.
  */
 final class TypeNames {
 
@@ -78,22 +80,25 @@ final class TypeNames {
    * which would be written with the wrong value.
    *
    * <p>One deprecated anywhere in its nesting, or in a member its arguments set, is left off too,
-   * as it would draw a warning in the client. A declaration annotation the client copies is kept
-   * with that warning suppressed instead, since leaving it off changes the request Spring sends.
-   * Keeping a type-use annotation would take the same suppression on every generated declaration
-   * that restates the type, the facade's included, which the processor does not write.
+   * as it would draw a warning in the client, whether {@code @Deprecated} or a javadoc {@code
+   * @deprecated} tag alone deprecates it. A declaration annotation the client copies is kept with
+   * that warning suppressed instead, since leaving it off changes the request Spring sends. Of the
+   * type-use annotations, Spring reads only jspecify's {@code @Nullable}, which is current, so
+   * leaving a deprecated one off changes nothing it sends, and hkj-processor leaves the same one off
+   * the optics it generates.
    *
    * <p>A type read with {@link Types#asMemberOf} has already lost the annotations written on a type
    * variable's use; name one of those with {@link #typeNameOf(TypeMirror, TypeMirror, DeclaredType,
-   * String)}.
+   * String, Elements)}.
    *
    * @param type the type to name; must not be null
    * @param targetPackage the package the client is written into; must not be null
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @return its name, annotated as the source annotated it wherever the client can say so
    *     (non-null)
    */
-  static TypeName typeNameOf(TypeMirror type, String targetPackage) {
-    return new Naming(Map.of(), targetPackage).name(type, type);
+  static TypeName typeNameOf(TypeMirror type, String targetPackage, Elements elements) {
+    return new Naming(Map.of(), targetPackage, elements).name(type, type);
   }
 
   /**
@@ -114,7 +119,7 @@ final class TypeNames {
    * superinterface clauses as written, from the variable to what each clause binds it to, and keeps
    * what each of them wrote. Where the declaration and the substituted type part company, below a
    * replaced variable, it goes on with the substituted type alone. Annotations are kept as {@link
-   * #typeNameOf(TypeMirror, String)} keeps them.
+   * #typeNameOf(TypeMirror, String, Elements)} keeps them.
    *
    * @param type the member's type as the owner has it, {@code asMemberOf}'s answer; must not be
    *     null
@@ -122,12 +127,17 @@ final class TypeNames {
    *     getReturnType()}; must not be null
    * @param owner the instantiation the member was read under; must not be null
    * @param targetPackage the package the client is written into; must not be null
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @return its name, annotated as the source annotated it wherever the client can say so
    *     (non-null)
    */
   static TypeName typeNameOf(
-      TypeMirror type, TypeMirror declared, DeclaredType owner, String targetPackage) {
-    return new Naming(clausesOf(owner), targetPackage).name(type, declared);
+      TypeMirror type,
+      TypeMirror declared,
+      DeclaredType owner,
+      String targetPackage,
+      Elements elements) {
+    return new Naming(clausesOf(owner), targetPackage, elements).name(type, declared);
   }
 
   /**
@@ -172,10 +182,11 @@ final class TypeNames {
   }
 
   /**
-   * One naming walk: the supertype clauses a variable may be bound through, and the package the
-   * client is written into, which decides the annotations it can carry.
+   * One naming walk: the supertype clauses a variable may be bound through, the package the client
+   * is written into, which decides the annotations it can carry, and the round's element utilities,
+   * which read a deprecation.
    */
-  private record Naming(Map<Element, TypeMirror> clauses, String targetPackage) {
+  private record Naming(Map<Element, TypeMirror> clauses, String targetPackage, Elements elements) {
 
     /**
      * The declaration's counterpart of {@code type}, where it is of the same kind, or {@code type}
@@ -212,7 +223,9 @@ final class TypeNames {
       }
       List<AnnotationSpec> specs =
           annotations.values().stream()
-              .filter(annotation -> AnnotationSpecs.writesCleanlyIn(annotation, targetPackage))
+              .filter(
+                  annotation ->
+                      AnnotationSpecs.writesCleanlyIn(annotation, targetPackage, elements))
               .map(AnnotationSpecs::copyOf)
               .toList();
       // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
@@ -299,13 +312,15 @@ final class TypeNames {
    *
    * @param parameter the type parameter to name; must not be null
    * @param targetPackage the package the client is written into; must not be null
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @return its name, with its bounds annotated as the source annotated them wherever the client
    *     can say so (non-null)
    */
-  static TypeVariableName typeVariableOf(TypeParameterElement parameter, String targetPackage) {
+  static TypeVariableName typeVariableOf(
+      TypeParameterElement parameter, String targetPackage, Elements elements) {
     TypeName[] bounds =
         parameter.getBounds().stream()
-            .map(bound -> typeNameOf(bound, targetPackage))
+            .map(bound -> typeNameOf(bound, targetPackage, elements))
             .toArray(TypeName[]::new);
     return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
   }
@@ -318,14 +333,15 @@ final class TypeNames {
    * their bounds, so {@code <X extends T>} on a {@code Repo<T>} the client extends as {@code
    * Repo<UserDto>} is read as {@code <X extends UserDto>}. Named from the declaration instead, the
    * bound would still say {@code T}, which the client cannot name. Each bound is named as {@link
-   * #typeNameOf(TypeMirror, TypeMirror, DeclaredType, String)} names a member's type, beside the
-   * bound the declaration wrote.
+   * #typeNameOf(TypeMirror, TypeMirror, DeclaredType, String, Elements)} names a member's type,
+   * beside the bound the declaration wrote.
    *
    * @param variable the variable as the owner has it, one of {@code asMemberOf}'s type variables;
    *     must not be null
    * @param declared the same parameter as the method declares it; must not be null
    * @param owner the instantiation the method was read under; must not be null
    * @param targetPackage the package the client is written into; must not be null
+   * @param elements the round's element utilities, which read a deprecation; must not be null
    * @return its name, with its bounds annotated as the source annotated them wherever the client
    *     can say so (non-null)
    */
@@ -333,7 +349,8 @@ final class TypeNames {
       TypeVariable variable,
       TypeParameterElement declared,
       DeclaredType owner,
-      String targetPackage) {
+      String targetPackage,
+      Elements elements) {
     TypeMirror upperBound = variable.getUpperBound();
     List<? extends TypeMirror> bounds =
         upperBound.getKind() == TypeKind.INTERSECTION
@@ -344,7 +361,7 @@ final class TypeNames {
     // interfaces alone with Object in front, so the two are paired from the end. A bound with no
     // counterpart is that Object, named from itself, which javapoet leaves off the declaration.
     int offset = bounds.size() - declaredBounds.size();
-    Naming naming = new Naming(clausesOf(owner), targetPackage);
+    Naming naming = new Naming(clausesOf(owner), targetPackage, elements);
     TypeName[] names =
         IntStream.range(0, bounds.size())
             .mapToObj(

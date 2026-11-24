@@ -18,6 +18,7 @@ import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -257,18 +258,20 @@ final class GuardedConstruction {
    * type naming a type variable: the record's own variable is not the one the generated class has
    * in scope, if it has one.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param legs the legs' types, in order
    * @param targetPackage the package the generated class is written into
    * @return the parameters' types, or an empty list for implicit parameters
    */
-  static List<TypeName> parameterTypes(List<LegType> legs, String targetPackage) {
+  static List<TypeName> parameterTypes(
+      Elements elements, List<LegType> legs, String targetPackage) {
     return legs.stream().allMatch(LegType::truthful)
             && legs.stream()
                 .map(LegType::type)
                 .anyMatch(NullableAnnotations::hasNullableTypeArgument)
             && legs.stream().map(LegType::type).noneMatch(ProcessorUtils::namesTypeVariable)
         ? legs.stream()
-            .map(leg -> ProcessorUtils.typeNameOf(leg.type(), targetPackage).box())
+            .map(leg -> ProcessorUtils.typeNameOf(elements, leg.type(), targetPackage).box())
             .toList()
         : List.of();
   }

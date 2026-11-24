@@ -1051,6 +1051,139 @@ class TypeUseAnnotationSurvivalTest {
           "public ValidatedPrism<String, N> name()");
     }
 
+    /**
+     * {@code Old}, a type-use annotation deprecated by its javadoc alone, as an older library
+     * writes one, and {@code Customer}, whose components carry it.
+     */
+    private static List<JavaFileObject> deprecatedByItsJavadoc(String packageName) {
+      return List.of(
+          source(
+              packageName + ".Old",
+              """
+              package %s;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+
+              /**
+               * A mark.
+               *
+               * @deprecated mark nothing
+               */
+              @SuppressWarnings("dep-ann")
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target(ElementType.TYPE_USE)
+              public @interface Old {}
+              """
+                  .formatted(packageName)),
+          source(
+              packageName + ".Customer",
+              """
+              package %s;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.optics.annotations.GenerateFolds;
+              import org.higherkindedj.optics.annotations.GenerateGetters;
+              import org.higherkindedj.optics.annotations.GenerateLenses;
+              import org.higherkindedj.optics.annotations.GenerateSetters;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+              @GenerateLenses
+              @GenerateGetters
+              @GenerateSetters
+              @GenerateFolds
+              @GenerateTraversals
+              @GenerateFocus
+              @SuppressWarnings("deprecation")
+              public record Customer(
+                  @Old String name, List<@Old String> tags, Optional<@Old String> note) {}
+              """
+                  .formatted(packageName)));
+    }
+
+    @Test
+    @DisplayName("an annotation deprecated by its javadoc tag alone is left off")
+    void anAnnotationDeprecatedByItsJavadocTagIsLeftOff() {
+      // javac reads a deprecation from the javadoc tag in source, as it does from @Deprecated, and
+      // would report it in each file the optics restate the component's type in.
+      Compilation compilation =
+          javac()
+              .withProcessors(
+                  new LensProcessor(),
+                  new GetterProcessor(),
+                  new SetterProcessor(),
+                  new FoldProcessor(),
+                  new TraversalProcessor(),
+                  new FocusProcessor())
+              .withOptions("-Xlint:all,-processing", "-Werror")
+              .compile(deprecatedByItsJavadoc("com.home"));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.home.CustomerLenses", "public static Lens<Customer, String> name()");
+      assertGeneratedCodeContains(
+          compilation, "com.home.CustomerGetters", "public static Getter<Customer, String> name()");
+      assertGeneratedCodeContains(
+          compilation, "com.home.CustomerSetters", "public static Setter<Customer, String> name()");
+      assertGeneratedCodeContains(
+          compilation, "com.home.CustomerFolds", "public static Fold<Customer, String> tags()");
+      assertGeneratedCodeContains(
+          compilation, "com.home.CustomerTraversals", "Traversal<Customer, String> tags()");
+      assertGeneratedCodeContains(
+          compilation, "com.home.CustomerTraversals", "final Optional<String> optional =");
+      assertGeneratedCodeContains(
+          compilation, "com.home.CustomerFocus", "FocusPath<Customer, String> name()");
+      for (String generated :
+          List.of(
+              "com.home.CustomerLenses",
+              "com.home.CustomerGetters",
+              "com.home.CustomerSetters",
+              "com.home.CustomerFolds",
+              "com.home.CustomerTraversals",
+              "com.home.CustomerFocus")) {
+        assertGeneratedCodeDoesNotContain(compilation, generated, "Old");
+      }
+    }
+
+    @Test
+    @DisplayName("an annotation a jar deprecated by its javadoc tag alone is left off")
+    void anAnnotationAJarDeprecatedByItsJavadocTagIsLeftOff(@TempDir Path tmp) throws IOException {
+      // The class file keeps the tag as a mark @Deprecated does not read, and the optics of an
+      // imported type restate it in the importing package.
+      Compilation library = javac().compile(deprecatedByItsJavadoc("com.external"));
+      assertThat(library).succeeded();
+      Compilation compilation =
+          javac()
+              .withClasspath(
+                  classpathWith(
+                      classDirectory(library, Files.createDirectory(tmp.resolve("library")))))
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:all,-processing", "-Werror")
+              .compile(
+                  source(
+                      "com.myapp.optics.package-info",
+                      """
+                      @ImportOptics({com.external.Customer.class})
+                      package com.myapp.optics;
+
+                      import org.higherkindedj.optics.annotations.ImportOptics;
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.CustomerLenses",
+          "public static Lens<Customer, String> name()");
+      // The local a generator plugged in through the SPI declares in the body it writes.
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.optics.CustomerLenses", "final Optional<String> optional =");
+      assertGeneratedCodeDoesNotContain(compilation, "com.myapp.optics.CustomerLenses", "Old");
+    }
+
     @Test
     @DisplayName("an annotation a jar wrote against another version of its types is left off")
     void anAnnotationWrittenAgainstAnotherVersionIsLeftOff(@TempDir Path tmp) throws IOException {

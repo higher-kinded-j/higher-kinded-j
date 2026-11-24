@@ -25,6 +25,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -53,6 +54,7 @@ public class SpecInterfaceGenerator {
 
   private final Filer filer;
   private final Messager messager;
+  private final Elements elements;
   private final CopyStrategyCodeGenerator copyStrategyGenerator;
   private final PrismCodeGenerator prismGenerator;
   private final TraversalCodeGenerator traversalGenerator;
@@ -62,10 +64,13 @@ public class SpecInterfaceGenerator {
    *
    * @param filer the filer for writing generated files
    * @param messager the messager for reporting diagnostics
+   * @param elements the element utilities, which read whether a type-use annotation the optics
+   *     restate is deprecated
    */
-  public SpecInterfaceGenerator(Filer filer, Messager messager) {
+  public SpecInterfaceGenerator(Filer filer, Messager messager, Elements elements) {
     this.filer = filer;
     this.messager = messager;
+    this.elements = elements;
     this.copyStrategyGenerator = new CopyStrategyCodeGenerator();
     this.prismGenerator = new PrismCodeGenerator();
     this.traversalGenerator = new TraversalCodeGenerator();
@@ -154,7 +159,8 @@ public class SpecInterfaceGenerator {
     // variables this signature actually names can be inferred at the call.
     var typeParameters = methodTypeParameters(specInterface, sourceType, focusType);
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, targetPackage));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(elements, typeParam, targetPackage));
     }
 
     // A THROUGH_FIELD traversal composed through the raw cast (an explicit traversal string, or a
@@ -191,7 +197,7 @@ public class SpecInterfaceGenerator {
             Stream.of(
                     Stream.of(Lint.RAWTYPES).filter(_ -> rawTypes),
                     Stream.of(Lint.UNCHECKED).filter(_ -> unchecked),
-                    ProcessorUtils.deprecationNamedBy(written))
+                    ProcessorUtils.deprecationNamedBy(elements, written))
                 .flatMap(Function.identity())
                 .toList()));
 
@@ -394,6 +400,7 @@ public class SpecInterfaceGenerator {
     TypeName focusTypeName =
         ((ParameterizedTypeName)
                 ProcessorUtils.typeNameOf(
+                    elements,
                     info.lens(),
                     info.lensDeclared(),
                     (DeclaredType) specInterface.asType(),
@@ -419,7 +426,7 @@ public class SpecInterfaceGenerator {
       OpticKind opticKind, TypeMirror sourceType, TypeMirror focusType, String targetPackage) {
 
     TypeName sourceTypeName = getParameterisedTypeName(sourceType, targetPackage);
-    TypeName focusTypeName = ProcessorUtils.typeNameOf(focusType, targetPackage).box();
+    TypeName focusTypeName = ProcessorUtils.typeNameOf(elements, focusType, targetPackage).box();
     ClassName opticClass = getOpticClass(opticKind);
 
     return ParameterizedTypeName.get(opticClass, sourceTypeName, focusTypeName);
@@ -472,7 +479,7 @@ public class SpecInterfaceGenerator {
     // The whole walk, not a rebuild of the parameterised case: naming the arguments through
     // typeNameOf but the head through ClassName.get(element) would keep an annotation on a type
     // argument and drop one on the type itself.
-    return ProcessorUtils.typeNameOf(typeMirror, targetPackage);
+    return ProcessorUtils.typeNameOf(elements, typeMirror, targetPackage);
   }
 
   /**

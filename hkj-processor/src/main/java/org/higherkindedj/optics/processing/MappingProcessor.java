@@ -1443,7 +1443,7 @@ public class MappingProcessor extends AbstractProcessor {
    * captures, and neither does anything else, so every other pair keeps the shorter inferred leg.
    */
   private static Correspondence bridgedCorrespondence(
-      Correspondence present, TypeMirror element, String targetPackage) {
+      Elements elements, Correspondence present, TypeMirror element, String targetPackage) {
     return new Correspondence(
         present.name(),
         present.wireName(),
@@ -1451,8 +1451,8 @@ public class MappingProcessor extends AbstractProcessor {
         null,
         null,
         present.copy() != null && present.copy().raw()
-            ? ProcessorUtils.typeNameOf(element, targetPackage)
-            : wildcardWitness(element, targetPackage),
+            ? ProcessorUtils.typeNameOf(elements, element, targetPackage)
+            : wildcardWitness(elements, element, targetPackage),
         null,
         present,
         null,
@@ -1471,9 +1471,10 @@ public class MappingProcessor extends AbstractProcessor {
    * type the component declares. Null for any other type, which inference gets right. A wildcard
    * deeper than the type's own arguments is never captured, so only they decide.
    */
-  private static TypeName wildcardWitness(TypeMirror type, String targetPackage) {
+  private static TypeName wildcardWitness(
+      Elements elements, TypeMirror type, String targetPackage) {
     return type.getKind() == TypeKind.DECLARED && hasWildcardArgument((DeclaredType) type)
-        ? ProcessorUtils.typeNameOf(type, targetPackage)
+        ? ProcessorUtils.typeNameOf(elements, type, targetPackage)
         : null;
   }
 
@@ -1487,10 +1488,10 @@ public class MappingProcessor extends AbstractProcessor {
    * keys pass through only where both sides declare the same type, which a wildcard is not; a key
    * holding one, as {@code List<? extends @Nullable String>}, is named as it stands.
    */
-  private static TypeName keyArgument(TypeMirror wireKey, String targetPackage) {
+  private static TypeName keyArgument(Elements elements, TypeMirror wireKey, String targetPackage) {
     return NullableAnnotations.hasNullableTypeArgument(wireKey)
             && !ProcessorUtils.namesTypeVariable(wireKey)
-        ? ProcessorUtils.typeNameOf(wireKey, targetPackage).withoutAnnotations()
+        ? ProcessorUtils.typeNameOf(elements, wireKey, targetPackage).withoutAnnotations()
         : null;
   }
 
@@ -3419,6 +3420,7 @@ public class MappingProcessor extends AbstractProcessor {
                   first.getSimpleName().toString(),
                   prismType,
                   ProcessorUtils.typeNameOf(
+                      processingEnv.getElementUtils(),
                       prismType,
                       narrowest.getReturnType(),
                       (DeclaredType) spec.asType(),
@@ -6075,7 +6077,11 @@ public class MappingProcessor extends AbstractProcessor {
         property.name(),
         argument == null
             ? resolved.correspondence()
-            : bridgedCorrespondence(resolved.correspondence(), target, implPackage(spec)));
+            : bridgedCorrespondence(
+                processingEnv.getElementUtils(),
+                resolved.correspondence(),
+                target,
+                implPackage(spec)));
   }
 
   /**
@@ -6085,13 +6091,15 @@ public class MappingProcessor extends AbstractProcessor {
    * that {@code parseValues} is given ({@link #keyArgument}) would then not fit; implicit
    * everywhere else.
    */
-  private static CodeBlock heldParameter(UpdateEdit edit, WireShape wire, String targetPackage) {
+  private static CodeBlock heldParameter(
+      Elements elements, UpdateEdit edit, WireShape wire, String targetPackage) {
     Correspondence held = edit.held();
     Correspondence parsed = held.kind() == Kind.OPTIONAL_BRIDGE ? held.present() : held;
     return parsed.kind() == Kind.MAP && parsed.domainElement() != null
         ? CodeBlock.of(
             "($T hkj$$held)",
-            ProcessorUtils.typeNameOf(wireType(wire, held), targetPackage).withoutAnnotations())
+            ProcessorUtils.typeNameOf(elements, wireType(wire, held), targetPackage)
+                .withoutAnnotations())
         : CodeBlock.of("hkj$$held");
   }
 
@@ -6504,7 +6512,10 @@ public class MappingProcessor extends AbstractProcessor {
           setterExpr(componentsClass, written, c.name(), null, CodeBlock.of("v")),
           masked(c),
           asComponent(
-              legValue(c, wireRead(wire, c.wireName()), guardedRead(c, wire)),
+              legValue(
+                  c,
+                  wireRead(processingEnv.getElementUtils(), wire, c.wireName()),
+                  guardedRead(c, wire)),
               c,
               domainDeclared,
               domain,
@@ -7053,7 +7064,8 @@ public class MappingProcessor extends AbstractProcessor {
       call.add(",\n");
       TypeMirror componentType =
           componentType(domainDeclared, componentNamed(domain, edit.domainName()));
-      TypeName focus = typedFocus(edit, componentType, implName.packageName());
+      TypeName focus =
+          typedFocus(processingEnv.getElementUtils(), edit, componentType, implName.packageName());
       ContainerCopy onApply = perApply(edit, componentType);
       if (onApply != null) {
         copiesOnApply.add(onApply);
@@ -7064,21 +7076,25 @@ public class MappingProcessor extends AbstractProcessor {
               written,
               edit.domainName(),
               focus,
-              appliedValue(onApply, componentType, implName));
+              appliedValue(processingEnv.getElementUtils(), onApply, componentType, implName));
       // A present value is written as a copy, so the patched domain shares nothing with the wire;
       // a JsonNullable holder is present once sent, which hkj$sent says, and its value is copied as
       // it parses.
       CodeBlock read =
           edit.holder()
-              ? CodeBlock.of("hkj$$sent($L)", wireRead(wire, edit.wireName()))
-              : ContainerCopy.through(edit.copy(), wireRead(wire, edit.wireName()), SCAN_SCOPE);
+              ? CodeBlock.of(
+                  "hkj$$sent($L)", wireRead(processingEnv.getElementUtils(), wire, edit.wireName()))
+              : ContainerCopy.through(
+                  edit.copy(),
+                  wireRead(processingEnv.getElementUtils(), wire, edit.wireName()),
+                  SCAN_SCOPE);
       if (edit.held() != null) {
         call.add(
             "    $T.parseIfPresent($L, $L, $L -> $L).at($S)",
             EDIT,
             setter,
             read,
-            heldParameter(edit, wire, implName.packageName()),
+            heldParameter(processingEnv.getElementUtils(), edit, wire, implName.packageName()),
             asComponent(
                 legValue(
                     edit.held(), CodeBlock.of("hkj$$held.get()"), guardedRead(edit.held(), wire)),
@@ -7265,18 +7281,20 @@ public class MappingProcessor extends AbstractProcessor {
    * result; a {@code JsonNullable} holder's sent value parses in one already. Null for every other
    * edit. A sparse update takes no generic domain, so the focus names no type variable.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param edit the edit
    * @param type the focus as the {@link #componentsRecord Components} record declares it
    * @param targetPackage the package the generated class is written into
    * @return the focus to name, or null
    */
-  private static TypeName typedFocus(UpdateEdit edit, TypeMirror type, String targetPackage) {
+  private static TypeName typedFocus(
+      Elements elements, UpdateEdit edit, TypeMirror type, String targetPackage) {
     NullScan scan = edit.valueScan();
     return edit.kind() == Kind.IDENTITY
             && scan != null
             && scan.shape() == NullScan.Shape.ARRAY
             && NullableAnnotations.hasNullableTypeArgument(type)
-        ? ProcessorUtils.typeNameOf(type, targetPackage)
+        ? ProcessorUtils.typeNameOf(elements, type, targetPackage)
         : null;
   }
 
@@ -7287,15 +7305,16 @@ public class MappingProcessor extends AbstractProcessor {
    * checker reads the setter's own parameter without it.
    */
   private static CodeBlock appliedValue(
-      ContainerCopy onApply, TypeMirror type, ClassName implName) {
+      Elements elements, ContainerCopy onApply, TypeMirror type, ClassName implName) {
     return onApply == null
         ? CodeBlock.of("v")
         : ContainerCopy.again(
+            elements,
             onApply,
             CodeBlock.of("v"),
             SETTER_SCOPE,
             implName,
-            NullableArgumentCast.named(type, implName.packageName()));
+            NullableArgumentCast.named(elements, type, implName.packageName()));
   }
 
   /**
@@ -7408,7 +7427,8 @@ public class MappingProcessor extends AbstractProcessor {
       if (written.contains(name)) {
         TypeMirror type = componentType(domainDeclared, component);
         types.add(type);
-        canonical.addParameter(ProcessorUtils.typeNameOf(type, implPackage), name);
+        canonical.addParameter(
+            ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), type, implPackage), name);
       }
     }
     // A nested type is its own class file, and a coverage tool reads the marker there.
@@ -8576,6 +8596,7 @@ public class MappingProcessor extends AbstractProcessor {
         return PrismResolution.of(
                 threadedNestingPrism(
                     processingEnv.getTypeUtils(),
+                    processingEnv.getElementUtils(),
                     spec,
                     match,
                     domainType,
@@ -8773,6 +8794,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   static CodeBlock threadedNestingPrism(
       Types types,
+      Elements elements,
       TypeElement user,
       RegisteredSpec match,
       TypeMirror domainType,
@@ -8783,6 +8805,7 @@ public class MappingProcessor extends AbstractProcessor {
         match.impl(),
         typeWitness(
             types,
+            elements,
             implPackage(user),
             match,
             threadedBindings(types, user, match, domainType, wireType).orElseThrow(),
@@ -8797,18 +8820,20 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock typeWitness(
       Types types,
+      Elements elements,
       String implPackage,
       RegisteredSpec match,
       Map<Element, TypeMirror> bindings,
       PairSites sites) {
-    Map<Element, TypeName> witnesses = witnessNames(types, implPackage, match, sites);
+    Map<Element, TypeName> witnesses = witnessNames(types, elements, implPackage, match, sites);
     return match.spec().getTypeParameters().stream()
         .map(
             variable ->
                 CodeBlock.of(
                     "$T",
                     witnesses.getOrDefault(
-                        variable, ProcessorUtils.typeNameOf(bindings.get(variable), implPackage))))
+                        variable,
+                        ProcessorUtils.typeNameOf(elements, bindings.get(variable), implPackage))))
         .collect(CodeBlock.joining(", "));
   }
 
@@ -8853,12 +8878,12 @@ public class MappingProcessor extends AbstractProcessor {
      * The use site's type as the Impl names it, part for part as the component's declaration wrote
      * it, or empty where the use site is no part of the component.
      */
-    Optional<TypeName> named(Types types, String implPackage) {
+    Optional<TypeName> named(Types types, Elements elements, String implPackage) {
       TypeMirror read = componentType(types, owner, component);
       return nameAt(
           types,
           read,
-          ProcessorUtils.typeNameOf(read, component.asType(), owner, implPackage),
+          ProcessorUtils.typeNameOf(elements, read, component.asType(), owner, implPackage),
           use);
     }
   }
@@ -8898,17 +8923,17 @@ public class MappingProcessor extends AbstractProcessor {
    * from a leaf's own types.
    */
   private static Map<Element, TypeName> witnessNames(
-      Types types, String implPackage, RegisteredSpec match, PairSites sites) {
+      Types types, Elements elements, String implPackage, RegisteredSpec match, PairSites sites) {
     Map<Element, TypeName> witnesses = new HashMap<>();
     sites
         .domain()
-        .flatMap(site -> site.named(types, implPackage))
+        .flatMap(site -> site.named(types, elements, implPackage))
         .ifPresent(named -> collectWitnesses(match.domain(), named, witnesses));
     Set<Element> domainVariables = variablesIn(match.domain());
     Map<Element, TypeName> wireWitnesses = new HashMap<>();
     sites
         .wire()
-        .flatMap(site -> site.named(types, implPackage))
+        .flatMap(site -> site.named(types, elements, implPackage))
         .ifPresent(named -> collectWitnesses(match.wire(), named, wireWitnesses));
     wireWitnesses.forEach(
         (variable, named) -> {
@@ -9171,6 +9196,7 @@ public class MappingProcessor extends AbstractProcessor {
             match.impl(),
             typeWitness(
                 types,
+                processingEnv.getElementUtils(),
                 implPackage(spec),
                 match,
                 bindings,
@@ -9818,7 +9844,11 @@ public class MappingProcessor extends AbstractProcessor {
       // type variable's use kept, which reading it under the instantiation drops.
       TypeName typeName =
           ProcessorUtils.typeNameOf(
-              declaredType, component.asType(), domainDeclared, implPackage(spec));
+              processingEnv.getElementUtils(),
+              declaredType,
+              component.asType(),
+              domainDeclared,
+              implPackage(spec));
       groups.add(new Flattened(name, declaredType, typeName, record, inner));
     }
     // A local marker naming nothing on the domain: a group's inner component, which would be a
@@ -12687,7 +12717,9 @@ public class MappingProcessor extends AbstractProcessor {
       if (lifted.accessor() != null) {
         return PairResolution.of(
             Correspondence.nesting(name, wireName, Kind.ARRAY, lifted)
-                .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1], implPackage(spec))));
+                .withDomainElement(
+                    ProcessorUtils.typeNameOf(
+                        processingEnv.getElementUtils(), arrayElements[1], implPackage(spec))));
       }
     }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
@@ -12778,7 +12810,8 @@ public class MappingProcessor extends AbstractProcessor {
             keyLeaf == null
                 ? Correspondence.nesting(name, wireName, Kind.MAP, lifted)
                     .withIdentity(nullScan(domainKey), null)
-                    .withDomainElement(keyArgument(wireKey, implPackage(spec)))
+                    .withDomainElement(
+                        keyArgument(processingEnv.getElementUtils(), wireKey, implPackage(spec)))
                 : new Correspondence(
                         name, wireName, Kind.MAP_ENTRIES, leafCall(spec, keyLeaf.getSimpleName()))
                     .withValues(lifted));
@@ -12967,6 +13000,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     Correspondence presentLeg = present.correspondence();
     return bridgedCorrespondence(
+        processingEnv.getElementUtils(),
         presentLeg.withBuiltType(builtType(spec, registry, name, need, read, bridged, presentLeg)),
         bridged,
         implPackage(spec));
@@ -13656,7 +13690,9 @@ public class MappingProcessor extends AbstractProcessor {
       return leaf == null
           ? null
           : new Correspondence(name, wireName, Kind.ARRAY, leafCall(spec, leaf.getSimpleName()))
-              .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1], implPackage(spec)));
+              .withDomainElement(
+                  ProcessorUtils.typeNameOf(
+                      processingEnv.getElementUtils(), arrayElements[1], implPackage(spec)));
     }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
     TypeMirror domainElement = containerElement(domainType, "java.util.Optional");
@@ -13694,7 +13730,8 @@ public class MappingProcessor extends AbstractProcessor {
       return valueLeaf != null && processingEnv.getTypeUtils().isSameType(wireKey, domainKey)
           ? new Correspondence(name, wireName, Kind.MAP, leafCall(spec, valueLeaf.getSimpleName()))
               .withIdentity(nullScan(domainKey), null)
-              .withDomainElement(keyArgument(wireKey, implPackage(spec)))
+              .withDomainElement(
+                  keyArgument(processingEnv.getElementUtils(), wireKey, implPackage(spec)))
           : null;
     }
     if (valueLeaf != null) {
@@ -13714,7 +13751,10 @@ public class MappingProcessor extends AbstractProcessor {
     return new Correspondence(
             name, wireName, Kind.MAP_KEYS, leafCall(spec, keyLeaf.getSimpleName()))
         .withIdentity(values, map.nested() ? map : null)
-        .withDomainElement(values == null ? null : wildcardWitness(domainValue, implPackage(spec)));
+        .withDomainElement(
+            values == null
+                ? null
+                : wildcardWitness(processingEnv.getElementUtils(), domainValue, implPackage(spec)));
   }
 
   /**
@@ -14293,6 +14333,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock buildValue(
       Types types,
+      Elements elements,
       WireShape wire,
       TypeElement domain,
       WireShape.WireComponent wc,
@@ -14302,13 +14343,15 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock value =
         switch (c.kind()) {
           case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES ->
-              buildCall(c, wc, targetPackage).on(domainRead(c));
+              buildCall(elements, c, wc, targetPackage).on(domainRead(c));
           case OPTIONAL ->
               CodeBlock.of(
-                  "$L.map($L)", domainRead(c), buildCall(c, wc, targetPackage).asFunction());
+                  "$L.map($L)",
+                  domainRead(c),
+                  buildCall(elements, c, wc, targetPackage).asFunction());
           // The domain Optional is carried as-is, or its present value built as the unbridged
           // pair's.
-          case OPTIONAL_BRIDGE -> bridgeBuildValue(wc, c, targetPackage);
+          case OPTIONAL_BRIDGE -> bridgeBuildValue(elements, wc, c, targetPackage);
           case IDENTITY -> domainRead(c);
           case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
           // The variant the write's guard bound, into its member through the pair's spec, or
@@ -14316,7 +14359,7 @@ public class MappingProcessor extends AbstractProcessor {
           case ONEOF ->
               c.arm().prism() == null
                   ? CodeBlock.of("hkj$$v.$L()", c.arm().component())
-                  : buildCall(c, wc, targetPackage).on(CodeBlock.of("hkj$$v"));
+                  : buildCall(elements, c, wc, targetPackage).on(CodeBlock.of("hkj$$v"));
         };
     // What the domain holds reaches the wire as a copy, never as the domain's own container.
     CodeBlock copied = ContainerCopy.through(c.valueCopy(), value, SCAN_SCOPE);
@@ -14326,7 +14369,7 @@ public class MappingProcessor extends AbstractProcessor {
         to == null || c.kind() == Kind.DERIVED ? null : fresh(c, componentType(c, domain));
     return fresh == null
         ? copied
-        : NullableArgumentCast.on(fresh.copy(), fresh.type(), to, targetPackage, copied);
+        : NullableArgumentCast.on(elements, fresh.copy(), fresh.type(), to, targetPackage, copied);
   }
 
   /**
@@ -14467,7 +14510,7 @@ public class MappingProcessor extends AbstractProcessor {
    * renders into.
    */
   private static PrismCall buildCall(
-      Correspondence c, WireShape.WireComponent wc, String targetPackage) {
+      Elements elements, Correspondence c, WireShape.WireComponent wc, String targetPackage) {
     return switch (c.kind()) {
       case ELEMENTS -> new PrismCall(c.built(), "buildAll", null);
       case ARRAY ->
@@ -14476,7 +14519,7 @@ public class MappingProcessor extends AbstractProcessor {
               "buildAll",
               arrayConstructor(
                   ProcessorUtils.typeNameOf(
-                      ((ArrayType) wc.type()).getComponentType(), targetPackage)));
+                      elements, ((ArrayType) wc.type()).getComponentType(), targetPackage)));
       case MAP -> new PrismCall(c.built(), "buildValues", null);
       case MAP_KEYS -> new PrismCall(c.built(), "buildKeys", null);
       // The key prism is the receiver, and the value prism rides as the argument.
@@ -14573,12 +14616,12 @@ public class MappingProcessor extends AbstractProcessor {
    * {@code parse} reads back as empty.
    */
   private static CodeBlock bridgeBuildValue(
-      WireShape.WireComponent wc, Correspondence c, String targetPackage) {
+      Elements elements, WireShape.WireComponent wc, Correspondence c, String targetPackage) {
     if (wc.presence().isPresent()) {
       CodeBlock value = CodeBlock.of("$L.orElseThrow()", domainRead(c));
       return c.present().prism() == null
           ? value
-          : buildCall(c.present(), wc, targetPackage).on(value);
+          : buildCall(elements, c.present(), wc, targetPackage).on(value);
     }
     CodeBlock present =
         c.present().prism() == null
@@ -14586,7 +14629,7 @@ public class MappingProcessor extends AbstractProcessor {
             : CodeBlock.of(
                 "$L.map($L)",
                 domainRead(c),
-                buildCall(c.present(), wc, targetPackage).asFunction());
+                buildCall(elements, c.present(), wc, targetPackage).asFunction());
     return CodeBlock.of("$L.orElse(null)", present);
   }
 
@@ -14599,6 +14642,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock wireBuildBody(
       Types types,
+      Elements elements,
       WireShape wire,
       TypeName wireName,
       TypeElement domain,
@@ -14609,7 +14653,8 @@ public class MappingProcessor extends AbstractProcessor {
         wc -> {
           Correspondence c = correspondenceFor(wc, comps);
           return new WireShape.WireValue(
-              buildValue(types, wire, domain, wc, comps, targetPackage), presentWhen(c, wc));
+              buildValue(types, elements, wire, domain, wc, comps, targetPackage),
+              presentWhen(c, wc));
         });
   }
 
@@ -14654,8 +14699,8 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The read expression for the wire component named {@code wireName}, from the {@code wire} var.
    */
-  private static CodeBlock wireRead(WireShape wire, String wireName) {
-    return wire.componentNamed(wireName).orElseThrow().readFrom("wire");
+  private static CodeBlock wireRead(Elements elements, WireShape wire, String wireName) {
+    return wire.componentNamed(wireName).orElseThrow().readFrom(elements, "wire");
   }
 
   /**
@@ -14698,7 +14743,7 @@ public class MappingProcessor extends AbstractProcessor {
                 wire,
                 domain,
                 first,
-                wireRead(wire, first.wireName()),
+                wireRead(processingEnv.getElementUtils(), wire, first.wireName()),
                 guardedRead(first, wire),
                 locals,
                 targetPackage);
@@ -14723,13 +14768,14 @@ public class MappingProcessor extends AbstractProcessor {
                               wire,
                               domain,
                               member,
-                              wireRead(wire, member.wireName()),
+                              wireRead(processingEnv.getElementUtils(), wire, member.wireName()),
                               guardedRead(member, wire),
                               locals,
                               targetPackage))
                   .toList(),
               params,
               GuardedConstruction.parameterTypes(
+                  processingEnv.getElementUtils(),
                   run.stream()
                       .map(member -> legType(processingEnv.getTypeUtils(), wire, domain, member))
                       .toList(),
@@ -14766,17 +14812,18 @@ public class MappingProcessor extends AbstractProcessor {
    * applicable with nothing to unbox, unlike the assemblies that carry their values through a
    * {@code Validated} ladder.
    */
-  private static CodeBlock reverseArgs(WireShape wire, List<Correspondence> comps) {
+  private static CodeBlock reverseArgs(
+      Elements elements, WireShape wire, List<Correspondence> comps) {
     return runs(comps).stream()
         .map(
             run ->
                 run.getFirst().group() == null
-                    ? copiedRead(wire, run.getFirst())
+                    ? copiedRead(elements, wire, run.getFirst())
                     : CodeBlock.of(
                         "new $T($L)",
                         run.getFirst().group().type(),
                         run.stream()
-                            .map(member -> copiedRead(wire, member))
+                            .map(member -> copiedRead(elements, wire, member))
                             .collect(CodeBlock.joining(", "))))
         .collect(CodeBlock.joining(", "));
   }
@@ -14786,8 +14833,8 @@ public class MappingProcessor extends AbstractProcessor {
    * optic's {@code set} or {@code reverseGet} shares no container with the wire, as {@code parse}
    * does not.
    */
-  private static CodeBlock copiedRead(WireShape wire, Correspondence c) {
-    return ContainerCopy.through(c.valueCopy(), wireRead(wire, c.wireName()), SCAN_SCOPE);
+  private static CodeBlock copiedRead(Elements elements, WireShape wire, Correspondence c) {
+    return ContainerCopy.through(c.valueCopy(), wireRead(elements, wire, c.wireName()), SCAN_SCOPE);
   }
 
   /**
@@ -15034,8 +15081,11 @@ public class MappingProcessor extends AbstractProcessor {
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
+    TypeName domainName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), domainDeclared, implPackage(spec));
+    TypeName wireName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), wireUsed, implPackage(spec));
     // Derived fields are non-identity, so they exclude the Iso tier too: wire -> domain -> wire
     // recomputes the derived component, an identity only for wire values already consistent.
     boolean lossless = totalReads(comps, wire);
@@ -15054,13 +15104,14 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock buildBody =
         wireBuildBody(
             processingEnv.getTypeUtils(),
+            processingEnv.getElementUtils(),
             wire,
             wireName,
             (TypeElement) domainDeclared.asElement(),
             comps,
             implPackage(spec));
 
-    CodeBlock reverseArgs = reverseArgs(wire, comps);
+    CodeBlock reverseArgs = reverseArgs(processingEnv.getElementUtils(), wire, comps);
     List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
     TypeSpec.Builder implBuilder =
@@ -15123,8 +15174,11 @@ public class MappingProcessor extends AbstractProcessor {
       List<Correspondence> comps,
       List<Nest> halves) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
+    TypeName domainName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), domainDeclared, implPackage(spec));
+    TypeName wireName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), wireUsed, implPackage(spec));
     if (!checkNoEmittedCollisions(
         spec,
         halves.isEmpty() ? "a mapping with a read-only property" : "a mapping with two halves",
@@ -15161,6 +15215,7 @@ public class MappingProcessor extends AbstractProcessor {
                     suppression,
                     wireBuildBody(
                         processingEnv.getTypeUtils(),
+                        processingEnv.getElementUtils(),
                         wire,
                         wireName,
                         (TypeElement) domainDeclared.asElement(),
@@ -15254,8 +15309,11 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
+    TypeName domainName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), domainDeclared, implPackage(spec));
+    TypeName wireName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), wireUsed, implPackage(spec));
     if (!checkNoEmittedCollisions(
         spec,
         "a parse-only mapping",
@@ -15310,8 +15368,11 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
+    TypeName domainName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), domainDeclared, implPackage(spec));
+    TypeName wireName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), wireUsed, implPackage(spec));
     if (!checkNoEmittedCollisions(
         spec,
         "a build-only mapping",
@@ -15335,6 +15396,7 @@ public class MappingProcessor extends AbstractProcessor {
                     pairSuppression(domainDeclared, wire, comps),
                     wireBuildBody(
                         processingEnv.getTypeUtils(),
+                        processingEnv.getElementUtils(),
                         wire,
                         wireName,
                         (TypeElement) domainDeclared.asElement(),
@@ -15374,7 +15436,8 @@ public class MappingProcessor extends AbstractProcessor {
     List<Leg> legs = parseLegs(wire, domain, comps, locals, targetPackage);
     List<CodeBlock> code = legs.stream().map(Leg::code).toList();
     List<TypeName> types =
-        GuardedConstruction.parameterTypes(legs.stream().map(Leg::type).toList(), targetPackage);
+        GuardedConstruction.parameterTypes(
+            processingEnv.getElementUtils(), legs.stream().map(Leg::type).toList(), targetPackage);
     if (legs.size() <= ArityCeilings.ASSEMBLY) {
       return CodeBlock.builder()
           .add(locals.statements())
@@ -15566,7 +15629,13 @@ public class MappingProcessor extends AbstractProcessor {
             : locals.bind(
                 c.name(),
                 widenedCopy(
-                    processingEnv.getTypeUtils(), wire, domain, c, wireRead, targetPackage));
+                    processingEnv.getTypeUtils(),
+                    processingEnv.getElementUtils(),
+                    wire,
+                    domain,
+                    c,
+                    wireRead,
+                    targetPackage));
     CodeBlock value = copiedLegValue(c, read, guard);
     return value.isEmpty() ? value : CodeBlock.of("\n.field($S, $L)", c.name(), value);
   }
@@ -15578,6 +15647,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock widenedCopy(
       Types types,
+      Elements elements,
       WireShape wire,
       TypeElement domain,
       Correspondence c,
@@ -15587,7 +15657,8 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror to = held(c, takenType(types, c, domain));
     return to == null
         ? copied
-        : NullableArgumentCast.on(c.valueCopy(), wireType(wire, c), to, targetPackage, copied);
+        : NullableArgumentCast.on(
+            elements, c.valueCopy(), wireType(wire, c), to, targetPackage, copied);
   }
 
   /**
@@ -15705,7 +15776,9 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror component = componentType(domainDeclared, componentNamed(domain, c.name()));
     return ((DeclaredType) component).getTypeArguments().getFirst().getKind() == TypeKind.WILDCARD
         ? CodeBlock.of(
-            "$L.<$T>map(v -> v)", value, ProcessorUtils.typeNameOf(component, targetPackage))
+            "$L.<$T>map(v -> v)",
+            value,
+            ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), component, targetPackage))
         : value;
   }
 
@@ -15771,8 +15844,11 @@ public class MappingProcessor extends AbstractProcessor {
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
+    TypeName domainName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), domainDeclared, implPackage(spec));
+    TypeName wireName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), wireUsed, implPackage(spec));
     TypeName patchReturn =
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
@@ -15791,6 +15867,7 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock buildBody =
         wireBuildBody(
             processingEnv.getTypeUtils(),
+            processingEnv.getElementUtils(),
             wire,
             wireName,
             (TypeElement) domainDeclared.asElement(),
@@ -15814,7 +15891,7 @@ public class MappingProcessor extends AbstractProcessor {
               wire,
               domain,
               c,
-              wireRead(wire, c.wireName()),
+              wireRead(processingEnv.getElementUtils(), wire, c.wireName()),
               guardedRead(c, wire),
               locals,
               implPackage(spec)));
@@ -15845,6 +15922,7 @@ public class MappingProcessor extends AbstractProcessor {
             .toList();
     List<TypeName> types =
         GuardedConstruction.parameterTypes(
+            processingEnv.getElementUtils(),
             legs.stream().map(c -> legType(processingEnv.getTypeUtils(), wire, domain, c)).toList(),
             implPackage(spec));
     CodeBlock patchBody;
@@ -15964,8 +16042,11 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
+    TypeName domainName =
+        ProcessorUtils.typeNameOf(
+            processingEnv.getElementUtils(), domainDeclared, implPackage(spec));
+    TypeName wireName =
+        ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), wireUsed, implPackage(spec));
 
     if (!checkNoEmittedCollisions(
         spec,
@@ -15979,6 +16060,7 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock buildBody =
         wireBuildBody(
             processingEnv.getTypeUtils(),
+            processingEnv.getElementUtils(),
             wire,
             wireName,
             (TypeElement) domainDeclared.asElement(),
@@ -15999,7 +16081,7 @@ public class MappingProcessor extends AbstractProcessor {
       if (c == null) {
         setArgs.add("domain.$L()", name);
       } else {
-        setArgs.add(copiedRead(wire, c));
+        setArgs.add(copiedRead(processingEnv.getElementUtils(), wire, c));
       }
     }
 
@@ -16438,7 +16520,10 @@ public class MappingProcessor extends AbstractProcessor {
       Stream<? extends Element> uses) {
     List<TypeVariableName> variables =
         spec.getTypeParameters().stream()
-            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, implName.packageName()))
+            .map(
+                parameter ->
+                    ProcessorUtils.typeVariableOf(
+                        processingEnv.getElementUtils(), parameter, implName.packageName()))
             .toList();
     List<? extends TypeMirror> bounds =
         spec.getTypeParameters().stream()
@@ -16906,6 +16991,7 @@ public class MappingProcessor extends AbstractProcessor {
               .addModifiers(Modifier.PUBLIC)
               .returns(
                   ProcessorUtils.typeNameOf(
+                      processingEnv.getElementUtils(),
                       narrowest,
                       narrowestMember.getReturnType(),
                       (DeclaredType) spec.asType(),

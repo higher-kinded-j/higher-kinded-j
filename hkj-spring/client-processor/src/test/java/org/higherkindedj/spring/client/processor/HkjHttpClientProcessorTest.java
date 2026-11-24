@@ -3221,6 +3221,25 @@ class HkjHttpClientProcessorTest {
   }
 
   @Nested
+  @DisplayName("restates a deprecated method or type with its warning suppressed")
+  class DeprecatedSignatureSuppression {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(DeprecatedSignatures.Shape.class)
+    @DisplayName("each compiles under every lint and -Werror, the base alongside")
+    void compilesCleanWithTheBaseAlongside(DeprecatedSignatures.Shape shape) {
+      Compilation compilation =
+          javac()
+              .withProcessors(new HkjHttpClientProcessor())
+              .withOptions(DeprecatedSignatures.LINT)
+              .compile(
+                  Stream.concat(shape.baseSources().stream(), Stream.of(shape.client())).toList());
+
+      DeprecatedSignatures.assertCompiledClean(shape, compilation);
+    }
+  }
+
+  @Nested
   @DisplayName("keeps the type-use annotations the author wrote")
   class TypeUseAnnotations {
 

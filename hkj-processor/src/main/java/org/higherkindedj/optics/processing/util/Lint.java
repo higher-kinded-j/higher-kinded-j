@@ -12,6 +12,8 @@ import java.util.Locale;
  * @since 0.6.0
  */
 public enum Lint {
+  // hkj-spring's client processor keeps its own Lint for the categories its generated client
+  // draws, under the same rule.
   /** A use of an element deprecated without {@code forRemoval}. */
   DEPRECATION,
   /** A raw type written out or inferred. */

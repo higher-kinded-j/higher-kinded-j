@@ -24,6 +24,7 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
@@ -416,6 +417,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * type, and each row's, as their type argument, given through their class, {@code owner}, since a
    * cast would not reach the lambdas they are handed; any other copy is cast to it.
    *
+   * @param elements the round's element utilities, which read a deprecation
    * @param copy the copy {@link #perApply} answers
    * @param value the name of the value the edit holds
    * @param taken the names the copy's element lambdas must keep clear of
@@ -424,26 +426,33 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * @return the value to hand over
    */
   static CodeBlock again(
-      ContainerCopy copy, CodeBlock value, Set<String> taken, ClassName owner, TypeName named) {
+      Elements elements,
+      ContainerCopy copy,
+      CodeBlock value,
+      Set<String> taken,
+      ClassName owner,
+      TypeName named) {
     boolean array = copy.shape == Shape.ARRAY;
-    CodeBlock copied = copy.on(value, taken, 0, new Emission(true, owner, array ? named : null));
+    CodeBlock copied =
+        copy.on(value, taken, 0, new Emission(true, owner, array ? named : null, elements));
     return named == null || array ? copied : CodeBlock.of("($T) $L", named, copied);
   }
 
   /**
    * How a copy is written out: made {@code again} for a sparse update's apply, or not, into the
    * class {@code owner}, and the type an array's helpers take as their type argument at this level,
-   * {@code named}, or null where inference types them.
+   * {@code named}, or null where inference types them. A copy made again names types in {@code
+   * owner}'s package, read with the round's {@code elements}; a first copy names none.
    */
-  private record Emission(boolean again, ClassName owner, TypeName named) {
+  private record Emission(boolean again, ClassName owner, TypeName named, Elements elements) {
 
-    static final Emission COPY = new Emission(false, null, null);
+    static final Emission COPY = new Emission(false, null, null, null);
 
     /** The same emission one level inside an array: the type its rows have. */
     Emission rows() {
       return named == null
           ? this
-          : new Emission(again, owner, ((ArrayTypeName) named).componentType());
+          : new Emission(again, owner, ((ArrayTypeName) named).componentType(), elements);
     }
 
     /** {@code helper} as the copy calls it: with its type argument, where one is named. */
@@ -493,7 +502,9 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     if (mapped()) {
       TypeName bound =
           ProcessorUtils.typeNameOf(
-              ProcessorUtils.resolveWildcard(element), emission.owner().packageName());
+              emission.elements(),
+              ProcessorUtils.resolveWildcard(element),
+              emission.owner().packageName());
       return CodeBlock.of(
           "$L.map($L)",
           value,

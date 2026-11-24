@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.higherkindedj.optics.processing.generator.hkj.EitherGenerator;
 import org.higherkindedj.optics.processing.generator.hkj.MaybeGenerator;
 import org.higherkindedj.optics.processing.generator.hkj.TryGenerator;
 import org.higherkindedj.optics.processing.generator.hkj.ValidatedGenerator;
+import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,16 +60,42 @@ class ModifyFTargetPackageTest {
           import org.higherkindedj.hkt.validated.Validated;
 
           public record Holder(
-              Optional<@Tag String> maybeName,
-              Maybe<@Tag String> just,
-              Try<@Tag String> attempt,
-              Validated<String, @Tag String> checked,
-              Either<String, @Tag String> choice,
-              @Tag String[] tags) {}
+              Optional<@Tag @Old String> maybeName,
+              Maybe<@Tag @Old String> just,
+              Try<@Tag @Old String> attempt,
+              Validated<String, @Tag @Old String> checked,
+              Either<String, @Tag @Old String> choice,
+              @Tag @Old String[] tags) {}
 
           @Target(ElementType.TYPE_USE)
           @interface Tag {}
           """);
+
+  /** A public type-use annotation deprecated by its javadoc tag alone. */
+  private static final JavaFileObject OLD =
+      JavaFileObjects.forSourceString(
+          "com.example.Old",
+          """
+          package com.example;
+
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Target;
+
+          /**
+           * A mark.
+           *
+           * @deprecated mark nothing
+           */
+          @Target(ElementType.TYPE_USE)
+          public @interface Old {}
+          """);
+
+  /** How a body is asked for: through the form that names no package, a package, or a context. */
+  private enum Form {
+    NO_PACKAGE,
+    PACKAGE,
+    CONTEXT
+  }
 
   private static final Map<String, TraversableGenerator> GENERATORS =
       Map.of(
@@ -81,20 +109,74 @@ class ModifyFTargetPackageTest {
   @Test
   @DisplayName("a body written into the record's own package keeps a package-private annotation")
   void aBodyAtHomeKeepsAPackagePrivateAnnotation() {
-    assertThat(bodies(null).values()).allMatch(body -> body.contains("@com.example.Tag"));
+    assertThat(bodies(Form.NO_PACKAGE, "com.example").values())
+        .allMatch(body -> body.contains("@com.example.Tag"));
+    assertThat(bodies(Form.CONTEXT, "com.example").values())
+        .allMatch(body -> body.contains("@com.example.Tag"));
   }
 
   @Test
   @DisplayName("a body written into another package leaves it off")
   void aBodyElsewhereLeavesItOff() {
-    assertThat(bodies("com.away").values()).noneMatch(body -> body.contains("Tag"));
+    assertThat(bodies(Form.PACKAGE, "com.away").values()).noneMatch(body -> body.contains("Tag"));
+    assertThat(bodies(Form.CONTEXT, "com.away").values()).noneMatch(body -> body.contains("Tag"));
+  }
+
+  @Test
+  @DisplayName("a body written through a context leaves off one a javadoc tag alone deprecates")
+  void aBodyThroughAContextLeavesOffAJavadocDeprecation() {
+    assertThat(bodies(Form.CONTEXT, "com.example").values())
+        .noneMatch(body -> body.contains("Old"));
+  }
+
+  @Test
+  @DisplayName("a body written through a form with no context keeps it, reading @Deprecated alone")
+  void aBodyWithNoContextKeepsAJavadocDeprecation() {
+    assertThat(bodies(Form.PACKAGE, "com.example").values())
+        .allMatch(body -> body.contains("@com.example.Old"));
+  }
+
+  @Test
+  @DisplayName("a built-in that names types makes its forms with no context final")
+  void aBuiltInMakesItsFormsWithNoContextFinal() throws NoSuchMethodException {
+    // A subclass's override of either would be passed over, as hkj's processors call the context
+    // form, so it is refused at compile time instead.
+    for (TraversableGenerator generator : GENERATORS.values()) {
+      Class<?> type = generator.getClass();
+      assertThat(
+              type.getMethod(
+                      "generateModifyF", RecordComponentElement.class, ClassName.class, List.class)
+                  .getModifiers())
+          .as(type.getSimpleName())
+          .matches(Modifier::isFinal);
+      assertThat(
+              type.getMethod(
+                      "generateModifyF",
+                      RecordComponentElement.class,
+                      ClassName.class,
+                      List.class,
+                      String.class)
+                  .getModifiers())
+          .as(type.getSimpleName())
+          .matches(Modifier::isFinal);
+      assertThat(
+              type.getMethod(
+                      "generateModifyF",
+                      RecordComponentElement.class,
+                      ClassName.class,
+                      List.class,
+                      GenerationContext.class)
+                  .getModifiers())
+          .as(type.getSimpleName())
+          .matches(modifiers -> !Modifier.isFinal(modifiers));
+    }
   }
 
   /**
-   * Each generator's body for its component, written into {@code targetPackage}, or through the
-   * form that names no package, which answers for the record's own.
+   * Each generator's body for its component, asked for through {@code form}: written into {@code
+   * targetPackage}, or, through the form that names no package, the record's own.
    */
-  private static Map<String, String> bodies(final String targetPackage) {
+  private static Map<String, String> bodies(final Form form, final String targetPackage) {
     final Map<String, String> written = new HashMap<>();
 
     final class Reader extends AbstractProcessor {
@@ -121,10 +203,19 @@ class ModifyFTargetPackageTest {
             final TraversableGenerator generator =
                 GENERATORS.get(component.getSimpleName().toString());
             final CodeBlock body =
-                targetPackage == null
-                    ? generator.generateModifyF(component, recordClassName, components)
-                    : generator.generateModifyF(
-                        component, recordClassName, components, targetPackage);
+                switch (form) {
+                  case NO_PACKAGE ->
+                      generator.generateModifyF(component, recordClassName, components);
+                  case PACKAGE ->
+                      generator.generateModifyF(
+                          component, recordClassName, components, targetPackage);
+                  case CONTEXT ->
+                      generator.generateModifyF(
+                          component,
+                          recordClassName,
+                          components,
+                          new GenerationContext(targetPackage, processingEnv.getElementUtils()));
+                };
             written.put(component.getSimpleName().toString(), body.toString());
           }
         }
@@ -132,7 +223,7 @@ class ModifyFTargetPackageTest {
       }
     }
 
-    assertThat(javac().withProcessors(new Reader()).compile(SOURCE)).succeeded();
+    assertThat(javac().withProcessors(new Reader()).compile(SOURCE, OLD)).succeeded();
     return Map.copyOf(written);
   }
 }

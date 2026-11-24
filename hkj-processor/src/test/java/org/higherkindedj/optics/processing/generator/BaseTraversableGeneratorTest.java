@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.processing.AbstractProcessor;
@@ -27,7 +29,9 @@ import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -175,23 +179,101 @@ class BaseTraversableGeneratorTest {
     assertThat(arguments).containsExactly("source.id(), newLines, source.count()");
   }
 
+  @Test
+  @DisplayName(
+      "getTypeArgumentName through a context leaves off an annotation a javadoc tag alone"
+          + " deprecates")
+  void throughAContextLeavesOffAJavadocDeprecation() {
+    final var dated =
+        JavaFileObjects.forSourceString(
+            "com.example.Dated",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            @SuppressWarnings("deprecation")
+            public record Dated(List<@Old String> tags) {}
+            """);
+    final var old =
+        JavaFileObjects.forSourceString(
+            "com.example.Old",
+            """
+            package com.example;
+
+            import java.lang.annotation.ElementType;
+            import java.lang.annotation.Target;
+
+            /**
+             * A mark.
+             *
+             * @deprecated mark nothing
+             */
+            @Target(ElementType.TYPE_USE)
+            public @interface Old {}
+            """);
+    final AnnotationSpec oldMark =
+        AnnotationSpec.builder(ClassName.get("com.example", "Old")).build();
+
+    // The form with no context reads @Deprecated alone, so it keeps the mark.
+    assertThat(
+            read(
+                dated,
+                (component, elements) -> BASE.getTypeArgumentName(component, 0, "com.example"),
+                old))
+        .containsOnly(entry("tags", ClassName.get(String.class).annotated(oldMark)));
+    assertThat(
+            read(
+                dated,
+                (component, elements) ->
+                    BASE.getTypeArgumentName(
+                        component, 0, new GenerationContext("com.example", elements)),
+                old))
+        .containsOnly(entry("tags", ClassName.get(String.class)));
+  }
+
   /** Compiles {@code source} and reads every record component in it through {@code reader}. */
   private static Map<String, TypeName> read(
       final JavaFileObject source, final Function<RecordComponentElement, TypeName> reader) {
+    return read(source, (component, elements) -> reader.apply(component));
+  }
+
+  /**
+   * Compiles {@code sources} and reads every record component in them through {@code reader}, which
+   * is handed the round's element utilities too.
+   */
+  private static Map<String, TypeName> read(
+      final JavaFileObject source,
+      final BiFunction<RecordComponentElement, Elements, TypeName> reader,
+      final JavaFileObject... others) {
     final Map<String, TypeName> names = new HashMap<>();
     eachTopLevelType(
         source,
-        type ->
+        (type, elements) ->
             type.getRecordComponents()
                 .forEach(
                     component ->
-                        names.put(component.getSimpleName().toString(), reader.apply(component))));
+                        names.put(
+                            component.getSimpleName().toString(),
+                            reader.apply(component, elements))),
+        others);
     return Map.copyOf(names);
   }
 
   /** Compiles {@code source} and hands every type declared at its top level to {@code visit}. */
   private static void eachTopLevelType(
       final JavaFileObject source, final Consumer<TypeElement> visit) {
+    eachTopLevelType(source, (type, elements) -> visit.accept(type));
+  }
+
+  /**
+   * Compiles {@code source} beside {@code others}, and hands every type {@code source} declares at
+   * its top level to {@code visit}, with the round's element utilities.
+   */
+  private static void eachTopLevelType(
+      final JavaFileObject source,
+      final BiConsumer<TypeElement, Elements> visit,
+      final JavaFileObject... others) {
     final class Reader extends AbstractProcessor {
       @Override
       public Set<String> getSupportedAnnotationTypes() {
@@ -206,11 +288,25 @@ class BaseTraversableGeneratorTest {
       @Override
       public boolean process(
           final Set<? extends TypeElement> annotations, final RoundEnvironment round) {
-        ElementFilter.typesIn(round.getRootElements()).forEach(visit);
+        ElementFilter.typesIn(round.getRootElements()).stream()
+            .filter(type -> !isOther(type))
+            .forEach(type -> visit.accept(type, processingEnv.getElementUtils()));
+        return false;
+      }
+
+      private boolean isOther(final TypeElement type) {
+        for (JavaFileObject other : others) {
+          if (other.isNameCompatible(type.getSimpleName().toString(), JavaFileObject.Kind.SOURCE)) {
+            return true;
+          }
+        }
         return false;
       }
     }
 
-    assertThat(javac().withProcessors(new Reader()).compile(source)).succeeded();
+    final JavaFileObject[] all = new JavaFileObject[others.length + 1];
+    all[0] = source;
+    System.arraycopy(others, 0, all, 1, others.length);
+    assertThat(javac().withProcessors(new Reader()).compile(all)).succeeded();
   }
 }

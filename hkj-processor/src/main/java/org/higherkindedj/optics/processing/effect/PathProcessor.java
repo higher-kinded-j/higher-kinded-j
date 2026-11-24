@@ -148,7 +148,10 @@ public class PathProcessor extends AbstractProcessor {
     // those parameters pointing at a variable the bridge never brings into scope.
     List<TypeVariableName> interfaceVariables =
         interfaceElement.getTypeParameters().stream()
-            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+            .map(
+                parameter ->
+                    ProcessorUtils.typeVariableOf(
+                        processingEnv.getElementUtils(), parameter, packageName))
             .toList();
     TypeName delegateType =
         interfaceVariables.isEmpty()
@@ -405,6 +408,7 @@ public class PathProcessor extends AbstractProcessor {
                   .mapToObj(
                       bound ->
                           ProcessorUtils.typeNameOf(
+                              processingEnv.getElementUtils(),
                               bounds.get(bound),
                               bound >= offset
                                   ? declaredBounds.get(bound - offset)
@@ -527,7 +531,11 @@ public class PathProcessor extends AbstractProcessor {
     TypeName[] effectArguments =
         ((ParameterizedTypeName)
                 ProcessorUtils.typeNameOf(
-                    asMember.getReturnType(), method.getReturnType(), interfaceType, packageName))
+                    processingEnv.getElementUtils(),
+                    asMember.getReturnType(),
+                    method.getReturnType(),
+                    interfaceType,
+                    packageName))
             .typeArguments()
             .toArray(TypeName[]::new);
     MethodSpec.Builder methodBuilder =
@@ -541,7 +549,11 @@ public class PathProcessor extends AbstractProcessor {
     for (int index = 0; index < thrown.size(); index++) {
       methodBuilder.addException(
           ProcessorUtils.typeNameOf(
-              thrown.get(index), method.getThrownTypes().get(index), interfaceType, packageName));
+              processingEnv.getElementUtils(),
+              thrown.get(index),
+              method.getThrownTypes().get(index),
+              interfaceType,
+              packageName));
     }
 
     // Description first, then the block tags in order. A tag written before the description takes
@@ -577,6 +589,7 @@ public class PathProcessor extends AbstractProcessor {
       argumentNames.add(parameterName);
       methodBuilder.addParameter(
           ProcessorUtils.typeNameOf(
+              processingEnv.getElementUtils(),
               parameterTypes.get(index),
               parameters.get(index).asType(),
               interfaceType,

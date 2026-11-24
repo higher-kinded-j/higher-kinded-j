@@ -431,6 +431,44 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * Every processor loads the generators through the registry.
+   *
+   * <p>{@code GeneratorRegistry.load} loads the generators once per compilation, through its {@code
+   * discover}, which reports a plugin that cannot be loaded and loads the rest. A site loading them
+   * through {@code ServiceLoader} itself would let one broken plugin on the processor path stop
+   * every compilation with an uncaught exception, as a plugin built against an earlier release that
+   * overrides a built-in's final form would. Collecting the callers also fails the rule if it stops
+   * seeing the ones it allows.
+   */
+  @Test
+  @DisplayName("Every processor should load the generators through the registry")
+  void every_processor_should_load_the_generators_through_the_registry() {
+    assertThat(callersOf(GENERATOR_REGISTRY, "load"))
+        .isEqualTo(
+            Set.of("FocusProcessor.init", "ImportOpticsProcessor.init", "TraversalProcessor.init"));
+    // The optics processors' own ServiceLoader calls; the effect-path registry in hkj-core loads a
+    // service of its own.
+    assertThat(
+            StreamSupport.stream(classes.spliterator(), false)
+                .filter(
+                    javaClass ->
+                        javaClass
+                            .getPackageName()
+                            .startsWith("org.higherkindedj.optics.processing"))
+                .flatMap(ProcessorArchitectureRules::callsAndReferencesFrom)
+                .filter(access -> access.getTarget().getOwner().getName().equals(SERVICE_LOADER))
+                .filter(access -> access.getTarget().getName().equals("load"))
+                .map(
+                    access ->
+                        access.getOriginOwner().getSimpleName()
+                            + "."
+                            + access.getOrigin().getName())
+                .collect(Collectors.toSet()))
+        .as("load the generators through GeneratorRegistry.load, which reports a broken plugin")
+        .isEqualTo(Set.of("GeneratorRegistry.discover"));
+  }
+
+  /**
    * Only the guarded lookup asks which file an element was read from.
    *
    * <p>{@code Elements.getFileObjectOf} is a default method that throws unless the compiler
@@ -841,6 +879,8 @@ class ProcessorArchitectureRules {
       "org.higherkindedj.optics.processing.spi.TraversableGenerator";
 
   /** The single home for generator selection. */
+  private static final String SERVICE_LOADER = "java.util.ServiceLoader";
+
   private static final String GENERATOR_REGISTRY =
       "org.higherkindedj.optics.processing.GeneratorRegistry";
 

@@ -11,9 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -44,7 +41,9 @@ import javax.lang.model.util.SimpleAnnotationValueVisitor14;
  * annotated them with something only that package can name. {@link #writabilityIn} reads that from
  * the annotation alone, so each place that copies one decides from the same reading. {@link
  * #copiesOf} writes one declaration's annotations from it: those the package cannot write are left
- * out, and the warnings a deprecated one draws are suppressed.
+ * out, and the warnings a deprecated one draws are suppressed. {@link #suppressing} merges into
+ * them what the rest of the declaration draws, such as a deprecated method it overrides or a
+ * deprecated type it names.
  */
 final class AnnotationSpecs {
 
@@ -58,25 +57,6 @@ final class AnnotationSpecs {
 
   private AnnotationSpecs() {
     // Utility class - prevent instantiation
-  }
-
-  /** A lint category a copy can draw where it is written, in name order. */
-  enum Lint {
-    /** Drawn by an element that is deprecated. */
-    DEPRECATION("deprecation"),
-    /** Drawn by an element that is deprecated for removal. */
-    REMOVAL("removal");
-
-    private final String category;
-
-    Lint(String category) {
-      this.category = category;
-    }
-
-    /** The category as {@code @SuppressWarnings} names it. */
-    String category() {
-      return category;
-    }
   }
 
   /**
@@ -96,7 +76,7 @@ final class AnnotationSpecs {
               case Writable theirs ->
                   new Writable(
                       Stream.concat(mine.warnings().stream(), theirs.warnings().stream())
-                          .collect(toLints()));
+                          .collect(Lint.inNameOrder()));
             };
       };
     }
@@ -203,7 +183,20 @@ final class AnnotationSpecs {
    */
   static List<AnnotationSpec> copiesOf(
       List<? extends AnnotationMirror> annotations, String targetPackage, Elements elements) {
-    return copiesOf(annotations, targetPackage, elements, AnnotationSpecs::copyOf);
+    return copiesOf(annotations, targetPackage, elements, AnnotationSpecs::copyOf, Set.of());
+  }
+
+  /**
+   * The annotations one generated declaration carries, each as written, with the warnings their
+   * deprecated parts would draw there suppressed, together with {@code drawn}, what the rest of the
+   * declaration draws, such as a deprecated method it overrides or a deprecated type it names.
+   */
+  static List<AnnotationSpec> copiesOf(
+      List<? extends AnnotationMirror> annotations,
+      String targetPackage,
+      Elements elements,
+      Set<Lint> drawn) {
+    return copiesOf(annotations, targetPackage, elements, AnnotationSpecs::copyOf, drawn);
   }
 
   /**
@@ -225,7 +218,16 @@ final class AnnotationSpecs {
       String targetPackage,
       Elements elements,
       Function<AnnotationMirror, AnnotationSpec> copy) {
-    Walk walk = new Walk(targetPackage, elements::isDeprecated);
+    return copiesOf(annotations, targetPackage, elements, copy, Set.of());
+  }
+
+  private static List<AnnotationSpec> copiesOf(
+      List<? extends AnnotationMirror> annotations,
+      String targetPackage,
+      Elements elements,
+      Function<AnnotationMirror, AnnotationSpec> copy,
+      Set<Lint> drawn) {
+    Walk walk = new Walk(targetPackage, elements);
     record Reading(AnnotationMirror annotation, Writability writability) {}
     List<Reading> readings =
         annotations.stream()
@@ -233,13 +235,15 @@ final class AnnotationSpecs {
             .toList();
     // In name order, as the enum declares them, so the copy reads the same on every run.
     Set<Lint> warnings =
-        readings.stream()
-            .flatMap(
-                reading ->
-                    reading.writability() instanceof Writable writable
-                        ? writable.warnings().stream()
-                        : Stream.empty())
-            .collect(toLints());
+        Stream.concat(
+                drawn.stream(),
+                readings.stream()
+                    .flatMap(
+                        reading ->
+                            reading.writability() instanceof Writable writable
+                                ? writable.warnings().stream()
+                                : Stream.empty()))
+            .collect(Lint.inNameOrder());
     List<AnnotationSpec> copies =
         readings.stream()
             .filter(reading -> reading.writability() instanceof Writable)
@@ -248,14 +252,24 @@ final class AnnotationSpecs {
     return suppressing(warnings, copies);
   }
 
-  /** One declaration's annotations with the given lint categories suppressed on it. */
-  private static List<AnnotationSpec> suppressing(
-      Set<Lint> warnings, List<AnnotationSpec> annotations) {
+  /**
+   * One declaration's annotations with the given lint categories suppressed on it: merged into the
+   * {@code @SuppressWarnings} among them, after the categories it names, or added after them where
+   * there is none, since a declaration can carry only one. With no categories, the annotations as
+   * they are.
+   *
+   * @param warnings the categories the declaration draws, written in name order
+   * @param annotations the annotations the declaration carries otherwise, in the order written
+   * @return the annotations to write
+   */
+  static List<AnnotationSpec> suppressing(Set<Lint> warnings, List<AnnotationSpec> annotations) {
     if (warnings.isEmpty()) {
       return annotations;
     }
     List<CodeBlock> wanted =
-        warnings.stream().map(warning -> CodeBlock.of("$S", warning.category())).toList();
+        warnings.stream().collect(Lint.inNameOrder()).stream()
+            .map(warning -> CodeBlock.of("$S", warning.category()))
+            .toList();
     if (annotations.stream().noneMatch(AnnotationSpecs::isSuppressWarnings)) {
       return Stream.concat(annotations.stream(), Stream.of(suppressWarnings(wanted))).toList();
     }
@@ -289,44 +303,40 @@ final class AnnotationSpecs {
     return builder.build();
   }
 
-  /** Collects lint categories into a set read in name order. */
-  private static Collector<Lint, ?, Set<Lint>> toLints() {
-    return Collectors.collectingAndThen(
-        Collectors.toCollection(() -> EnumSet.noneOf(Lint.class)), Collections::unmodifiableSet);
-  }
-
   /**
    * Whether {@code targetPackage} can write the annotation, and what writing it there draws. A part
    * that cannot be written decides it, the first met in the order written: the annotation's type,
-   * then each member and its value. A deprecation is read from {@code @Deprecated}, and from the
-   * mark javac keeps for a javadoc {@code @deprecated} tag, in source and in a class file alike.
+   * then each member and its value. A deprecation is read as {@link Deprecations#drawnBy} reads it:
+   * from {@code @Deprecated}, and from the mark javac keeps for a javadoc {@code @deprecated} tag,
+   * in source and in a class file alike.
    */
   static Writability writabilityIn(
       AnnotationMirror annotation, String targetPackage, Elements elements) {
-    return new Walk(targetPackage, elements::isDeprecated).of(annotation);
+    return new Walk(targetPackage, elements).of(annotation);
   }
 
   /**
    * Whether {@code targetPackage} can write the annotation with no warning: a type-use annotation
-   * the client restates is kept only then. A deprecation is read from {@code @Deprecated} alone, as
-   * naming a type takes no {@code Elements}, so one written only as a javadoc tag is not seen.
+   * the client restates is kept only then. A deprecation is read as {@link #writabilityIn} reads
+   * it, a javadoc tag included.
    */
-  static boolean writesCleanlyIn(AnnotationMirror annotation, String targetPackage) {
-    return new Walk(targetPackage, element -> false).of(annotation) instanceof Writable writable
+  static boolean writesCleanlyIn(
+      AnnotationMirror annotation, String targetPackage, Elements elements) {
+    return new Walk(targetPackage, elements).of(annotation) instanceof Writable writable
         && writable.warnings().isEmpty();
   }
 
   /**
-   * One reading: the package the copy is written into, and whether an element carries the mark of a
-   * deprecation written as a javadoc tag.
+   * One reading: the package the copy is written into, and the round's element utilities, which
+   * read a deprecation.
    *
    * <p>hkj-processor's {@code ProcessorUtils.writable} keeps the same rules for the type-use
-   * annotations generated optics restate, apart from three differences: it answers only yes or no,
-   * where this gives the reason a refusal names; it reads no javadoc tag, as naming a type there
-   * takes no {@code Elements}; and it needs no check that a member is declared, since a member
-   * javac made up has no type, which no value fits. A change to one belongs in the other.
+   * annotations generated optics restate, in the forms that take {@code Elements}, apart from two
+   * differences: it answers only yes or no, where this gives the reason a refusal names; and it
+   * needs no check that a member is declared, since a member javac made up has no type, which no
+   * value fits. A change to one belongs in the other.
    */
-  private record Walk(String targetPackage, Predicate<Element> deprecatedByTag) {
+  private record Walk(String targetPackage, Elements elements) {
 
     Writability of(AnnotationMirror annotation) {
       DeclaredType type = annotation.getAnnotationType();
@@ -543,11 +553,7 @@ final class AnnotationSpecs {
 
     /** The warning writing an element draws: none, or the one its deprecation says. */
     private Writability deprecationOf(Element element) {
-      Deprecated deprecated = element.getAnnotation(Deprecated.class);
-      if (deprecated != null) {
-        return new Writable(Set.of(deprecated.forRemoval() ? Lint.REMOVAL : Lint.DEPRECATION));
-      }
-      return deprecatedByTag.test(element) ? new Writable(Set.of(Lint.DEPRECATION)) : CLEAN;
+      return new Writable(Deprecations.drawnBy(Stream.of(element), elements));
     }
   }
 
