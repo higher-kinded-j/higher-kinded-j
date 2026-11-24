@@ -8,6 +8,7 @@
   "hostRequirements": { "cpus": 4, "memory": "16gb" },
   "remoteUser": "node",
   "containerEnv": {
+    "LANG": "C.UTF-8",
     "HKJ_BOOK_OPEN": "0",
     "HKJ_BOOK_HOST": "0.0.0.0"
   },
@@ -15,7 +16,7 @@
   "portsAttributes": {
     "3000": { "label": "Book preview", "onAutoForward": "notify" }
   },
-  "postStartCommand": "cd hkj-book && nohup ./serve.sh >/tmp/hkj-book-serve.log 2>&1 </dev/null &",
+  "postStartCommand": "cd hkj-book && setsid -f ./serve.sh >/tmp/hkj-book-serve.log 2>&1 </dev/null",
   "customizations": {
     "vscode": {
       "extensions": ["yzhang.markdown-all-in-one", "davidanson.vscode-markdownlint"]
