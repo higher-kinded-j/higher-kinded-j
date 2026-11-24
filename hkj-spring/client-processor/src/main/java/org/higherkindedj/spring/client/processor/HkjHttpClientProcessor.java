@@ -213,13 +213,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
-   * Processes each client this round can: one whose annotations or interfaces name a type javac
-   * could not resolve waits for the round that brings it (see {@link #awaited}). Nothing is written
-   * in the last round. There a client still waiting is reported with what never resolved, unless an
-   * error ended the rounds early: javac makes the round after one with an error the last, and then
-   * the client is not generated for that error, which javac reports. hkj-processor's mapping specs
-   * stay silent in the last round instead; this processor reports, as it takes an element it cannot
-   * place as source (see {@link ClassFiles#readFrom}).
+   * Processes each client this round can: one whose annotations, interfaces or signatures name a
+   * type javac could not resolve waits for the round that brings it (see {@link #awaited}). Nothing
+   * is written in the last round. There a client still waiting is reported with what never
+   * resolved, unless an error ended the rounds early: javac makes the round after one with an error
+   * the last, and then the client is not generated for that error, which javac reports.
+   * hkj-processor's mapping specs stay silent in the last round instead; this processor reports, as
+   * it takes an element it cannot place as source (see {@link ClassFiles#readFrom}).
    */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -1198,11 +1198,19 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   /**
    * What a client waits for another round to bring, by name, or nothing where it is ready. A type
    * another processor writes in a later round may resolve what javac could not resolve this round:
-   * a type, or another version of one, that an annotation names where the client copies or reads it
-   * from source; an interface the client extends; or a type-use annotation on a type it restates
-   * from source, which would otherwise be left off. Every declaration of each method counts, as the
-   * client may follow any of them. In the last round javac reports a name its source wrote that is
-   * still unresolved, and nothing is written.
+   *
+   * <ul>
+   *   <li>a type, or another version of one, that an annotation names where the client or a base
+   *       writes it in source. Read this round, a copied annotation would be left off, and an HKJ
+   *       client meta-annotation, read in place of being copied, would give a wrong value: a group
+   *       of {@code "<error>"}, or a status or an error class the processor cannot read;
+   *   <li>an interface the client extends;
+   *   <li>a type the client restates from source, which its generated sources would write by a name
+   *       they cannot resolve, or a type-use annotation on one, which would be left off.
+   * </ul>
+   *
+   * <p>Every declaration of each method counts, as the client may follow any of them. In the last
+   * round javac reports a name its source wrote that is still unresolved, and nothing is written.
    */
   private List<String> awaited(
       TypeElement iface,
@@ -1210,9 +1218,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       List<ClientMethod> declarations,
       String packageName) {
     record Written(AnnotationMirror annotation, Element writer) {}
+    // Every annotation the client and each declaration carry, the HKJ client meta-annotations
+    // among them.
     Stream<Written> typeLevel =
         Stream.concat(
-            copiedAnnotationsOf(iface).stream().map(annotation -> new Written(annotation, iface)),
+            iface.getAnnotationMirrors().stream().map(annotation -> new Written(annotation, iface)),
             inherited
                     instanceof
                     HttpExchanges.Found(TypeElement base, List<AnnotationMirror> annotations)
@@ -1223,7 +1233,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .flatMap(
                 method ->
                     Stream.concat(
-                        copiedAnnotationsOf(method.element()).stream()
+                        method.element().getAnnotationMirrors().stream()
                             .map(annotation -> new Written(annotation, method.element())),
                         method.parameters().stream()
                             .flatMap(
@@ -1238,21 +1248,19 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
                 && !classFiles().readFrom(found.writer())
             ? Stream.of(found.missing().toString())
             : Stream.empty();
-    Stream<String> typeUse =
-        Stream.concat(
-            iface.getTypeParameters().stream()
-                .flatMap(parameter -> parameter.getBounds().stream())
-                .flatMap(type -> unresolvedTypeUseAnnotations(type, packageName)),
-            Stream.concat(
-                    declarations.stream()
-                        .filter(method -> !classFiles().readFrom(method.declaring()))
-                        .flatMap(method -> restatedTypesOf(method.element())),
-                    // The clauses the client and each base in source write, whose type arguments
-                    // the client restates where it binds a base's type variables.
-                    sourceHierarchyOf(iface).stream()
-                        .flatMap(type -> type.getInterfaces().stream()))
-                .flatMap(type -> unresolvedTypeUseAnnotations(type, packageName)));
-    return Stream.of(annotations, unreadable, unresolvedInterfacesOf(iface), typeUse)
+    Stream<String> restated =
+        Stream.of(
+                iface.getTypeParameters().stream()
+                    .flatMap(parameter -> parameter.getBounds().stream()),
+                declarations.stream()
+                    .filter(method -> !classFiles().readFrom(method.declaring()))
+                    .flatMap(method -> restatedTypesOf(method.element())),
+                // The clauses the client and each base in source write, whose type arguments the
+                // client restates where it binds a base's type variables.
+                sourceHierarchyOf(iface).stream().flatMap(type -> type.getInterfaces().stream()))
+            .flatMap(types -> types)
+            .flatMap(type -> unresolvedIn(type, packageName));
+    return Stream.of(annotations, unreadable, unresolvedInterfacesOf(iface), restated)
         .flatMap(names -> names)
         .distinct()
         .toList();
@@ -1284,17 +1292,23 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
-   * The type-use annotations on a type, and on the types it is made of, that name what javac could
-   * not resolve, as their type or in a value. A type variable's bounds are read where the variable
-   * is declared.
+   * What a type, and each type it is made of, names that javac could not resolve: the type itself,
+   * by the name javac gives it, without its type arguments, or what a type-use annotation on it
+   * names, as its type or in a value. javac keeps the type arguments of a type it could not
+   * resolve, so they are read too. A type variable's bounds are read where the variable is
+   * declared.
    */
-  private Stream<String> unresolvedTypeUseAnnotations(TypeMirror type, String packageName) {
+  private Stream<String> unresolvedIn(TypeMirror type, String packageName) {
     Stream<String> own =
-        type.getAnnotationMirrors().stream()
-            .flatMap(annotation -> awaitedBy(annotation, packageName));
+        Stream.concat(
+            type.getKind() == TypeKind.ERROR
+                ? Stream.of(((DeclaredType) type).asElement().toString())
+                : Stream.empty(),
+            type.getAnnotationMirrors().stream()
+                .flatMap(annotation -> awaitedBy(annotation, packageName)));
     Stream<TypeMirror> parts =
         switch (type.getKind()) {
-          case DECLARED ->
+          case DECLARED, ERROR ->
               Stream.concat(
                   Stream.of(((DeclaredType) type).getEnclosingType())
                       .filter(enclosing -> enclosing.getKind() == TypeKind.DECLARED),
@@ -1307,13 +1321,12 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
                   .filter(Objects::nonNull);
           default -> Stream.empty();
         };
-    return Stream.concat(
-        own, parts.flatMap(part -> unresolvedTypeUseAnnotations(part, packageName)));
+    return Stream.concat(own, parts.flatMap(part -> unresolvedIn(part, packageName)));
   }
 
   /**
-   * The interfaces in a type's hierarchy that javac could not resolve, by name, each as written
-   * without its type arguments, read level by level in the order each clause names them.
+   * The interfaces in a type's hierarchy that javac could not resolve, each by the name javac gives
+   * it, without its type arguments, read level by level in the order each clause names them.
    */
   private static Stream<String> unresolvedInterfacesOf(TypeElement type) {
     List<String> unresolved = new ArrayList<>();

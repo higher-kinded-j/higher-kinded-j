@@ -1647,8 +1647,8 @@ class HkjHttpClientProcessorClasspathTest {
   }
 
   @Test
-  @DisplayName("without a file-object lookup, a missing inherited type falls back to assignability")
-  void unsupportedFileObjectLookupFallsBackToTheAssignabilityCheck() throws IOException {
+  @DisplayName("without a file-object lookup, a missing inherited type is reported as unresolved")
+  void unsupportedFileObjectLookupReportsTheMissingTypeAsUnresolved() throws IOException {
     Path base =
         baseModule(
             """
@@ -1663,13 +1663,14 @@ class HkjHttpClientProcessorClasspathTest {
             .compile(CHILD);
 
     // Elements.getFileObjectOf is a default method javac overrides and another compiler may not.
-    // Without it the processor cannot confirm the method came from a class file, so it reports
-    // what it can check rather than abandoning the client on the unsupported operation.
+    // Without it the processor cannot confirm the method came from a class file, so it reads the
+    // method as source: the client waits for a round to bring the type, and the last round says
+    // none did, rather than abandoning the client on the unsupported operation.
     assertThat(compilation).failed();
     assertThat(compilation)
         .hadErrorContaining(
-            "'getUser', inherited from 'BaseApi': @OnStatus error type com.upstream.errors.Gone is"
-                + " not assignable")
+            "@HkjHttpClient generated nothing for ChildApi, as no round of this compilation"
+                + " resolved what it names: com.upstream.errors.Gone.")
         .inFile(CHILD);
     Assertions.assertThat(compilation.errors())
         .noneMatch(error -> error.getMessage(null).contains("Failed to generate"));
