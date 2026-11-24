@@ -2,7 +2,8 @@
   "name": "Higher-Kinded-J",
   "image": "ghcr.io/higher-kinded-j/hkj-book-toolchain:0f71b8b48a68",
   "features": {
-    "ghcr.io/devcontainers/features/java:1": { "version": "25", "jdkDistro": "tem", "installGradle": false }
+    "ghcr.io/devcontainers/features/java:1": { "version": "25", "jdkDistro": "tem", "installGradle": false },
+    "ghcr.io/devcontainers/features/sshd:1": {}
   },
   "hostRequirements": { "cpus": 4, "memory": "16gb" },
   "remoteUser": "node",
