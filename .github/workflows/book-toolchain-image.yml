@@ -6,6 +6,9 @@
 # docker.sh falls back to a local build if the image is not published, so a
 # failure here never blocks a contributor.
 #
+# The dev container runs this image too, so a pull request fails until
+# .devcontainer/devcontainer.json names the tag the pins and Dockerfile give.
+#
 # After the first publish, set the package's visibility to public in the
 # organisation's package settings, or anonymous pulls will fail.
 name: Book Toolchain Image
@@ -22,15 +25,102 @@ on:
       - 'hkj-book/toolchain-pins.sh'
       - 'hkj-book/docker/**'
       - '.github/workflows/book-toolchain-image.yml'
+      - '.devcontainer/devcontainer.json'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  dev-container-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check the dev container names the current image
+        run: |
+          expected="$(hkj-book/docker.sh image)"
+          actual="$(jq -r .image .devcontainer/devcontainer.json)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error file=.devcontainer/devcontainer.json::The dev container names $actual, but the toolchain pins and Dockerfile give $expected. Set \"image\" to $expected."
+            exit 1
+          fi
+          echo "The dev container names $expected."
+
+  # Each architecture builds natively on its own runner, since compiling the
+  # four tools under emulation takes far longer. The merge job then publishes
+  # both under the one tag, so docker.sh and the dev container run natively on
+  # amd64 and arm64 alike.
   image:
     # Only here: a contributor's fork, with workflows enabled, has none of the secrets this needs.
     if: github.repository == 'higher-kinded-j/higher-kinded-j'
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Work out the image repository
+        id: ref
+        run: |
+          image="$(hkj-book/docker.sh image)"
+          echo "repo=${image%:*}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pull requests build without pushing, which proves the Dockerfile and pins
+      # agree on both architectures. Elsewhere the image is pushed by digest
+      # alone, and the merge job tags it.
+      - name: Build, and push by digest except on pull requests
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: hkj-book
+          file: hkj-book/docker/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=${{ steps.ref.outputs.repo }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.arch }},mode=max
+
+      - name: Record the digest
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@v7
+        if: github.event_name != 'pull_request'
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: image
+    if: github.repository == 'higher-kinded-j/higher-kinded-j' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -44,23 +134,27 @@ jobs:
         id: ref
         run: echo "image=$(hkj-book/docker.sh image)" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-*
+          merge-multiple: true
+
       - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Pull requests build without pushing, which proves the Dockerfile and pins agree.
-      - name: Build, and push except on pull requests
-        uses: docker/build-push-action@v7
-        with:
-          context: hkj-book
-          file: hkj-book/docker/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.ref.outputs.image }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Tag both architectures under the one image reference
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ steps.ref.outputs.image }}
+        run: |
+          repo="${IMAGE%:*}"
+          # shellcheck disable=SC2046 # one argument per digest file
+          docker buildx imagetools create --tag "$IMAGE" $(printf "${repo}@sha256:%s " *)
+          docker buildx imagetools inspect "$IMAGE"

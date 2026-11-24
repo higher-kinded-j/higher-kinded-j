@@ -82,6 +82,10 @@ The pull request is squash-merged, so the merge commit never reaches `main`. Onc
 
 ## Development Setup
 
+The quickest start needs nothing installed: open the repository in a [GitHub Codespace](https://codespaces.new/higher-kinded-j/higher-kinded-j), or in VS Code with the Dev Containers extension. The dev container has JDK 25, Node.js and the pinned book tools, so every command on this page runs in it except `hkj-book/docker.sh`, which needs Docker. It serves the book on port 3000. Use it to run the build and the checks from the terminal: VS Code's Java extension compiles each module's main and test sources as one, and reports errors in `hkj-core` that the build does not.
+
+To set up your own machine instead:
+
 * You need a Java Development Kit (JDK), version **25**. The build uses preview features, which tie it to that release.
 * This project uses Gradle. You can use the included Gradle Wrapper (`gradlew`) to build and test.
     * Build the project: `./gradlew build`
@@ -166,7 +170,7 @@ hkj-book/docker.sh check             # the book checks CI runs
 
 The first run fetches (or builds) an image holding the exact mdbook, preprocessors, Node and Python that CI uses. Later runs start at once, and the page reloads as you save.
 
-Prefer a browser? Open the repository in a GitHub Codespace, or in VS Code with the Dev Containers extension: the dev container serves the book on port 3000 automatically.
+Prefer a browser? Open the repository in a GitHub Codespace, or in VS Code with the Dev Containers extension. The dev container serves the book on port 3000 as it starts. It has no Docker, so in it run the scripts `docker.sh` wraps: `hkj-book/check.sh` for the checks, and `hkj-book/preview-changes.sh v0.4.11 3001` for the marked preview, on a port the served book is not using.
 
 With a Rust toolchain you can run `hkj-book/serve.sh` instead, which installs the same pinned tools under `hkj-book/.tools`.
 
