@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.effect.context;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import org.higherkindedj.hkt.io.IOKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -251,6 +252,30 @@ class ConfigContextTest {
       assertThatNullPointerException()
           .isThrownBy(() -> ctx.contramap(null))
           .withMessageContaining("f must not be null");
+    }
+
+    record Deployment(AppConfig app) {}
+
+    @Test
+    @DisplayName("contramap() takes a function that returns a subtype of the configuration")
+    void contramapTakesFunctionReturningSubtype() {
+      Function<Deployment, AppConfig> appOf = Deployment::app;
+
+      ConfigContext<IOKind.Witness, Deployment, String> adapted = readUrl().contramap(appOf);
+
+      assertThat(adapted.runWithSync(new Deployment(TEST_CONFIG)))
+          .isEqualTo("https://api.example.com");
+    }
+
+    @Test
+    @DisplayName("contramap() takes a function that reads a supertype of the new configuration")
+    void contramapTakesFunctionReadingSupertype() {
+      Function<Object, AppConfig> fixed = ignored -> TEST_CONFIG;
+
+      ConfigContext<IOKind.Witness, Deployment, String> adapted = readUrl().contramap(fixed);
+
+      assertThat(adapted.runWithSync(new Deployment(TEST_CONFIG)))
+          .isEqualTo("https://api.example.com");
     }
 
     @Test

@@ -242,7 +242,7 @@ public final class ConfigContext<F extends WitnessArity<TypeArity.Unary>, R, A>
    * @return a context that works with the new configuration type
    * @throws NullPointerException if f is null
    */
-  public <R2> ConfigContext<F, R2, A> contramap(Function<R2, R> f) {
+  public <R2> ConfigContext<F, R2, A> contramap(Function<? super R2, ? extends R> f) {
     Objects.requireNonNull(f, "f must not be null");
 
     ReaderT<F, R2, A> newTransformer = ReaderT.of(r2 -> transformer.run().apply(f.apply(r2)));
