@@ -82,7 +82,7 @@ The pull request is squash-merged, so the merge commit never reaches `main`. Onc
 
 ## Development Setup
 
-The quickest start needs nothing installed: open the repository in a [GitHub Codespace](https://codespaces.new/higher-kinded-j/higher-kinded-j), or in VS Code with the Dev Containers extension. The dev container has JDK 25, Node.js and the pinned book tools, so every command on this page runs in it, and it serves the book on port 3000.
+The quickest start needs nothing installed: open the repository in a [GitHub Codespace](https://codespaces.new/higher-kinded-j/higher-kinded-j), or in VS Code with the Dev Containers extension. The dev container has JDK 25, Node.js and the pinned book tools, so every command on this page runs in it, and it serves the book on port 3000. Use it to run the build and the checks from the terminal: VS Code's Java extension compiles each module's main and test sources as one, and reports errors in `hkj-core` that the build does not.
 
 To set up your own machine instead:
 
