@@ -234,6 +234,38 @@ class GeneratorRegistryLoadTest {
             });
   }
 
+  /**
+   * A class file for {@code name}, extending {@code superName}, whose constructor throws an {@code
+   * IOException} with {@code message}, as a plugin's does where a file it reads cannot be read.
+   */
+  private static byte[] ioFailingGenerator(String name, String superName, String message) {
+    ClassDesc superclass = ClassDesc.of(superName);
+    ClassDesc failure = ClassDesc.of("java.io.IOException");
+    return ClassFile.of()
+        .build(
+            ClassDesc.of(name),
+            type ->
+                type.withSuperclass(superclass)
+                    .withFlags(ClassFile.ACC_PUBLIC)
+                    .withMethodBody(
+                        ConstantDescs.INIT_NAME,
+                        ConstantDescs.MTD_void,
+                        ClassFile.ACC_PUBLIC,
+                        code ->
+                            code.aload(0)
+                                .invokespecial(
+                                    superclass, ConstantDescs.INIT_NAME, ConstantDescs.MTD_void)
+                                .new_(failure)
+                                .dup()
+                                .ldc(message)
+                                .invokespecial(
+                                    failure,
+                                    ConstantDescs.INIT_NAME,
+                                    MethodTypeDesc.of(
+                                        ConstantDescs.CD_void, ConstantDescs.CD_String))
+                                .athrow()));
+  }
+
   /** A loader over {@code dir} beside the test's own, holding these plugins, in this order. */
   private static URLClassLoader plugins(Path dir, Map<String, byte[]> classes) throws IOException {
     for (Map.Entry<String, byte[]> plugin : classes.entrySet()) {
@@ -250,6 +282,41 @@ class GeneratorRegistryLoadTest {
 
   private static final String OPTIONAL_GENERATOR =
       "org.higherkindedj.optics.processing.generator.basejdk.OptionalGenerator";
+
+  @Test
+  @DisplayName("reports a constructor's IOException as the plugin's own, each once, and loads on")
+  void reportsAConstructorsIOExceptionAsThePluginsOwn(@TempDir Path dir) throws IOException {
+    // ServiceLoader hands on a constructor's IOException as the cause, as it does an unreadable
+    // service file's. More of them, each failing differently, than end the loading of such files.
+    Map<String, byte[]> classes = new LinkedHashMap<>();
+    int failing = GeneratorRegistry.READ_FAILURES_IN_A_ROW + 1;
+    for (int index = 0; index < failing; index++) {
+      String name = "plugin.Unconfigured" + index;
+      classes.put(
+          name, ioFailingGenerator(name, OPTIONAL_GENERATOR, "config " + index + " is unreadable"));
+    }
+    classes.put(
+        "plugin.GoodOptionalGenerator",
+        generator("plugin.GoodOptionalGenerator", OPTIONAL_GENERATOR, false));
+    RecordingMessager messager = new RecordingMessager();
+
+    List<TraversableGenerator> loaded;
+    try (URLClassLoader loader = plugins(dir, classes)) {
+      loaded = GeneratorRegistry.load(compilation(), loader, messager);
+    }
+
+    assertThat(messager.errors)
+        .hasSize(failing)
+        .allSatisfy(
+            error ->
+                assertThat(error)
+                    .contains("its constructor or static initialiser threw")
+                    .doesNotContain("service files could not be read")
+                    .contains("caused by java.io.IOException: config "));
+    assertThat(loaded)
+        .extracting(generator -> generator.getClass().getSimpleName())
+        .contains("GoodOptionalGenerator");
+  }
 
   @Test
   @DisplayName("is reported once where two fail alike, and the plugins after them still load")

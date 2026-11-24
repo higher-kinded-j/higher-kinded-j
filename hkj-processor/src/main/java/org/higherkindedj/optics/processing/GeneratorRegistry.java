@@ -144,33 +144,54 @@ public final class GeneratorRegistry {
   private static List<TraversableGenerator> discover(ClassLoader classLoader, Messager messager) {
     List<TraversableGenerator> loaded = new ArrayList<>();
     Set<String> reported = new HashSet<>();
-    Iterator<TraversableGenerator> providers =
-        ServiceLoader.load(TraversableGenerator.class, classLoader).iterator();
+    // A provider is found, reading the service files and loading its class, as the stream advances,
+    // and created by get: a constructor's own IOException reaches get as the cause a file that
+    // cannot be read gives, so where it is thrown tells the two apart.
+    Iterator<ServiceLoader.Provider<TraversableGenerator>> providers =
+        ServiceLoader.load(TraversableGenerator.class, classLoader).stream().iterator();
     int readFailuresInARow = 0;
     while (readFailuresInARow < READ_FAILURES_IN_A_ROW) {
+      ServiceLoader.Provider<TraversableGenerator> provider;
       try {
         if (!providers.hasNext()) {
           return List.copyOf(loaded);
         }
-        loaded.add(providers.next());
-        readFailuresInARow = 0;
+        provider = providers.next();
       } catch (ServiceConfigurationError | LinkageError failure) {
         // Only a failure to read the service files can repeat with the loader not moving on, so
         // only those count, and only the first of a run is reported, whatever its cause's text.
         boolean readFailure = cannotReadServiceFiles(failure);
         boolean firstOfItsRun = !readFailure || readFailuresInARow == 0;
         readFailuresInARow = readFailure ? readFailuresInARow + 1 : 0;
-        String report = jvmReport(failure);
-        // Two plugins can fail alike, as two extending the same missing class do: one error.
-        if (firstOfItsRun && reported.add(report)) {
-          messager.printMessage(Diagnostic.Kind.ERROR, unloadable(failure, report));
+        if (firstOfItsRun) {
+          report(failure, readFailure, reported, messager);
         }
+        continue;
+      }
+      readFailuresInARow = 0;
+      try {
+        loaded.add(provider.get());
+      } catch (ServiceConfigurationError | LinkageError failure) {
+        report(failure, false, reported, messager);
       }
     }
     return List.copyOf(loaded);
   }
 
-  /** Whether ServiceLoader could not list or read the service files, as an I/O failure. */
+  /** Reports a plugin that cannot be loaded, unless an earlier failure was reported alike. */
+  private static void report(
+      Throwable failure, boolean readFailure, Set<String> reported, Messager messager) {
+    String report = jvmReport(failure);
+    // Two plugins can fail alike, as two extending the same missing class do: one error.
+    if (reported.add(report)) {
+      messager.printMessage(Diagnostic.Kind.ERROR, unloadable(failure, readFailure, report));
+    }
+  }
+
+  /**
+   * Whether ServiceLoader, finding a provider, could not list or read the service files, as an I/O
+   * failure.
+   */
   private static boolean cannotReadServiceFiles(Throwable failure) {
     return failure instanceof ServiceConfigurationError
         && failure.getCause() instanceof IOException;
@@ -180,8 +201,8 @@ public final class GeneratorRegistry {
    * The error for a plugin that cannot be loaded: what, why and the fix, then the JVM's own report,
    * last, as the JVM cuts a long one short.
    */
-  private static String unloadable(Throwable failure, String report) {
-    Unloadable reason = Unloadable.of(failure);
+  private static String unloadable(Throwable failure, boolean readFailure, String report) {
+    Unloadable reason = Unloadable.of(failure, readFailure);
     return "A TraversableGenerator plugin on the annotation processor path cannot be loaded. "
         + reason.why
         + " "
@@ -218,11 +239,11 @@ public final class GeneratorRegistry {
       this.fix = fix;
     }
 
-    static Unloadable of(Throwable failure) {
+    static Unloadable of(Throwable failure, boolean readFailure) {
       if (failure instanceof IncompatibleClassChangeError) {
         return DOES_NOT_LINK;
       }
-      return cannotReadServiceFiles(failure) ? UNREADABLE : FAILED;
+      return readFailure ? UNREADABLE : FAILED;
     }
   }
 
