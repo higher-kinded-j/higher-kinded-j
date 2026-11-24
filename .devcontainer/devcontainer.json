@@ -1,9 +1,10 @@
 {
-  "name": "Higher-Kinded-J book",
-  "build": {
-    "context": "../hkj-book",
-    "dockerfile": "../hkj-book/docker/Dockerfile"
+  "name": "Higher-Kinded-J",
+  "image": "ghcr.io/higher-kinded-j/hkj-book-toolchain:0f71b8b48a68",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "25", "jdkDistro": "tem", "installGradle": false }
   },
+  "hostRequirements": { "cpus": 4, "memory": "16gb" },
   "remoteUser": "node",
   "containerEnv": {
     "HKJ_BOOK_OPEN": "0",
@@ -11,7 +12,7 @@
   },
   "forwardPorts": [3000],
   "portsAttributes": {
-    "3000": { "label": "Book preview", "onAutoForward": "openPreview" }
+    "3000": { "label": "Book preview", "onAutoForward": "notify" }
   },
   "postStartCommand": "cd hkj-book && nohup ./serve.sh >/tmp/hkj-book-serve.log 2>&1 </dev/null &",
   "customizations": {

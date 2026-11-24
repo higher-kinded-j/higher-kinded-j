@@ -6,6 +6,9 @@
 # docker.sh falls back to a local build if the image is not published, so a
 # failure here never blocks a contributor.
 #
+# The dev container runs this image too, so a pull request fails until
+# .devcontainer/devcontainer.json names the tag the pins and Dockerfile give.
+#
 # After the first publish, set the package's visibility to public in the
 # organisation's package settings, or anonymous pulls will fail.
 name: Book Toolchain Image
@@ -22,12 +25,30 @@ on:
       - 'hkj-book/toolchain-pins.sh'
       - 'hkj-book/docker/**'
       - '.github/workflows/book-toolchain-image.yml'
+      - '.devcontainer/devcontainer.json'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  dev-container-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Check the dev container names the current image
+        run: |
+          expected="$(hkj-book/docker.sh image)"
+          actual="$(jq -r .image .devcontainer/devcontainer.json)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error file=.devcontainer/devcontainer.json::The dev container names $actual, but the toolchain pins and Dockerfile give $expected. Set \"image\" to $expected."
+            exit 1
+          fi
+          echo "The dev container names $expected."
+
   image:
     # Only here: a contributor's fork, with workflows enabled, has none of the secrets this needs.
     if: github.repository == 'higher-kinded-j/higher-kinded-j'
