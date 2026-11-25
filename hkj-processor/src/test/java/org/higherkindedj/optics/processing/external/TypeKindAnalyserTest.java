@@ -276,6 +276,7 @@ class TypeKindAnalyserTest {
       TypeAnalysis analysis = analyseType("com.test.Day", source);
 
       assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
           .containsExactly(
               "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY");
     }

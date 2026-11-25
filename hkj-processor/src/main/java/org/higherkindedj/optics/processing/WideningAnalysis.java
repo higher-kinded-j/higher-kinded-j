@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -743,31 +742,34 @@ public final class WideningAnalysis {
 
   /**
    * The warning suppression a method that widens a component carries: {@code rawtypes} where the
-   * component's type or its record's type-parameter bounds name a raw type, and {@code unchecked}
-   * where a layer's instance is cast to a raw or wildcard container.
+   * component's type or its record's type-parameter bounds name a raw type, {@code unchecked} where
+   * a layer's instance is cast to a raw or wildcard container, and {@code deprecation} or {@code
+   * removal} where a type it writes out or a member it calls is deprecated.
    *
    * @param elements the round's element utilities, which read a deprecation
    * @param component the component the method widens
    * @param record the record that declares it, whose type parameters the method redeclares
    * @param steps the layers its widening renders
+   * @param called the record's members the method's body calls, consumed by this call
    * @return the one suppression annotation the method needs, or none
    */
   public static List<AnnotationSpec> warningSuppression(
-      Elements elements, RecordComponentElement component, TypeElement record, List<Step> steps) {
-    List<TypeMirror> written =
-        Stream.concat(
-                Stream.of(component.asType(), record.asType()),
-                record.getTypeParameters().stream()
-                    .flatMap(parameter -> parameter.getBounds().stream()))
-            .toList();
+      Elements elements,
+      RecordComponentElement component,
+      TypeElement record,
+      List<Step> steps,
+      Stream<? extends Element> called) {
     return ProcessorUtils.suppression(
-        Stream.of(
-                ProcessorUtils.rawTypesOf(written).stream(),
-                ProcessorUtils.deprecationNamedBy(elements, written),
+        Stream.concat(
+                ProcessorUtils.memberLints(
+                    elements,
+                    List.of(component.asType(), record.asType()),
+                    record.getTypeParameters(),
+                    called)
+                    .stream(),
                 steps.stream().anyMatch(step -> step.undenotableContainer() != null)
                     ? Stream.of(Lint.UNCHECKED)
                     : Stream.<Lint>empty())
-            .flatMap(Function.identity())
             .toList());
   }
 

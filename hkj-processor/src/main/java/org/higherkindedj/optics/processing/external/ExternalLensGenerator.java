@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
@@ -18,6 +19,7 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -49,6 +51,7 @@ public class ExternalLensGenerator {
   private final Filer filer;
   private final Messager messager;
   private final Elements elements;
+  private final Types types;
   private final GeneratorRegistry generatorRegistry;
 
   /**
@@ -58,17 +61,20 @@ public class ExternalLensGenerator {
    * @param filer the filer for writing generated files
    * @param messager the messager for reporting diagnostics
    * @param elements the element utilities, which read whether a type-use annotation the optics
-   *     restate is deprecated
+   *     restate, or a type or member they name or call, is deprecated
+   * @param types the type utilities, which find the record constructor the optics call
    * @param traversalGenerators the traversal generators the processor loaded
    */
   public ExternalLensGenerator(
       Filer filer,
       Messager messager,
       Elements elements,
+      Types types,
       List<TraversableGenerator> traversalGenerators) {
     this.filer = filer;
     this.messager = messager;
     this.elements = elements;
+    this.types = types;
     this.generatorRegistry = GeneratorRegistry.of(traversalGenerators, messager);
   }
 
@@ -239,9 +245,14 @@ public class ExternalLensGenerator {
                 recordTypeName,
                 recordTypeName,
                 componentTypeName.box())
-            // The lens type and the record's type-parameter bounds are written out here.
+            // The lens type and the record's type-parameter bounds are written out here, and the
+            // body calls the record's accessors and constructor.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(elements, field.type(), recordElement))
+                ProcessorUtils.memberSuppression(
+                    elements,
+                    List.of(field.type(), recordElement.asType()),
+                    recordElement.getTypeParameters(),
+                    ProcessorUtils.rebuildCalls(types, recordElement)))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
@@ -286,9 +297,14 @@ public class ExternalLensGenerator {
                 classTypeName,
                 classTypeName,
                 fieldTypeName.box())
-            // The lens type and the class's type-parameter bounds are written out here.
+            // The lens type, the class and its type-parameter bounds are written out here, and the
+            // body calls the getter and the wither.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(elements, field.type(), typeParameters))
+                ProcessorUtils.memberSuppression(
+                    elements,
+                    List.of(field.type(), classElement.asType()),
+                    typeParameters,
+                    Stream.of(wither.getterMethod(), wither.witherMethod())))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
@@ -344,8 +360,14 @@ public class ExternalLensGenerator {
                 parameterName,
                 field.name(),
                 typeName)
+            // The type and its type-parameter bounds are written out here; the body calls the lens
+            // beside it.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(elements, field.type(), typeParameters))
+                ProcessorUtils.memberSuppression(
+                    elements,
+                    List.of(field.type(), typeElement.asType()),
+                    typeParameters,
+                    Stream.empty()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(typeName)
             .addParameter(typeName, "source")
@@ -437,9 +459,14 @@ public class ExternalLensGenerator {
         TypeSpec.classBuilder(implementationName)
             .addAnnotation(GENERATED_ANNOTATION)
             // The class names the traversal type in its superinterface clause and redeclares the
-            // record's type parameters, neither of which a member annotation reaches.
+            // record's type parameters, neither of which a member annotation reaches, and its
+            // body calls the record's accessors and constructor.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(elements, field.type(), recordElement))
+                ProcessorUtils.memberSuppression(
+                    elements,
+                    List.of(field.type(), recordElement.asType()),
+                    recordElement.getTypeParameters(),
+                    ProcessorUtils.rebuildCalls(types, recordElement)))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(

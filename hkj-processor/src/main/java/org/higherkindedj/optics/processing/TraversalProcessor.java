@@ -291,10 +291,14 @@ public class TraversalProcessor extends AbstractProcessor {
         TypeSpec.classBuilder(implementationName)
             .addAnnotation(GENERATED)
             // The class names the traversal type in its superinterface clause and redeclares the
-            // record's type parameters, neither of which a member annotation reaches.
+            // record's type parameters, neither of which a member annotation reaches, and its
+            // body calls the record's accessors and constructor.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(
-                    processingEnv.getElementUtils(), component.asType(), recordElement))
+                ProcessorUtils.memberSuppression(
+                    processingEnv.getElementUtils(),
+                    List.of(component.asType(), recordElement.asType()),
+                    recordElement.getTypeParameters(),
+                    ProcessorUtils.rebuildCalls(processingEnv.getTypeUtils(), recordElement)))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(

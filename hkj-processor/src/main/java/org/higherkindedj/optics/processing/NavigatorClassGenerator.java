@@ -2765,10 +2765,15 @@ public class NavigatorClassGenerator {
                 declared.tier().getMethod(),
                 componentName)
             // The navigator type and the record's type-parameter bounds are written out here, and
-            // so may a cast to a raw or wildcard container.
+            // so may a cast to a raw or wildcard container. The body calls the record's accessors
+            // and constructor.
             .addAnnotations(
                 WideningAnalysis.warningSuppression(
-                    processingEnv.getElementUtils(), component, recordElement, declared.steps()))
+                    processingEnv.getElementUtils(),
+                    component,
+                    recordElement,
+                    declared.steps(),
+                    ProcessorUtils.rebuildCalls(processingEnv.getTypeUtils(), recordElement)))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnType);
 

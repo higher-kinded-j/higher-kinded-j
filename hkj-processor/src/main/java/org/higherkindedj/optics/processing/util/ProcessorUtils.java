@@ -630,6 +630,10 @@ public final class ProcessorUtils {
    * suppression does not reach, so a member naming the type answers for it itself. Deprecation is
    * read as {@link #deprecationOf(Elements, Stream)} reads it, a javadoc tag included.
    *
+   * <p>A member whose body also calls a deprecated accessor, constructor, wither or enum constant
+   * takes {@link #memberSuppression} instead, and one that raises a category of its own adds it to
+   * {@link #memberLints}.
+   *
    * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param types the types the member may write out or infer; a wider set only widens where the
    *     suppression lands; must not be null
@@ -638,8 +642,7 @@ public final class ProcessorUtils {
    */
   public static List<AnnotationSpec> writtenTypesSuppression(
       Elements elements, List<? extends TypeMirror> types) {
-    return suppression(
-        Stream.concat(rawTypesOf(types).stream(), deprecationNamedBy(elements, types)).toList());
+    return memberSuppression(elements, types, List.of(), Stream.empty());
   }
 
   /**
@@ -657,14 +660,8 @@ public final class ProcessorUtils {
    */
   public static List<AnnotationSpec> writtenTypesSuppression(
       Elements elements, TypeMirror written, TypeElement owner) {
-    List<TypeMirror> redeclared = withBounds(written, owner.getTypeParameters());
-    return suppression(
-        Stream.concat(
-                rawTypesOf(redeclared).stream(),
-                deprecationNamedBy(
-                    elements,
-                    Stream.concat(redeclared.stream(), Stream.of(owner.asType())).toList()))
-            .toList());
+    return memberSuppression(
+        elements, List.of(written, owner.asType()), owner.getTypeParameters(), Stream.empty());
   }
 
   /**
@@ -679,7 +676,91 @@ public final class ProcessorUtils {
    */
   public static List<AnnotationSpec> writtenTypesSuppression(
       Elements elements, TypeMirror written, List<? extends TypeParameterElement> redeclared) {
-    return writtenTypesSuppression(elements, withBounds(written, redeclared));
+    return memberSuppression(elements, List.of(written), redeclared, Stream.empty());
+  }
+
+  /**
+   * The one {@code @SuppressWarnings} a generated member carries for what it writes out and what
+   * its body calls: the categories {@link #memberLints} finds, merged as {@link #suppression}
+   * merges them. The {@code writtenTypesSuppression} forms are this one with nothing called.
+   *
+   * <p>A deprecated member draws the lint as a deprecated type does, and is the author's as that
+   * type is: they chose the record whose accessor is deprecated, or the class whose wither is, by
+   * generating optics over it, and javac reports a call to it in the generated file, which their
+   * own suppression does not reach.
+   *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
+   * @param written the types the member writes out or infers, and the classes it names, such as the
+   *     type it is generated over; a wider set only widens where the suppression lands; must not be
+   *     null
+   * @param redeclared the type parameters the member, or the class it is, redeclares, bounds and
+   *     all; must not be null
+   * @param called the methods and constructors the member's body calls, and the fields it reads,
+   *     such as an accessor, a wither or an enum constant, consumed by this call; must not be null
+   * @return the suppression, or no annotations when none of the categories applies
+   * @since 0.6.0
+   */
+  public static List<AnnotationSpec> memberSuppression(
+      Elements elements,
+      List<? extends TypeMirror> written,
+      List<? extends TypeParameterElement> redeclared,
+      Stream<? extends Element> called) {
+    return suppression(memberLints(elements, written, redeclared, called));
+  }
+
+  /**
+   * The categories a generated member raises by what it writes out and what its body calls: {@code
+   * rawtypes} for a raw type among {@code written} or the bounds of {@code redeclared}, as {@link
+   * #rawTypesSuppression(List)} describes, and {@code deprecation} or {@code removal} for a
+   * deprecated class {@link #typesNamedBy} finds among them or a deprecated element among {@code
+   * called}. Deprecation is read as {@link #deprecationOf(Elements, Stream)} reads it, a javadoc
+   * tag included.
+   *
+   * <p>A generator whose member raises a category of its own, such as {@code unchecked} for a cast,
+   * adds it to these and hands them all to {@link #suppression}, so the member carries one
+   * annotation.
+   *
+   * @param elements the round's element utilities, which read a deprecation; must not be null
+   * @param written the types the member writes out or infers, and the classes it names; must not be
+   *     null
+   * @param redeclared the type parameters the member, or the class it is, redeclares, bounds and
+   *     all; must not be null
+   * @param called the members its body calls or reads, consumed by this call; must not be null
+   * @return the categories raised, possibly with repeats, which {@link #suppression} merges
+   * @since 0.6.0
+   */
+  public static List<Lint> memberLints(
+      Elements elements,
+      List<? extends TypeMirror> written,
+      List<? extends TypeParameterElement> redeclared,
+      Stream<? extends Element> called) {
+    List<TypeMirror> types =
+        Stream.concat(
+                written.stream(),
+                redeclared.stream().flatMap(parameter -> parameter.getBounds().stream()))
+            .toList();
+    return Stream.of(
+            rawTypesOf(types).stream(),
+            deprecationNamedBy(elements, types),
+            deprecationOf(elements, called).stream())
+        .flatMap(Function.identity())
+        .toList();
+  }
+
+  /**
+   * The members generated code calls to read a record and build one: every accessor and the
+   * canonical constructor; none for a type that is not a record. An optic rebuilding a record with
+   * one component replaced, such as a lens or a setter, as {@link #rebuildArguments} writes it,
+   * reads each other component from the source, calls the focused one's accessor as its getter, and
+   * calls the constructor; a mapping reads and builds a record wire the same way.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param record the record; must not be null
+   * @return the accessors, in declaration order, then the canonical constructor
+   * @since 0.6.0
+   */
+  public static Stream<ExecutableElement> rebuildCalls(Types types, TypeElement record) {
+    return Stream.concat(accessorsOf(record), canonicalConstructorOf(types, record));
   }
 
   /**
@@ -849,15 +930,6 @@ public final class ProcessorUtils {
         Objects::nonNull,
         current ->
             current.getEnclosingElement() instanceof TypeElement enclosing ? enclosing : null);
-  }
-
-  /** A type with the bounds of the type parameters a member redeclares beside it. */
-  private static List<TypeMirror> withBounds(
-      TypeMirror written, List<? extends TypeParameterElement> redeclared) {
-    return Stream.concat(
-            Stream.of(written),
-            redeclared.stream().flatMap(parameter -> parameter.getBounds().stream()))
-        .toList();
   }
 
   /**

@@ -30,6 +30,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.NamingConvention;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.SubtypePrismGenerator;
 
 /**
  * Analyses external types to determine what kind of optics can be generated.
@@ -119,15 +120,7 @@ public class TypeKindAnalyser {
   }
 
   private TypeAnalysis analyseEnum(TypeElement enumElement) {
-    List<String> constants = new ArrayList<>();
-
-    for (var enclosed : enumElement.getEnclosedElements()) {
-      if (enclosed.getKind() == ElementKind.ENUM_CONSTANT) {
-        constants.add(enclosed.getSimpleName().toString());
-      }
-    }
-
-    return TypeAnalysis.forEnum(enumElement, constants);
+    return TypeAnalysis.forEnum(enumElement, SubtypePrismGenerator.enumConstantsOf(enumElement));
   }
 
   private TypeAnalysis analyseClass(TypeElement classElement) {
@@ -296,13 +289,13 @@ public class TypeKindAnalyser {
       }
 
       // Find corresponding getter method
-      String getterName =
+      ExecutableElement getter =
           findGetterMethod(classElement, fieldName, methodName, method.getParameters().get(0));
-      if (getterName == null) {
+      if (getter == null) {
         continue; // No getter found, skip this wither
       }
 
-      withers.add(WitherInfo.of(method, fieldName, getterName, isOverloaded(classElement, method)));
+      withers.add(WitherInfo.of(method, fieldName, getter, isOverloaded(classElement, method)));
     }
 
     return withers;
@@ -371,7 +364,7 @@ public class TypeKindAnalyser {
     return afterWith.substring(0, 1).toLowerCase(Locale.ROOT) + afterWith.substring(1);
   }
 
-  private String findGetterMethod(
+  private ExecutableElement findGetterMethod(
       TypeElement classElement, String fieldName, String witherName, VariableElement witherParam) {
     TypeMirror expectedType = witherParam.asType();
 
@@ -397,7 +390,7 @@ public class TypeKindAnalyser {
         }
         // Return type must match wither parameter type
         if (typeUtils.isSameType(method.getReturnType(), expectedType)) {
-          return candidate;
+          return method;
         }
       }
     }

@@ -11,6 +11,7 @@ import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -215,10 +216,15 @@ public final class IsoProcessor extends AbstractProcessor {
 
     final FieldSpec isoField =
         FieldSpec.builder(isoTypeName, methodName, PUBLIC, STATIC, FINAL)
-            // The field restates the Iso the annotated method declares, raw arguments and all.
+            // The field restates the Iso the annotated method declares, raw arguments and all, and
+            // its initialiser calls that method on the class that declares it.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(
-                    processingEnv.getElementUtils(), typeArguments))
+                ProcessorUtils.memberSuppression(
+                    processingEnv.getElementUtils(),
+                    Stream.concat(typeArguments.stream(), Stream.of(classElement.asType()))
+                        .toList(),
+                    List.of(),
+                    Stream.of(method)))
             .initializer("$T.$L()", ClassName.get(classElement), methodName)
             .build();
 

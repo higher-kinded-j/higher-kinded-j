@@ -126,6 +126,7 @@ class ExternalGeneratorsUnitTest {
               processingEnv.getFiler(),
               processingEnv.getMessager(),
               processingEnv.getElementUtils(),
+              processingEnv.getTypeUtils(),
               List.of());
       TypeAnalysis basketAnalysis =
           new TypeKindAnalyser(processingEnv.getTypeUtils()).analyseType(basket);
@@ -136,6 +137,7 @@ class ExternalGeneratorsUnitTest {
               processingEnv.getFiler(),
               processingEnv.getMessager(),
               processingEnv.getElementUtils(),
+              processingEnv.getTypeUtils(),
               List.of(new StubGenerator(0)));
 
       List<? extends RecordComponentElement> components = mixed.getRecordComponents();

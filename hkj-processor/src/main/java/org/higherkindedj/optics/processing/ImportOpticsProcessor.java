@@ -390,6 +390,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
             processingEnv.getFiler(),
             processingEnv.getMessager(),
             processingEnv.getElementUtils(),
+            processingEnv.getTypeUtils(),
             generators);
     ExternalPrismGenerator prismGenerator =
         new ExternalPrismGenerator(

@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing.external;
 
 import java.util.List;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 
 /**
  * Result of analysing an external type to determine what optics to generate.
@@ -16,7 +17,7 @@ import javax.lang.model.element.TypeElement;
  * @param fields field information for lens generation (records and wither classes)
  * @param witherMethods wither method information for wither-based classes
  * @param permittedSubtypes permitted subtypes for sealed interfaces
- * @param enumConstants enum constants for enum types
+ * @param enumConstants enum constants for enum types, in declaration order
  * @param hasMutableFields whether the type has mutable fields (setters)
  * @param withersLeftOut the wither pairs a lens was not generated for, because another wither pairs
  *     with the same field name and only one lens can carry it
@@ -27,7 +28,7 @@ public record TypeAnalysis(
     List<FieldInfo> fields,
     List<WitherInfo> witherMethods,
     List<TypeElement> permittedSubtypes,
-    List<String> enumConstants,
+    List<VariableElement> enumConstants,
     boolean hasMutableFields,
     List<LeftOutWither> withersLeftOut) {
 
@@ -96,10 +97,10 @@ public record TypeAnalysis(
    * Creates an analysis result for an enum type.
    *
    * @param typeElement the enum type element
-   * @param enumConstants the enum constant names
+   * @param enumConstants the enum constants, in declaration order
    * @return a new TypeAnalysis for the enum
    */
-  public static TypeAnalysis forEnum(TypeElement typeElement, List<String> enumConstants) {
+  public static TypeAnalysis forEnum(TypeElement typeElement, List<VariableElement> enumConstants) {
     return new TypeAnalysis(
         typeElement,
         TypeKind.ENUM,
