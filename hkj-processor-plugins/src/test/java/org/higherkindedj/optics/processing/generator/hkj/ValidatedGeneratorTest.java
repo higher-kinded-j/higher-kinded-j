@@ -64,6 +64,7 @@ public class ValidatedGeneratorTest {
 
   @Test
   @DisplayName("getGenericTypeName names a Validated component's valid type, its second argument")
+  @SuppressWarnings("removal") // exercises the deprecated method until its removal
   void genericTypeIsTheValidType() {
     final var checked =
         JavaFileObjects.forSourceString(

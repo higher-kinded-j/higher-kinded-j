@@ -3387,8 +3387,8 @@ public class MappingProcessor extends AbstractProcessor {
    * @param prismType the leaf's prism type under the spec's instantiation
    * @param prismTypeName the prism type as the Impl writes it out, annotated as the leaf's
    *     declaration annotated it, since reading a member under the spec drops what was written on a
-   *     type variable's use ({@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror, DeclaredType,
-   *     String)})
+   *     type variable's use ({@link ProcessorUtils#typeNameOf(Elements, TypeMirror, TypeMirror,
+   *     DeclaredType, String)})
    * @param inheritedFrom the simple name of the mix-in whose declaration places the leaf, or null
    *     when the spec declares it
    */
@@ -7413,9 +7413,9 @@ public class MappingProcessor extends AbstractProcessor {
    * draw a warning there, and a package-private type in another package would not compile. A type
    * the record does write is one the update's setters already inferred, and it is answered for a
    * raw type as the update method is. Its type-use annotations are new names, though, so only those
-   * the Impl's package can write cleanly are kept ({@link ProcessorUtils#typeNameOf(TypeMirror,
-   * String)}): a {@code @Nullable} survives, while one missing from the classpath, out of reach or
-   * deprecated is left off.
+   * the Impl's package can write cleanly are kept ({@link ProcessorUtils#typeNameOf(Elements,
+   * TypeMirror, String)}): a {@code @Nullable} survives, while one missing from the classpath, out
+   * of reach or deprecated is left off.
    */
   private TypeSpec componentsRecord(
       DeclaredType domainDeclared, List<String> written, String implPackage) {
@@ -12900,8 +12900,8 @@ public class MappingProcessor extends AbstractProcessor {
    * ValidatedPrism<Box<@Nullable T>, Code>} does, or where the leaf is declared to return one, as a
    * mix-in's {@code P codes()} is. Read under the spec, such a type loses an annotation on the
    * variable's use, {@code Box<@Nullable T>} becoming {@code Box<String>}, while the Impl's own
-   * leaf writes it back ({@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror, DeclaredType,
-   * String)}), so the two would disagree inside the part.
+   * leaf writes it back ({@link ProcessorUtils#typeNameOf(Elements, TypeMirror, TypeMirror,
+   * DeclaredType, String)}), so the two would disagree inside the part.
    */
   private static TypeMirror leafBuilds(ExecutableElement leaf) {
     TypeMirror returned = leaf.getReturnType();

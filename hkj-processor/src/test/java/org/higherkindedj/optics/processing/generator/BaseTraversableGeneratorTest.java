@@ -33,6 +33,7 @@ import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -70,13 +71,28 @@ class BaseTraversableGeneratorTest {
         }
       };
 
-  @Test
-  @DisplayName("getTypeArgumentName names each argument as the type it stands for")
-  void namesEachArgumentAsTheTypeItStandsFor() {
-    final var holder =
-        JavaFileObjects.forSourceString(
-            "com.example.Holder",
-            """
+  /** A record whose element type carries {@link #TAG}, package-private to {@code com.example}. */
+  private static final JavaFileObject TAGGED =
+      JavaFileObjects.forSourceString(
+          "com.example.Tagged",
+          """
+          package com.example;
+
+          import java.lang.annotation.ElementType;
+          import java.lang.annotation.Target;
+          import java.util.List;
+
+          public record Tagged(List<@Tag String> tags) {}
+
+          @Target(ElementType.TYPE_USE)
+          @interface Tag {}
+          """);
+
+  /** A record whose first type arguments are a type, a variable and each kind of wildcard. */
+  private static final JavaFileObject HOLDER =
+      JavaFileObjects.forSourceString(
+          "com.example.Holder",
+          """
             package com.example;
 
             import java.util.List;
@@ -89,7 +105,10 @@ class BaseTraversableGeneratorTest {
                 List<? super Integer> sink) {}
             """);
 
-    assertThat(read(holder, component -> BASE.getTypeArgumentName(component, 0)))
+  @Test
+  @DisplayName("getTypeArgumentName names each argument as the type it stands for")
+  void namesEachArgumentAsTheTypeItStandsFor() {
+    assertThat(read(HOLDER, (component, elements) -> inContext(component, 0, elements)))
         .containsOnly(
             entry("plain", ClassName.get(String.class)),
             entry("variable", TypeVariableName.get("T")),
@@ -103,27 +122,22 @@ class BaseTraversableGeneratorTest {
   @DisplayName(
       "getTypeArgumentName keeps an annotation only where the file being written can name it")
   void keepsAnAnnotationOnlyWhereTheFileCanNameIt() {
-    final var tagged =
-        JavaFileObjects.forSourceString(
-            "com.example.Tagged",
-            """
-            package com.example;
-
-            import java.lang.annotation.ElementType;
-            import java.lang.annotation.Target;
-            import java.util.List;
-
-            public record Tagged(List<@Tag String> tags) {}
-
-            @Target(ElementType.TYPE_USE)
-            @interface Tag {}
-            """);
 
     // The annotation is package-private to com.example, so a file written there can name it and
     // one written anywhere else cannot.
-    assertThat(read(tagged, component -> BASE.getTypeArgumentName(component, 0, "com.example")))
+    assertThat(
+            read(
+                TAGGED,
+                (component, elements) ->
+                    BASE.getTypeArgumentName(
+                        component, 0, new GenerationContext("com.example", elements))))
         .containsOnly(entry("tags", ClassName.get(String.class).annotated(TAG)));
-    assertThat(read(tagged, component -> BASE.getTypeArgumentName(component, 0, "com.away")))
+    assertThat(
+            read(
+                TAGGED,
+                (component, elements) ->
+                    BASE.getTypeArgumentName(
+                        component, 0, new GenerationContext("com.away", elements))))
         .containsOnly(entry("tags", ClassName.get(String.class)));
   }
 
@@ -142,16 +156,34 @@ class BaseTraversableGeneratorTest {
             public record Shapes(int primitive, List raw, List<String> one) {}
             """);
 
-    assertThat(read(shapes, BASE::getGenericTypeName))
+    assertThat(read(shapes, (component, elements) -> inContext(component, 0, elements)))
         .containsOnly(
             entry("primitive", ClassName.get(Object.class)),
             entry("raw", ClassName.get(Object.class)),
             entry("one", ClassName.get(String.class)));
-    assertThat(read(shapes, component -> BASE.getTypeArgumentName(component, 1)))
+    assertThat(read(shapes, (component, elements) -> inContext(component, 1, elements)))
         .containsOnly(
             entry("primitive", ClassName.get(Object.class)),
             entry("raw", ClassName.get(Object.class)),
             entry("one", ClassName.get(Object.class)));
+  }
+
+  @Test
+  @DisplayName("getTypeArgumentName hands the naming it is given each type an argument stands for")
+  void namesWithTheNamingItIsGiven() {
+    // The naming marks what it names, so each name it did not write is the Object fallback.
+    assertThat(
+            read(
+                HOLDER,
+                component ->
+                    BASE.getTypeArgumentName(
+                        component, 0, BaseTraversableGeneratorTest::taggedName)))
+        .containsOnly(
+            entry("plain", ClassName.get(String.class).annotated(TAG)),
+            entry("variable", TypeVariableName.get("T").annotated(TAG)),
+            entry("bounded", ClassName.get(Number.class).annotated(TAG)),
+            entry("anything", ClassName.get(Object.class)),
+            entry("sink", ClassName.get(Object.class)));
   }
 
   @Test
@@ -183,6 +215,7 @@ class BaseTraversableGeneratorTest {
   @DisplayName(
       "getTypeArgumentName through a context leaves off an annotation a javadoc tag alone"
           + " deprecates")
+  @SuppressWarnings("removal") // exercises the deprecated method until its removal
   void throughAContextLeavesOffAJavadocDeprecation() {
     final var dated =
         JavaFileObjects.forSourceString(
@@ -230,6 +263,46 @@ class BaseTraversableGeneratorTest {
                         component, 0, new GenerationContext("com.example", elements)),
                 old))
         .containsOnly(entry("tags", ClassName.get(String.class)));
+  }
+
+  @Nested
+  @DisplayName("the forms without a context")
+  @SuppressWarnings("removal") // exercises the deprecated methods until their removal
+  class FormsWithoutAContext {
+
+    @Test
+    @DisplayName("name each argument as the context form names it, where nothing is tag-deprecated")
+    void nameAsTheContextFormNames() {
+      final Map<String, TypeName> expected =
+          read(HOLDER, (component, elements) -> inContext(component, 0, elements));
+
+      assertThat(read(HOLDER, BASE::getGenericTypeName)).isEqualTo(expected);
+      assertThat(read(HOLDER, component -> BASE.getTypeArgumentName(component, 0)))
+          .isEqualTo(expected);
+      assertThat(read(HOLDER, component -> BASE.getTypeArgumentName(component, 0, "com.example")))
+          .isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("the String form keeps an annotation only where its package can name it")
+    void theStringFormReadsItsPackage() {
+      assertThat(read(TAGGED, component -> BASE.getTypeArgumentName(component, 0, "com.example")))
+          .containsOnly(entry("tags", ClassName.get(String.class).annotated(TAG)));
+      assertThat(read(TAGGED, component -> BASE.getTypeArgumentName(component, 0, "com.away")))
+          .containsOnly(entry("tags", ClassName.get(String.class)));
+    }
+  }
+
+  /** The argument at {@code index}, named for a file written into the fixtures' package. */
+  private static TypeName inContext(
+      final RecordComponentElement component, final int index, final Elements elements) {
+    return BASE.getTypeArgumentName(
+        component, index, new GenerationContext("com.example", elements));
+  }
+
+  /** {@code type} as javapoet names it, marked with {@link #TAG}. */
+  private static TypeName taggedName(final TypeMirror type) {
+    return TypeName.get(type).annotated(TAG);
   }
 
   /** Compiles {@code source} and reads every record component in it through {@code reader}. */

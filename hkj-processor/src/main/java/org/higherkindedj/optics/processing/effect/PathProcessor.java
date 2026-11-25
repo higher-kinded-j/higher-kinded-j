@@ -386,7 +386,8 @@ public class PathProcessor extends AbstractProcessor {
 
     // Each name the bridge writes is paired with the delegate's own declaration of it: reading the
     // method under the interface drops an annotation written on a type variable's use, and
-    // ProcessorUtils.typeNameOf(TypeMirror, TypeMirror, DeclaredType, String) puts it back.
+    // ProcessorUtils.typeNameOf(Elements, TypeMirror, TypeMirror, DeclaredType, String) puts it
+    // back.
     List<TypeVariableName> typeVariables = new ArrayList<>();
     List<? extends TypeVariable> variables = asMember.getTypeVariables();
     for (int index = 0; index < variables.size(); index++) {
