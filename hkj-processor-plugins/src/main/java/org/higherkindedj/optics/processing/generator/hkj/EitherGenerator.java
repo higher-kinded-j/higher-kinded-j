@@ -61,7 +61,10 @@ public class EitherGenerator extends BaseTraversableGenerator {
     return Set.of("org.higherkindedj.optics.util.Affines");
   }
 
-  /** {@inheritDoc} Final, as hkj's processors call the {@link GenerationContext} form. */
+  /**
+   * {@inheritDoc} Final, as hkj's processors call the {@link GenerationContext} form. It names
+   * types as the {@code String} form does, for the record's own package.
+   */
   @Override
   public final CodeBlock generateModifyF(
       final RecordComponentElement component,
@@ -77,7 +80,13 @@ public class EitherGenerator extends BaseTraversableGenerator {
    * {@inheritDoc} Final, as hkj's processors call the {@link GenerationContext} form; a type-use
    * annotation deprecated by a javadoc tag alone is kept here, as this form reads
    * {@code @Deprecated} alone.
+   *
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link
+   *     #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, which reads
+   *     a javadoc {@code @deprecated} tag too.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   @Override
   public final CodeBlock generateModifyF(
       final RecordComponentElement component,

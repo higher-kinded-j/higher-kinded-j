@@ -19,6 +19,11 @@ Each of these compiles with javac's `[removal]` warning, which fails a `-Werror`
 | `NaturalTransformation<F, G>`, in `org.higherkindedj.hkt.effect` | 0.6.0 | `Natural<F, G>`, which it extends | `ReplaceNaturalTransformationWithNatural` |
 | `FreePath.foldMapWith(interpreter, monad)` | 0.6.0 | `foldMap(interpreter, monad)` | `ReplaceNaturalTransformationWithNatural` |
 | `FreeApPath.foldMapWith(interpreter, applicative)` | 0.6.0 | `foldMapKind(interpreter, applicative)` | `ReplaceNaturalTransformationWithNatural` |
+| `ProcessorUtils.typeNameOf`, `resolvedTypeNameOf` and `typeVariableOf(parameter, targetPackage)`, in their forms that take no `Elements` | 0.6.0 | The same call with the round's `Elements` first, from `context.elements()` in a generator. In a generator, `context.typeNameOf(type)` replaces `typeNameOf(type, targetPackage)` | By hand |
+| `ProcessorUtils.typeVariableOf(parameter)` | 0.6.0 | `typeVariableOf(elements, parameter, targetPackage)` | By hand |
+| `TraversableGenerator.generateModifyF(component, recordClassName, allComponents, targetPackage)`, with the built-in generators' final forms of it | 0.6.0 | The `GenerationContext` form, naming each type with `context.typeNameOf(type)`; `context.targetPackage()` is the same package | By hand |
+| `BaseTraversableGenerator.getTypeArgumentName(component, index)` and `getTypeArgumentName(component, index, targetPackage)` | 0.6.0 | `getTypeArgumentName(component, index, context)`, or `getTypeArgumentName(component, index, naming)` in a body shared with the three-argument form | By hand |
+| `BaseTraversableGenerator.getGenericTypeName(component)`, with `ValidatedGenerator`'s | 0.6.0 | `getTypeArgumentName(component, 0, context)`, or index 1 for a `Validated` | By hand |
 
 ---
 

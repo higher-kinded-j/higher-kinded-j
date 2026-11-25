@@ -200,7 +200,8 @@ public interface TraversableGenerator {
    *
    * <p>A generated traversal method is declared with the record's own type variables, so naming the
    * record without them constructs a raw instance. That is an unchecked conversion, and it warns
-   * wherever the generated source is compiled.
+   * wherever the generated source is compiled. Each variable is named without its bounds, which a
+   * type argument never writes.
    *
    * @param component the record component the traversal is generated for
    * @param recordClassName the record's class name, as handed to {@link #generateModifyF}
@@ -216,7 +217,9 @@ public interface TraversableGenerator {
     }
     return ParameterizedTypeName.get(
         recordClassName,
-        typeParameters.stream().map(ProcessorUtils::typeVariableOf).toArray(TypeName[]::new));
+        typeParameters.stream()
+            .map(parameter -> TypeVariableName.get(parameter.getSimpleName().toString()))
+            .toArray(TypeName[]::new));
   }
 
   /**
@@ -271,17 +274,13 @@ public interface TraversableGenerator {
    * does not always contain: a companion generated under a {@code targetPackage}, or the optics
    * generated for an imported type, land elsewhere. A type-use annotation the author wrote there,
    * package-private to the component's own package, cannot be named from such a file, and copying
-   * it breaks the build in generated source. Name types with {@link
-   * ProcessorUtils#typeNameOf(TypeMirror, String)} and this package, and each one that cannot be
-   * written from there is left off.
+   * it breaks the build in generated source.
    *
    * <p>hkj's processors call the {@link GenerationContext} form, {@link
    * #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, whose default
-   * calls this one. Override the {@code GenerationContext} form when the body names a type: {@link
-   * ProcessorUtils#typeNameOf(TypeMirror, String)} reads a deprecation from {@code @Deprecated}
-   * alone, so a type-use annotation deprecated only by a javadoc tag is written by this form, and
-   * draws a warning in the generated file. A generator that writes no type of its own needs
-   * neither.
+   * calls this one, so a generator written for an earlier release that overrides this form runs as
+   * it did. The context carries this package and the round's element utilities, which read a
+   * deprecation from a javadoc {@code @deprecated} tag as well as from {@code @Deprecated}.
    *
    * @param component The record component being processed.
    * @param recordClassName The ClassName of the record containing the component.
@@ -289,7 +288,12 @@ public interface TraversableGenerator {
    * @param targetPackage the package the generated file is written into
    * @return A CodeBlock from Javapoet representing the implementation of the traversal.
    * @since 0.4.11
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Override {@link
+   *     #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, the form
+   *     hkj's processors call, and name each type with {@link GenerationContext#typeNameOf}. Its
+   *     {@link GenerationContext#targetPackage} is the package this form is handed.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   default CodeBlock generateModifyF(
       RecordComponentElement component,
       ClassName recordClassName,

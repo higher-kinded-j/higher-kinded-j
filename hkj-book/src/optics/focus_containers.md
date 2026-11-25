@@ -303,13 +303,14 @@ public final class ResultGenerator extends BaseTraversableGenerator {
       RecordComponentElement component,
       ClassName recordClassName,
       List<? extends RecordComponentElement> allComponents) {
-    // The body of the generated Traversal.modifyF for this container.
-    // EitherGenerator in hkj-processor-plugins is a worked implementation.
+    // The body of the generated Traversal.modifyF for this container. Override the
+    // GenerationContext form too when the body names a type, as Traversal Generator
+    // Plugins shows.
   }
 }
 ```
 
-`supports` and `generateModifyF` are the only members without a default, so a generator that omits either will not compile: `BaseTraversableGenerator` supplies the generic-type and constructor-argument helpers, not these.
+`supports` and `generateModifyF` are the only members without a default, so a generator that omits either will not compile: `BaseTraversableGenerator` supplies the type-argument and constructor-argument helpers, not these.
 
 `@ServiceProvider` (from Avaje) writes the `META-INF/services` entry and checks the `module-info.java` `provides` clause for you. Once the generator is on the annotation processor path, any `@GenerateFocus` record with a `Result<E, A>` field generates an `AffinePath` that calls `.some(ResultAffines.success())`.
 

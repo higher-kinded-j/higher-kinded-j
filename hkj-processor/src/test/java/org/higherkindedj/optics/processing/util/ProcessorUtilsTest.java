@@ -1055,24 +1055,25 @@ class ProcessorUtilsTest {
 
       @Override
       public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
-        TypeElement subject = processingEnv.getElementUtils().getTypeElement("com.test.Subject");
+        Elements elements = processingEnv.getElementUtils();
+        TypeElement subject = elements.getTypeElement("com.test.Subject");
         if (subject == null) {
           return false;
         }
         for (VariableElement field : ElementFilter.fieldsIn(subject.getEnclosedElements())) {
           names.put(
               field.getSimpleName().toString(),
-              ProcessorUtils.typeNameOf(field.asType()).toString());
+              ProcessorUtils.typeNameOf(elements, field.asType()).toString());
         }
         for (TypeParameterElement parameter : subject.getTypeParameters()) {
-          variables.put(parameter.getSimpleName().toString(), render(parameter));
+          variables.put(parameter.getSimpleName().toString(), render(elements, parameter));
         }
         return false;
       }
 
       /** The declaration as the generated file would write it: annotations, name, then bounds. */
-      private static String render(TypeParameterElement parameter) {
-        TypeVariableName variable = ProcessorUtils.typeVariableOf(parameter);
+      private static String render(Elements elements, TypeParameterElement parameter) {
+        TypeVariableName variable = ProcessorUtils.typeVariableOf(elements, parameter, "com.test");
         StringBuilder out = new StringBuilder();
         variable.annotations().forEach(annotation -> out.append(annotation).append(" "));
         out.append(variable.name());
@@ -1308,7 +1309,10 @@ class ProcessorUtilsTest {
                   ((javax.lang.model.type.TypeVariable)
                           type.getTypeParameters().getFirst().asType())
                       .getUpperBound();
-              thrown = catchThrowable(() -> ProcessorUtils.typeNameOf(intersection));
+              thrown =
+                  catchThrowable(
+                      () ->
+                          ProcessorUtils.typeNameOf(processingEnv.getElementUtils(), intersection));
               return false;
             }
           };
@@ -1320,7 +1324,7 @@ class ProcessorUtilsTest {
     @Test
     @DisplayName("without a package, keeps what some file could name and leaves off the rest")
     void withoutAPackageKeepsWhatSomeFileCouldName() {
-      // A generator that does not know its package names with the one-argument form: a
+      // A generator that does not know its package names with the form that takes none: a
       // package-private annotation can be written from its own package, where such a file lands,
       // while an unresolved, private or deprecated one could not be written cleanly anywhere.
       var subject =
@@ -1403,6 +1407,7 @@ class ProcessorUtilsTest {
       }
 
       @Override
+      @SuppressWarnings("removal") // exercises the deprecated methods until their removal
       public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
         Elements elements = processingEnv.getElementUtils();
         TypeElement subject = elements.getTypeElement("com.test.Subject");
@@ -1427,6 +1432,7 @@ class ProcessorUtilsTest {
               ProcessorUtils.resolvedTypeNameOf(elements, argument, "com.test").toString());
         }
         TypeParameterElement parameter = subject.getTypeParameters().getFirst();
+        names.put("plainVariable.T", bounds(ProcessorUtils.typeVariableOf(parameter)));
         names.put("variable.T", bounds(ProcessorUtils.typeVariableOf(parameter, "com.test")));
         names.put(
             "variableRead.T",
@@ -1533,6 +1539,7 @@ class ProcessorUtilsTest {
       assertThat(NAMES.get("packaged.tagged"))
           .isEqualTo("java.util.List<? extends " + string(both) + ">");
       assertThat(NAMES.get("resolved.tagged")).isEqualTo(string(both));
+      assertThat(NAMES.get("plainVariable.T")).isEqualTo("[java.lang. " + both + " Object]");
       assertThat(NAMES.get("variable.T")).isEqualTo("[java.lang. " + both + " Object]");
       assertThat(NAMES.get("member.value")).isEqualTo(both + " T");
     }
@@ -1559,10 +1566,10 @@ class ProcessorUtilsTest {
   }
 
   /**
-   * Contract tests for {@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror, DeclaredType,
-   * String)}: a member's type read under an instantiation, named beside the type its declaration
-   * wrote. Each method of the subject interface is read under several owners, as a generator
-   * restating an inherited or generic member reads it.
+   * Contract tests for {@link ProcessorUtils#typeNameOf(Elements, TypeMirror, TypeMirror,
+   * DeclaredType, String)}: a member's type read under an instantiation, named beside the type its
+   * declaration wrote. Each method of the subject interface is read under several owners, as a
+   * generator restating an inherited or generic member reads it.
    */
   @Nested
   @DisplayName("typeNameOf under an instantiation")
@@ -1625,7 +1632,11 @@ class ProcessorUtilsTest {
             names.put(
                 owner.getKey() + "." + method.getSimpleName(),
                 ProcessorUtils.typeNameOf(
-                        read, method.getReturnType(), owner.getValue(), targetPackage)
+                        processingEnv.getElementUtils(),
+                        read,
+                        method.getReturnType(),
+                        owner.getValue(),
+                        targetPackage)
                     .toString());
           }
         }

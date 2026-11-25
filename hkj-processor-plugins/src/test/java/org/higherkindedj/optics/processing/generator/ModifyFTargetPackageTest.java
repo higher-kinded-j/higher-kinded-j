@@ -191,6 +191,7 @@ class ModifyFTargetPackageTest {
       }
 
       @Override
+      @SuppressWarnings("removal") // exercises the deprecated method until its removal
       public boolean process(
           final Set<? extends TypeElement> annotations, final RoundEnvironment round) {
         for (TypeElement type : ElementFilter.typesIn(round.getRootElements())) {

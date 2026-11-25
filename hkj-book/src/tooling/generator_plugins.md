@@ -266,8 +266,9 @@ public interface TraversableGenerator {
 
     /**
      * The same, for a body written into targetPackage. The default calls the form
-     * above.
+     * above. Deprecated for removal in 0.7.0: override the context form instead.
      */
+    @Deprecated(since = "0.6.0", forRemoval = true)
     default CodeBlock generateModifyF(
         RecordComponentElement component,
         ClassName recordClassName,
@@ -294,29 +295,17 @@ public interface TraversableGenerator {
 ~~~admonish note title="Naming a type in the body"
 A body that writes out a component's type, such as a local it declares, is not always written into that type's package: a companion generated under a `targetPackage`, or the optics generated for a type reached with `@ImportOptics`, land elsewhere. Override the `GenerationContext` form of `generateModifyF` and name such a type with `context.typeNameOf(type)`. A type-use annotation the file cannot write cleanly is then left off rather than copied: one package-private to the component's own package, and one deprecated, by `@Deprecated` or by a javadoc `@deprecated` tag alone, which would draw a warning in the generated file that no one can suppress. `BaseTraversableGenerator.getTypeArgumentName(component, index, context)` does the same for a type argument. A generator that names no type of its own needs neither.
 
-The three-argument form has no default, so a generator that overrides the context form still writes a body there, which a caller of that form reaches. hkj's processors call the context form, and a generator written for an earlier release, which overrides only the older forms, runs unchanged through its default, naming types as it did. The exception is one that extends a built-in generator and overrides a form the built-in declares final. It no longer compiles, and a jar built before [cannot be loaded](../optics/compiler_errors.md#traversablegenerator-plugin-cannot-be-loaded). The built-in generators that name types share one body between their forms, each handing it the naming to use: `context::typeNameOf`, or `ProcessorUtils.typeNameOf(type, targetPackage)`, which reads a deprecation from `@Deprecated` alone, where there is no context. A type argument the body names goes through the same naming, after `resolveEffectiveType`, so the shared body needs no context of its own.
+The three-argument form has no default, so a generator that overrides the context form still writes a body there, which a caller of that form reaches. hkj's processors call the context form, and a generator written for an earlier release, which overrides only the older forms, runs unchanged through its default, naming types as it did. The exception is one that extends a built-in generator and overrides a form the built-in declares final. It no longer compiles, and a jar built before [cannot be loaded](../optics/compiler_errors.md#traversablegenerator-plugin-cannot-be-loaded). The form that takes a `String` package is deprecated for removal in 0.7.0, with the naming helpers that take no `Elements`. Move such a body to the context form, and stop the three-argument form from delegating to the `String` one, whose default calls it straight back.
+
+A generator that names types can share one body between its two forms, handing each the naming to use. The context form hands it `context::typeNameOf`. The three-argument form has no context to decide which annotations the file can write, so it hands it `TypeName::get`, which leaves every type-use annotation off, `@Nullable` included. hkj's processors never call that form, so only a caller of your own sees the difference. The body names a type argument with `getTypeArgumentName(component, index, naming)`, which resolves a wildcard and reads a missing argument as `Object`, so the shared body needs no context of its own.
 
 ```java
 @Override
-public final CodeBlock generateModifyF(
+public CodeBlock generateModifyF(
     RecordComponentElement component,
     ClassName recordClassName,
     List<? extends RecordComponentElement> allComponents) {
-  return generateModifyF(
-      component, recordClassName, allComponents, recordClassName.packageName());
-}
-
-@Override
-public final CodeBlock generateModifyF(
-    RecordComponentElement component,
-    ClassName recordClassName,
-    List<? extends RecordComponentElement> allComponents,
-    String targetPackage) {
-  return modifyF(
-      component,
-      recordClassName,
-      allComponents,
-      type -> ProcessorUtils.typeNameOf(type, targetPackage));
+  return modifyF(component, recordClassName, allComponents, TypeName::get);
 }
 
 @Override
@@ -333,7 +322,8 @@ private CodeBlock modifyF(
     ClassName recordClassName,
     List<? extends RecordComponentElement> allComponents,
     Function<TypeMirror, TypeName> naming) {
-  // the body, naming each type it writes out with naming.apply(type)
+  // the body, naming each type it writes out with naming.apply(type), and each type
+  // argument with getTypeArgumentName(component, index, naming)
 }
 ```
 ~~~
@@ -445,7 +435,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 
 ### Implementation Tips
 
-- **Extend `BaseTraversableGenerator`** to inherit `getGenericTypeName()`, `getTypeArgumentName(component, index)` and `generateConstructorArgs()` helper methods. Read every type argument through one of the first two: they resolve a wildcard to the type it stands for, and a wildcard written into generated source does not compile. In a `GenerationContext` form, read it through `getTypeArgumentName(component, index, context)`, which also leaves off an annotation the file cannot write cleanly.
+- **Extend `BaseTraversableGenerator`** to inherit `getTypeArgumentName` and `generateConstructorArgs()`. Read every type argument through `getTypeArgumentName(component, index, context)` in the context form, or `getTypeArgumentName(component, index, naming)` in a shared body. Each resolves a wildcard to the type it stands for, since a wildcard written into generated source does not compile. The forms that take neither are deprecated for removal in 0.7.0.
 - **Construct the record through `recordTypeName(component, recordClassName)`**, not the class name you were handed: a generic record's traversal is generated in a method carrying its type variables, and naming the record without them constructs a raw instance.
 - **Name the effect through `effectVariable(component)`** wherever the body you emit writes a `Kind<F, …>`: a record is free to declare a type parameter called `F`, and the generated method then declares the effect under another name.
 - **Map over what `f` returns as it is.** The body is written against `source`, `f` and `applicative`, and `f` is a `Function<A, Kind<F, A>>` at the focus type, so its result needs no cast. A cast to `Kind<F, A>` names the type it already has, and javac reports it under `-Xlint:cast` in every build that compiles your generated source.

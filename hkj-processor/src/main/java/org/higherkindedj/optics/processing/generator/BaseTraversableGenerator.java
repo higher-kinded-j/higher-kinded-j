@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -17,10 +18,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 /**
  * A starting point for a {@link TraversableGenerator}, built-in or a plugin's. It implements none
  * of the SPI's methods: a subclass still implements {@code supports} and {@code generateModifyF}.
- * It adds helpers for the body {@code generateModifyF} writes: {@link #getGenericTypeName} and
- * {@link #getTypeArgumentName} name a component's type arguments, resolving a wildcard so that the
- * generated source compiles, and {@link #generateConstructorArgs} writes the arguments that rebuild
- * the record with one component replaced.
+ * It adds helpers for the body {@code generateModifyF} writes: {@link
+ * #getTypeArgumentName(RecordComponentElement, int, GenerationContext)} names one of a component's
+ * type arguments, resolving a wildcard so that the generated source compiles, and {@link
+ * #getTypeArgumentName(RecordComponentElement, int, Function)} does the same with a naming of the
+ * caller's, for a body shared between forms. {@link #generateConstructorArgs} writes the arguments
+ * that rebuild the record with one component replaced.
  */
 public abstract class BaseTraversableGenerator implements TraversableGenerator {
 
@@ -28,44 +31,48 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
   protected BaseTraversableGenerator() {}
 
   /**
-   * Extracts the primary generic type from a container-like record component.
-   *
-   * <p>For example, for a component of type {@code List<String>}, this returns "String". A wildcard
-   * argument is resolved to the type it stands for, as {@link #getTypeArgumentName} describes.
+   * The first type argument of a container-like record component, named as {@link
+   * #getTypeArgumentName(RecordComponentElement, int)} names it: for a component of type {@code
+   * List<String>}, {@code String}.
    *
    * @param component The record component to inspect.
    * @return The {@link TypeName} of the first generic argument, or {@code Object} as a fallback.
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link
+   *     #getTypeArgumentName(RecordComponentElement, int, GenerationContext)} with index 0 and the
+   *     context {@code generateModifyF} is handed, which leaves off an annotation the file cannot
+   *     write cleanly.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   protected TypeName getGenericTypeName(final RecordComponentElement component) {
     return getTypeArgumentName(component, 0);
   }
 
   /**
-   * Extracts one type argument of a container-like record component, named so that it can be
-   * written into generated source.
-   *
-   * <p>A wildcard argument is resolved to the type it stands for: {@code ? extends T} is named
-   * {@code T}, and {@code ?} or {@code ? super T} is named {@code Object}. A wildcard is not
-   * denotable on its own, so naming it verbatim would emit source that does not compile; the type
-   * it resolves to is both denotable and the one {@code @GenerateFocus} reads for the same
-   * component.
+   * {@link #getTypeArgumentName(RecordComponentElement, int, Function)}, with each type named as
+   * {@link ProcessorUtils#typeNameOf(Elements, TypeMirror)} names it, but with a deprecation read
+   * from {@code @Deprecated} alone. A package-private annotation is kept, which is right only where
+   * the file lands in the type's own package.
    *
    * @param component The record component to inspect.
    * @param index The type argument to read.
    * @return The {@link TypeName} of that argument, or {@code Object} when the component has no such
    *     argument.
    * @since 0.4.10
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link
+   *     #getTypeArgumentName(RecordComponentElement, int, GenerationContext)} with the context
+   *     {@code generateModifyF} is handed, which leaves off an annotation the file cannot write
+   *     cleanly.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // delegates to the deprecated method until its removal
   protected TypeName getTypeArgumentName(final RecordComponentElement component, final int index) {
-    return argumentName(component, index, ProcessorUtils::typeNameOf);
+    return getTypeArgumentName(component, index, ProcessorUtils::typeNameOf);
   }
 
   /**
-   * {@link #getTypeArgumentName(RecordComponentElement, int)} for a file written into {@code
-   * targetPackage}: a type-use annotation that package cannot name is left off, rather than copied
-   * into a file that could not compile with it. The two-argument form keeps a package-private one,
-   * which is right only where the file lands in the type's own package. Neither reads a deprecation
-   * written as a javadoc tag; the {@link GenerationContext} form does.
+   * {@link #getTypeArgumentName(RecordComponentElement, int, GenerationContext)} for a file written
+   * into {@code targetPackage}, but with a deprecation read from {@code @Deprecated} alone, so a
+   * type-use annotation deprecated only by a javadoc tag is kept.
    *
    * @param component The record component to inspect.
    * @param index The type argument to read.
@@ -73,18 +80,25 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
    * @return The {@link TypeName} of that argument, or {@code Object} when the component has no such
    *     argument.
    * @since 0.4.11
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link
+   *     #getTypeArgumentName(RecordComponentElement, int, GenerationContext)}, which reads a
+   *     javadoc {@code @deprecated} tag too.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // delegates to the deprecated method until its removal
   protected TypeName getTypeArgumentName(
       final RecordComponentElement component, final int index, final String targetPackage) {
-    return argumentName(component, index, type -> ProcessorUtils.typeNameOf(type, targetPackage));
+    return getTypeArgumentName(
+        component, index, type -> ProcessorUtils.typeNameOf(type, targetPackage));
   }
 
   /**
-   * {@link #getTypeArgumentName(RecordComponentElement, int, String)} for a file written where
-   * {@code context} says, the argument named as {@link GenerationContext#typeNameOf} names it, so a
-   * type-use annotation deprecated by a javadoc tag alone is left off too. A body written in {@link
-   * #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)} names its type
-   * arguments with this.
+   * {@link #getTypeArgumentName(RecordComponentElement, int, Function)} for a file written where
+   * {@code context} says, each type named as {@link GenerationContext#typeNameOf} names it. A
+   * type-use annotation the file cannot write cleanly is left off: one its package cannot name, and
+   * one deprecated, by {@code @Deprecated} or by a javadoc {@code @deprecated} tag alone. A body
+   * written in {@link #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}
+   * names its type arguments with this.
    *
    * @param component The record component to inspect.
    * @param index The type argument to read.
@@ -95,14 +109,34 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
    */
   protected TypeName getTypeArgumentName(
       final RecordComponentElement component, final int index, final GenerationContext context) {
-    return argumentName(component, index, context::typeNameOf);
+    return getTypeArgumentName(component, index, context::typeNameOf);
   }
 
-  /** The type argument at {@code index}, named by {@code naming}, or {@code Object}. */
-  private TypeName argumentName(
+  /**
+   * One type argument of a container-like record component, named by {@code naming} so that it can
+   * be written into generated source.
+   *
+   * <p>A wildcard argument is resolved to the type it stands for: {@code ? extends T} is named as
+   * {@code naming} names {@code T}, and {@code ?} or {@code ? super T} is named {@code Object}. A
+   * wildcard is not denotable on its own, so naming it verbatim would emit source that does not
+   * compile; the type it resolves to is both denotable and the one {@code @GenerateFocus} reads for
+   * the same component. A component with no argument at {@code index}, such as a raw one, is read
+   * as {@code Object} too, and the name is boxed.
+   *
+   * <p>A body shared between the forms of {@code generateModifyF} reads its type arguments through
+   * this, with the naming each form hands it.
+   *
+   * @param component The record component to inspect.
+   * @param index The type argument to read.
+   * @param naming Names the type the argument stands for.
+   * @return The {@link TypeName} of that argument, or {@code Object} when the component has no such
+   *     argument.
+   * @since 0.6.0
+   */
+  protected TypeName getTypeArgumentName(
       final RecordComponentElement component,
       final int index,
-      final Function<TypeMirror, TypeName> naming) {
+      final Function<? super TypeMirror, ? extends TypeName> naming) {
     if (component.asType() instanceof DeclaredType containerType
         && containerType.getTypeArguments().size() > index) {
       final TypeMirror resolved = resolveEffectiveType(containerType.getTypeArguments().get(index));

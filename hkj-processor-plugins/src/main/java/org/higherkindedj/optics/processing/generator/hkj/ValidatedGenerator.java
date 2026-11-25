@@ -61,7 +61,10 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
     return Set.of("org.higherkindedj.optics.util.Affines");
   }
 
-  /** {@inheritDoc} Final, as hkj's processors call the {@link GenerationContext} form. */
+  /**
+   * {@inheritDoc} Final, as hkj's processors call the {@link GenerationContext} form. It names
+   * types as the {@code String} form does, for the record's own package.
+   */
   @Override
   public final CodeBlock generateModifyF(
       final RecordComponentElement component,
@@ -77,7 +80,13 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
    * {@inheritDoc} Final, as hkj's processors call the {@link GenerationContext} form; a type-use
    * annotation deprecated by a javadoc tag alone is kept here, as this form reads
    * {@code @Deprecated} alone.
+   *
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link
+   *     #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, which reads
+   *     a javadoc {@code @deprecated} tag too.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   @Override
   public final CodeBlock generateModifyF(
       final RecordComponentElement component,
@@ -137,7 +146,13 @@ public class ValidatedGenerator extends BaseTraversableGenerator {
   /**
    * Gets the 'valid' type from a {@code Validated<E, A>} component. This overrides the base
    * implementation to get the second generic argument.
+   *
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link
+   *     #getTypeArgumentName(RecordComponentElement, int, GenerationContext)} with index 1 and the
+   *     context {@code generateModifyF} is handed.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  @SuppressWarnings("removal") // implements the deprecated method until its removal
   @Override
   protected TypeName getGenericTypeName(final RecordComponentElement component) {
     // For Validated<E, A>, the 'valid' type A is the second argument.

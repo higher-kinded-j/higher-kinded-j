@@ -101,22 +101,21 @@ public final class ProcessorUtils {
   }
 
   /**
-   * The type a type argument stands for, boxed: the argument itself, the bound of an {@code ?
-   * extends} wildcard, or {@code Object} for an unbounded or super-bounded wildcard, which stands
-   * for no type of its own.
-   *
-   * <p>A generated method focuses on this type, and writes it out wherever an explicit type
-   * argument is needed, because the wildcard the declaration wrote can be neither.
-   *
-   * <p>The type is named as {@link #typeNameOf(TypeMirror, String)} names it, a deprecation read
-   * from {@code @Deprecated} alone; {@link #resolvedTypeNameOf(Elements, TypeMirror, String)} reads
-   * a javadoc tag too.
+   * {@link #resolvedTypeNameOf(Elements, TypeMirror, String)}, with the type named as {@link
+   * #typeNameOf(TypeMirror, String)} names it, a deprecation read from {@code @Deprecated} alone,
+   * so an annotation deprecated only by a javadoc {@code @deprecated} tag is kept, and draws
+   * javac's warning where it is written.
    *
    * @param typeArgument a type argument as written
    * @param targetPackage the package the generated file is written into; must not be null
    * @return the type it stands for, boxed
    * @since 0.4.11
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link
+   *     #resolvedTypeNameOf(Elements, TypeMirror, String)} with the round's {@link Elements}, which
+   *     reads a javadoc {@code @deprecated} tag too; a generator's {@code GenerationContext} hands
+   *     it over as {@code elements()}.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   public static TypeName resolvedTypeNameOf(TypeMirror typeArgument, String targetPackage) {
     TypeMirror resolved = resolveWildcard(typeArgument);
     return resolved == null
@@ -125,9 +124,14 @@ public final class ProcessorUtils {
   }
 
   /**
-   * {@link #resolvedTypeNameOf(TypeMirror, String)}, with the type named as {@link
-   * #typeNameOf(Elements, TypeMirror, String)} names it, so an annotation deprecated by a javadoc
-   * tag alone is left off too.
+   * The type a type argument stands for, boxed: the argument itself, the bound of an {@code ?
+   * extends} wildcard, or {@code Object} for an unbounded or super-bounded wildcard, which stands
+   * for no type of its own.
+   *
+   * <p>A generated method focuses on this type, and writes it out wherever an explicit type
+   * argument is needed, because the wildcard the declaration wrote can be neither.
+   *
+   * <p>The type is named as {@link #typeNameOf(Elements, TypeMirror, String)} names it.
    *
    * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param typeArgument a type argument as written
@@ -1474,6 +1478,28 @@ public final class ProcessorUtils {
   }
 
   /**
+   * {@link #typeNameOf(Elements, TypeMirror)}, with a deprecation read from {@code @Deprecated}
+   * alone, so an annotation deprecated only by a javadoc {@code @deprecated} tag is kept, and draws
+   * javac's warning where it is written.
+   *
+   * @param type the type to name; must not be null
+   * @return its name, annotated as the source annotated it wherever some file could say so
+   *     (non-null)
+   * @since 0.4.10
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link #typeNameOf(Elements,
+   *     TypeMirror)} with the round's {@link Elements}, which reads a javadoc {@code @deprecated}
+   *     tag too, or {@link #typeNameOf(Elements, TypeMirror, String)} where the package the file is
+   *     written into is known; a generator's {@code GenerationContext} hands both over.
+   */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  public static TypeName typeNameOf(TypeMirror type) {
+    return new Naming(
+            Map.of(),
+            annotation -> writableSomewhere(annotation, ProcessorUtils::annotatedDeprecated))
+        .name(type, type);
+  }
+
+  /**
    * The name of a type as written, with its type-use annotations kept.
    *
    * <p>{@link TypeName#get(TypeMirror)} rebuilds a name from the element alone and never consults
@@ -1489,7 +1515,8 @@ public final class ProcessorUtils {
    * annotation is kept wherever it was written: on the type itself, on a type argument at any
    * depth, on an array's component or on the array, and on a wildcard bound. A type read with
    * {@link Types#asMemberOf} has already lost the annotations written on a type variable's use;
-   * name one of those with {@link #typeNameOf(TypeMirror, TypeMirror, DeclaredType, String)}.
+   * name one of those with {@link #typeNameOf(Elements, TypeMirror, TypeMirror, DeclaredType,
+   * String)}.
    *
    * <p>An annotation is kept only where some generated file could write it cleanly. One javac could
    * not resolve, which is one missing from the compile classpath, one private anywhere in its
@@ -1498,30 +1525,11 @@ public final class ProcessorUtils {
    * is one whose arguments name a class, an enum constant or an annotation that fails the same
    * test. A package-private one is kept: it can be written from its own package, which is where a
    * generated file lands unless a target package says otherwise. A generator that knows its package
-   * names with {@link #typeNameOf(TypeMirror, String)}, which decides exactly.
+   * names with {@link #typeNameOf(Elements, TypeMirror, String)}, which decides exactly.
    *
-   * <p>A deprecation is read from {@code @Deprecated} alone, so an annotation deprecated only by a
-   * javadoc {@code @deprecated} tag is kept, and draws javac's warning where it is written. A
-   * generator holding the round's {@link Elements} names with {@link #typeNameOf(Elements,
-   * TypeMirror, String)}, or {@link #typeNameOf(Elements, TypeMirror)} where it knows no package,
-   * each of which reads the tag too.
-   *
-   * @param type the type to name; must not be null
-   * @return its name, annotated as the source annotated it wherever some file could say so
-   *     (non-null)
-   * @since 0.4.10
-   */
-  public static TypeName typeNameOf(TypeMirror type) {
-    return new Naming(
-            Map.of(),
-            annotation -> writableSomewhere(annotation, ProcessorUtils::annotatedDeprecated))
-        .name(type, type);
-  }
-
-  /**
-   * {@link #typeNameOf(TypeMirror)}, with a deprecation read as {@link Elements#isDeprecated} reads
-   * it: from {@code @Deprecated}, and from the mark javac keeps for a javadoc {@code @deprecated}
-   * tag, in source and in a class file alike. An annotation deprecated either way is left off.
+   * <p>A deprecation is read as {@link Elements#isDeprecated} reads it: from {@code @Deprecated},
+   * and from the mark javac keeps for a javadoc {@code @deprecated} tag, in source and in a class
+   * file alike. An annotation deprecated either way is left off.
    *
    * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param type the type to name; must not be null
@@ -1535,19 +1543,19 @@ public final class ProcessorUtils {
   }
 
   /**
-   * {@link #typeNameOf(TypeMirror)} for a file written into {@code targetPackage}: an annotation is
-   * kept only where that package can write it cleanly, resolved, with every type in its nesting
-   * public or declared in that package, and none of them private or deprecated, and so is every
-   * class, enum constant and annotation its arguments name.
-   *
-   * <p>A deprecation is read from {@code @Deprecated} alone, as {@link #typeNameOf(TypeMirror)}
-   * reads it; {@link #typeNameOf(Elements, TypeMirror, String)} reads a javadoc tag too.
+   * {@link #typeNameOf(Elements, TypeMirror, String)}, with a deprecation read from {@code
+   * @Deprecated} alone, so an annotation deprecated only by a javadoc {@code @deprecated} tag is
+   * kept, and draws javac's warning where it is written.
    *
    * @param type the type to name; must not be null
    * @param targetPackage the package the generated file is written into; must not be null
    * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
    * @since 0.4.11
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link #typeNameOf(Elements,
+   *     TypeMirror, String)} with the round's {@link Elements}, which reads a javadoc {@code
+   *     @deprecated} tag too. In a generator, {@code context.typeNameOf(type)} makes that call.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   public static TypeName typeNameOf(TypeMirror type, String targetPackage) {
     return new Naming(
             Map.of(),
@@ -1557,8 +1565,10 @@ public final class ProcessorUtils {
   }
 
   /**
-   * {@link #typeNameOf(TypeMirror, String)}, with a deprecation read as {@link
-   * #typeNameOf(Elements, TypeMirror)} reads it, a javadoc tag included.
+   * {@link #typeNameOf(Elements, TypeMirror)} for a file written into {@code targetPackage}: an
+   * annotation is kept only where that package can write it cleanly, resolved, with every type in
+   * its nesting public or declared in that package, and none of them private or deprecated, and so
+   * is every class, enum constant and annotation its arguments name.
    *
    * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param type the type to name; must not be null
@@ -1570,6 +1580,34 @@ public final class ProcessorUtils {
     return new Naming(
             Map.of(), annotation -> writableFrom(annotation, targetPackage, elements::isDeprecated))
         .name(type, type);
+  }
+
+  /**
+   * {@link #typeNameOf(Elements, TypeMirror, TypeMirror, DeclaredType, String)}, with a deprecation
+   * read from {@code @Deprecated} alone, so an annotation deprecated only by a javadoc
+   * {@code @deprecated} tag is kept, and draws javac's warning where it is written.
+   *
+   * @param type the member's type as the owner has it, {@code asMemberOf}'s answer; must not be
+   *     null
+   * @param declared the same type as the member declares it, such as its own {@code
+   *     getReturnType()}; must not be null
+   * @param owner the instantiation the member was read under; must not be null
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
+   * @since 0.4.11
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link #typeNameOf(Elements,
+   *     TypeMirror, TypeMirror, DeclaredType, String)} with the round's {@link Elements}, which
+   *     reads a javadoc {@code @deprecated} tag too; a generator's {@code GenerationContext} hands
+   *     it over as {@code elements()}.
+   */
+  @Deprecated(since = "0.6.0", forRemoval = true)
+  public static TypeName typeNameOf(
+      TypeMirror type, TypeMirror declared, DeclaredType owner, String targetPackage) {
+    return new Naming(
+            clausesOf(owner),
+            annotation ->
+                writableFrom(annotation, targetPackage, ProcessorUtils::annotatedDeprecated))
+        .name(type, declared);
   }
 
   /**
@@ -1590,31 +1628,7 @@ public final class ProcessorUtils {
    * superinterface clauses as written, from the variable to what each clause binds it to, and keeps
    * what each of them wrote. Where the declaration and the substituted type part company, below a
    * replaced variable, it goes on with the substituted type alone. Annotations are kept as {@link
-   * #typeNameOf(TypeMirror, String)} keeps them, a deprecation read from {@code @Deprecated} alone;
-   * {@link #typeNameOf(Elements, TypeMirror, TypeMirror, DeclaredType, String)} reads a javadoc tag
-   * too.
-   *
-   * @param type the member's type as the owner has it, {@code asMemberOf}'s answer; must not be
-   *     null
-   * @param declared the same type as the member declares it, such as its own {@code
-   *     getReturnType()}; must not be null
-   * @param owner the instantiation the member was read under; must not be null
-   * @param targetPackage the package the generated file is written into; must not be null
-   * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
-   * @since 0.4.11
-   */
-  public static TypeName typeNameOf(
-      TypeMirror type, TypeMirror declared, DeclaredType owner, String targetPackage) {
-    return new Naming(
-            clausesOf(owner),
-            annotation ->
-                writableFrom(annotation, targetPackage, ProcessorUtils::annotatedDeprecated))
-        .name(type, declared);
-  }
-
-  /**
-   * {@link #typeNameOf(TypeMirror, TypeMirror, DeclaredType, String)}, with a deprecation read as
-   * {@link #typeNameOf(Elements, TypeMirror)} reads it, a javadoc tag included.
+   * #typeNameOf(Elements, TypeMirror, String)} keeps them.
    *
    * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param type the member's type as the owner has it, {@code asMemberOf}'s answer; must not be
@@ -2060,36 +2074,21 @@ public final class ProcessorUtils {
   }
 
   /**
-   * The declaration of a type parameter, with the annotations on its bounds kept.
-   *
-   * <p>{@link TypeVariableName#get(TypeParameterElement)} names each bound through {@link
-   * TypeName#get(TypeMirror)}, which drops the annotation, and then removes any bound that is bare
-   * {@code Object}. Between them {@code <T extends @Nullable Object>} becomes {@code <T>}, which is
-   * the narrower declaration: the generated type no longer admits an instantiation the type it
-   * wraps permits.
-   *
-   * <p>Naming the bounds through {@link #typeNameOf(TypeMirror)} is enough to fix both halves. An
-   * annotated {@code Object} is not equal to the bare one, so it survives the removal that the bare
-   * bound is still rightly subject to.
-   *
-   * <p>Annotations are kept as {@link #typeNameOf(TypeMirror)} keeps them, so a generator that
-   * knows the package it is writing into declares its parameters with {@link
-   * #typeVariableOf(TypeParameterElement, String)} instead, or {@link #typeVariableOf(Elements,
-   * TypeParameterElement, String)}, which reads a javadoc {@code @deprecated} tag as well as
-   * {@code @Deprecated}.
-   *
-   * <p>The bounds are all that is copied. An annotation written on the parameter itself, as in
-   * {@code <@Marker T>}, is left behind: one {@code TypeVariableName} both declares a parameter and
-   * is written wherever that parameter is named, and a generator reuses the same one for both. An
-   * annotation that is legal on the declaration need not be legal at a use - a {@code
-   * TYPE_PARAMETER} one is rejected outright as a type argument - so carrying it would emit source
-   * the consuming build cannot compile. Nothing is lost for nullness: JSpecify states a nullable
-   * parameter as {@code <T extends @Nullable Object>}, which is a bound.
+   * {@link #typeVariableOf(Elements, TypeParameterElement, String)} for a file whose package is not
+   * known, its bounds named as {@link #typeNameOf(TypeMirror)} names a type: a package-private
+   * annotation is kept, and a deprecation read from {@code @Deprecated} alone, so an annotation
+   * deprecated only by a javadoc {@code @deprecated} tag is kept, and draws javac's warning where
+   * it is written.
    *
    * @param parameter the type parameter to name; must not be null
    * @return its name, with its bounds annotated wherever some file could say so (non-null)
    * @since 0.4.10
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link #typeVariableOf(Elements,
+   *     TypeParameterElement, String)} with the round's {@link Elements} and the package the file
+   *     is written into, which reads a javadoc {@code @deprecated} tag too; a generator's {@code
+   *     GenerationContext} hands both over.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   public static TypeVariableName typeVariableOf(TypeParameterElement parameter) {
     TypeName[] bounds =
         parameter.getBounds().stream().map(ProcessorUtils::typeNameOf).toArray(TypeName[]::new);
@@ -2097,16 +2096,20 @@ public final class ProcessorUtils {
   }
 
   /**
-   * {@link #typeVariableOf(TypeParameterElement)} for a file written into {@code targetPackage},
-   * its bounds named as {@link #typeNameOf(TypeMirror, String)} names a type, a deprecation read
-   * from {@code @Deprecated} alone; {@link #typeVariableOf(Elements, TypeParameterElement, String)}
-   * reads a javadoc tag too.
+   * {@link #typeVariableOf(Elements, TypeParameterElement, String)}, its bounds named with a
+   * deprecation read from {@code @Deprecated} alone, so an annotation deprecated only by a javadoc
+   * {@code @deprecated} tag is kept, and draws javac's warning where it is written.
    *
    * @param parameter the type parameter to name; must not be null
    * @param targetPackage the package the generated file is written into; must not be null
    * @return its name, with its bounds annotated wherever the file can say so (non-null)
    * @since 0.4.11
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Call {@link #typeVariableOf(Elements,
+   *     TypeParameterElement, String)} with the round's {@link Elements}, which reads a javadoc
+   *     {@code @deprecated} tag too; a generator's {@code GenerationContext} hands it over as
+   *     {@code elements()}.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   public static TypeVariableName typeVariableOf(
       TypeParameterElement parameter, String targetPackage) {
     TypeName[] bounds =
@@ -2117,8 +2120,26 @@ public final class ProcessorUtils {
   }
 
   /**
-   * {@link #typeVariableOf(TypeParameterElement, String)}, its bounds named as {@link
-   * #typeNameOf(Elements, TypeMirror, String)} names a type.
+   * The declaration of a type parameter, for a file written into {@code targetPackage}, with the
+   * annotations on its bounds kept.
+   *
+   * <p>{@link TypeVariableName#get(TypeParameterElement)} names each bound through {@link
+   * TypeName#get(TypeMirror)}, which drops the annotation, and then removes any bound that is bare
+   * {@code Object}. Between them {@code <T extends @Nullable Object>} becomes {@code <T>}, which is
+   * the narrower declaration: the generated type no longer admits an instantiation the type it
+   * wraps permits.
+   *
+   * <p>Naming each bound as {@link #typeNameOf(Elements, TypeMirror, String)} names a type is
+   * enough to fix both halves. An annotated {@code Object} is not equal to the bare one, so it
+   * survives the removal that the bare bound is still rightly subject to.
+   *
+   * <p>The bounds are all that is copied. An annotation written on the parameter itself, as in
+   * {@code <@Marker T>}, is left behind: one {@code TypeVariableName} both declares a parameter and
+   * is written wherever that parameter is named, and a generator reuses the same one for both. An
+   * annotation that is legal on the declaration need not be legal at a use - a {@code
+   * TYPE_PARAMETER} one is rejected outright as a type argument - so carrying it would emit source
+   * the consuming build cannot compile. Nothing is lost for nullness: JSpecify states a nullable
+   * parameter as {@code <T extends @Nullable Object>}, which is a bound.
    *
    * @param elements the round's element utilities, which read a deprecation; must not be null
    * @param parameter the type parameter to name; must not be null
