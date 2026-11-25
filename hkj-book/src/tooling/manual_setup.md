@@ -33,9 +33,10 @@ dependencies {
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
 }
 
-// Enable Java preview features, for code that reaches the preview classes (see Prerequisites)
+// Enable Java preview features, for code that reaches the preview classes (see Prerequisites).
+// -parameters and -implicit:class keep incremental builds sound (see Incremental compilation).
 tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.add("--enable-preview")
+    options.compilerArgs.addAll(listOf("--enable-preview", "-parameters", "-implicit:class"))
 }
 
 tasks.withType<Test>().configureEach {
@@ -137,14 +138,46 @@ For SNAPSHOT versions, add the Sonatype snapshots repository to your `pom.xml`:
 ---
 
 ~~~admonish tip title="Prefer the Plugin"
-The [HKJ build plugin](gradle_plugin.md) handles all of the above (dependencies, preview flags, annotation processors, and compile-time Path type checking) with a single `plugins { }` block. Unless you have a specific reason to avoid it, the plugin is the recommended path.
+The [HKJ build plugin](gradle_plugin.md) handles all of the above (dependencies, preview flags, compiler flags, annotation processors, and compile-time Path type checking) with a single `plugins { }` block. Unless you have a specific reason to avoid it, the plugin is the recommended path.
 ~~~
 
 ---
 
-## Incremental compilation
+## Incremental compilation {#incremental-compilation}
 
-The HKJ annotation processors register with Gradle's incremental annotation processing: the processors that generate code as aggregating, since cross-spec features such as nested mapping resolution may read any annotated element in the compilation and the mapping processors also read the classpath index described below; and `CompanionAnnotationProcessor`, which generates nothing and claims hkj's annotations so that `-Xlint:processing` does not report them, as isolating. A source set using them keeps incremental compilation; no configuration is needed. Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first.
+The HKJ annotation processors register with Gradle's incremental annotation processing, so a change recompiles what it touches rather than the whole source set. Each registers as one of Gradle's two kinds:
+
+| Processor | Registered as | After a change, Gradle |
+|---|---|---|
+| The generators in `hkj-processor` | aggregating | reprocesses every annotated type, reading each unchanged one from its class file |
+| The `@HkjHttpClient` processor | isolating | regenerates a client's files only when it recompiles that client |
+| `CompanionAnnotationProcessor`, in both | isolating | has nothing to redo, as it generates nothing |
+
+The generators aggregate because a spec's output can depend on any other annotated type in the compilation. Nested mapping resolution reads the other specs, and the mapping processors also read the classpath index described in [Multi-module builds](#multi-module-builds). Each client's files depend only on that client and what it extends. `CompanionAnnotationProcessor` claims hkj's annotations so that `-Xlint:processing` does not report them.
+
+Two compiler flags keep incremental builds sound. The [HKJ build plugin](gradle_plugin.md) adds both, and the Gradle setup on this page passes them itself.
+
+- **`-parameters` keeps an incremental build writing what a clean build writes.** Without it javac reads the parameters of an unchanged interface's methods as `arg0`, `arg1`, since the class file keeps no names for them.
+- **`-implicit:class` keeps a modular source set building under `-Werror`.** Its javadoc-only `package-info.java` files have no class file, so an incremental compile reads them from the source path. With no policy set, javac warns `Implicitly compiled files were not subject to annotation processing`. The flag sets javac's default policy explicitly, which only silences that warning.
+
+Where a name was lost that way, what each processor does depends on whether the name would reach run time:
+
+| Read from a class file without `-parameters` | What the processor does |
+|---|---|
+| A `@GenerateMerge` spec, whose Impl names each source in its null check | Refuses it: `merge method '…' was read from a class file that records no parameter names` |
+| A client binding written without its name, as a bare `@PathVariable`, on a method inherited from a base that Gradle did not recompile, or from a jar | Refuses the binding, `cannot name the binding of`, as [Declarative HTTP Clients](../spring/declarative_http_clients.md#generic-clients) says |
+| Any other method a generator writes again from a class file | Names its parameters `arg0`, `arg1`, which changes nothing a program does |
+
+`@GenerateMapping`, `@GenerateMerge`, `@GenerateErrorEnvelope`, `@GenerateIsos`, `@PathSource` and `@HkjHttpClient` refuse a class name that a hand-written class already has, as a clean build does. Where Gradle reads that class from its class file, the message is `the generated class '…' has the name of a class on the classpath`, or for a Path `A type of that name is already on the classpath`. Only a class file carrying HKJ's `@Generated`, which every generator writes, is a generator's to replace. A hand-written class added after its client is the exception: Gradle reruns `@HkjHttpClient` only on a client it recompiles, so the clash is reported when the client next compiles, or by a clean build. The other generators do not refuse a class file's name yet.
+
+A class file keeps no annotation retained in source alone, so what such an annotation decides happens only where Gradle compiles its type from source:
+
+- **A warning is reported by the build compiling its declaration.** An incremental build that reads the declaration from its class file does not report it again, as javac repeats none of its own lint warnings for a class it does not recompile. So a warning `@SuppressWarnings` kept quiet stays quiet.
+- **A check reading another library's source-only annotation needs source.** The [`@Singular` refusal](../mapping/rules.md#nullable-where-build-throws) is one, so the next clean build reports what an incremental one let through.
+- **A Lombok bean's class file is read as Lombok's by `lombok.Generated`.** Lombok writes it by default from 1.18.34. With an earlier Lombok, an incremental build reads the bean's methods as hand-written, and can refuse what a clean build accepts. Use Lombok 1.18.34 or later, or set `lombok.addLombokGeneratedAnnotation = true` in `lombok.config`.
+- **A base's source-only annotation reaches a client from source alone.** An annotation such as `@SuppressWarnings` on a base interface's method is copied onto the client's generated interface only where Gradle compiles the base. The client compiles the same either way.
+
+Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first. Gradle's `--info` output names the cause of a full recompilation, as in `Full recompilation is required because ...`.
 
 ## Multi-module builds
 
@@ -161,7 +194,7 @@ Navigators across modules use no index either. A [navigator](../optics/focus_nav
 
 ## Lombok {#lombok}
 
-Lombok and the HKJ processors run in the same javac invocation, and the pairing is covered by a test in the HKJ build: a `@Data` class works as a bean-shaped `@GenerateMapping` wire, with the generated getters and setters visible to the bean analyser. **Order matters: list Lombok before `hkj-processor`** (within a javac round, processors run in listed order, and the bean analyser needs the accessors already materialised; the reverse order fails with a clear diagnostic). No binding artefact is needed beyond that:
+Lombok and the HKJ processors run in the same javac invocation, and the pairing is covered by a test in the HKJ build: a `@Data` class works as a bean-shaped `@GenerateMapping` wire, with the generated getters and setters visible to the bean analyser. Use Lombok 1.18.34 or later, which marks what it writes `@lombok.Generated`, so an [incremental build](#incremental-compilation) reads a bean it did not recompile as Lombok's. **Order matters: list Lombok before `hkj-processor`** (within a javac round, processors run in listed order, and the bean analyser needs the accessors already materialised; the reverse order fails with a clear diagnostic). No binding artefact is needed beyond that:
 
 ```gradle
 dependencies {

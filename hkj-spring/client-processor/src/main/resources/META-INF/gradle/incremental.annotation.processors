@@ -1,7 +1,17 @@
-# Gradle incremental annotation processing registration. AGGREGATING for the same reason as
-# hkj-processor's registration: behaviour-preserving without a per-processor ISOLATING audit,
-# and sufficient to restore incremental compilation for consuming source sets.
-org.higherkindedj.spring.client.processor.HkjHttpClientProcessor,aggregating
+# Gradle incremental annotation processing registration.
+#
+# HkjHttpClientProcessor is ISOLATING. A client's native interface, facade and configuration are
+# generated from that one interface, named as each file's only originating element, and from what
+# it reaches: the interfaces it extends and its methods' types and annotations. Nothing it writes
+# reads another client or the rest of the round. Gradle regenerates a client's files when it
+# recompiles the client, so it never reprocesses an unchanged client from its class file, and the
+# client's own binding names always come from source. A method inherited from a base Gradle did not
+# recompile is read from that base's class file, and refused where that file records no parameter
+# names, as one compiled without -parameters does. A hand-written class Gradle did not recompile is
+# read from its class file too, and javac's Filer would write over it, so the processor refuses a
+# name a class file without HKJ's @Generated already has. @HkjHttpClient stays SOURCE-retained,
+# since an isolating processor is never handed a type by name.
+org.higherkindedj.spring.client.processor.HkjHttpClientProcessor,isolating
 # CompanionAnnotationProcessor generates nothing, only claims the hkj annotations the client
 # processor reads or writes, so ISOLATING leaves Gradle nothing to track; AGGREGATING would reprocess
 # every type carrying them, every generated client included.

@@ -1,0 +1,644 @@
+// Copyright (c) 2025 - 2026 Magnus Smith
+// Licensed under the MIT License. See LICENSE.md in the project root for license information.
+package org.higherkindedj.optics.processing;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
+import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.Stream;
+import javax.tools.JavaFileObject;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.higherkindedj.optics.processing.Reprocessing.Run;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+/**
+ * hkj-processor's generators are registered with Gradle as aggregating, so in an incremental build
+ * Gradle hands them each unchanged annotated type of the compilation by name, and javac reads that
+ * type from the class file the last build wrote. A generator must write from the class file what it
+ * writes from source, or the build after an unrelated change differs from a clean build.
+ * compile-testing compiles from source alone, so none of its tests can see the difference.
+ */
+@DisplayName("Generating from the class files Gradle's incremental build hands over")
+class ClassFileReprocessingTest {
+
+  private static final List<String> PARAMETERS = List.of("-parameters");
+
+  private static final JavaFileObject RECORDS =
+      JavaFileObjects.forSourceString(
+          "com.example.Records",
+          """
+          package com.example;
+
+          public final class Records {
+            public record User(String name, String email) {}
+
+            public record Account(String iban, int balance) {}
+
+            public record Settings(boolean darkMode) {}
+
+            public record EmailAddress(String value) {}
+
+            public record Dashboard(String name, String iban, boolean darkMode) {}
+
+            public record TypedDashboard(String name, EmailAddress email, int balance) {}
+
+            public record Customer(String id, String name) {}
+
+            public record CustomerDto(String id, String fullName) {}
+          }
+          """);
+
+  private static final JavaFileObject MAPPING =
+      JavaFileObjects.forSourceString(
+          "com.example.CustomerMapping",
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MapField;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+
+          @GenerateMapping
+          public interface CustomerMapping
+              extends MappingSpec<Records.Customer, Records.CustomerDto> {
+            @MapField(to = "fullName")
+            String name();
+          }
+          """);
+
+  private static final JavaFileObject MERGE =
+      JavaFileObjects.forSourceString(
+          "com.example.DashboardAssembly",
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateMerge;
+
+          @GenerateMerge
+          public interface DashboardAssembly {
+            Records.Dashboard assemble(
+                Records.User owner, Records.Account account, Records.Settings settings);
+          }
+          """);
+
+  /** A fallible merge: its leaf is a default method, which the class file carries too. */
+  private static final JavaFileObject FALLIBLE_MERGE =
+      JavaFileObjects.forSourceString(
+          "com.example.TypedAssembly",
+          """
+          package com.example;
+
+          import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+          import org.higherkindedj.hkt.validated.FieldError;
+          import org.higherkindedj.hkt.validated.Validated;
+          import org.higherkindedj.optics.annotations.GenerateMerge;
+          import org.higherkindedj.optics.validated.ValidatedPrism;
+
+          @GenerateMerge
+          public interface TypedAssembly {
+            Validated<NonEmptyList<FieldError>, Records.TypedDashboard> assemble(
+                Records.User user, Records.Account account);
+
+            default ValidatedPrism<String, Records.EmailAddress> email() {
+              return ValidatedPrism.of(
+                  raw ->
+                      raw.contains("@")
+                          ? Validated.validNel(new Records.EmailAddress(raw))
+                          : Validated.invalidNel(FieldError.of("not an email address")),
+                  Records.EmailAddress::value);
+            }
+          }
+          """);
+
+  private static final JavaFileObject ISO =
+      JavaFileObjects.forSourceString(
+          "com.example.PointConverters",
+          """
+          package com.example;
+
+          import org.higherkindedj.hkt.tuple.Tuple;
+          import org.higherkindedj.hkt.tuple.Tuple2;
+          import org.higherkindedj.optics.Iso;
+          import org.higherkindedj.optics.annotations.GenerateIsos;
+
+          public class PointConverters {
+            public record Point(int x, int y) {}
+
+            @GenerateIsos(targetPackage = "com.example.isos")
+            public static Iso<Point, Tuple2<Integer, Integer>> pointToTuple() {
+              return Iso.of(
+                  point -> Tuple.of(point.x(), point.y()),
+                  tuple -> new Point(tuple._1(), tuple._2()));
+            }
+          }
+          """);
+
+  /**
+   * An iso in the unnamed package, whose generated class has a simple name for its canonical one.
+   */
+  private static final JavaFileObject UNNAMED_ISO =
+      JavaFileObjects.forSourceString(
+          "Unnamed",
+          """
+          import org.higherkindedj.optics.Iso;
+          import org.higherkindedj.optics.annotations.GenerateIsos;
+
+          public class Unnamed {
+            public record Celsius(double value) {}
+
+            @GenerateIsos
+            public static Iso<Celsius, Double> celsius() {
+              return Iso.of(Celsius::value, Celsius::new);
+            }
+          }
+          """);
+
+  private static final List<JavaFileObject> ENVELOPE =
+      List.of(
+          JavaFileObjects.forSourceString(
+              "com.example.FooErrorContext",
+              """
+              package com.example;
+
+              public record FooErrorContext(String orderId, String traceId) {}
+              """),
+          JavaFileObjects.forSourceString(
+              "com.example.FooError",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.function.UnaryOperator;
+              import org.higherkindedj.hkt.error.ErrorEnvelope;
+              import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
+
+              @GenerateErrorEnvelope
+              public sealed interface FooError {
+                ErrorEnvelope<FooErrorContext> envelope();
+
+                default FooError editContext(UnaryOperator<FooErrors.ContextBuilder> edit) {
+                  return FooErrors.editContext(this, edit);
+                }
+
+                record OutOfStock(List<String> products, ErrorEnvelope<FooErrorContext> envelope)
+                    implements FooError {}
+
+                record PaymentDeclined(
+                    ErrorEnvelope<FooErrorContext> envelope, String card, String reason)
+                    implements FooError {}
+
+                record SystemHalted(ErrorEnvelope<FooErrorContext> envelope) implements FooError {}
+              }
+              """));
+
+  private static final List<JavaFileObject> PATH_SOURCE =
+      List.of(
+          JavaFileObjects.forSourceString(
+              "com.example.ApiResultKind",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
+
+              public interface ApiResultKind<A> extends Kind<ApiResultKind.Witness, A> {
+                final class Witness implements WitnessArity<TypeArity.Unary> {}
+              }
+              """),
+          JavaFileObjects.forSourceString(
+              "com.example.ApiResult",
+              """
+              package com.example;
+
+              import java.util.function.Function;
+              import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+              @PathSource(witness = ApiResultKind.Witness.class, suffix = "Steps")
+              public sealed interface ApiResult<A> permits ApiSuccess, ApiFailure {
+                <B> ApiResult<B> map(Function<? super A, ? extends B> f);
+              }
+              """),
+          JavaFileObjects.forSourceString(
+              "com.example.ApiSuccess",
+              """
+              package com.example;
+
+              import java.util.function.Function;
+
+              public record ApiSuccess<A>(A value) implements ApiResult<A> {
+                @Override
+                public <B> ApiResult<B> map(Function<? super A, ? extends B> f) {
+                  return new ApiSuccess<>(f.apply(value));
+                }
+              }
+              """),
+          JavaFileObjects.forSourceString(
+              "com.example.ApiFailure",
+              """
+              package com.example;
+
+              import java.util.function.Function;
+
+              public record ApiFailure<A>(String error) implements ApiResult<A> {
+                @Override
+                public <B> ApiResult<B> map(Function<? super A, ? extends B> f) {
+                  return new ApiFailure<>(error);
+                }
+              }
+              """));
+
+  @TempDir Path tmp;
+
+  /** The generators that write no parameter name, with the sources each generates from. */
+  static Stream<Arguments> generatorsWritingNoParameterName() {
+    return Stream.of(
+        arguments("@GenerateMapping, every golden case", MappingGoldenFileTest.fixtures()),
+        arguments("@GenerateIsos", List.of(ISO)),
+        arguments("@GenerateErrorEnvelope", ENVELOPE),
+        arguments("@PathSource", PATH_SOURCE));
+  }
+
+  /**
+   * The generators whose annotations became CLASS-retained, the merge's two shapes included. The
+   * others are not covered yet.
+   */
+  static Stream<Arguments> generators() {
+    return Stream.concat(
+        generatorsWritingNoParameterName(),
+        Stream.of(arguments("@GenerateMerge, plain and fallible", merges())));
+  }
+
+  private static List<JavaFileObject> merges() {
+    return List.of(RECORDS, MERGE, FALLIBLE_MERGE);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("generators")
+  @DisplayName(
+      "each generator writes from class files compiled with -parameters what it writes from source")
+  void writesFromClassFilesWhatItWritesFromSource(String generator, List<JavaFileObject> sources)
+      throws Exception {
+    Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, PARAMETERS);
+    Run fromClassFiles =
+        Reprocessing.fromClassNames(tmp.resolve("class-files"), sources, PARAMETERS);
+
+    assertThat(fromSource.succeeded()).isTrue();
+    assertThat(fromSource.generated()).isNotEmpty();
+    assertThat(fromClassFiles).isEqualTo(fromSource);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("generatorsWritingNoParameterName")
+  @DisplayName("a generator writing no parameter name needs no -parameters to write it again")
+  void needsNoParameterNames(String generator, List<JavaFileObject> sources) throws Exception {
+    Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, List.of());
+    Run fromClassFiles =
+        Reprocessing.fromClassNames(tmp.resolve("class-files"), sources, List.of());
+
+    assertThat(fromSource.generated()).isNotEmpty();
+    assertThat(fromClassFiles).isEqualTo(fromSource);
+  }
+
+  /** Each generator's annotation, the sources it generates from, and the class it writes. */
+  static Stream<Arguments> generatedNames() {
+    return Stream.of(
+        arguments("@GenerateMapping", List.of(RECORDS, MAPPING), "com.example.CustomerMappingImpl"),
+        arguments("@GenerateMerge", List.of(RECORDS, MERGE), "com.example.DashboardAssemblyImpl"),
+        arguments("@GenerateErrorEnvelope", ENVELOPE, "com.example.FooErrors"),
+        arguments("@GenerateIsos", List.of(ISO), "com.example.isos.PointConvertersIsos"),
+        arguments("@GenerateIsos", List.of(UNNAMED_ISO), "UnnamedIsos"),
+        arguments("@PathSource", PATH_SOURCE, "com.example.ApiResultSteps"),
+        arguments("@PathSource", inTheUnnamedPackage(PATH_SOURCE), "ApiResultSteps"));
+  }
+
+  /** The same sources moved into the unnamed package, each named by its simple name. */
+  private static List<JavaFileObject> inTheUnnamedPackage(List<JavaFileObject> sources) {
+    return sources.stream()
+        .map(
+            source -> {
+              String file = source.getName();
+              String simpleName =
+                  file.substring(file.lastIndexOf('/') + 1, file.length() - ".java".length());
+              try {
+                return JavaFileObjects.forSourceString(
+                    simpleName,
+                    source
+                        .getCharContent(true)
+                        .toString()
+                        .replaceFirst("package [\\w.]+;\\s*", ""));
+              } catch (IOException unreadable) {
+                throw new UncheckedIOException(unreadable);
+              }
+            })
+        .toList();
+  }
+
+  /** A hand-written class of the given canonical name, a simple name in the unnamed package. */
+  private static JavaFileObject handWritten(String qualifiedName) {
+    int dot = qualifiedName.lastIndexOf('.');
+    String declaration = "public class " + qualifiedName.substring(dot + 1) + " {}\n";
+    return JavaFileObjects.forSourceString(
+        qualifiedName,
+        dot < 0
+            ? declaration
+            : "package " + qualifiedName.substring(0, dot) + ";\n\n" + declaration);
+  }
+
+  @Nested
+  @DisplayName("Generated names")
+  class GeneratedNameChecks {
+
+    @ParameterizedTest(name = "{0} writing {2}")
+    @MethodSource("org.higherkindedj.optics.processing.ClassFileReprocessingTest#generatedNames")
+    @DisplayName("a hand-written class file of the generated name is refused, not replaced")
+    void aHandWrittenClassFileIsRefused(String tag, List<JavaFileObject> sources, String generated)
+        throws Exception {
+      Run run =
+          Reprocessing.againstClassFiles(
+              tmp, List.of(handWritten(generated)), false, sources, PARAMETERS);
+
+      assertThat(run.succeeded()).isFalse();
+      assertThat(run.generated()).doesNotContainKey(generated.replace('.', '/') + ".java");
+      assertThat(run.diagnostics())
+          .anySatisfy(
+              diagnostic ->
+                  assertThat(diagnostic)
+                      .startsWith("ERROR: " + tag + ":")
+                      .contains("'" + generated + "'"));
+    }
+
+    @ParameterizedTest(name = "{0} writing {2}")
+    @MethodSource("org.higherkindedj.optics.processing.ClassFileReprocessingTest#generatedNames")
+    @DisplayName("the class file a previous build generated is written again, as from source")
+    void aPreviouslyGeneratedClassFileIsWrittenAgain(
+        String tag, List<JavaFileObject> sources, String generated) throws Exception {
+      Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, PARAMETERS);
+      Run again =
+          Reprocessing.againstClassFiles(tmp.resolve("again"), sources, true, sources, PARAMETERS);
+
+      assertThat(again.succeeded()).isTrue();
+      assertThat(again.generated()).isEqualTo(fromSource.generated());
+    }
+
+    @ParameterizedTest(name = "{0} writing {2}")
+    @MethodSource("org.higherkindedj.optics.processing.ClassFileReprocessingTest#generatedNames")
+    @DisplayName("a hand-written class of the generated name in source still fails the build")
+    void aHandWrittenSourceStillFails(String tag, List<JavaFileObject> sources, String generated)
+        throws Exception {
+      List<JavaFileObject> withHandWritten =
+          Stream.concat(sources.stream(), Stream.of(handWritten(generated))).toList();
+
+      Run run = Reprocessing.fromSource(tmp, withHandWritten, PARAMETERS);
+
+      assertThat(run.succeeded()).isFalse();
+      assertThat(run.diagnostics())
+          .anySatisfy(diagnostic -> assertThat(diagnostic).startsWith("ERROR").contains(generated));
+    }
+  }
+
+  @Nested
+  @DisplayName("Parameter names")
+  class ParameterNames {
+
+    @Test
+    @DisplayName("a merge whose class file records no parameter names is refused, not written")
+    void aMergeWithoutParameterNamesIsRefused() throws Exception {
+      Run fromClassFiles = Reprocessing.fromClassNames(tmp, merges(), List.of());
+
+      assertThat(fromClassFiles.succeeded()).isFalse();
+      assertThat(fromClassFiles.generated())
+          .doesNotContainKeys("com/example/DashboardAssemblyImpl.java")
+          .doesNotContainKeys("com/example/TypedAssemblyImpl.java");
+      assertThat(fromClassFiles.diagnostics())
+          .contains(
+              "ERROR: @GenerateMerge: merge method 'com.example.DashboardAssembly.assemble' was"
+                  + " read from a class file that records no parameter names. Gradle's incremental"
+                  + " build reads an unchanged spec from the class file its last build wrote, and"
+                  + " without -parameters javac names the sources 'arg0', 'arg1', so the Impl's"
+                  + " null checks would say 'arg0 must not be null' where a build from source names"
+                  + " each source. Compile the source set with -parameters, as the HKJ Gradle"
+                  + " plugin does.");
+    }
+
+    @Test
+    @DisplayName("the null check names the source as the spec does, from source or class file")
+    void theNullCheckNamesTheSourceAsTheSpecDoes() throws Exception {
+      Run fromClassFiles = Reprocessing.fromClassNames(tmp, merges(), PARAMETERS);
+
+      assertThat(fromClassFiles.generated().get("com/example/DashboardAssemblyImpl.java"))
+          .contains("Objects.requireNonNull(owner, \"owner must not be null\");");
+    }
+  }
+
+  @Nested
+  @DisplayName("Suppressed warnings")
+  class SuppressedWarnings {
+
+    @Test
+    @DisplayName("a warning suppressed on a spec is not reported once the spec is a class file")
+    void aSuppressedImplConstantStaysQuiet() throws Exception {
+      List<JavaFileObject> sources =
+          List.of(
+              RECORDS,
+              JavaFileObjects.forSourceString(
+                  "com.example.QuietMapping",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MapField;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  @GenerateMapping
+                  public interface QuietMapping
+                      extends MappingSpec<Records.Customer, Records.CustomerDto> {
+                    @SuppressWarnings("impl-constant")
+                    QuietMappingImpl MAPPER = QuietMappingImpl.INSTANCE;
+
+                    @MapField(to = "fullName")
+                    String name();
+                  }
+                  """));
+
+      Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, List.of());
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(tmp.resolve("class-files"), sources, List.of());
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName("a dropped-result warning suppressed on an @ImportOptics lens stays quiet")
+    void aSuppressedDroppedResultStaysQuiet() throws Exception {
+      List<JavaFileObject> sources =
+          List.of(
+              JavaFileObjects.forSourceString(
+                  "com.example.SprigBase",
+                  """
+                  package com.example;
+
+                  public class SprigBase {
+                    protected String title;
+
+                    public SprigBase withTitle(String title) {
+                      SprigBase copy = new SprigBase();
+                      copy.title = title;
+                      return copy;
+                    }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Twig",
+                  """
+                  package com.example;
+
+                  public class Twig extends SprigBase {
+                    public Twig() {}
+
+                    public Twig(Twig other) {
+                      title = other.title;
+                    }
+
+                    public String getTitle() {
+                      return title;
+                    }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.TwigOpticsSpec",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.Lens;
+                  import org.higherkindedj.optics.annotations.ImportOptics;
+                  import org.higherkindedj.optics.annotations.OpticsSpec;
+                  import org.higherkindedj.optics.annotations.ViaCopyAndSet;
+
+                  @ImportOptics
+                  public interface TwigOpticsSpec extends OpticsSpec<Twig> {
+                    @SuppressWarnings("dropped-result")
+                    @ViaCopyAndSet(setter = "withTitle")
+                    Lens<Twig, String> getTitle();
+                  }
+                  """));
+
+      Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, List.of());
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(tmp.resolve("class-files"), sources, List.of());
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated()).containsKey("com/example/TwigOptics.java");
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName("a warning the build that compiled a spec reported is not reported again")
+    void aReportedWarningIsNotRepeated() throws Exception {
+      // javac repeats none of its own lint warnings for a class it does not recompile either.
+      List<JavaFileObject> sources =
+          List.of(
+              RECORDS,
+              JavaFileObjects.forSourceString(
+                  "com.example.LoudMapping",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MapField;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  @GenerateMapping
+                  public interface LoudMapping
+                      extends MappingSpec<Records.Customer, Records.CustomerDto> {
+                    LoudMappingImpl MAPPER = LoudMappingImpl.INSTANCE;
+
+                    @MapField(to = "fullName")
+                    String name();
+                  }
+                  """));
+
+      Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, List.of());
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(tmp.resolve("class-files"), sources, List.of());
+
+      assertThat(fromSource.diagnostics())
+          .singleElement(InstanceOfAssertFactories.STRING)
+          .startsWith("WARNING: @GenerateMapping: 'LoudMapping.MAPPER' holds the generated");
+      assertThat(fromClassFiles.diagnostics()).isEmpty();
+      assertThat(fromClassFiles.generated()).isEqualTo(fromSource.generated());
+    }
+
+    @Test
+    @DisplayName("a warning suppressed on an @ImportOptics lens stays quiet from its class file")
+    void aSuppressedShorterConstructorStaysQuiet() throws Exception {
+      List<JavaFileObject> sources =
+          List.of(
+              JavaFileObjects.forSourceString(
+                  "com.example.Fee",
+                  """
+                  package com.example;
+
+                  public final class Fee {
+                    private final long amount;
+                    private final String currency;
+
+                    public Fee(long amount, String currency) {
+                      this.amount = amount;
+                      this.currency = currency;
+                    }
+
+                    public Fee(long amount) {
+                      this(amount, "GBP");
+                    }
+
+                    public long amount() {
+                      return amount;
+                    }
+
+                    public String currency() {
+                      return currency;
+                    }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.FeeOpticsSpec",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.Lens;
+                  import org.higherkindedj.optics.annotations.ImportOptics;
+                  import org.higherkindedj.optics.annotations.OpticsSpec;
+                  import org.higherkindedj.optics.annotations.ViaConstructor;
+
+                  @ImportOptics
+                  public interface FeeOpticsSpec extends OpticsSpec<Fee> {
+                    // The shorter constructor fills the currency in, so the lens stays lawful.
+                    @SuppressWarnings("shorter-constructor")
+                    @ViaConstructor(parameterOrder = {"amount"})
+                    Lens<Fee, Long> amount();
+                  }
+                  """));
+
+      Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, List.of());
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(tmp.resolve("class-files"), sources, List.of());
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated()).containsKey("com/example/FeeOptics.java");
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+  }
+}

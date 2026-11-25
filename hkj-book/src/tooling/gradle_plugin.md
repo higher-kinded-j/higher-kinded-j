@@ -15,7 +15,7 @@
 
 ### Without the Plugin
 
-A manual setup requires dependencies, annotation processors, the compile-time checker, and preview flags wired into every task that needs them. The full build file runs to roughly 30 lines; see [Manual Gradle and Maven Setup](manual_setup.md) for the complete configuration.
+A manual setup requires dependencies, annotation processors, the compile-time checker, preview flags and compiler flags wired into every task that needs them. The full build file runs to roughly 30 lines; see [Manual Gradle and Maven Setup](manual_setup.md) for the complete configuration.
 
 ### With the Plugin
 
@@ -26,7 +26,7 @@ plugins {
 }
 ```
 
-That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables "-parameters", which keeps constructor parameter names in the compiled class files: some copy strategies read them today, and the [record mapper](../mapping/ch_intro.md) uses them too. In a multi-module build, apply the plugin to **every** module that declares mapping specs or `@GenerateFocus` records other modules navigate into, not only the one that consumes them: a spec is nested through its generated `Impl` and a record is navigated through its generated `Focus`, so each must exist. See [Multi-module builds](manual_setup.md#multi-module-builds).
+That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables "-parameters", which keeps parameter names in the compiled class files: some copy strategies and the [record mapper](../mapping/ch_intro.md) read them, and an [incremental build](manual_setup.md#incremental-compilation) needs them to write what a clean build writes. In a multi-module build, apply the plugin to **every** module that declares mapping specs or `@GenerateFocus` records other modules navigate into, not only the one that consumes them: a spec is nested through its generated `Impl` and a record is navigated through its generated `Focus`, so each must exist. See [Multi-module builds](manual_setup.md#multi-module-builds).
 
 A build that applies the plugin can turn on Gradle's [configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html).
 
@@ -99,6 +99,7 @@ With default settings, the plugin adds:
 - `--enable-preview` to `JavaCompile`, `Test`, `JavaExec`, and `Javadoc` tasks
 - `--release`, at the javadoc tool's version, to a `Javadoc` task that passes no `-source` or `--release` of its own: javadoc takes `--enable-preview` only beside one of the two. A task that passes javadoc `--add-exports` for a JDK module sets `options.source` instead, since javadoc refuses that beside `--release`
 - `-parameters` to every `JavaCompile` task (unconditional)
+- `-implicit:class` to every `JavaCompile` task that sets no `-implicit` policy of its own, so a modular source set's incremental build passes under `-Werror` (see [Incremental compilation](manual_setup.md#incremental-compilation))
 - `-Xplugin:HKJChecker` to compiler arguments, or nothing to a task that already names the checker, such as one that [sets the checker's options](compile_checks.md#configuration)
 
 ---

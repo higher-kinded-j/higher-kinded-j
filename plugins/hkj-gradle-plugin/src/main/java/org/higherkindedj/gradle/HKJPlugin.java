@@ -99,16 +99,24 @@ public class HKJPlugin implements Plugin<Project> {
                 sourceSet.getAnnotationProcessorConfigurationName(),
                 GROUP_ID + ":hkj-processor-plugins:" + version));
 
-    // Record parameter names in class files: some copy strategies and future mapper
-    // features read them, and the flag is harmless otherwise.
+    // Record parameter names in class files: some copy strategies read them, and in Gradle's
+    // incremental build javac reads an unchanged merge spec, or a client's unchanged base
+    // interface, from its class file, which keeps those names only under this flag.
     project
         .getTasks()
         .withType(JavaCompile.class)
         .configureEach(
             task -> {
               List<String> args = task.getOptions().getCompilerArgs();
-              if (!args.contains("-parameters")) {
+              if (!passes(args, "-parameters")) {
                 args.add("-parameters");
+              }
+              // javac's default implicit policy, made explicit, unless the build sets one. An
+              // incremental compile of a modular source set reads each javadoc-only
+              // package-info.java from the source path, as it has no class file, and with no policy
+              // set javac warns that the processors did not see it, which -Werror makes fatal.
+              if (!setsImplicitPolicy(args)) {
+                args.add("-implicit:class");
               }
             });
 
@@ -250,6 +258,21 @@ public class HKJPlugin implements Plugin<Project> {
     return args.stream().map(String::valueOf).anyMatch(arg -> CHECKER_ARG.matcher(arg).matches());
   }
 
+  /**
+   * Whether the build already passes javac {@code option}. An argument is read as a string, as a
+   * Groovy build can add a GString to the list.
+   */
+  private static boolean passes(List<?> args, String option) {
+    return args.stream().map(String::valueOf).anyMatch(option::equals);
+  }
+
+  /**
+   * Whether the build already passes javac an {@code -implicit} policy, read as {@link #passes}.
+   */
+  private static boolean setsImplicitPolicy(List<?> args) {
+    return args.stream().map(String::valueOf).anyMatch(arg -> arg.startsWith("-implicit:"));
+  }
+
   /** Left-aligns {@code label} by padding with trailing spaces to at least {@code width} chars. */
   private static String padLabel(String label, int width) {
     return String.format("%-" + width + "s ", label);
@@ -358,7 +381,8 @@ public class HKJPlugin implements Plugin<Project> {
       }
     }
 
-    List<String> compilerArgs = new ArrayList<>();
+    List<String> compilerArgs = new ArrayList<>(List.of("-parameters"));
+    compilerArgs.add("-implicit:class (where a task sets no -implicit policy)");
     if (preview) {
       compilerArgs.add("--enable-preview");
     }
@@ -378,11 +402,9 @@ public class HKJPlugin implements Plugin<Project> {
     for (String dep : depsAdded) {
       sb.append("    ").append(dep).append("\n");
     }
-    if (!compilerArgs.isEmpty()) {
-      sb.append("  Compiler args added:\n");
-      for (String arg : compilerArgs) {
-        sb.append("    ").append(arg).append("\n");
-      }
+    sb.append("  Compiler args added:\n");
+    for (String arg : compilerArgs) {
+      sb.append("    ").append(arg).append("\n");
     }
     return sb.toString().stripTrailing();
   }

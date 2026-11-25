@@ -9,9 +9,26 @@
 # classpath change, but a dependency gaining a spec that nothing downstream refers to may need a
 # clean downstream build to be seen. The per-type optics generators are likely ISOLATING-safe (one
 # annotated type, one origin per generated file), but an ISOLATING claim that turns out wrong
-# produces silently stale outputs, while AGGREGATING is behaviour-preserving for every processor
-# and already restores incremental compilation for consuming source sets. Refining individual
-# processors to ISOLATING needs a per-processor one-origin-per-file audit first.
+# produces silently stale outputs, while AGGREGATING is behaviour-preserving for every processor.
+# Refining individual processors to ISOLATING needs a per-processor one-origin-per-file audit first.
+#
+# AGGREGATING binds each processor to what a class file carries. In an incremental build Gradle
+# hands every unchanged annotated type of the compilation to it by name, and javac reads that type,
+# and every unchanged type it names, from the class files the last build wrote, so:
+# - each annotation a processor claims is CLASS-retained, or Gradle recompiles the whole source set
+#   on every change, and so is each hkj annotation it reads beside one (ProcessorRegistrationTest
+#   holds both to that);
+# - a parameter name survives only under -parameters, so a generator writing one where it reaches
+#   run time refuses a class file without them (MergeProcessor's null checks);
+# - no @SuppressWarnings survives, so a suppressible warning about a declaration read from a class
+#   file is not reported again (Diagnostics.mayWarn);
+# - another library's source-only annotations do not survive either, so a check that reads them,
+#   such as the one Lombok's @Singular asks for, is made only where the type is compiled from
+#   source, as for a dependency's;
+# - javac's Filer writes over a class file it refuses to write over in source, so a generator
+#   refuses a name a class file without HKJ's @Generated already has: the mapping, merge, error
+#   envelope and iso generators through GeneratedNames, and PathSourceProcessor in its own name
+#   checks. The other generators do not refuse one yet.
 #
 # CompanionAnnotationProcessor only claims the annotations the others read or write. It generates
 # nothing, so the one-origin-per-file rule holds for it trivially. ISOLATING leaves Gradle nothing to

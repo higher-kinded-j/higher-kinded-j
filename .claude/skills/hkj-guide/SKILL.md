@@ -376,8 +376,10 @@ plugins {
 This single line configures dependencies, preview features, annotation processors, and compile-time checks.
 
 It also adds **`-parameters`** to every compile task automatically. Do not add it by hand: the
-plugin (and the Maven lifecycle participant) now wire it unconditionally, and `@GenerateMapping`
-relies on it to read constructor parameter names.
+plugin (and the Maven lifecycle participant) wire it unconditionally, `@GenerateMapping` relies on
+it to read constructor parameter names, and Gradle's incremental build needs it, since it hands the
+processors unchanged types as class files. The Gradle plugin adds **`-implicit:class`** too, which
+keeps a modular source set's incremental build passing under `-Werror`. A Gradle build set up by hand passes both.
 
 ### Manual Gradle Setup
 
@@ -394,7 +396,7 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.add("--enable-preview")
+    options.compilerArgs.addAll(listOf("--enable-preview", "-parameters", "-implicit:class"))
 }
 
 tasks.withType<Test>().configureEach {

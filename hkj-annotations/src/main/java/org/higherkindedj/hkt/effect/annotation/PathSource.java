@@ -54,9 +54,12 @@ import java.lang.annotation.Target;
  * Combinable<ApiResultPath<?>, A>}, naming its own class as the family, for every other level, and
  * declares the further methods itself. Its {@code via}, {@code then} and {@code recoverWith} take
  * its own class, so a step of another kind does not compile.
+ *
+ * <p>Retained in the class file for an incremental build: Gradle hands the processor each unchanged
+ * annotated type by name, and the processor reads it from its class file.
  */
 @Target(ElementType.TYPE)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 @Documented
 public @interface PathSource {
 

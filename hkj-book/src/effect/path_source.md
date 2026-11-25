@@ -320,6 +320,7 @@ fix. The fix sentence is the one to act on; in short:
 | `which Java does not allow as the name of a class` | The suffix makes a reserved word, such as `record` | Choose another suffix |
 | `That is the type it is generated for` | An empty suffix lands the Path on the annotated type itself | Give a suffix, or a `targetPackage` |
 | `A type of that name is already declared in the compilation` | Another type already has the Path's name | Change the suffix, or rename that type |
+| `A type of that name is already on the classpath` | A class read from a class file without HKJ's `@Generated` has the Path's name, as a dependency's may | Change the suffix, set a `targetPackage`, or rename that class where it is yours |
 | `is not a package name` | `targetPackage` is not a package name | Give a name such as `com.shop.paths` |
 | `witness 'int' is not a class` | The witness is a primitive, `void` or an array | Name the witness marker class |
 | `is generic, and a class literal can name only its raw type` | The witness, or the error type at `RECOVERABLE`, takes type arguments | Use `GenericPath`, or a non-generic error type |

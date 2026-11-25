@@ -152,7 +152,10 @@ import java.lang.annotation.Target;
  *       sees a PATCH half applied. Over a protobuf-java message it generates {@code
  *       updateFrom(Wire, FieldMask)} instead, which edits the fields the mask names.
  * </ul>
+ *
+ * <p>Retained in the class file for an incremental build: Gradle hands the processor each unchanged
+ * spec by name, and the processor reads it from its class file.
  */
 @Target(ElementType.TYPE)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface GenerateMapping {}

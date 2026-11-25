@@ -238,6 +238,17 @@ public final class IsoProcessor extends AbstractProcessor {
             .addMethod(constructor)
             .build();
 
+    if (GeneratedNames.refusesReplacing(
+        processingEnv,
+        method,
+        TAG,
+        ClassName.get(packageName, generatedClassName),
+        "rename '"
+            + className
+            + "', whose iso class takes its name, or set @GenerateIsos(targetPackage) to write the"
+            + " class into another package")) {
+      return;
+    }
     JavaFile.builder(packageName, isoContainer).build().writeTo(processingEnv.getFiler());
   }
 }

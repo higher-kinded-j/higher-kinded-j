@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -171,26 +172,32 @@ class MappingGoldenFileTest {
   }
 
   private static Compilation compile() {
-    return javac()
-        .withProcessors(new MappingProcessor())
-        .compile(
-            lossless(),
-            fallible(),
-            beanWire(),
-            optionalBridge(),
-            flattened(),
-            projection(),
-            leafProjection(),
-            beanProjection(),
-            update(),
-            updateElementLifting(),
-            widenedContainers(),
-            sealed(),
-            wideRecord(),
-            wideBean(),
-            widePatch(),
-            oneWay(),
-            readOnly());
+    return javac().withProcessors(new MappingProcessor()).compile(fixtures());
+  }
+
+  /**
+   * Every golden case's sources, one file per case. {@link ClassFileReprocessingTest} reads them
+   * from class files too.
+   */
+  static List<JavaFileObject> fixtures() {
+    return List.of(
+        lossless(),
+        fallible(),
+        beanWire(),
+        optionalBridge(),
+        flattened(),
+        projection(),
+        leafProjection(),
+        beanProjection(),
+        update(),
+        updateElementLifting(),
+        widenedContainers(),
+        sealed(),
+        wideRecord(),
+        wideBean(),
+        widePatch(),
+        oneWay(),
+        readOnly());
   }
 
   // ---- read-only properties: getters with no setter, read by parse and left out of build ----

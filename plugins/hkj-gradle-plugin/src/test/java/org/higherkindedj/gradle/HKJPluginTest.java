@@ -148,6 +148,36 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName("adds -implicit:class to JavaCompile tasks that set no implicit policy")
+    void plugin_addsImplicitPolicy_whenNoneIsSet() {
+      applyPlugin();
+      evaluateProject();
+
+      assertThat(javaCompileTasks())
+          .allSatisfy(
+              task -> assertThat(task.getOptions().getCompilerArgs()).contains("-implicit:class"));
+    }
+
+    @Test
+    @DisplayName("leaves the implicit policy a JavaCompile task already sets")
+    void plugin_keepsTheBuildsImplicitPolicy() {
+      project.getPluginManager().apply("java");
+      project
+          .getTasks()
+          .withType(JavaCompile.class)
+          .configureEach(task -> task.getOptions().getCompilerArgs().add("-implicit:none"));
+      applyPlugin();
+      evaluateProject();
+
+      assertThat(javaCompileTasks())
+          .allSatisfy(
+              task ->
+                  assertThat(task.getOptions().getCompilerArgs())
+                      .contains("-implicit:none")
+                      .doesNotContain("-implicit:class"));
+    }
+
+    @Test
     @DisplayName("adds --enable-preview to JavaCompile tasks when preview is enabled")
     void plugin_addsPreviewFlags_whenEnabled() {
       applyPlugin();
@@ -364,6 +394,22 @@ class HKJPluginTest {
       evaluateProject();
 
       assertPluginArgs(handWritten);
+    }
+
+    @Test
+    @DisplayName("-parameters and an -implicit policy written as GStrings are not added again")
+    void plugin_addsNoCompilerFlagTwice_whenBuildWritesThemInGStrings() {
+      applyPlugin();
+      addToEveryCompile(new GStringImpl(new Object[] {"parameters"}, new String[] {"-", ""}));
+      addToEveryCompile(new GStringImpl(new Object[] {"none"}, new String[] {"-implicit:", ""}));
+      evaluateProject();
+
+      assertThat(javaCompileTasks())
+          .allSatisfy(
+              task ->
+                  assertThat(task.getOptions().getAllCompilerArgs())
+                      .filteredOn(arg -> arg.equals("-parameters") || arg.startsWith("-implicit:"))
+                      .containsExactly("-parameters", "-implicit:none"));
     }
 
     @Test

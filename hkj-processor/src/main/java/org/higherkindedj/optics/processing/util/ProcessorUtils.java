@@ -10,6 +10,11 @@ import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.classfile.Attributes;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.MethodModel;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -2932,25 +2937,150 @@ public final class ProcessorUtils {
    * Whether the compiler read an element from a source file of this compilation: a type's own, or a
    * package's {@code package-info.java}. Only the compiler can say, through {@code
    * Elements.getFileObjectOf}, a default method that throws {@link UnsupportedOperationException}
-   * unless the compiler overrides it, as javac does. So this is the one place that asks: an element
-   * the compiler cannot place is not taken for source, and each caller treats it as it treats one
-   * read from a class file, rather than the compilation aborting on the unsupported operation. A
-   * {@code false} is therefore no confirmation of a class file: it is also the answer for an
-   * element read from no file at all, such as a package without a {@code package-info.java}.
+   * unless the compiler overrides it, as javac does, so this answers without asking where the
+   * compiler cannot say: an element the compiler cannot place is not taken for source, and each
+   * caller treats it as it treats one read from a class file, rather than the compilation aborting
+   * on the unsupported operation. A {@code false} is therefore no confirmation of a class file: it
+   * is also the answer for an element read from no file at all, such as a package without a {@code
+   * package-info.java}. {@link #readFromClassFile} confirms one.
    *
-   * @param elements the compilation's element utilities
-   * @param element a type or package
+   * @param elements the compilation's element utilities; must not be null
+   * @param element a type, a member, or a package; must not be null
    * @return {@code true} only when the compiler reports the element's file as a source file
    * @since 0.4.11
    */
   public static boolean compiledFromSource(Elements elements, Element element) {
-    try {
-      return Optional.ofNullable(elements.getFileObjectOf(element))
-          .map(JavaFileObject::getKind)
-          .filter(JavaFileObject.Kind.SOURCE::equals)
-          .isPresent();
-    } catch (UnsupportedOperationException unsupported) {
+    return fileOf(elements, element)
+        .map(JavaFileObject::getKind)
+        .filter(JavaFileObject.Kind.SOURCE::equals)
+        .isPresent();
+  }
+
+  /**
+   * Whether the compiler read an element from a class file: a type's own, or the one declaring a
+   * member. Gradle's incremental build reads a type of the compilation this way when its source has
+   * not changed, handing an aggregating processor each such annotated type by name, so a processor
+   * meets class files of its own compilation as well as its dependencies'. The counterpart of
+   * {@link #compiledFromSource}, it answers {@code false} where the compiler cannot say, and a
+   * caller that treats a class file differently treats such an element as source.
+   *
+   * @param elements the compilation's element utilities; must not be null
+   * @param element a type, a member, or a package; must not be null
+   * @return {@code true} only when the compiler reports the element's file as a class file
+   * @since 0.6.0
+   */
+  public static boolean readFromClassFile(Elements elements, Element element) {
+    return fileOf(elements, element)
+        .map(JavaFileObject::getKind)
+        .filter(JavaFileObject.Kind.CLASS::equals)
+        .isPresent();
+  }
+
+  /**
+   * Whether writing a source named {@code qualifiedName} would replace a class no HKJ generator
+   * wrote: one the compiler read from a class file that carries no HKJ {@code
+   * org.higherkindedj.optics.annotations.Generated}, such as a dependency's, or a hand-written
+   * class Gradle's incremental build did not recompile. javac's Filer refuses a name a source of
+   * this compilation declares, but writes over a class file with no more than a warning. A class
+   * file carrying {@code @Generated}, such as one a previous build wrote, is a generator's to
+   * replace.
+   *
+   * @param elements the compilation's element utilities; must not be null
+   * @param qualifiedName the canonical name of the class a generator is about to write, a simple
+   *     name in the unnamed package; must not be null
+   * @return {@code true} only when a class of that name is read from a class file without the mark
+   * @since 0.6.0
+   */
+  public static boolean replacesUngeneratedClass(Elements elements, String qualifiedName) {
+    // ClassFiles.replacesUngeneratedClass in hkj-spring's client processor answers the same way.
+    TypeElement taken = elements.getTypeElement(qualifiedName);
+    return taken != null
+        && readFromClassFile(elements, taken)
+        && findAnnotation(taken, "org.higherkindedj.optics.annotations.Generated") == null;
+  }
+
+  /**
+   * Whether a method's parameters carry the names its source wrote. javac reads them from source,
+   * or from a class file's {@code MethodParameters} attribute, which {@code -parameters} writes, or
+   * from the local variable table {@code -g} writes for a method with a body. Where it finds none
+   * it names them {@code arg0}, {@code arg1} by position, as it does every parameter of an abstract
+   * method compiled without {@code -parameters}. Those names are taken as lost unless the class
+   * file records names for every method of that name and parameter count, in case the source wrote
+   * them. A class file this cannot read records none.
+   *
+   * @param elements the compilation's element utilities; must not be null
+   * @param method the method whose parameter names a generator would write; must not be null
+   * @return {@code false} only when javac names every parameter by its position and the method's
+   *     class file records no names for it
+   * @since 0.6.0
+   */
+  public static boolean keepsParameterNames(Elements elements, ExecutableElement method) {
+    // ClassFiles.keepsParameterNames in hkj-spring's client processor answers the same way.
+    List<? extends VariableElement> parameters = method.getParameters();
+    boolean placeholders =
+        !parameters.isEmpty()
+            && IntStream.range(0, parameters.size())
+                .allMatch(
+                    index -> parameters.get(index).getSimpleName().contentEquals("arg" + index));
+    if (!placeholders) {
+      return true;
+    }
+    String name = method.getSimpleName().toString();
+    return fileOf(elements, method)
+        .filter(file -> file.getKind() == JavaFileObject.Kind.CLASS)
+        .map(file -> recordsNames(file, name, parameters.size()))
+        .orElse(true);
+  }
+
+  /**
+   * Whether a class file records the parameter names of each method of that name and parameter
+   * count, as javac reads them: it passes over a name the file marks mandated, as it marks a
+   * compact canonical constructor's, or synthetic, and a record's canonical constructor records
+   * names even without {@code -parameters}, so another constructor answers only for itself.
+   */
+  private static boolean recordsNames(JavaFileObject file, String name, int arity) {
+    try (InputStream in = file.openInputStream()) {
+      List<MethodModel> candidates =
+          ClassFile.of().parse(in.readAllBytes()).methods().stream()
+              .filter(method -> method.methodName().equalsString(name))
+              .filter(method -> method.methodTypeSymbol().parameterCount() == arity)
+              .toList();
+      return !candidates.isEmpty()
+          && candidates.stream().allMatch(ProcessorUtils::namesItsParameters);
+    } catch (IOException
+        | IllegalArgumentException
+        | IllegalStateException
+        | UnsupportedOperationException unreadable) {
       return false;
+    }
+  }
+
+  private static boolean namesItsParameters(MethodModel method) {
+    return method
+        .findAttribute(Attributes.methodParameters())
+        .map(
+            attribute ->
+                !attribute.parameters().isEmpty()
+                    && attribute.parameters().stream()
+                        .allMatch(
+                            parameter ->
+                                parameter.name().isPresent()
+                                    && (parameter.flagsMask()
+                                            & (ClassFile.ACC_MANDATED | ClassFile.ACC_SYNTHETIC))
+                                        == 0))
+        .orElse(false);
+  }
+
+  /**
+   * The file the compiler read an element from. Only the compiler can say, through {@code
+   * Elements.getFileObjectOf}, a default method that throws {@link UnsupportedOperationException}
+   * unless the compiler overrides it, as javac does; there the file is unknown.
+   */
+  private static Optional<JavaFileObject> fileOf(Elements elements, Element element) {
+    try {
+      return Optional.ofNullable(elements.getFileObjectOf(element));
+    } catch (UnsupportedOperationException unsupported) {
+      return Optional.empty();
     }
   }
 }

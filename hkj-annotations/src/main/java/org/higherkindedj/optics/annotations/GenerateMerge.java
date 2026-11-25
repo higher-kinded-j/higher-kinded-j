@@ -40,7 +40,12 @@ import java.lang.annotation.Target;
  * own invariant) is an unlabelled {@code FieldError} carrying its message. A plain-return merge is
  * total by its declaration: nulls flow through to the target constructor, and whatever it throws
  * propagates.
+ *
+ * <p>Retained in the class file for an incremental build: Gradle hands the processor each unchanged
+ * merge by name, and the processor reads it from its class file. The generated Impl names each
+ * source in its null check, so the class file must record the merge method's parameter names, as
+ * one compiled with {@code -parameters} does; the processor refuses one that records none.
  */
 @Target(ElementType.TYPE)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface GenerateMerge {}

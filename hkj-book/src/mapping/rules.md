@@ -55,6 +55,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Does a spec compiled in another module nest?](structure.md#across-modules) | Yes, when that module ran `hkj-processor`. | by design |
 | [What if two dependencies map the same pair?](#how-a-dependencys-specs-are-found) | The more specific is used, with a note. Where neither is, your own spec or a leaf picks one. | by design |
 | [Can a spec-carrying module sit on the module path?](#how-a-dependencys-specs-are-found) | Not with the index: keep those jars on the classpath, or delegate with a leaf. | not supported yet |
+| [Can a generated `Impl` or envelope reuse a class name from the classpath?](../tooling/manual_setup.md#incremental-compilation) | No, unless HKJ wrote that class: the processor refuses it, `has the name of a class on the classpath`. | by design |
 | **Emission tiers** | | |
 | [Why does a bean mapping, or an `@OptionalBridge` component, lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset, and a bridged value can be absent. An all-primitive bean keeps it. | by design |
 | [Why does a record wire's `@Nullable` component cost `asIso()` or `asLens()`?](#where-a-nullable-record-component-lands) | Where the domain declares it non-null, an optic would hand over a `null` the domain's type rules out; `parse` refuses it. | by design |
@@ -113,6 +114,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a merge fill a component through a spec's `build`?](#how-a-merge-fills) | No: a merge runs a spec's `parse` only. | not supported yet |
 | [Can a merge fill a component through a threaded spec?](#how-a-merge-fills) | Yes, by the rule a mapping nests it by. | by design |
 | [Can a merge fill a component through an element-mapped spec?](#how-a-merge-fills) | No: a leaf over the whole pair builds it with `of(...)`. | not supported yet |
+| [Does an incremental build need `-parameters` for a merge?](../tooling/manual_setup.md#incremental-compilation) | Yes: a merge's null checks name its sources, so the processor refuses a spec whose class file records no parameter names. | by design |
 | [Can an error envelope hierarchy be generic?](#error-envelope-rules) | No: the hierarchy, its variants and the context are non-generic. | by design |
 | [Does an error envelope over a deprecated type compile under `-Werror`?](../optics/production_readiness.md#build-time-impact) | No: the generated envelope names the type, and nothing there suppresses the warning. | not supported yet |
 
@@ -234,7 +236,7 @@ What else takes the `null`, and the fix the processor offers there:
 - **`@Nullable` is read as for [a copy](#nullable-copy-into-non-null)**, a type argument the spec writes `@Nullable` included. Holding such a component as an `Optional` is no fix, so its type argument is offered instead.
 - **A record's own accessor decides.** `build` calls it, so the processor accepts an accessor that answers a value where the field holds `null`.
 - **A bridge onto a site declared non-null needs it nullable too**, so the fix line says to mark it. A leaf a mix-in declares is overridden on the spec, carrying `@OptionalBridge`, since the mix-in serves specs whose component is no `Optional`.
-- **A Lombok class read from a class file is copied as before.** Lombok keeps `@Singular` in source only, so a compiled builder cannot show whether it skips a `null`.
+- **A Lombok class read from a class file is copied as before**, with Lombok 1.18.34 or later. Lombok keeps `@Singular` in source only, so a compiled builder cannot show whether it skips a `null`. That includes a bean Gradle's [incremental build](../tooling/manual_setup.md#incremental-compilation) did not recompile, so the next clean build refuses what that build let through.
 - **`parse` never produces such a `null`.** It refuses any read that no `Optional` bridges, as [the null contract](#the-null-contract-precisely) says, so carrying the `null` through `build` would make the two directions disagree.
 - **The processor leaves a `@GenerateMerge` with a leaf or a nested spec alone.** Such a merge is fallible, and guards each read, reporting a `null` as `must not be null`.
 - **A mapping that only parses writes nothing**, so this rule never refuses it.

@@ -61,6 +61,11 @@ subprojects {
             // justified @SuppressWarnings or the build fails (see issue #560).
             listOf("-Xmaxerrs", "10000", "--enable-preview", "-Xlint:unchecked,rawtypes", "-Werror")
         )
+        // javac's default implicit policy, set explicitly. An incremental compile of a modular
+        // source set reads the javadoc-only package-info.java files from the source path, as
+        // they have no class file, and with the policy unset javac warns that they were not
+        // processed, which -Werror makes fatal.
+        options.compilerArgs.add("-implicit:class")
     }
 
     // Run HKJ's own compile-time checks over HKJ. The checks exist for HKJ shapes, so the

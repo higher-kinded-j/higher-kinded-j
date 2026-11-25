@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * A client interface extending a base interface compiled into a dependency. The base module is
@@ -188,6 +189,20 @@ class HkjHttpClientProcessorClasspathTest {
             .compile(
                 Stream.concat(baseSources(typeParameters, members).stream(), Stream.of(others))
                     .toList());
+    assertThat(compilation).succeeded();
+    Path dir = Files.createTempDirectory(tmp, "base");
+    layOut(compilation, dir);
+    return dir;
+  }
+
+  /**
+   * {@link #baseModule(String)} compiled without {@code -parameters}, so its class files record no
+   * parameter names: a jar built that way, or, in Gradle's incremental build of a source set
+   * compiled that way, a base Gradle did not recompile alongside its client.
+   */
+  private Path baseModuleWithoutParameterNames(String members) throws IOException {
+    Compilation compilation =
+        javac().withProcessors().withClasspath(TEST_CLASSPATH).compile(baseSources(members));
     assertThat(compilation).succeeded();
     Path dir = Files.createTempDirectory(tmp, "base");
     layOut(compilation, dir);
@@ -646,6 +661,164 @@ class HkjHttpClientProcessorClasspathTest {
         .doesNotContain("Old")
         .doesNotContain("Dated")
         .doesNotContain("Local");
+  }
+
+  @Nested
+  @DisplayName("a base whose class file records no parameter names")
+  class WithoutParameterNames {
+
+    @Test
+    @DisplayName("a binding it leaves unnamed is refused on the client, not bound to 'arg0'")
+    void anUnnamedBindingIsRefused() throws IOException {
+      Compilation compilation = compiler(baseModuleWithoutParameterNames(OVERRIDES)).compile(CHILD);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot name the binding of"
+                  + " parameter 'arg0': BaseApi is read from a class file that records no"
+                  + " parameter names, as one compiled without -parameters does, whether it is a"
+                  + " jar's or a base Gradle's incremental build did not recompile. javac reads the"
+                  + " names as 'arg0', 'arg1', and Spring would bind those. Compile BaseApi with"
+                  + " -parameters, write each binding's name, as in @PathVariable(\"id\"), or"
+                  + " redeclare 'getUser' on the client.")
+          .inFile(CHILD);
+      assertThat(compilation).hadErrorContaining("'getProfile', inherited from 'BaseApi'");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("a base nested in another class is read from its own class file")
+    void aNestedBaseIsReadFromItsOwnClassFile() throws IOException {
+      Compilation base =
+          javac()
+              .withProcessors()
+              .withClasspath(TEST_CLASSPATH)
+              .compile(
+                  Stream.concat(
+                          BASE_TYPES.stream(),
+                          Stream.of(
+                              JavaFileObjects.forSourceString(
+                                  "com.upstream.Apis",
+                                  """
+                                  package com.upstream;
+
+                                  import org.higherkindedj.hkt.effect.EitherPath;
+                                  import org.springframework.web.bind.annotation.PathVariable;
+                                  import org.springframework.web.service.annotation.GetExchange;
+
+                                  public final class Apis {
+                                    public interface NestedApi {
+                                      @GetExchange("/{id}")
+                                      EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+                                    }
+                                  }
+                                  """)))
+                      .toList());
+      assertThat(base).succeeded();
+      Path dir = Files.createTempDirectory(tmp, "base");
+      layOut(base, dir);
+      JavaFileObject child =
+          JavaFileObjects.forSourceString(
+              "com.downstream.NestedChildApi",
+              """
+              package com.downstream;
+
+              import com.upstream.Apis;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.service.annotation.HttpExchange;
+
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface NestedChildApi extends Apis.NestedApi {}
+              """);
+
+      Compilation compilation = compiler(dir).compile(child);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'getUser', inherited from 'NestedApi': @HkjHttpClient cannot name the binding of"
+                  + " parameter 'arg0': NestedApi is read from a class file that records no"
+                  + " parameter names")
+          .inFile(child);
+    }
+
+    @ParameterizedTest(name = "beside {0}.OtherApi")
+    @ValueSource(strings = {"com.downstream", "com.vendor"})
+    @DisplayName("one of two bases declaring a method is refused, not taken for a second shape")
+    void oneOfTwoBasesIsRefused(String otherPackage) throws IOException {
+      // Inherited twice, getUser is refused where the class file's names were lost, rather than
+      // reported as two declarations the client would write differently. javac lists the base
+      // whose qualified name sorts later first, so the two packages put com.upstream.BaseApi's
+      // declaration first and second.
+      JavaFileObject other =
+          JavaFileObjects.forSourceString(
+              otherPackage + ".OtherApi",
+              """
+              package %s;
+
+              import com.upstream.ApiErr;
+              import com.upstream.UserDto;
+              import org.higherkindedj.hkt.effect.EitherPath;
+              import org.springframework.web.bind.annotation.PathVariable;
+              import org.springframework.web.service.annotation.GetExchange;
+
+              public interface OtherApi {
+                @GetExchange("/{id}")
+                EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+              }
+              """
+                  .formatted(otherPackage));
+      JavaFileObject child =
+          JavaFileObjects.forSourceString(
+              "com.downstream.BothApi",
+              """
+              package com.downstream;
+
+              import com.upstream.BaseApi;
+              import org.higherkindedj.spring.client.HkjHttpClient;
+              import org.springframework.web.service.annotation.HttpExchange;
+
+              @HttpExchange("/users")
+              @HkjHttpClient
+              public interface BothApi extends %s.OtherApi, BaseApi {}
+              """
+                  .formatted(otherPackage));
+      Path base =
+          baseModuleWithoutParameterNames(
+              """
+                @GetExchange("/{id}")
+                EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+              """);
+
+      Compilation compilation = compiler(base).compile(other, child);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot name the binding of"
+                  + " parameter 'arg0'")
+          .inFile(child);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a binding it names is bound by that name, whatever javac calls the parameter")
+    void aNamedBindingIsBoundByItsName() throws IOException {
+      Compilation compilation =
+          compiler(
+                  baseModuleWithoutParameterNames(
+                      """
+                        @GetExchange("/{id}")
+                        EitherPath<ApiErr, UserDto> getUser(@PathVariable("id") String id);
+                      """))
+              .compile(CHILD);
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
+          .contains("@PathVariable(\"id\") String arg0");
+    }
   }
 
   /**

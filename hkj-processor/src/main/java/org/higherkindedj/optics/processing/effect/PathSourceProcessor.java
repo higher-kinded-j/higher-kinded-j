@@ -410,9 +410,11 @@ public class PathSourceProcessor extends AbstractProcessor {
   }
 
   /**
-   * Refuses a Path class name a type compiled from source here already has: the annotated type's
-   * own, where an empty suffix leaves it in its package, or any other. A class file of that name,
-   * such as one a previous build generated, is not in the way, since the Filer writes a source.
+   * Refuses a Path class name another type already has: the annotated type's own, where an empty
+   * suffix leaves it in its package, or any other. A class file carrying {@code @Generated}, such
+   * as the Path a previous build wrote, is not in the way, since the Filer writes a source in its
+   * place. One without it is a hand-written type that Gradle's incremental build read from its
+   * class file rather than recompile, or a dependency's, and the Path would replace it.
    */
   private boolean checkNameIsFree(
       TypeElement source,
@@ -421,8 +423,13 @@ public class PathSourceProcessor extends AbstractProcessor {
       String packageName,
       String pathClassName) {
     Elements elements = processingEnv.getElementUtils();
-    TypeElement taken = elements.getTypeElement(packageName + "." + pathClassName);
-    if (taken == null || !ProcessorUtils.compiledFromSource(elements, taken)) {
+    String name = ClassName.get(packageName, pathClassName).canonicalName();
+    TypeElement taken = elements.getTypeElement(name);
+    if (taken == null) {
+      return true;
+    }
+    boolean declaredHere = ProcessorUtils.compiledFromSource(elements, taken);
+    if (!declaredHere && !ProcessorUtils.replacesUngeneratedClass(elements, name)) {
       return true;
     }
     boolean itself = taken.equals(source);
@@ -440,13 +447,24 @@ public class PathSourceProcessor extends AbstractProcessor {
             + "'",
         itself
             ? "That is the type it is generated for."
-            : "A type of that name is already declared in the compilation.",
+            : declaredHere
+                ? "A type of that name is already declared in the compilation."
+                : "A type of that name is already on the classpath, in a class file without HKJ's"
+                    + " @Generated, so it is a dependency's, another processor's output from an"
+                    + " earlier build, or a hand-written class Gradle's incremental build did not"
+                    + " recompile, and the Path would replace it.",
         itself
             ? "Give a non-empty suffix, remove suffix to use the default \"Path\", or set a"
                 + " targetPackage to write the Path elsewhere."
-            : "Set a suffix that names a free class, or rename '"
-                + taken.getQualifiedName()
-                + "'.");
+            : declaredHere
+                ? "Set a suffix that names a free class, or rename '"
+                    + taken.getQualifiedName()
+                    + "'."
+                : "Set a suffix that names a free class, set a targetPackage to write the Path"
+                    + " elsewhere, rename '"
+                    + taken.getQualifiedName()
+                    + "' where it is yours, or rebuild from clean where it is an earlier build's"
+                    + " output.");
     return false;
   }
 

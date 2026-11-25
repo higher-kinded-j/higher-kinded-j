@@ -10,11 +10,27 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.TypeVariableName;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.MethodBuilder;
+import java.lang.classfile.attribute.MethodParameterInfo;
+import java.lang.classfile.attribute.MethodParametersAttribute;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDescs;
+import java.lang.constant.MethodTypeDesc;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -31,6 +47,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1779,6 +1796,202 @@ class ProcessorUtilsTest {
       assertThat(elsewhere.names)
           .containsEntry("string.local", "java.lang.String")
           .containsEntry("string.nested", "java.lang.String");
+    }
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#keepsParameterNames}. A javac compilation supplies the
+   * methods, with the names its source gives them, and the test builds the class file javac is told
+   * they were read from, which decides the answer.
+   */
+  @Nested
+  @DisplayName("keepsParameterNames")
+  class KeepsParameterNames {
+
+    /** {@code placeholders} has the names javac gives parameters it finds no names for. */
+    private static final JavaFileObject SUBJECT =
+        JavaFileObjects.forSourceString(
+            "com.test.Subject",
+            """
+            package com.test;
+            public interface Subject {
+              void none();
+              void placeholders(String arg0, int arg1);
+              void named(String name);
+            }
+            """);
+
+    /** The subject's class file, recording no parameter names, as one without -parameters. */
+    private static byte[] withoutNames() {
+      return subject(method -> {});
+    }
+
+    /** The subject's class file, its {@code placeholders} recording the given names. */
+    private static byte[] recording(List<Optional<String>> names) {
+      return recording(names, 0);
+    }
+
+    /**
+     * The subject's class file, its {@code placeholders} recording the given names with the given
+     * access flags, which javac reads past where they mark a name mandated or synthetic.
+     */
+    private static byte[] recording(List<Optional<String>> names, int flags) {
+      return subject(
+          method ->
+              method.with(
+                  MethodParametersAttribute.of(
+                      names.stream()
+                          .map(name -> MethodParameterInfo.ofParameter(name, flags))
+                          .toList())));
+    }
+
+    /**
+     * The subject's class file, {@code placeholders} given {@code attributes}. An overload of
+     * another parameter count records its name, and answers only for itself.
+     */
+    private static byte[] subject(Consumer<MethodBuilder> attributes) {
+      return ClassFile.of()
+          .build(
+              ClassDesc.of("com.test.Subject"),
+              type ->
+                  type.withFlags(
+                          ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE | ClassFile.ACC_ABSTRACT)
+                      .withMethod(
+                          "placeholders",
+                          MethodTypeDesc.of(
+                              ConstantDescs.CD_void, ConstantDescs.CD_String, ConstantDescs.CD_int),
+                          ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
+                          attributes)
+                      .withMethod(
+                          "placeholders",
+                          MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_String),
+                          ClassFile.ACC_PUBLIC | ClassFile.ACC_ABSTRACT,
+                          method ->
+                              method.with(
+                                  MethodParametersAttribute.of(
+                                      MethodParameterInfo.ofParameter(Optional.of("arg0"), 0)))));
+    }
+
+    /** What keepsParameterNames answers for each subject method, read from source as it was. */
+    private static Map<String, Boolean> askedFromSource() {
+      return asked(UnaryOperator.identity());
+    }
+
+    /**
+     * What keepsParameterNames answers for each subject method, with javac reporting each read from
+     * a class file holding {@code bytes}.
+     */
+    private static Map<String, Boolean> askedOf(byte[] bytes) {
+      return asked(real -> readFrom(real, bytes));
+    }
+
+    private static Map<String, Boolean> asked(UnaryOperator<Elements> view) {
+      Map<String, Boolean> answers = new LinkedHashMap<>();
+      AbstractProcessor processor =
+          new AbstractProcessor() {
+            @Override
+            public Set<String> getSupportedAnnotationTypes() {
+              return Set.of("*");
+            }
+
+            @Override
+            public SourceVersion getSupportedSourceVersion() {
+              return SourceVersion.latestSupported();
+            }
+
+            @Override
+            public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+              Elements real = processingEnv.getElementUtils();
+              TypeElement type = real.getTypeElement("com.test.Subject");
+              if (type == null || !answers.isEmpty()) {
+                return false;
+              }
+              Elements asked = view.apply(real);
+              for (ExecutableElement method : ElementFilter.methodsIn(type.getEnclosedElements())) {
+                answers.put(
+                    method.getSimpleName().toString(),
+                    ProcessorUtils.keepsParameterNames(asked, method));
+              }
+              return false;
+            }
+          };
+      assertThat(javac().withProcessors(processor).compile(SUBJECT)).succeeded();
+      return answers;
+    }
+
+    /** {@code real}, but reporting every element read from a class file holding {@code bytes}. */
+    private static Elements readFrom(Elements real, byte[] bytes) {
+      JavaFileObject classFile =
+          new SimpleJavaFileObject(
+              URI.create("mem:///com/test/Subject.class"), JavaFileObject.Kind.CLASS) {
+            @Override
+            public InputStream openInputStream() {
+              return new ByteArrayInputStream(bytes);
+            }
+          };
+      return (Elements)
+          Proxy.newProxyInstance(
+              Elements.class.getClassLoader(),
+              new Class<?>[] {Elements.class},
+              (_, called, arguments) -> {
+                if (called.getName().equals("getFileObjectOf")) {
+                  return classFile;
+                }
+                try {
+                  return called.invoke(real, arguments);
+                } catch (InvocationTargetException e) {
+                  throw e.getCause();
+                }
+              });
+    }
+
+    @Test
+    @DisplayName("names javac gives by position are lost where the class file records none")
+    void placeholderNamesAreLostWithoutRecordedNames() {
+      assertThat(askedOf(withoutNames()))
+          .containsEntry("placeholders", false)
+          .containsEntry("named", true)
+          .containsEntry("none", true);
+    }
+
+    @Test
+    @DisplayName("a method read from source keeps the names it was given, arg0 included")
+    void aMethodReadFromSourceKeepsItsNames() {
+      assertThat(askedFromSource()).containsEntry("placeholders", true);
+    }
+
+    @Test
+    @DisplayName("a class file recording every name keeps them, one leaving a name out does not")
+    void aClassFileRecordingTheNamesKeepsThem() {
+      assertThat(askedOf(recording(List.of(Optional.of("arg0"), Optional.of("arg1")))))
+          .containsEntry("placeholders", true);
+      assertThat(askedOf(recording(List.of(Optional.of("arg0"), Optional.empty()))))
+          .containsEntry("placeholders", false);
+      assertThat(askedOf(recording(List.of()))).containsEntry("placeholders", false);
+      assertThat(
+              askedOf(
+                  recording(
+                      List.of(Optional.of("arg0"), Optional.of("arg1")), ClassFile.ACC_MANDATED)))
+          .containsEntry("placeholders", false);
+      assertThat(
+              askedOf(
+                  recording(
+                      List.of(Optional.of("arg0"), Optional.of("arg1")), ClassFile.ACC_SYNTHETIC)))
+          .containsEntry("placeholders", false);
+    }
+
+    @Test
+    @DisplayName("a class file that declares no such method, or cannot be read, records none")
+    void aClassFileThatCannotSayRecordsNone() {
+      assertThat(
+              askedOf(
+                  ClassFile.of()
+                      .build(
+                          ClassDesc.of("com.test.Subject"),
+                          type -> type.withFlags(ClassFile.ACC_PUBLIC | ClassFile.ACC_INTERFACE))))
+          .containsEntry("placeholders", false);
+      assertThat(askedOf("not a class file".getBytes(StandardCharsets.UTF_8)))
+          .containsEntry("placeholders", false);
     }
   }
 }
