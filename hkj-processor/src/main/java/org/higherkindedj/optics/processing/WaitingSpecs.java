@@ -82,10 +82,7 @@ final class WaitingSpecs {
 
     static ImplName of(Elements elements, TypeElement spec) {
       var impl = MappingProcessor.implClassName(spec);
-      return new ImplName(
-          elements.getModuleOf(spec).getQualifiedName().toString(),
-          impl.packageName(),
-          impl.simpleName());
+      return new ImplName(TypeKey.moduleOf(elements, spec), impl.packageName(), impl.simpleName());
     }
   }
 
@@ -332,7 +329,7 @@ final class WaitingSpecs {
           ((TypeElement) ((DeclaredType) unresolved).asElement()).getQualifiedName().toString();
       int dot = name.lastIndexOf('.');
       return new ImplName(
-          elements.getModuleOf(site).getQualifiedName().toString(),
+          TypeKey.moduleOf(elements, site),
           dot < 0
               ? elements.getPackageOf(site).getQualifiedName().toString()
               : name.substring(0, dot),

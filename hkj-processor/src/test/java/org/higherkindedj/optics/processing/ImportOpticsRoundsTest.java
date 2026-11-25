@@ -114,6 +114,35 @@ class ImportOpticsRoundsTest {
   class Waits {
 
     @Test
+    @DisplayName("an importer waits where the compilation has no modules")
+    void importerWaitsWhereTheCompilationHasNoModules() {
+      // Under -source 8 javac places a type in no module, and an importer is held by its name
+      // alone. ImmutableFoo is a plain class, as Java 8 has no records.
+      var importer =
+          source(
+              "com.myapp.FooImports",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({com.gen.ImmutableFoo.class})
+              class FooImports {}
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(
+                  new TypeWriter(Map.of("com.gen.ImmutableFoo", IMMUTABLE_FOO)),
+                  new ImportOpticsProcessor())
+              .withOptions("-source", "8", "-target", "8", "-Xlint:-options")
+              .compile(importer);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.myapp.ImmutableFooLenses").isNotNull();
+    }
+
+    @Test
     @DisplayName("a package listing a written class imports it once it resolves")
     void packageListingAWrittenClassImportsIt() {
       var packageInfo =

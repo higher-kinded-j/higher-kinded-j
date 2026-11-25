@@ -47,23 +47,27 @@ public class PrismProcessor extends AbstractProcessor {
   /** Creates a new PrismProcessor. */
   public PrismProcessor() {}
 
+  /** The sum types waiting for a type a later round brings (see {@link WaitingOptics}). */
+  private final WaitingOptics waiting = new WaitingOptics(GeneratePrisms.class);
+
   /**
    * {@inheritDoc}
    *
    * <p>This implementation scans for types annotated with {@link GeneratePrisms}, validates that
    * they are sealed interfaces or enums, and triggers the generation of the corresponding prisms
-   * companion class.
+   * companion class. One naming a type a later round brings waits for that round.
    */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (TypeElement annotation : annotations) {
-      for (Element element : roundEnv.getElementsAnnotatedWith(annotation)) {
-        if (element.getKind() != ElementKind.INTERFACE && element.getKind() != ElementKind.ENUM) {
-          error(
-              "The @GeneratePrisms annotation can only be applied to sealed interfaces or enums.",
-              element);
-          continue;
-        }
+    WaitingOptics.Round round = waiting.round(processingEnv, roundEnv);
+    for (Element element : round.elements()) {
+      if (element.getKind() != ElementKind.INTERFACE && element.getKind() != ElementKind.ENUM) {
+        error(
+            "The @GeneratePrisms annotation can only be applied to sealed interfaces or enums.",
+            element);
+        continue;
+      }
+      if (round.ready(element)) {
         writePrismsFile((TypeElement) element);
       }
     }

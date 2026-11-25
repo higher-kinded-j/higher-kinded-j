@@ -40,15 +40,18 @@ public class GetterProcessor extends AbstractProcessor {
   /** Creates a new GetterProcessor. */
   public GetterProcessor() {}
 
+  /** The records waiting for a type a later round brings (see {@link WaitingOptics}). */
+  private final WaitingOptics waiting = new WaitingOptics(GenerateGetters.class);
+
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (TypeElement annotation : annotations) {
-      Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-      for (Element element : annotatedElements) {
-        if (element.getKind() != ElementKind.RECORD) {
-          error("The @GenerateGetters annotation can only be applied to records.", element);
-          continue;
-        }
+    WaitingOptics.Round round = waiting.round(processingEnv, roundEnv);
+    for (Element element : round.elements()) {
+      if (element.getKind() != ElementKind.RECORD) {
+        error("The @GenerateGetters annotation can only be applied to records.", element);
+        continue;
+      }
+      if (round.ready(element)) {
         writeGettersFile((TypeElement) element);
       }
     }

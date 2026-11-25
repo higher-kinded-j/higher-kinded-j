@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
@@ -39,26 +40,29 @@ public class LensProcessor extends AbstractProcessor {
   /** Creates a new LensProcessor. */
   public LensProcessor() {}
 
+  /** The records waiting for a type a later round brings (see {@link WaitingOptics}). */
+  private final WaitingOptics waiting = new WaitingOptics(GenerateLenses.class);
+
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (TypeElement annotation : annotations) {
-      Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-      for (Element element : annotatedElements) {
-        if (element.getKind() != ElementKind.RECORD) {
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              element,
-              "@GenerateLenses",
-              "can only be applied to records, but '"
-                  + element.getSimpleName()
-                  + "' is a "
-                  + element.getKind().toString().toLowerCase(java.util.Locale.ROOT)
-                  + ".",
-              "The processor derives one Lens per record component.",
-              "Move the annotation to a record, or use @ImportOptics with an OpticsSpec"
-                  + " interface for types you cannot change.");
-          continue;
-        }
+    WaitingOptics.Round round = waiting.round(processingEnv, roundEnv);
+    for (Element element : round.elements()) {
+      if (element.getKind() != ElementKind.RECORD) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            element,
+            "@GenerateLenses",
+            "can only be applied to records, but '"
+                + element.getSimpleName()
+                + "' is a "
+                + element.getKind().toString().toLowerCase(Locale.ROOT)
+                + ".",
+            "The processor derives one Lens per record component.",
+            "Move the annotation to a record, or use @ImportOptics with an OpticsSpec"
+                + " interface for types you cannot change.");
+        continue;
+      }
+      if (round.ready(element)) {
         writeLensesFile((TypeElement) element);
       }
     }

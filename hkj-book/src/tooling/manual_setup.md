@@ -177,6 +177,8 @@ A class file keeps no annotation retained in source alone, so what such an annot
 - **A Lombok bean's class file is read as Lombok's by `lombok.Generated`.** Lombok writes it by default from 1.18.34. With an earlier Lombok, an incremental build reads the bean's methods as hand-written, and can refuse what a clean build accepts. Use Lombok 1.18.34 or later, or set `lombok.addLombokGeneratedAnnotation = true` in `lombok.config`.
 - **A base's source-only annotation reaches a client from source alone.** An annotation such as `@SuppressWarnings` on a base interface's method is copied onto the client's generated interface only where Gradle compiles the base. The client compiles the same either way.
 
+A type-use annotation another processor writes reaches an optic from source alone too, for another reason. Where Gradle reads a record from its class file and deletes that processor's output, javac never resolves the annotation in that compilation again. That holds in the class file and in a record recompiled beside it, so the optic leaves it off. Under `@NullMarked` a `@Nullable` left off changes the optic's signature; the next clean build writes it.
+
 Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first. Gradle's `--info` output names the cause of a full recompilation, as in `Full recompilation is required because ...`.
 
 ## Multi-module builds
@@ -209,6 +211,14 @@ dependencies {
 A mapping may name a type another annotation processor writes in the same compilation: a wire class generated from a schema, say, or a value type another library generates. Such a type does not exist until the processing round after the one that writes it, so the mapping processors wait for it. A `@GenerateMapping` or `@GenerateMerge` spec whose domain or wire type, or anything read from them (a record component, a bean property, a builder, a mix-in method), names a type not written yet is generated once that type exists, and so is any spec that nests it. It maps exactly as it would were the type written by hand, and nothing needs configuring.
 
 If the type never appears, for example because the processor that writes it is missing from the processor path, the spec generates nothing. javac's own error names the missing type, and code that uses the spec's `Impl` reports that `Impl` missing too; supply the type and both errors go.
+
+## Optics over types other processors generate {#optics-over-types-other-processors-generate}
+
+The optics generators wait in the same way. A type carrying `@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, `@GenerateGetters`, `@GenerateSetters`, `@GenerateFolds` or `@GenerateTraversals`, or a `@GenerateIsos` method, that names a type not written yet is generated once that type exists. So is one that reads a constant such a type declares, as `@GenerateLenses(targetPackage = Packages.OPTICS)` does. The generated class is exactly what it would be were the type written by hand.
+
+The wait covers a component's type with every type argument in it, a type-parameter bound, a permitted subtype, a superclass or interface, an iso method's return type, and a type-use annotation. Each type in your sources that the declaration reaches is read the same way, so a record waits with a record it holds, and a navigator never steps into one still waiting. A record Gradle's [incremental build](#incremental-compilation) reads from its class file waits only for a declaration recompiled beside it that it reaches, since the class file names each of its own types in full.
+
+If the type never appears, the generator writes nothing for the declaration, and says so there with what never resolved, as [Compiler Messages](../optics/compiler_errors.md#generated-nothing-no-round-resolved) shows. A declaration read from its class file has no position, so the message names it in full. javac's own error names the missing type where the source writes it.
 
 ---
 

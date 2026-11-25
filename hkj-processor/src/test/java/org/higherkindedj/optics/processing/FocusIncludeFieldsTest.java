@@ -7,6 +7,7 @@ import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectoryWithout;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 
 import com.google.testing.compile.Compilation;
@@ -539,6 +540,46 @@ class FocusIncludeFieldsTest {
             + written.record()
             + ".");
     followedCleanly(row.followed().source());
+  }
+
+  @Test
+  @DisplayName(
+      "a classpath record whose settings another annotation version wrote is not stepped into")
+  void classpathRecordWithUnreadableSettingsIsNotNavigable(@TempDir Path temp) throws IOException {
+    // Compiled against an @GenerateFocus whose targetPackage was an int, the class file holds a
+    // value this version reads as the wrong type, so no navigator into Skewed can be generated.
+    Compilation upstream =
+        javac()
+            .withOptions("-proc:none")
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "org.higherkindedj.optics.annotations.GenerateFocus",
+                    """
+                    package org.higherkindedj.optics.annotations;
+
+                    import java.lang.annotation.Retention;
+                    import java.lang.annotation.RetentionPolicy;
+
+                    @Retention(RetentionPolicy.CLASS)
+                    public @interface GenerateFocus {
+                      int targetPackage();
+                    }
+                    """),
+                source("Skewed", "@GenerateFocus(targetPackage = 3)", "String name"));
+    clean(upstream);
+    Path dependency =
+        classDirectoryWithout(
+            upstream,
+            temp.resolve("dependency"),
+            "org.higherkindedj.optics.annotations.GenerateFocus");
+    Compilation written =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withClasspath(classpathWith(dependency))
+            .compile(source("Subject", "@GenerateFocus", "Skewed skewed, String name"));
+    clean(written);
+    assertGeneratedCodeContains(
+        written, "com.example.SubjectFocus", "public static FocusPath<Subject, Skewed> skewed()");
   }
 
   @Test
@@ -1132,8 +1173,10 @@ class FocusIncludeFieldsTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"Invalid invalid", "Map<String, Invalid> invalid", "Invalid[] invalid"})
-  @DisplayName("a target whose annotation javac cannot read is left to javac's error")
+  @DisplayName("a target whose annotation javac cannot read is reported, with a record reaching it")
   void unreadableTarget(String component) {
+    // Subject's navigator would read Invalid's settings, so it waits with Invalid and draws no
+    // warning about its own list.
     Compilation written =
         javac()
             .withProcessors(new FocusProcessor())
@@ -1141,19 +1184,31 @@ class FocusIncludeFieldsTest {
                 source("Invalid", "@GenerateFocus(includeFields = Missing.NAME)", "String id"),
                 source("Subject", "@GenerateFocus(includeFields = \"invalid\")", component));
     assertThat(written).failed();
-    assertThat(written).hadErrorCount(1);
+    assertThat(written).hadErrorCount(3);
     assertThat(written).hadErrorContaining("cannot find symbol");
+    assertThat(written)
+        .hadErrorContaining(
+            "generated nothing for 'Invalid', as no round of this compilation resolved what it"
+                + " names: a value of @GenerateFocus's includeFields().");
+    assertThat(written)
+        .hadErrorContaining(
+            "generated nothing for 'Subject', as no round of this compilation resolved what it"
+                + " names: a value of @GenerateFocus's includeFields() on Invalid.");
     assertThat(written).hadWarningCount(0);
   }
 
   @Test
-  @DisplayName("an unresolved component type is left to javac's error")
+  @DisplayName("an unresolved component type is reported, with no warning about the list")
   void unresolvedType() {
     Compilation written =
         compile(
             source("Subject", "@GenerateFocus(includeFields = \"missing\")", "Missing missing"));
     assertThat(written).failed();
     assertThat(written).hadErrorContaining("cannot find symbol");
+    assertThat(written)
+        .hadErrorContaining(
+            "generated nothing for 'Subject', as no round of this compilation resolved what it"
+                + " names: Missing.");
     assertThat(written).hadWarningCount(0);
   }
 

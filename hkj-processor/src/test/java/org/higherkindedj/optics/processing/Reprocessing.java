@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
@@ -67,7 +68,17 @@ final class Reprocessing {
   /** Compiles {@code sources} under {@code dir} as a clean build does. */
   static Run fromSource(Path dir, List<JavaFileObject> sources, List<String> options)
       throws IOException {
-    return clean(dir, sources, options).run();
+    return fromSource(dir, sources, options, List::of);
+  }
+
+  /**
+   * Compiles {@code sources} under {@code dir} as a clean build does, with the processors {@code
+   * ahead} supplies run ahead of this module's, as another library's run beside them.
+   */
+  static Run fromSource(
+      Path dir, List<JavaFileObject> sources, List<String> options, Supplier<List<Processor>> ahead)
+      throws IOException {
+    return clean(dir, sources, options, ahead).run();
   }
 
   /**
@@ -77,25 +88,67 @@ final class Reprocessing {
    */
   static Run fromClassNames(Path dir, List<JavaFileObject> sources, List<String> options)
       throws IOException {
+    return fromClassNames(dir, sources, options, List::of);
+  }
+
+  /**
+   * {@link #fromClassNames(Path, List, List)}, with the processors {@code ahead} supplies run ahead
+   * of this module's in both builds, as another library's run beside them. It is asked once for
+   * each build, the clean one first, and is to supply fresh processors each time. Gradle deletes
+   * what they generate before the second build too, and they write it again there.
+   */
+  static Run fromClassNames(
+      Path dir, List<JavaFileObject> sources, List<String> options, Supplier<List<Processor>> ahead)
+      throws IOException {
+    return fromClassNames(dir, sources, List.of(), options, ahead);
+  }
+
+  /**
+   * {@link #fromClassNames(Path, List, List, Supplier)}, with each of {@code recompiled}, one of
+   * {@code sources} declaring one top-level type, compiled from source in the second build, as
+   * Gradle recompiles a changed file and hands the unchanged annotated types over by name.
+   */
+  static Run fromClassNames(
+      Path dir,
+      List<JavaFileObject> sources,
+      List<JavaFileObject> recompiled,
+      List<String> options,
+      Supplier<List<Processor>> ahead)
+      throws IOException {
     Path first = dir.resolve("first");
-    Build clean = clean(first, sources, options);
+    Build clean = clean(first, sources, options, ahead);
     if (!clean.run().succeeded()) {
       throw new AssertionError("the clean build failed: " + clean.run().diagnostics());
     }
-    Path classes =
-        withoutGenerated(first, clean.run().generated().keySet(), dir.resolve("classes"));
+    // A recompiled type's class files go as its generated ones do, and it is not handed over.
+    // A source's name is written with '/', and a generated one with the platform's separator.
+    Set<String> recompiledSources =
+        recompiled.stream()
+            .map(source -> source.getName().replaceFirst("^/", ""))
+            .collect(Collectors.toSet());
+    Set<String> removed = new TreeSet<>(clean.run().generated().keySet());
+    recompiledSources.stream()
+        .map(source -> source.replace('/', File.separatorChar))
+        .forEach(removed::add);
+    Path classes = withoutGenerated(first, removed, dir.resolve("classes"));
     Path second = dir.resolve("second");
-    Path touched =
+    List<Path> files = new ArrayList<>(writeSources(second.resolve("src"), recompiled));
+    files.add(
         Files.writeString(
             Files.createDirectories(second.resolve("src/probe")).resolve("Touched.java"),
-            "package probe;\n\nfinal class Touched {}\n");
+            "package probe;\n\nfinal class Touched {}\n"));
+    Set<String> recompiledTypes =
+        recompiledSources.stream()
+            .map(source -> source.substring(0, source.length() - ".java".length()))
+            .map(source -> source.replace('/', '.'))
+            .collect(Collectors.toSet());
     return compile(
             second,
-            List.of(touched),
-            List.copyOf(clean.aggregated()),
+            files,
+            clean.aggregated().stream().filter(type -> !recompiledTypes.contains(type)).toList(),
             List.of(classes),
             options,
-            registeredProcessors())
+            withRegistered(ahead))
         .run();
   }
 
@@ -128,9 +181,15 @@ final class Reprocessing {
         .run();
   }
 
-  private static Build clean(Path dir, List<JavaFileObject> sources, List<String> options)
+  private static Build clean(
+      Path dir, List<JavaFileObject> sources, List<String> options, Supplier<List<Processor>> ahead)
       throws IOException {
-    return build(dir, sources, List.of(), options, registeredProcessors());
+    return build(dir, sources, List.of(), options, withRegistered(ahead));
+  }
+
+  /** The processors {@code ahead} supplies, then this module's. */
+  private static List<Processor> withRegistered(Supplier<List<Processor>> ahead) {
+    return Stream.concat(ahead.get().stream(), registeredProcessors().stream()).toList();
   }
 
   private static Build build(
@@ -140,7 +199,13 @@ final class Reprocessing {
       List<String> options,
       List<Processor> processors)
       throws IOException {
-    Path src = dir.resolve("src");
+    return compile(
+        dir, writeSources(dir.resolve("src"), sources), List.of(), classDirs, options, processors);
+  }
+
+  /** Writes each source under {@code src}, at the path its name gives it. */
+  private static List<Path> writeSources(Path src, List<JavaFileObject> sources)
+      throws IOException {
     List<Path> files = new ArrayList<>();
     for (JavaFileObject source : sources) {
       // JavaFileObjects.forSourceString names the file /com/example/Contact.java, or Contact.java
@@ -149,7 +214,7 @@ final class Reprocessing {
       Files.createDirectories(file.getParent());
       files.add(Files.writeString(file, source.getCharContent(true)));
     }
-    return compile(dir, files, List.of(), classDirs, options, processors);
+    return files;
   }
 
   /**

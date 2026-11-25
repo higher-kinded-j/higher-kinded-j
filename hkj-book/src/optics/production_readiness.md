@@ -141,7 +141,7 @@ A type-use annotation you write on a component, a bound or a type argument is co
 - **One package-private to another package is left off.** That is any package other than the one the file is written into.
 - **One that is deprecated, or sets a deprecated member, is left off.** It would draw a warning in the generated file that your own `@SuppressWarnings` cannot reach. A javadoc `@deprecated` tag alone deprecates it as `@Deprecated` does.
 - **One written against another version of its types is left off.** That holds where javac would not take it as written against the version on the compile classpath, as for a constant the enum there lacks; the generated file would not compile.
-- **One naming a type a later round brings is left off.** Written out before that round, a class or constant it names would hold the wrong value, or not compile.
+- **One naming a type a later round brings may be left off.** `@ImportOptics` and a `@GenerateMapping` leaf read it before that round, when a class or constant it names would hold the wrong value or not compile. Generators such as `@GenerateLenses` [wait for that round](../tooling/manual_setup.md#optics-over-types-other-processors-generate) and write it, bar a record an [incremental build](../tooling/manual_setup.md#incremental-compilation) reads from its class file.
 
 Inside a `@NullMarked` scope an unannotated type means non-null, so an annotation left off that way changes what the generated signature says: keep the nullness annotations generated code has to repeat public and current.
 

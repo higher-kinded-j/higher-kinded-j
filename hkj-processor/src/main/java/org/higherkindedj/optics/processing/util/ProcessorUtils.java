@@ -1803,16 +1803,29 @@ public final class ProcessorUtils {
   }
 
   /**
-   * Whether a value can be written, and is one the member's declared type takes as written. In
-   * source, javac hands over a class literal or a constant it could not resolve as a mark that
-   * visits as a string but, unlike a string, is not written in quotes.
+   * Whether an annotation value is javac's mark for one it could not resolve. In source, javac
+   * hands over a class literal or a constant it could not resolve as a mark that visits as a string
+   * but, unlike a string, is not written in quotes. An array's elements are separate values, so a
+   * mark inside one is found by asking of each.
+   *
+   * @param value an annotation value; must not be null
+   * @return true where the value is the mark
+   * @since 0.6.0
+   */
+  public static boolean unresolvedMark(AnnotationValue value) {
+    return value.getValue() instanceof String && !value.toString().startsWith("\"");
+  }
+
+  /**
+   * Whether a value can be written, and is one the member's declared type takes as written: not
+   * javac's mark for one it could not resolve (see {@link #unresolvedMark}).
    */
   private static boolean writable(
       AnnotationValue value,
       TypeMirror declared,
       Predicate<Element> visible,
       Predicate<Element> deprecated) {
-    if (value.getValue() instanceof String && !value.toString().startsWith("\"")) {
+    if (unresolvedMark(value)) {
       return false;
     }
     if (declared instanceof ArrayType array && !(value.getValue() instanceof List)) {
