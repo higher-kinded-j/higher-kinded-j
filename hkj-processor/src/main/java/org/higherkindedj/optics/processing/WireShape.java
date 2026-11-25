@@ -182,9 +182,7 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
     @Override
     public Stream<ExecutableElement> calledMembers(Elements elements, Types types) {
-      return Stream.concat(
-          ProcessorUtils.accessorsOf(element),
-          ProcessorUtils.canonicalConstructorOf(types, element));
+      return ProcessorUtils.rebuildCalls(types, element);
     }
 
     /**

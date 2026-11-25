@@ -1212,7 +1212,9 @@ class MutationKillingTest {
       TypeAnalysis analysis = analyseType("com.test.SingletonEnum", source);
 
       assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.ENUM);
-      assertThat(analysis.enumConstants()).containsExactly("INSTANCE");
+      assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
+          .containsExactly("INSTANCE");
     }
 
     @Test
@@ -1464,6 +1466,7 @@ class MutationKillingTest {
 
       assertThat(analysis.enumConstants()).hasSize(5);
       assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
           .containsExactly("FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH");
     }
 
@@ -2384,7 +2387,9 @@ class MutationKillingTest {
       assertThat(analysis.fields()).isEmpty();
       assertThat(analysis.witherMethods()).isEmpty();
       assertThat(analysis.permittedSubtypes()).isEmpty();
-      assertThat(analysis.enumConstants()).containsExactly("NORTH", "SOUTH", "EAST", "WEST");
+      assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
+          .containsExactly("NORTH", "SOUTH", "EAST", "WEST");
     }
 
     @Test
@@ -3444,7 +3449,9 @@ class MutationKillingTest {
       TypeAnalysis analysis = analyseType("com.test.EnumWithMethods", source);
 
       assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.ENUM);
-      assertThat(analysis.enumConstants()).containsExactly("ONE", "TWO", "THREE");
+      assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
+          .containsExactly("ONE", "TWO", "THREE");
     }
 
     @Test
@@ -3474,7 +3481,9 @@ class MutationKillingTest {
       TypeAnalysis analysis = analyseType("com.test.EnumWithFields", source);
 
       assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.ENUM);
-      assertThat(analysis.enumConstants()).containsExactly("RED", "GREEN", "BLUE");
+      assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
+          .containsExactly("RED", "GREEN", "BLUE");
     }
   }
 
@@ -3655,6 +3664,7 @@ class MutationKillingTest {
 
       assertThat(analysis.enumConstants()).hasSize(7);
       assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
           .containsExactly("ALPHA", "BETA", "GAMMA", "DELTA", "EPSILON", "ZETA", "ETA");
     }
 
@@ -5117,7 +5127,9 @@ class MutationKillingTest {
 
       TypeAnalysis analysis = analyseType("com.test.MyEnum", source);
       assertThat(analysis.typeKind()).isEqualTo(TypeAnalysis.TypeKind.ENUM);
-      assertThat(analysis.enumConstants()).containsExactly("A", "B", "C");
+      assertThat(analysis.enumConstants())
+          .extracting(constant -> constant.getSimpleName().toString())
+          .containsExactly("A", "B", "C");
     }
 
     @Test

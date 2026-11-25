@@ -7,6 +7,7 @@ import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -193,10 +194,14 @@ public class FoldProcessor extends AbstractProcessor {
         TypeSpec.classBuilder(implementationName)
             .addAnnotation(GENERATED)
             // The class declares the record's type parameters and names the fold type in its
-            // superinterface clause, neither of which a member annotation reaches.
+            // superinterface clause, neither of which a member annotation reaches, and its body
+            // calls the component's accessor.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(
-                    processingEnv.getElementUtils(), component.asType(), recordElement))
+                ProcessorUtils.memberSuppression(
+                    processingEnv.getElementUtils(),
+                    List.of(component.asType(), recordElement.asType()),
+                    recordElement.getTypeParameters(),
+                    Stream.of(component.getAccessor())))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(foldTypeName)
             .addMethod(foldMap.build());

@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -1562,6 +1563,141 @@ class ProcessorUtilsTest {
     void eitherResolvedFormNamesAnUnboundedWildcardObject() {
       assertThat(NAMES.get("resolved.any")).isEqualTo("java.lang.Object");
       assertThat(NAMES.get("resolvedRead.any")).isEqualTo("java.lang.Object");
+    }
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#memberSuppression}, the {@code
+   * writtenTypesSuppression} form that takes type parameters, and {@link
+   * ProcessorUtils#rebuildCalls}: a deprecated bound or called member draws the lint a deprecated
+   * written type does.
+   */
+  @Nested
+  @DisplayName("memberSuppression and rebuildCalls")
+  class MemberSuppression {
+
+    /** Renders each suppression and the rebuild's calls, keyed by what was asked. */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, String> rendered = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        Elements elements = processingEnv.getElementUtils();
+        TypeElement subject = elements.getTypeElement("com.test.Subject");
+        if (subject == null) {
+          return false;
+        }
+        TypeMirror string = elements.getTypeElement("java.lang.String").asType();
+        for (TypeElement type : ElementFilter.typesIn(subject.getEnclosedElements())) {
+          rendered.put(
+              "bounds." + type.getSimpleName(),
+              ProcessorUtils.writtenTypesSuppression(elements, string, type.getTypeParameters())
+                  .toString());
+        }
+        for (ExecutableElement method : ElementFilter.methodsIn(subject.getEnclosedElements())) {
+          rendered.put(
+              "called." + method.getSimpleName(),
+              ProcessorUtils.memberSuppression(elements, List.of(), List.of(), Stream.of(method))
+                  .toString());
+        }
+        TypeElement old = elements.getTypeElement("com.test.Subject.Old");
+        ExecutableElement gone =
+            ElementFilter.methodsIn(subject.getEnclosedElements()).stream()
+                .filter(method -> method.getSimpleName().contentEquals("gone"))
+                .findFirst()
+                .orElseThrow();
+        rendered.put(
+            "merged",
+            ProcessorUtils.memberSuppression(
+                    elements, List.of(old.asType()), List.of(), Stream.of(gone))
+                .toString());
+        TypeElement rebuilt = elements.getTypeElement("com.test.Subject.Rebuilt");
+        rendered.put(
+            "rebuild",
+            ProcessorUtils.rebuildCalls(processingEnv.getTypeUtils(), rebuilt).toList().toString());
+        return false;
+      }
+    }
+
+    /** The rendered results, from one compilation every test here shares. */
+    private static final Map<String, String> RENDERED = probe();
+
+    private static Map<String, String> probe() {
+      var processor = new CapturingProcessor();
+      Compilation compilation =
+          javac()
+              .withProcessors(processor)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.test.Subject",
+                      """
+                      package com.test;
+
+                      public class Subject {
+                        @Deprecated
+                        public static class Old {}
+
+                        public static class Fresh {}
+
+                        public static class OldBound<T extends Old> {}
+
+                        public static class FreshBound<T extends Fresh> {}
+
+                        @Deprecated
+                        public void legacy() {}
+
+                        @Deprecated(forRemoval = true)
+                        public void gone() {}
+
+                        public void current() {}
+
+                        public record Rebuilt(String name, int count) {}
+                      }
+                      """));
+      assertThat(compilation).succeeded();
+      return Map.copyOf(processor.rendered);
+    }
+
+    @Test
+    @DisplayName("a redeclared type parameter's deprecated bound draws deprecation")
+    void aRedeclaredParametersDeprecatedBoundDrawsDeprecation() {
+      assertThat(RENDERED.get("bounds.OldBound"))
+          .isEqualTo("[@java.lang.SuppressWarnings(\"deprecation\")]");
+      assertThat(RENDERED.get("bounds.FreshBound")).isEqualTo("[]");
+    }
+
+    @Test
+    @DisplayName("a deprecated called member draws deprecation, or removal for removal")
+    void aDeprecatedCalledMemberDrawsItsCategory() {
+      assertThat(RENDERED.get("called.legacy"))
+          .isEqualTo("[@java.lang.SuppressWarnings(\"deprecation\")]");
+      assertThat(RENDERED.get("called.gone"))
+          .isEqualTo("[@java.lang.SuppressWarnings(\"removal\")]");
+      assertThat(RENDERED.get("called.current")).isEqualTo("[]");
+    }
+
+    @Test
+    @DisplayName("a deprecated written type and a called member merge into one annotation")
+    void aDeprecatedWrittenTypeAndCalledMemberMergeIntoOneAnnotation() {
+      assertThat(RENDERED.get("merged"))
+          .isEqualTo("[@java.lang.SuppressWarnings({\"deprecation\", \"removal\"})]");
+    }
+
+    @Test
+    @DisplayName("a rebuild calls every accessor and the canonical constructor")
+    void aRebuildCallsEveryAccessorAndTheCanonicalConstructor() {
+      assertThat(RENDERED.get("rebuild"))
+          .isEqualTo("[name(), count(), Rebuilt(java.lang.String,int)]");
     }
   }
 

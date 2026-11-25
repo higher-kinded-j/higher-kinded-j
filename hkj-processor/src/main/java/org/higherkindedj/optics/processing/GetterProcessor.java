@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -157,10 +158,14 @@ public class GetterProcessor extends AbstractProcessor {
                 recordTypeName,
                 recordTypeName,
                 componentTypeName.box())
-            // The getter type and the record's type-parameter bounds are written out here.
+            // The getter type and the record's type-parameter bounds are written out here, and the
+            // body calls the component's accessor.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(
-                    processingEnv.getElementUtils(), component.asType(), recordElement))
+                ProcessorUtils.memberSuppression(
+                    processingEnv.getElementUtils(),
+                    List.of(component.asType(), recordElement.asType()),
+                    recordElement.getTypeParameters(),
+                    Stream.of(component.getAccessor())))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(getterTypeName);
 

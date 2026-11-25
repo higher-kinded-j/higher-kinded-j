@@ -12,26 +12,83 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.Prism;
 
 /**
- * The prism factory method for one permitted subtype of a sealed type.
+ * The prism factory methods for the permitted subtypes of a sealed type, and for the constants of
+ * an enum.
  *
- * <p>{@code @GeneratePrisms} writes this method into a companion class beside the sealed type, and
- * {@code @ImportOptics} writes the same method into a generated class beside the spec. The two
- * differ only in which messager reports a rejection and which annotation the diagnostic names, so
- * they ask for the method here rather than each holding a copy: the wording of the rejection is
- * asserted by tests on both sides, and two copies would let it drift on one.
+ * <p>{@code @GeneratePrisms} writes these methods into a companion class beside the sealed type or
+ * enum, and {@code @ImportOptics} writes the same methods into a generated class beside the spec.
+ * One body for both keeps the prism's shape, and the warnings it suppresses, from drifting between
+ * them. The two differ only in which messager reports a rejection and which annotation the
+ * diagnostic names, so they ask for the method here rather than each holding a copy: the wording of
+ * the rejection is asserted by tests on both sides, and two copies would let it drift on one.
  */
 public final class SubtypePrismGenerator {
 
   private SubtypePrismGenerator() {}
+
+  /**
+   * The constants of an enum, in declaration order, each of which gets a prism.
+   *
+   * @param enumType the enum
+   * @return its constants
+   */
+  public static List<VariableElement> enumConstantsOf(TypeElement enumType) {
+    return ElementFilter.fieldsIn(enumType.getEnclosedElements()).stream()
+        .filter(field -> field.getKind() == ElementKind.ENUM_CONSTANT)
+        .toList();
+  }
+
+  /**
+   * Builds the prism factory method for one constant of an enum, which matches that constant by
+   * identity.
+   *
+   * @param elements the round's element utilities, which read a deprecation
+   * @param enumType the enum
+   * @param constant the constant to focus on
+   * @return the factory method
+   */
+  public static MethodSpec enumConstantPrismMethodFor(
+      Elements elements, TypeElement enumType, VariableElement constant) {
+    ClassName enumClassName = ClassName.get(enumType);
+    return MethodSpec.methodBuilder(
+            ProcessorUtils.toMethodName(constant.getSimpleName().toString()))
+        .addJavadoc(
+            "Creates a {@link $T} that focuses on the {@code $L} constant of the {@link $T}"
+                + " enum.\n\n"
+                + "@return A non-null {@code Prism<$T, $T>}.",
+            Prism.class,
+            constant.getSimpleName(),
+            enumClassName,
+            enumClassName,
+            enumClassName)
+        // The prism names the enum and reads the constant.
+        .addAnnotations(
+            ProcessorUtils.memberSuppression(
+                elements, List.of(enumType.asType()), List.of(), Stream.of(constant)))
+        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+        .returns(
+            ParameterizedTypeName.get(ClassName.get(Prism.class), enumClassName, enumClassName))
+        .addStatement(
+            "return $T.of(source -> source == $T.$L ? $T.of(source) : $T.empty(), value -> value)",
+            Prism.class,
+            enumClassName,
+            constant.getSimpleName(),
+            Optional.class,
+            Optional.class)
+        .build();
+  }
 
   /**
    * Builds the prism factory method for a permitted subtype, or reports why it cannot be written.
@@ -93,10 +150,11 @@ public final class SubtypePrismGenerator {
                 ClassName.get(sumType),
                 sourceTypeName,
                 subTypeName)
-            // The prism type is written in the subtype's vocabulary, and the method redeclares the
-            // type parameters it names with their bounds.
+            // The prism type names the sum type and the subtype, in the subtype's vocabulary, and
+            // the method redeclares the type parameters it names with their bounds.
             .addAnnotations(
-                ProcessorUtils.writtenTypesSuppression(elements, namedSumType, declared))
+                ProcessorUtils.memberSuppression(
+                    elements, List.of(namedSumType, subtype.asType()), declared, Stream.empty()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(prismTypeName);
 

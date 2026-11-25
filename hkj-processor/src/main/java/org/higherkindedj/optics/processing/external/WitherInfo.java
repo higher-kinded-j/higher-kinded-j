@@ -16,7 +16,7 @@ import javax.lang.model.type.TypeMirror;
  * @param witherMethodName the full name of the wither method (e.g., "withYear")
  * @param parameterType the type of the wither method's parameter
  * @param witherMethod the executable element representing the wither method
- * @param getterMethodName the name of the corresponding getter method (e.g., "getYear" or "year")
+ * @param getterMethod the corresponding getter method (e.g., {@code getYear()} or {@code year()})
  * @param overloaded whether the class has another one-parameter method of the same name, which a
  *     call could bind instead of this one
  */
@@ -25,29 +25,38 @@ public record WitherInfo(
     String witherMethodName,
     TypeMirror parameterType,
     ExecutableElement witherMethod,
-    String getterMethodName,
+    ExecutableElement getterMethod,
     boolean overloaded) {
+
+  /**
+   * The getter's name, as the lens's method reference names it.
+   *
+   * @return the name of {@link #getterMethod()}
+   */
+  public String getterMethodName() {
+    return getterMethod.getSimpleName().toString();
+  }
 
   /**
    * Creates a WitherInfo from a detected wither method.
    *
    * @param witherMethod the wither method element
    * @param fieldName the derived field name
-   * @param getterMethodName the corresponding getter method name
+   * @param getterMethod the corresponding getter method
    * @param overloaded whether another one-parameter method of the name could take the call
    * @return a new WitherInfo for the method
    */
   public static WitherInfo of(
       ExecutableElement witherMethod,
       String fieldName,
-      String getterMethodName,
+      ExecutableElement getterMethod,
       boolean overloaded) {
     return new WitherInfo(
         fieldName,
         witherMethod.getSimpleName().toString(),
         witherMethod.getParameters().getFirst().asType(),
         witherMethod,
-        getterMethodName,
+        getterMethod,
         overloaded);
   }
 }

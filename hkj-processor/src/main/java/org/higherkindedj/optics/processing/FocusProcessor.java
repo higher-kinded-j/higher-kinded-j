@@ -342,9 +342,14 @@ public class FocusProcessor extends AbstractProcessor {
                 innerTypeName)
             // The path type, the setter lambda's inferred value and the record's type-parameter
             // bounds all land in this method, and so may a cast to a raw or wildcard container.
+            // The body calls the record's accessors and constructor.
             .addAnnotations(
                 WideningAnalysis.warningSuppression(
-                    processingEnv.getElementUtils(), component, recordElement, widening.steps()))
+                    processingEnv.getElementUtils(),
+                    component,
+                    recordElement,
+                    widening.steps(),
+                    ProcessorUtils.rebuildCalls(processingEnv.getTypeUtils(), recordElement)))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnTypeName);
 

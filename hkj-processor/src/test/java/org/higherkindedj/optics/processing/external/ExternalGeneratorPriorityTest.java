@@ -82,6 +82,7 @@ class ExternalGeneratorPriorityTest {
               processingEnv.getFiler(),
               processingEnv.getMessager(),
               processingEnv.getElementUtils(),
+              processingEnv.getTypeUtils(),
               List.of(new PriDefaultGenerator(), new PriOverrideGenerator()));
       priTraversal =
           priGenerator.createTraversal(
@@ -98,6 +99,7 @@ class ExternalGeneratorPriorityTest {
               processingEnv.getFiler(),
               processingEnv.getMessager(),
               processingEnv.getElementUtils(),
+              processingEnv.getTypeUtils(),
               List.of(new FbFallbackGenerator(), new FbDefaultGenerator()));
       fbTraversal =
           fbGenerator.createTraversal(
@@ -114,6 +116,7 @@ class ExternalGeneratorPriorityTest {
               processingEnv.getFiler(),
               processingEnv.getMessager(),
               processingEnv.getElementUtils(),
+              processingEnv.getTypeUtils(),
               List.of(new DupGeneratorAlpha(), new DupGeneratorBeta()));
       dupTraversal =
           dupGenerator.createTraversal(

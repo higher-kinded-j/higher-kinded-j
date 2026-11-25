@@ -16789,12 +16789,7 @@ public class MappingProcessor extends AbstractProcessor {
                     pairTypes(domainDeclared, wire, comps, inferred).stream())
                 .flatMap(ProcessorUtils::typesNamedBy),
             records.stream().map(Element::asType).flatMap(ProcessorUtils::typesNamedBy),
-            records.stream()
-                .flatMap(
-                    record ->
-                        Stream.concat(
-                            ProcessorUtils.accessorsOf(record),
-                            ProcessorUtils.canonicalConstructorOf(types, record))),
+            records.stream().flatMap(record -> ProcessorUtils.rebuildCalls(types, record)),
             wire.calledMembers(elements, types))
         .flatMap(Function.identity());
   }

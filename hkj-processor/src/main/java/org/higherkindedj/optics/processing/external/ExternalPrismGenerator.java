@@ -4,17 +4,16 @@ package org.higherkindedj.optics.processing.external;
 
 import com.palantir.javapoet.*;
 import java.io.IOException;
-import java.util.Optional;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
-import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.SubtypePrismGenerator;
 
 /**
@@ -94,8 +93,6 @@ public class ExternalPrismGenerator {
     String enumName = enumElement.getSimpleName().toString();
     String prismsClassName = enumName + "Prisms";
 
-    ClassName enumClassName = ClassName.get(enumElement);
-
     TypeSpec.Builder prismsClassBuilder =
         TypeSpec.classBuilder(prismsClassName)
             .addAnnotation(GENERATED_ANNOTATION)
@@ -105,40 +102,12 @@ public class ExternalPrismGenerator {
             .addOriginatingElement(originatingElement);
 
     // Generate prism methods for each enum constant
-    for (String constantName : analysis.enumConstants()) {
-      prismsClassBuilder.addMethod(createPrismMethodForEnumConstant(enumClassName, constantName));
+    for (VariableElement constant : analysis.enumConstants()) {
+      prismsClassBuilder.addMethod(
+          SubtypePrismGenerator.enumConstantPrismMethodFor(elements, enumElement, constant));
     }
 
     writeFile(targetPackage, prismsClassBuilder.build());
-  }
-
-  private MethodSpec createPrismMethodForEnumConstant(
-      ClassName enumClassName, String constantName) {
-    String methodName = ProcessorUtils.toMethodName(constantName);
-
-    ParameterizedTypeName prismTypeName =
-        ParameterizedTypeName.get(ClassName.get(Prism.class), enumClassName, enumClassName);
-
-    return MethodSpec.methodBuilder(methodName)
-        .addJavadoc(
-            "Creates a {@link $T} that focuses on the {@code $L} constant of the {@link $T}"
-                + " enum.\n\n"
-                + "@return A non-null {@code Prism<$T, $T>}.",
-            Prism.class,
-            constantName,
-            enumClassName,
-            enumClassName,
-            enumClassName)
-        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-        .returns(prismTypeName)
-        .addStatement(
-            "return $T.of(source -> source == $T.$L ? $T.of(source) : $T.empty(), value -> value)",
-            Prism.class,
-            enumClassName,
-            constantName,
-            Optional.class,
-            Optional.class)
-        .build();
   }
 
   @ExcludeFromJacocoGeneratedReport
