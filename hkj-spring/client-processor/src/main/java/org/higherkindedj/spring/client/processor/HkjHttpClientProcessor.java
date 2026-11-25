@@ -139,6 +139,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           "org.springframework.web.bind.annotation.RequestHeader",
           "org.springframework.web.bind.annotation.CookieValue");
 
+  /** The two aliases a name-binding annotation's name is written in. */
+  private static final Set<String> BINDING_NAME_MEMBERS = Set.of("value", "name");
+
   /**
    * The flavour of Effect Path a client method returns, with where its error and success types sit
    * in it: the type-argument index at each level, outermost first.
@@ -823,7 +826,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * Copies a parameter's type, name and binding annotations onto the native interface method. A
    * name-binding annotation ({@code @PathVariable}, {@code @RequestParam}, …) without an explicit
    * name gets one injected from the source parameter — the processor knows the name even when the
-   * consuming build does not compile with {@code -parameters}.
+   * consuming build does not compile with {@code -parameters}. An empty name it was written with
+   * gives way to the injected one, so the copy carries one name.
    */
   private ParameterSpec copyParameter(ClientMethod.Parameter parameter, String packageName) {
     String parameterName = parameter.name();
@@ -834,13 +838,28 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
                 parameter.element().getAnnotationMirrors(),
                 packageName,
                 processingEnv.getElementUtils(),
-                mirror -> {
-                  AnnotationSpec copy = AnnotationSpecs.copyOf(mirror);
-                  return needsExplicitName(mirror, parameter)
-                      ? copy.toBuilder().addMember("value", "$S", parameterName).build()
-                      : copy;
-                }))
+                mirror ->
+                    needsExplicitName(mirror, parameter)
+                        ? named(AnnotationSpecs.copyOf(mirror), parameterName)
+                        : AnnotationSpecs.copyOf(mirror)))
         .build();
+  }
+
+  /**
+   * A copied name-binding annotation with {@code name} as its {@code value}, in place of the empty
+   * {@code value} or {@code name} it may have been written with: javapoet would write a second
+   * {@code value} beside an empty one as an array, which does not compile.
+   */
+  private static AnnotationSpec named(AnnotationSpec copy, String name) {
+    AnnotationSpec.Builder named = AnnotationSpec.builder((ClassName) copy.type());
+    copy.members()
+        .forEach(
+            (member, blocks) -> {
+              if (!BINDING_NAME_MEMBERS.contains(member)) {
+                blocks.forEach(block -> named.addMember(member, block));
+              }
+            });
+    return named.addMember("value", "$S", name).build();
   }
 
   /**
@@ -1358,13 +1377,14 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
-   * True for a name-binding annotation that declares neither {@code value} nor {@code name} and is
-   * not an <em>aggregate</em> binder. A {@code Map}/{@code MultiValueMap} parameter on
-   * {@code @RequestParam}/{@code @RequestHeader}/{@code @CookieValue}, or a {@code Map} on
-   * {@code @PathVariable}, binds <em>every</em> name/value pair when left unnamed — injecting a
-   * name would change it into a single-entry binder, so it must stay unnamed. The parameter's type
-   * is the one the client has, so a base's {@code P} that the client binds to a {@code Map} is an
-   * aggregate binder too.
+   * True for a name-binding annotation that names no binding and is not an <em>aggregate</em>
+   * binder. One names none where it writes neither {@code value} nor {@code name}, or writes them
+   * empty, which Spring reads as no name and binds by the parameter's. A {@code Map}/{@code
+   * MultiValueMap} parameter on {@code @RequestParam}/{@code @RequestHeader}/{@code @CookieValue},
+   * or a {@code Map} on {@code @PathVariable}, binds <em>every</em> name/value pair when left
+   * unnamed — injecting a name would change it into a single-entry binder, so it must stay unnamed.
+   * The parameter's type is the one the client has, so a base's {@code P} that the client binds to
+   * a {@code Map} is an aggregate binder too.
    */
   private boolean needsExplicitName(AnnotationMirror mirror, ClientMethod.Parameter parameter) {
     String annotationType = mirror.getAnnotationType().toString();
@@ -1374,9 +1394,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     if (isMapType(ClientMethods.erasureOf(parameter, processingEnv.getTypeUtils()))) {
       return false;
     }
-    return mirror.getElementValues().keySet().stream()
-        .map(member -> member.getSimpleName().toString())
-        .noneMatch(member -> member.equals("value") || member.equals("name"));
+    return mirror.getElementValues().entrySet().stream()
+        .noneMatch(
+            member ->
+                BINDING_NAME_MEMBERS.contains(member.getKey().getSimpleName().toString())
+                    && !"".equals(member.getValue().getValue()));
   }
 
   /**

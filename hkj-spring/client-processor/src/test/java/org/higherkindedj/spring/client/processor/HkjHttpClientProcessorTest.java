@@ -531,6 +531,48 @@ class HkjHttpClientProcessorTest {
           .contentsAsUtf8String()
           .contains("@Holder(@Listed(value = {}, tags = {}))");
     }
+
+    @Test
+    @DisplayName("a binding named empty is given the parameter's name, as an unnamed one is")
+    void emptyBindingName() {
+      // Spring reads an empty name as none and binds by the parameter's, which a build without
+      // -parameters does not keep. The empty name gives way, so the copy carries one name.
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceLines(
+                  "com.example.UserApi",
+                  "package com.example;",
+                  "import org.higherkindedj.hkt.effect.EitherPath;",
+                  "import org.higherkindedj.spring.client.HkjHttpClient;",
+                  "import org.springframework.web.bind.annotation.PathVariable;",
+                  "import org.springframework.web.bind.annotation.RequestHeader;",
+                  "import org.springframework.web.bind.annotation.RequestParam;",
+                  "import org.springframework.web.service.annotation.GetExchange;",
+                  "import org.springframework.web.service.annotation.HttpExchange;",
+                  "@HttpExchange(\"/users\")",
+                  "@HkjHttpClient",
+                  "public interface UserApi {",
+                  "  @GetExchange(\"/{id}\")",
+                  "  EitherPath<UserError, UserDto> getUser(",
+                  "      @PathVariable(\"\") String id,",
+                  "      @RequestParam(name = \"\") String q,",
+                  "      @RequestHeader(value = \"\", required = false) String trace);",
+                  "}"),
+              USER_DTO,
+              USER_ERROR);
+
+      // Each generated file is compiled here too, so a second value beside an empty one fails it.
+      assertThat(compilation).succeeded();
+      var nativeIface =
+          assertThat(compilation)
+              .generatedSourceFile("com.example.UserApiHttpExchange")
+              .contentsAsUtf8String();
+      nativeIface.contains("@PathVariable(\"id\") String id");
+      nativeIface.contains("@RequestParam(\"q\") String q");
+      nativeIface.containsMatch(
+          "@RequestHeader\\(\\s*required = false,\\s*value = \"trace\"\\s*\\)\\s*String trace");
+      nativeIface.doesNotContain("name = \"\"");
+    }
   }
 
   @Nested

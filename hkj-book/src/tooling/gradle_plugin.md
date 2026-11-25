@@ -26,7 +26,7 @@ plugins {
 }
 ```
 
-That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables "-parameters", which keeps parameter names in the compiled class files: some copy strategies and the [record mapper](../mapping/ch_intro.md) read them, and an [incremental build](manual_setup.md#incremental-compilation) needs them to write what a clean build writes. In a multi-module build, apply the plugin to **every** module that declares mapping specs or `@GenerateFocus` records other modules navigate into, not only the one that consumes them: a spec is nested through its generated `Impl` and a record is navigated through its generated `Focus`, so each must exist. See [Multi-module builds](manual_setup.md#multi-module-builds).
+That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables `-parameters`, which keeps parameter names in the compiled class files: some copy strategies and the [record mapper](../mapping/ch_intro.md) read them, and an [incremental build](manual_setup.md#incremental-compilation) needs them to write what a clean build writes. In a multi-module build, apply the plugin to **every** module that declares mapping specs or `@GenerateFocus` records other modules navigate into, not only the one that consumes them: a spec is nested through its generated `Impl` and a record is navigated through its generated `Focus`, so each must exist. See [Multi-module builds](manual_setup.md#multi-module-builds).
 
 A build that applies the plugin can turn on Gradle's [configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html).
 

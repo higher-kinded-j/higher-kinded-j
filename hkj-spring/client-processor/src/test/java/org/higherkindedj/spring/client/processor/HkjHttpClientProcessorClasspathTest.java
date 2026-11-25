@@ -819,6 +819,30 @@ class HkjHttpClientProcessorClasspathTest {
       Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiHttpExchange"))
           .contains("@PathVariable(\"id\") String arg0");
     }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"@PathVariable(\"\")", "@PathVariable(name = \"\")"})
+    @DisplayName(
+        "a binding named empty is refused as an unnamed one is, since Spring reads no name")
+    void aBindingNamedEmptyIsRefused(String binding) throws IOException {
+      Compilation compilation =
+          compiler(
+                  baseModuleWithoutParameterNames(
+                      """
+                        @GetExchange("/{id}")
+                        EitherPath<ApiErr, UserDto> getUser(%s String id);
+                      """
+                          .formatted(binding)))
+              .compile(CHILD);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'getUser', inherited from 'BaseApi': @HkjHttpClient cannot name the binding of"
+                  + " parameter 'arg0'")
+          .inFile(CHILD);
+      assertThat(compilation).hadErrorCount(1);
+    }
   }
 
   /**
