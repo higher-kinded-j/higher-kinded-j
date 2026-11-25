@@ -30,6 +30,10 @@ import java.lang.annotation.Target;
  * {@code @ImportHttpServices} HTTP Service Groups and {@code spring.http.serviceclient.<group>.*}
  * properties; the generated client autowires the proxied native interface rather than building a
  * {@code RestClientAdapter} by hand.
+ *
+ * <p>Kept in source alone. The processor is registered with Gradle as isolating, so Gradle reruns
+ * it on a client only when it recompiles the client, and the processor reads the client from
+ * source.
  */
 @Documented
 @Target(ElementType.TYPE)

@@ -285,6 +285,13 @@ nested in a deprecated class, the facade and its configuration class suppress th
 naming it draws. A type-use annotation deprecated by `@Deprecated` or by a javadoc `@deprecated` tag
 alone is left off the restated types.
 
+A base read from a class file, a jar's or one that Gradle's incremental build did not recompile,
+must have been compiled with `-parameters` where it has a bare `@PathVariable`, `@RequestParam`,
+`@RequestHeader` or `@CookieValue`, which the processor names after its parameter. Without it
+javac reads the names as `arg0`, `arg1`, and the processor refuses the binding (`cannot name the
+binding of`) rather than bind that name. Compile the base with the flag, write the
+name, as `@PathVariable("id")`, or redeclare the method on the client.
+
 A client whose annotations or interfaces name a type another processor writes waits for the round
 that brings it; if none does, the processor reports that it generated nothing for the client.
 

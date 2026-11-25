@@ -48,8 +48,10 @@ final class ImplConstants {
    * Warns at each constant {@code spec}, or an interface it extends, declares whose type is {@code
    * spec}'s Impl. The spec's own declaration is read whatever the compiler says of its file; an
    * interface it extends is read only from source, since one compiled into a dependency carries no
-   * suppression and no position to report at. A constant names one Impl, and each spec is checked
-   * once, so each constant is reported at most once.
+   * suppression and no position to report at. A spec Gradle's incremental build hands over in its
+   * class file was checked when it was compiled, so its constants are not reported again, as {@code
+   * Diagnostics.mayWarn} says. A constant names one Impl, and each spec is checked once, so each
+   * constant is reported at most once.
    *
    * @param env the processing environment
    * @param spec the spec about to be processed
@@ -63,7 +65,8 @@ final class ImplConstants {
         continue;
       }
       for (VariableElement field : ElementFilter.fieldsIn(declaring.getEnclosedElements())) {
-        if (names(field.asType(), impl) && !Diagnostics.suppressed(field, SUPPRESSION)) {
+        if (names(field.asType(), impl)
+            && Diagnostics.mayWarn(env.getElementUtils(), field, SUPPRESSION)) {
           report(env, tag, declaring, field, impl.simpleName());
         }
       }

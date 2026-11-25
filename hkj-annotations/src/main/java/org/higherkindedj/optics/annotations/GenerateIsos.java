@@ -28,8 +28,12 @@ import java.lang.annotation.Target;
  *
  * <p>By default, the generated class is placed in the same package as the enclosing class. Use the
  * {@link #targetPackage()} element to specify a different package for the generated class.
+ *
+ * <p>Retained in the class file for an incremental build: Gradle hands the processor each unchanged
+ * class declaring an annotated method by name, and the processor reads the method from its class
+ * file.
  */
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 @Target(ElementType.METHOD)
 public @interface GenerateIsos {
 

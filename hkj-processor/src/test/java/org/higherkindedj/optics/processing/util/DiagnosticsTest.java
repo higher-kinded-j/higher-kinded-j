@@ -12,6 +12,7 @@ import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -177,5 +178,18 @@ class DiagnosticsTest {
     assertThatNullPointerException()
         .isThrownBy(() -> Diagnostics.format("@A", "w.", "y.", null))
         .withMessage("fix must not be null");
+    Elements elements =
+        (Elements)
+            Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[] {Elements.class}, (_, _, _) -> null);
+    assertThatNullPointerException()
+        .isThrownBy(() -> Diagnostics.mayWarn(null, element, "id"))
+        .withMessage("elements must not be null");
+    assertThatNullPointerException()
+        .isThrownBy(() -> Diagnostics.mayWarn(elements, null, "id"))
+        .withMessage("declaration must not be null");
+    assertThatNullPointerException()
+        .isThrownBy(() -> Diagnostics.mayWarn(elements, element, null))
+        .withMessage("id must not be null");
   }
 }

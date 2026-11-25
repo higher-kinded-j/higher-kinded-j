@@ -10,6 +10,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 
 /**
@@ -73,6 +74,11 @@ public final class Diagnostics {
    * hkj-checker} honours its check ids. {@code "all"} is not honoured, since it is the compiler's
    * own lint switch.
    *
+   * <p>{@code @SuppressWarnings} is retained only in source, so this reads an element from a class
+   * file as never suppressed. A processor deciding whether to warn about a declaration of a type it
+   * is generating for asks {@link #mayWarn} instead, as Gradle's incremental build hands an
+   * unchanged one over in its class file.
+   *
    * @param element the element the warning is about; must not be null
    * @param id the warning's suppression id; must not be null
    * @return whether the warning is suppressed there
@@ -88,6 +94,33 @@ public final class Diagnostics {
       }
     }
     return false;
+  }
+
+  /**
+   * Whether a processor may report a suppressible warning about a declaration of a type it is
+   * generating for. It may unless {@code @SuppressWarnings(id)} sits on the declaration or on one
+   * enclosing it, as {@link #suppressed(Element, String)} reads, or the compiler read the
+   * declaration from a class file. Gradle's incremental build hands an unchanged annotated type to
+   * an aggregating processor by name, and javac reads it from the class file the last build wrote,
+   * where no {@code @SuppressWarnings} survives. That build checked the declaration and reported or
+   * suppressed each warning about it, so the warning is not reported again, as javac repeats none
+   * of its own lint warnings for a class it does not recompile. A declaration whose file the
+   * compiler cannot place is read as source.
+   *
+   * <p>Never ask it about a dependency's declaration: that class file reads the same way, so a
+   * warning about it would never be reported. Ask {@link #suppressed(Element, String)} there.
+   *
+   * @param elements the compilation's element utilities; must not be null
+   * @param declaration a declaration of a type the processor is generating for; must not be null
+   * @param id the warning's suppression id; must not be null
+   * @return whether the warning may be reported
+   * @since 0.6.0
+   */
+  public static boolean mayWarn(Elements elements, Element declaration, String id) {
+    Objects.requireNonNull(elements, "elements must not be null");
+    Objects.requireNonNull(declaration, "declaration must not be null");
+    Objects.requireNonNull(id, "id must not be null");
+    return !suppressed(declaration, id) && !ProcessorUtils.readFromClassFile(elements, declaration);
   }
 
   /**

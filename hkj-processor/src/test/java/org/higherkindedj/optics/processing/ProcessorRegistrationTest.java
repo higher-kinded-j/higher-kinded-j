@@ -2,14 +2,20 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import static java.lang.annotation.RetentionPolicy.SOURCE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.gradleRegistrations;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.locationOf;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.registeredProcessors;
 
 import com.palantir.javapoet.JavaFile;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import java.io.File;
 import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
@@ -72,6 +78,65 @@ class ProcessorRegistrationTest {
     assertThat(registeredProcessors().map(processor -> processor.getClass().getName()))
         .as("a processor Gradle does not know of turns incremental compilation off")
         .allSatisfy(name -> assertThat(registered).containsKey(name));
+  }
+
+  @Test
+  @DisplayName("every annotation an aggregating processor claims survives into class files")
+  void aggregatingProcessorsClaimNoSourceRetainedAnnotation() throws IOException {
+    final Map<String, String> registered = gradleRegistrations();
+    final List<String> claimed =
+        registeredProcessors()
+            .filter(
+                processor -> "aggregating".equals(registered.get(processor.getClass().getName())))
+            .flatMap(processor -> processor.getSupportedAnnotationTypes().stream())
+            .toList();
+
+    assertThat(claimed).isNotEmpty();
+    assertThat(claimed)
+        .as(
+            "Gradle hands an aggregating processor each unchanged annotated type by name, read"
+                + " from its class file, so it recompiles the whole source set on every change while"
+                + " a claimed annotation is SOURCE-retained; retain it as CLASS")
+        .allSatisfy(name -> assertThat(retentionOf(name)).as(name).isNotEqualTo(SOURCE));
+  }
+
+  @Test
+  @DisplayName("every annotation hkj-annotations declares survives into class files")
+  void everyHkjAnnotationSurvivesIntoClassFiles() {
+    final List<String> declared =
+        new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages(
+                    ModuleFinder.of(locationOf(GenerateGetters.class))
+                        .find("org.higherkindedj.annotations")
+                        .map(ModuleReference::descriptor)
+                        .orElseThrow()
+                        .exports()
+                        .stream()
+                        .map(ModuleDescriptor.Exports::source)
+                        .toList())
+                .stream()
+                .filter(JavaClass::isAnnotation)
+                .map(JavaClass::getName)
+                .toList();
+
+    assertThat(declared).isNotEmpty();
+    assertThat(declared)
+        .as(
+            "an aggregating processor reads each of them, as the annotation it claims or beside"
+                + " one, from the class file Gradle's incremental build hands it, where a"
+                + " SOURCE-retained one is gone; retain it as CLASS")
+        .allSatisfy(name -> assertThat(retentionOf(name)).as(name).isNotEqualTo(SOURCE));
+  }
+
+  /** The retention an annotation type declares, or {@code CLASS}, the default. */
+  private static RetentionPolicy retentionOf(final String annotation) {
+    try {
+      final Retention retention = Class.forName(annotation).getAnnotation(Retention.class);
+      return retention == null ? RetentionPolicy.CLASS : retention.value();
+    } catch (ClassNotFoundException e) {
+      throw new AssertionError(annotation + " is not on the test classpath", e);
+    }
   }
 
   @Test

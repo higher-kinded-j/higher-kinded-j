@@ -51,7 +51,10 @@ import java.lang.annotation.Target;
  * explicitly, the convenience uses {@code TimeSource.system()}), a {@code context()} builder over
  * {@code C}'s components, and {@code editContext(error, edit)} rebuilding the concrete variant via
  * an exhaustive switch over the permitted variants.
+ *
+ * <p>Retained in the class file for an incremental build: Gradle hands the processor each unchanged
+ * hierarchy by name, and the processor reads it from its class file.
  */
 @Target(ElementType.TYPE)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface GenerateErrorEnvelope {}

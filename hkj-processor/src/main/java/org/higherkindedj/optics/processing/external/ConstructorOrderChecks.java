@@ -225,12 +225,10 @@ final class ConstructorOrderChecks {
       return Optional.empty();
     }
     if (orders.isEmpty()) {
-      // Only a class file can have lost its names, and javac then reads them as arg0, arg1.
       boolean unnamed =
-          !ProcessorUtils.compiledFromSource(elementUtils, rebuild.source().asElement())
-              && rebuild.constructors().stream()
-                  .flatMap(constructor -> constructor.getParameters().stream())
-                  .anyMatch(parameter -> parameter.getSimpleName().toString().matches("arg\\d+"));
+          rebuild.constructors().stream()
+              .anyMatch(
+                  constructor -> !ProcessorUtils.keepsParameterNames(elementUtils, constructor));
       Diagnostics.error(
           messager,
           rebuild.method(),
@@ -353,7 +351,8 @@ final class ConstructorOrderChecks {
    */
   private void warnOfValuesLeftOut(Rebuild rebuild, List<String> order) {
     Optional<LeftOut> leftOut = leftOut(rebuild, order);
-    if (leftOut.isEmpty() || Diagnostics.suppressed(rebuild.method(), SHORTER_CONSTRUCTOR)) {
+    if (leftOut.isEmpty()
+        || !Diagnostics.mayWarn(elementUtils, rebuild.method(), SHORTER_CONSTRUCTOR)) {
       return;
     }
     List<String> accessors = leftOut.get().accessors();

@@ -347,7 +347,12 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
     boolean valid = !refusesTypeLevelAnnotations(iface, inherited, packageName);
     for (List<ClientMethod> declarations : groups) {
-      if (refusesDivergentDeclarations(iface, declarations, packageName)) {
+      boolean namesLost = false;
+      for (ClientMethod declaration : declarations) {
+        namesLost |= refusesLostBindingNames(iface, declaration);
+      }
+      // A lost name makes two declarations differ; its own refusal says why.
+      if (namesLost || refusesDivergentDeclarations(iface, declarations, packageName)) {
         valid = false;
       }
     }
@@ -383,6 +388,16 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     ClassName nativeName = ClassName.get(packageName, nativeNameOf(iface));
     ClassName facadeName = ClassName.get(packageName, simpleName + "Client");
     TypeName nativeType = parameterise(nativeName, typeVars);
+    List<ClassName> written =
+        generic
+            ? List.of(nativeName, facadeName)
+            : List.of(
+                nativeName,
+                facadeName,
+                ClassName.get(packageName, simpleName + "ClientConfiguration"));
+    if (refusesReplacing(iface, written)) {
+      return true;
+    }
 
     List<AnnotationMirror> inheritedExchange =
         inherited instanceof HttpExchanges.Found found ? found.annotations() : List.of();
@@ -439,6 +454,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     String packageName = nativeName.packageName();
     TypeSpec.Builder builder =
         TypeSpec.interfaceBuilder(nativeName)
+            .addOriginatingElement(iface)
             .addModifiers(Modifier.PUBLIC)
             .addAnnotation(GENERATED)
             .addTypeVariables(typeVars)
@@ -511,6 +527,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .collect(Lint.inNameOrder());
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(facadeName)
+            .addOriginatingElement(iface)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
             .addAnnotations(AnnotationSpecs.suppressing(classDrawn, List.of()))
@@ -773,6 +790,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     // The configuration names the client, and the native interface, which carries a deprecated
     // client's copied @Deprecated, in its annotations as well as its bean method.
     return TypeSpec.classBuilder(simpleName + "ClientConfiguration")
+        .addOriginatingElement(iface)
         .addModifiers(Modifier.PUBLIC)
         .addAnnotation(GENERATED)
         .addAnnotations(AnnotationSpecs.suppressing(drawnByClient(iface), List.of()))
@@ -823,6 +841,83 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
                       : copy;
                 }))
         .build();
+  }
+
+  /**
+   * Refuses each name the client's generated classes would take that a class no HKJ generator wrote
+   * already has, read from a class file, and returns whether it refused any. javac's Filer refuses
+   * a name a source of this compilation declares, but writes over a class file with no more than a
+   * warning, and Gradle reads a hand-written class it did not recompile with the client from its
+   * class file.
+   */
+  private boolean refusesReplacing(TypeElement iface, List<ClassName> written) {
+    List<String> taken =
+        written.stream()
+            .map(ClassName::canonicalName)
+            .filter(classFiles()::replacesUngeneratedClass)
+            .toList();
+    for (String name : taken) {
+      // Worded as hkj-processor's GeneratedNames.refusesReplacing words it, so that one quoted
+      // fragment finds both in the book.
+      error(
+          "@HkjHttpClient: the generated class '"
+              + name
+              + "' has the name of a class on the classpath. javac reads that class from a class"
+              + " file without HKJ's @Generated, so it is a dependency's, another processor's"
+              + " output from an earlier build, or a hand-written class Gradle's incremental build"
+              + " did not recompile, and the generated class would replace it. Rename the class on"
+              + " the classpath where it is yours, or rename '"
+              + iface.getSimpleName()
+              + "', whose generated classes take their names from it, or rebuild from clean where"
+              + " it is an earlier build's output.",
+          iface);
+    }
+    return !taken.isEmpty();
+  }
+
+  /**
+   * Refuses a method whose binding names would come from names its class file did not keep, and
+   * returns whether it refused. A name-binding annotation written without a name takes the
+   * parameter's (see {@link #copyParameter}), and in a class file compiled without {@code
+   * -parameters} javac reads only {@code arg0}, {@code arg1}, which Spring would then bind. A
+   * method is read from a class file where its interface is in a dependency, and, in Gradle's
+   * incremental build, where a base interface of this compilation has not changed since the last
+   * build.
+   */
+  private boolean refusesLostBindingNames(TypeElement iface, ClientMethod method) {
+    if (classFiles().keepsParameterNames(method.element())) {
+      return false;
+    }
+    List<String> unnamed =
+        method.parameters().stream()
+            .filter(
+                parameter ->
+                    parameter.element().getAnnotationMirrors().stream()
+                        .anyMatch(mirror -> needsExplicitName(mirror, parameter)))
+            .map(parameter -> "'" + parameter.name() + "'")
+            .toList();
+    if (unnamed.isEmpty()) {
+      return false;
+    }
+    String base = method.declaring().getSimpleName().toString();
+    error(
+        "@HkjHttpClient cannot name the binding of "
+            + (unnamed.size() == 1 ? "parameter " : "parameters ")
+            + String.join(", ", unnamed)
+            + ": "
+            + base
+            + " is read from a class file that records no parameter names, as one compiled without"
+            + " -parameters does, whether it is a jar's or a base Gradle's incremental build did not"
+            + " recompile. javac reads the names as 'arg0', 'arg1', and Spring would bind those."
+            + " Compile "
+            + base
+            + " with -parameters, write each binding's name, as in @PathVariable(\"id\"), or"
+            + " redeclare '"
+            + method.element().getSimpleName()
+            + "' on the client.",
+        iface,
+        method.element());
+    return true;
   }
 
   /**
@@ -1916,6 +2011,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return Character.toLowerCase(value.charAt(0)) + value.substring(1);
   }
 
+  /**
+   * Writes one generated type, which names the client it was generated from as its only originating
+   * element: Gradle registers this processor as isolating, and recompiling the client is then what
+   * regenerates the type.
+   */
   private void writeFile(String packageName, TypeSpec type, TypeElement originating) {
     try {
       JavaFile.builder(packageName, type)

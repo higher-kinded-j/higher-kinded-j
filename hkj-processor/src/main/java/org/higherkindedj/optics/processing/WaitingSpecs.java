@@ -43,17 +43,20 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * round asks again.
  *
  * <p>Only a declaration in source makes a spec wait. A type a later round can supply is named from
- * source; a class file naming a type missing from the classpath is a broken dependency no round
- * repairs. A class file still names the types a spec nests through, though, so its record
- * components and permitted subtypes count towards the specs a waiting mapping holds back. A spec
- * still waiting when processing ends generates nothing and reports nothing: everything it waits for
- * is a source reference, which javac reports as {@code cannot find symbol}. Which file a type was
- * read from is the compiler's to say (see {@link ProcessorUtils#compiledFromSource}); a type it
- * cannot place is read as a class file. A spec's own declaration is read whatever the compiler
- * says, since the processor met the spec in source, so the spec still waits for a type it names
- * itself, and for a waiting spec it nests through a record component or a permitted subtype. A
- * generated type named only inside a record, bean or mix-in the spec reads no longer holds it back
- * there, and the spec is classified against the placeholder.
+ * source; a dependency's class file naming a type missing from the classpath is a broken dependency
+ * no round repairs. In Gradle's incremental build a type of this compilation is read from a class
+ * file too, the generated types it names deleted, so a domain, wire or parent interface that names
+ * one no longer holds a spec back there. A class file still names the types a spec nests through,
+ * though, so its record components and permitted subtypes count towards the specs a waiting mapping
+ * holds back. A spec still waiting when processing ends generates nothing and reports nothing:
+ * everything it waits for is a source reference, which javac reports as {@code cannot find symbol}.
+ * Which file a type was read from is the compiler's to say (see {@link
+ * ProcessorUtils#compiledFromSource}); a type it cannot place is read as a class file. A spec's own
+ * declaration is read whatever the compiler says, the spec Gradle's incremental build hands over by
+ * name as well as one met in source, so the spec still waits for a type it names itself, and for a
+ * waiting spec it nests through a record component or a permitted subtype. A generated type named
+ * only inside a record, bean or mix-in the spec reads no longer holds it back there, and the spec
+ * is classified against the placeholder.
  *
  * <p>The mapping specs a compilation has met are kept here for both processors ({@link
  * #meetMappings}): {@link MergeProcessor} is first invoked only in a round carrying a {@code

@@ -990,7 +990,14 @@ records deterministic in tests.
 
 Nothing beyond the standard processor wiring. If you use the Gradle or Maven plugin, **`-parameters`
 is added for you**; do not set it by hand. `@GenerateMapping`'s copy strategies rely on it to read
-constructor parameter names.
+constructor parameter names. A Gradle build set up by hand passes two flags itself:
+
+- `-parameters`: an incremental build hands the processor an unchanged `@GenerateMerge` spec as a
+  class file, and the processor refuses one that records no parameter names
+  (`was read from a class file that records no parameter names`).
+- `-implicit:class`, in a modular source set built with `-Werror`: an incremental compile reads its
+  javadoc-only `package-info.java` files from the source path, and javac warns of it otherwise.
+  The Gradle plugin adds this one too.
 
 Processor diagnostics name the offending element, the reason, and the fix, so read the compile error
 before rearranging the spec.
@@ -1033,5 +1040,5 @@ before rearranging the spec.
 | Declaring a domain component `@Nullable` to say a value may be absent | A leaf, nested spec, lifted container, `@Singular` method, getter-only list or protobuf-java setter throws on the `null`, so the processor refuses it. Absence in a mapping is an `Optional`: hold it as one and bridge it (`@OptionalBridge` on a record wire), or declare it non-null. A `@Singular` collection or getter-only list carries no absent `Optional`: declare it non-null there, or give the `@Singular` `ignoreNullCollections = true` |
 | Expecting `asIso()` or `asLens()` where a record wire declares `@Nullable` what a `@NullMarked` domain declares non-null | `parse` refuses that `null`, so no total optic is emitted: call `asValidatedPrism()` or `patch`, or give the pair one nullness |
 | Expecting `asIso()` alongside a derived field | A derived field is recomputed on the round trip, so the mapping is not an identity |
-| Adding `-parameters` manually | The plugin already does it |
+| Adding `-parameters` by hand with the HKJ plugin applied | The plugin already does it; a build without the plugin does need it |
 | Assuming `@GenerateErrorEnvelope` changes HTTP status codes | It does not. Status is mapped by error **class name** |

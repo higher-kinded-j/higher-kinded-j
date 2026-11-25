@@ -244,6 +244,40 @@ class PathSourceAttributesTest {
       assertThat(again.generatedSourceFile("com.example.BoxPath")).isPresent();
     }
 
+    @Test
+    @DisplayName("a hand-written class file of the Path's name, as an incremental build reads one")
+    void aHandWrittenClassFileOfThePathsName(@TempDir Path unchanged) throws IOException {
+      // Gradle's incremental build reads a type it does not recompile from the last build's class
+      // file, so the hand-written BoxPath is in the way there as it is in source.
+      final Compilation handWritten =
+          javac()
+              .withProcessors()
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.BoxPath", "package com.example; public class BoxPath {}"));
+      assertThat(handWritten).succeeded();
+      final JavaFileObject box = box();
+
+      final Compilation compilation =
+          javac()
+              .withProcessors(new PathSourceProcessor(), new CompanionAnnotationProcessor())
+              .withClasspath(classpathWith(classDirectory(handWritten, unchanged)))
+              .compile(WITNESS, ERROR, box);
+
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@PathSource: the default suffix \"Path\" would name the generated Path"
+                  + " 'com.example.BoxPath'. A type of that name is already on the classpath, in a"
+                  + " class file without HKJ's @Generated, so it is a dependency's, another"
+                  + " processor's output from an earlier build, or a hand-written class Gradle's"
+                  + " incremental build did not recompile, and the Path would replace it. Set a"
+                  + " suffix that names a free class, set a targetPackage to write the Path"
+                  + " elsewhere, rename 'com.example.BoxPath' where it is yours, or rebuild from"
+                  + " clean where it is an earlier build's output.")
+          .inFile(box);
+      assertThat(compilation).failed();
+    }
+
     @ParameterizedTest(name = "suffix \"{0}\"")
     @ValueSource(strings = {"-x", ".Path", "​"})
     @DisplayName("a suffix that does not continue a Java identifier")

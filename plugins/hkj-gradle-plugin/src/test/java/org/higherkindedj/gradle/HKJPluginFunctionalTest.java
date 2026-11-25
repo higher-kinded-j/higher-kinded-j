@@ -235,6 +235,8 @@ class HKJPluginFunctionalTest {
     assertThat(output).contains("hkj-core:0.3.0");
     assertThat(output).contains("hkj-processor-plugins:0.3.0");
     assertThat(output).contains("hkj-checker:0.3.0");
+    assertThat(output).contains("-parameters");
+    assertThat(output).contains("-implicit:class");
     assertThat(output).contains("--enable-preview");
     assertThat(output).contains("-Xplugin:HKJChecker");
     // Regression: both annotation processor classpaths must be reported so users

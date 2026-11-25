@@ -1574,6 +1574,32 @@ The `IncrementalCompilationTest` class verifies the processor handles source cha
 
 **Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/IncrementalCompilationTest.java`
 
+### Generating From Class Files
+
+hkj-processor's generators are registered with Gradle as aggregating, so in an incremental build
+Gradle hands each one every unchanged annotated type by name, and javac reads it from the class file
+the last build wrote. compile-testing compiles from source alone, so it cannot see a generator that
+writes something else from a class file. Two nets catch one:
+
+- **`ClassFileReprocessingTest` compiles a generator's sources twice.** Its `Reprocessing`
+  harness runs a clean build, then the build Gradle runs after one unrelated change: generated
+  output deleted, every annotated type handed to javac by name. The two must generate and report
+  the same. It covers `@GenerateMapping`, `@GenerateMerge`, `@GenerateIsos`,
+  `@GenerateErrorEnvelope` and `@PathSource`; the other generators are not covered yet. A new
+  generator, or a new shape of an existing one, adds its sources to `generators()`, and its
+  generated class to `generatedNames()`, which holds it to refusing a name a hand-written class
+  file already has.
+- **`ProcessorRegistrationTest` holds annotation retention.** Every annotation an aggregating
+  processor claims, and every annotation hkj-annotations declares, must be `CLASS` or `RUNTIME`:
+  Gradle recompiles the whole source set while a claimed one is `SOURCE`, and a generator reading
+  one beside it would find it gone.
+
+The client processor is registered as isolating, so Gradle never hands it a client by name.
+`HkjHttpClientProcessorIsolationTest` holds each generated file to naming the client, and only the
+client, as its originating element, and the processor to the lookups by name it makes. It also
+checks that a hand-written class file of each generated name is refused, and that a previous
+build's output is written again.
+
 ### Running Processor Tests
 
 ```bash

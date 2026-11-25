@@ -29,6 +29,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`'x' takes parameters`](#generateisos-x-takes-parameters) | The `@GenerateIsos` method takes arguments |
 | [`does not return an Iso with both type arguments`](#generateisos-x-does-not-return-an-iso-with-both-type-arguments) | The `@GenerateIsos` method returns something else |
 | [`cannot be reached from 'p'`](#generateisos-x-cannot-be-reached-from-p) | The `@GenerateIsos` method is not visible from the generated package |
+| [`has the name of a class on the classpath`](#generateisos-name-on-the-classpath) | `@GenerateIsos`: a class no HKJ generator wrote already has the iso class's name |
 | [`The generated companion is a top-level class`](#companion-cannot-be-reached) | A type the generated companion names is `private`, or hidden in another package |
 | [`has a wildcard type argument`, `has a raw Either`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened SPI container, such as `Either`, is raw or has a wildcard |
 | [`cannot navigate to`](#generatefocus-navigator-cannot-navigate) | A record that writes `generateNavigators = true` reaches a record with a field named like a no-argument path method |
@@ -369,6 +370,12 @@ final class LengthIsos {
 }
 ```
 ~~~
+
+### "@GenerateIsos: the generated class '...' has the name of a class on the classpath" {#generateisos-name-on-the-classpath}
+
+The class the iso fields are written into, `XIsos`, is already on the classpath as a class file without HKJ's `@Generated`. It is a dependency's, another processor's, or a hand-written class that Gradle's incremental build read from its class file rather than recompile. javac would write the generated class over it.
+
+**Fix.** Set `targetPackage` to write the iso class into another package, rename the class on the classpath where it is yours, or rename the class declaring the method, whose name the iso class takes. Where the class is an earlier build's output, rebuild from clean. [Incremental compilation](../tooling/manual_setup.md#incremental-compilation) says which generators refuse such a name.
 
 ### "@GenerateLenses: record component 'x' of 'X' names 'Y', which cannot be reached from 'p'" {#companion-cannot-be-reached}
 

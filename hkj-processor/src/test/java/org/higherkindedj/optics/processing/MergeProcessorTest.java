@@ -1792,6 +1792,12 @@ class MergeProcessorTest {
                       switch (method.getName()) {
                         case "getFiler" -> filer;
                         case "getMessager" -> messager;
+                        // An Elements that knows no type, so no class holds the generated name.
+                        case "getElementUtils" ->
+                            java.lang.reflect.Proxy.newProxyInstance(
+                                getClass().getClassLoader(),
+                                new Class<?>[] {javax.lang.model.util.Elements.class},
+                                (_, _, _) -> null);
                         default -> null;
                       });
       var simpleName =

@@ -44,6 +44,8 @@ HKJ Configuration:
     annotationProcessor:     io.github.higher-kinded-j:hkj-processor-plugins:0.3.7-SNAPSHOT
     annotationProcessor:     io.github.higher-kinded-j:hkj-checker:0.3.7-SNAPSHOT
   Compiler args added:
+    -parameters
+    -implicit:class (where a task sets no -implicit policy)
     --enable-preview
     -Xplugin:HKJChecker
 ```

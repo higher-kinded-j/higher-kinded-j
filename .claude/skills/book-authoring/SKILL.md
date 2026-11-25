@@ -90,10 +90,10 @@ guide's "Chapter Guides" section says.
   drawing from decoration. Write `->` or `→` in code, and put a drawing in an accessible `<pre>`.
 - **The anchor check accepts heading ids only.** mdbook renders an admonition's `id=`, but the check
   does not accept a link to it, so link the heading around the admonition.
-- **A module with annotation processors can fail `-Werror` after an incremental compile**, with
-  "Implicitly compiled files were not subject to annotation processing". It happens in `hkj-core`
-  after a javadoc-only edit, and in `hkj-processor` after a single-file edit. Clean the module and
-  rebuild.
+- **The root build's `-implicit:class` is load-bearing.** Without it, an incremental compile of a
+  modular module fails `-Werror` with "Implicitly compiled files were not subject to annotation
+  processing", since javac reads each javadoc-only `package-info.java` from the source path. Keep
+  it beside `-Werror`.
 - **Never run two Gradle builds at once.** If you installed Spotless's pre-push hook, with
   `./gradlew spotlessInstallGitPrePushHook`, a push also runs a Gradle build, so do not push while
   another build runs.

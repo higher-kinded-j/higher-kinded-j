@@ -78,6 +78,13 @@ dependencies {
     testRuntimeOnly("org.apiguardian:apiguardian-api:1.1.2")
 }
 
+// As the HKJ Gradle plugin does for a user's build. Gradle's incremental build hands an unchanged
+// @GenerateMerge spec to the processor as a class file, which keeps its parameter names only
+// under -parameters, and the processor refuses a spec without them.
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-parameters")
+}
+
 tasks.named("javadoc") {
     enabled = false
 }

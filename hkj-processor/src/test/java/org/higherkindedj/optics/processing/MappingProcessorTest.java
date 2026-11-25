@@ -29,6 +29,7 @@ import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -6915,6 +6916,12 @@ class MappingProcessorTest {
                       switch (method.getName()) {
                         case "getFiler" -> filer;
                         case "getMessager" -> messager;
+                        // An Elements that knows no type, so no class holds the generated name.
+                        case "getElementUtils" ->
+                            Proxy.newProxyInstance(
+                                getClass().getClassLoader(),
+                                new Class<?>[] {Elements.class},
+                                (_, _, _) -> null);
                         default -> null;
                       });
       Name simpleName =

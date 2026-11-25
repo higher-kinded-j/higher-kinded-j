@@ -473,10 +473,11 @@ class ProcessorArchitectureRules {
    *
    * <p>{@code Elements.getFileObjectOf} is a default method that throws unless the compiler
    * overrides it, as javac does, so a processor calling it directly aborts the compilation wherever
-   * it is left unsupported. {@code ProcessorUtils.compiledFromSource} is the one caller: it answers
-   * for an element the compiler cannot place as for one read from a class file, and every other
-   * question about an element's file goes through it. Collecting the callers rather than forbidding
-   * the rest also fails the rule if it stops seeing the one caller it allows.
+   * it is left unsupported. {@code ProcessorUtils.fileOf} is the one caller, answering with no file
+   * where the compiler cannot place one, and every question about an element's file goes through
+   * the guarded questions built on it: {@code compiledFromSource}, {@code readFromClassFile} and
+   * {@code keepsParameterNames}. Collecting the callers rather than forbidding the rest also fails
+   * the rule if it stops seeing the one caller it allows.
    */
   @Test
   @DisplayName("Only the guarded lookup should ask which file an element was read from")
@@ -493,9 +494,9 @@ class ProcessorArchitectureRules {
 
     assertThat(askers)
         .as(
-            "call ProcessorUtils.compiledFromSource instead, which answers for an element the"
-                + " compiler cannot place as for one read from a class file")
-        .isEqualTo(Set.of("ProcessorUtils.compiledFromSource"));
+            "call ProcessorUtils.compiledFromSource, readFromClassFile or keepsParameterNames"
+                + " instead, which answer for an element the compiler cannot place")
+        .isEqualTo(Set.of("ProcessorUtils.fileOf"));
   }
 
   /**

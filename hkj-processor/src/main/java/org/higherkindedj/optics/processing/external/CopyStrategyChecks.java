@@ -772,7 +772,7 @@ final class CopyStrategyChecks {
     if ((setterCall instanceof SetterCall.Binds(ExecutableElement binding)
             && !mayReturnSource(sourceType, binding))
         || reachable.stream().noneMatch(member -> mayReturnSource(sourceType, member))
-        || Diagnostics.suppressed(method, DROPPED_RESULT)) {
+        || !Diagnostics.mayWarn(elementUtils, method, DROPPED_RESULT)) {
       return;
     }
     String source = ProcessorUtils.simpleTypeName(sourceType);
