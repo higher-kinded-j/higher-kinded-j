@@ -28,6 +28,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.external.SpecInterfaceAnalyser;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.TypeKey;
 
 /**
  * Which {@code @ImportOptics} importers wait for a later round.
@@ -83,14 +84,15 @@ final class WaitingImporters {
 
   /**
    * An importer as the rounds hold it: a package or a type, by module and qualified name, since two
-   * modules compiled together may declare the same name. It is looked up afresh each round.
+   * modules compiled together may declare the same name, the module's empty where the compilation
+   * has none (see {@link TypeKey#moduleOf}). It is looked up afresh each round.
    */
   record Key(boolean isPackage, String module, String name) {
 
     static Key of(Elements elements, Element importer) {
       return new Key(
           importer.getKind() == ElementKind.PACKAGE,
-          elements.getModuleOf(importer).getQualifiedName().toString(),
+          TypeKey.moduleOf(elements, importer),
           // An @ImportOptics element is a package or a type, and both are qualified names.
           ((QualifiedNameable) importer).getQualifiedName().toString());
     }
@@ -99,7 +101,7 @@ final class WaitingImporters {
       Set<? extends Element> named =
           isPackage ? elements.getAllPackageElements(name) : elements.getAllTypeElements(name);
       return named.stream()
-          .filter(element -> elements.getModuleOf(element).getQualifiedName().contentEquals(module))
+          .filter(element -> TypeKey.moduleOf(elements, element).equals(module))
           .findFirst()
           .orElseThrow();
     }

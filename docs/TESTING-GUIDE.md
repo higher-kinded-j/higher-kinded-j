@@ -1579,16 +1579,24 @@ The `IncrementalCompilationTest` class verifies the processor handles source cha
 hkj-processor's generators are registered with Gradle as aggregating, so in an incremental build
 Gradle hands each one every unchanged annotated type by name, and javac reads it from the class file
 the last build wrote. compile-testing compiles from source alone, so it cannot see a generator that
-writes something else from a class file. Two nets catch one:
+writes something else from a class file. Three nets catch one:
 
 - **`ClassFileReprocessingTest` compiles a generator's sources twice.** Its `Reprocessing`
   harness runs a clean build, then the build Gradle runs after one unrelated change: generated
   output deleted, every annotated type handed to javac by name. The two must generate and report
   the same. It covers `@GenerateMapping`, `@GenerateMerge`, `@GenerateIsos`,
-  `@GenerateErrorEnvelope` and `@PathSource`; the other generators are not covered yet. A new
+  `@GenerateErrorEnvelope` and `@PathSource`, and `OpticsRoundsTest` covers more, as below; the
+  other generators are not covered yet. A new
   generator, or a new shape of an existing one, adds its sources to `generators()`, and its
   generated class to `generatedNames()`, which holds it to refusing a name a hand-written class
   file already has.
+- **`OpticsRoundsTest` runs the harness with another processor beside the generators.** A
+  `Supplier` of processors passed to `fromSource` or `fromClassNames` runs them ahead of the
+  registered ones in each build, as another library's processor writing a type the sources name.
+  The `fromClassNames` form taking a list of `recompiled` sources compiles those from source in
+  the second build and hands the rest over by name, as Gradle does after a change to one file. It
+  holds `@GenerateLenses`, `@GenerateFocus` and `@GenerateIsos` to what they generate and report
+  from class files, beside a recompiled record they reach.
 - **`ProcessorRegistrationTest` holds annotation retention.** Every annotation an aggregating
   processor claims, and every annotation hkj-annotations declares, must be `CLASS` or `RUNTIME`:
   Gradle recompiles the whole source set while a claimed one is `SOURCE`, and a generator reading

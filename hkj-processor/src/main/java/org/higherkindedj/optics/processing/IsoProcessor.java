@@ -46,14 +46,16 @@ public final class IsoProcessor extends AbstractProcessor {
   /** Creates a new IsoProcessor. */
   public IsoProcessor() {}
 
+  /** The methods waiting for a type a later round brings (see {@link WaitingOptics}). */
+  private final WaitingOptics waiting = new WaitingOptics(GenerateIsos.class);
+
   @Override
   public boolean process(
       final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
-    for (final TypeElement annotation : annotations) {
-      for (final Element element : roundEnv.getElementsAnnotatedWith(annotation)) {
-        if (element.getKind() == ElementKind.METHOD) {
-          writeIsoFile((ExecutableElement) element);
-        }
+    WaitingOptics.Round round = waiting.round(processingEnv, roundEnv);
+    for (final Element element : round.elements()) {
+      if (element.getKind() == ElementKind.METHOD && round.ready(element)) {
+        writeIsoFile((ExecutableElement) element);
       }
     }
     return true;

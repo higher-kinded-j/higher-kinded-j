@@ -72,9 +72,9 @@ import org.higherkindedj.optics.processing.util.Reachability;
  *
  * <p>A navigation method never works a container's widening out for itself: it composes the static
  * Focus method the target record's own companion generated, so the two report the same path type
- * for the same declaration by construction (issue #719). For a target annotated in this round,
- * {@link WideningAnalysis} says what that method is about to return; for any other target, the
- * return type is read from the method its companion actually published.
+ * for the same declaration by construction. For a target generated in this round, {@link
+ * WideningAnalysis} says what that method is about to return; for any other target, the return type
+ * is read from the method its companion actually published.
  *
  * <p>Each navigator has a form nested in it for each tier wider than its own, {@code AffineForm} or
  * {@code TraversalForm}: the same navigator over that wider path. Composing a field's path with a
@@ -175,16 +175,18 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * Whether a record's {@code @GenerateFocus} names a constant javac has not resolved, which reads
-   * as a value of the wrong type. javac reports the constant itself, and neither the record's own
-   * companion nor a navigator into it can be generated from settings that cannot be read, so the
-   * processor writes no companion for the record and treats it as not navigable. Every attribute is
-   * read, so one added later is covered too.
+   * Whether a record's {@code @GenerateFocus} cannot be read as this processor declares it: a class
+   * file written against another version of the annotation, one of whose attributes has since
+   * changed type, reads as a value of the wrong type. No navigator into the record can be generated
+   * from settings that cannot be read, so the record is treated as not navigable. A record in
+   * source never reaches here with such settings: one whose settings name something javac has not
+   * resolved waits for a later round, and so does every record whose navigator would read them (see
+   * {@link WaitingOptics}). Every attribute is read, so one added later is covered too.
    *
    * @param settings the annotation as javac reads it
    * @return true when an attribute cannot be read
    */
-  static boolean unreadable(GenerateFocus settings) {
+  private static boolean unreadable(GenerateFocus settings) {
     try {
       for (Method attribute : GenerateFocus.class.getDeclaredMethods()) {
         attribute.invoke(settings);
@@ -1727,7 +1729,7 @@ public class NavigatorClassGenerator {
   /**
    * The shape of the static Focus method a navigation method composes.
    *
-   * <p>A target annotated in this round has no companion to read yet, so its shape is worked out by
+   * <p>A target generated in this round has no companion to read yet, so its shape is worked out by
    * the same analysis its companion is about to be generated from. Any other target, from a
    * dependency or from an earlier round, already has one, so its shape is read from the method that
    * was actually published rather than worked out again: a dependency may have been built under a
@@ -2130,11 +2132,11 @@ public class NavigatorClassGenerator {
    * How a type relates to navigation: navigable, a record whose companion cannot be composed, or
    * neither.
    *
-   * <p>Two questions, and both are load-bearing. {@code navigableTypes} holds the records annotated
-   * in this round, whose {@code Focus} classes this round is about to write and so cannot yet look
-   * up. A type outside that set, from a dependency or from an earlier round, is answered by the
-   * annotation instead, which is why {@link GenerateFocus} is retained in the class file: a record
-   * in one module stays navigable from another's {@code Focus}.
+   * <p>Two questions, and both are load-bearing. {@code navigableTypes} holds the records generated
+   * for in this round, whose {@code Focus} classes this round is about to write and so cannot yet
+   * look up. A type outside that set, from a dependency or from an earlier round, is answered by
+   * the annotation instead, which is why {@link GenerateFocus} is retained in the class file: a
+   * record in one module stays navigable from another's {@code Focus}.
    *
    * <p>Such a type is held to what was actually published. Navigating into it composes its {@code
    * Focus} class from generated code in another package, so a record whose module did not run the
@@ -2279,20 +2281,17 @@ public class NavigatorClassGenerator {
    */
   private void warnIncludedWithoutNavigator(TypeElement record, RecordComponentElement component) {
     String name = component.getSimpleName().toString();
+    // A component naming a type javac could not resolve reaches here only where that type is a
+    // companion, which its record does not wait for (see WaitingOptics), and nothing can be said
+    // of a navigator into it.
     if (!Arrays.asList(focusSettings(record).includeFields()).contains(name)
         || reachableTarget(record, component) != null
         || unresolvedPart(component.asType()).isPresent()
         || widening(record, component).declined() != null) {
       return;
     }
-    // An unreadable target has javac's own error at its annotation, whether reached directly or
-    // through a container. Ask about what the method would reach with every container widened.
+    // Ask about what the method would reach with every container widened.
     MethodPath widened = widenedPath(record, component);
-    if (widened.focus() instanceof DeclaredType declared
-        && declared.asElement().getAnnotation(GenerateFocus.class) instanceof GenerateFocus settings
-        && unreadable(settings)) {
-      return;
-    }
     Target widenedTarget = navigableElement(widened.focus(), companionPackage(record));
     Target refused = refusedContainerTarget(component, companionPackage(record));
 

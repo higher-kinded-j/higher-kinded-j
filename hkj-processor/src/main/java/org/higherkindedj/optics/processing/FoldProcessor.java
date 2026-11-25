@@ -50,15 +50,18 @@ public class FoldProcessor extends AbstractProcessor {
   /** Creates a new FoldProcessor. */
   public FoldProcessor() {}
 
+  /** The records waiting for a type a later round brings (see {@link WaitingOptics}). */
+  private final WaitingOptics waiting = new WaitingOptics(GenerateFolds.class);
+
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (TypeElement annotation : annotations) {
-      Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-      for (Element element : annotatedElements) {
-        if (element.getKind() != ElementKind.RECORD) {
-          error("The @GenerateFolds annotation can only be applied to records.", element);
-          continue;
-        }
+    WaitingOptics.Round round = waiting.round(processingEnv, roundEnv);
+    for (Element element : round.elements()) {
+      if (element.getKind() != ElementKind.RECORD) {
+        error("The @GenerateFolds annotation can only be applied to records.", element);
+        continue;
+      }
+      if (round.ready(element)) {
         writeFoldsFile((TypeElement) element);
       }
     }

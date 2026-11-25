@@ -600,8 +600,8 @@ class FocusFieldListChecksTest {
   }
 
   @Test
-  @DisplayName("a list naming a constant javac cannot resolve is left to javac's own error")
-  void anUnresolvedConstantIsLeftToJavac() {
+  @DisplayName("a list naming a constant no round resolves is reported, as is a record reaching it")
+  void anUnresolvedConstantIsReported() {
     JavaFileObject unresolved =
         JavaFileObjects.forSourceString(
             "com.example.Ledger",
@@ -611,8 +611,8 @@ class FocusFieldListChecksTest {
             @GenerateFocus(includeFields = Names.MISSING)
             public record Ledger(String id, Addr address) {}
             """);
-    // A record that would navigate into it treats it as not navigable, since its settings cannot
-    // be read and it has no companion to compose.
+    // A record that would navigate into it waits with it, since its navigator reads those
+    // settings, and is reported with it.
     JavaFileObject owner =
         JavaFileObjects.forSourceString(
             "com.example.Owner",
@@ -626,11 +626,21 @@ class FocusFieldListChecksTest {
     Compilation compilation =
         javac().withProcessors(new FocusProcessor()).compile(ADDR, unresolved, owner);
 
-    // One error: a navigator into Ledger would name a LedgerFocus that is never written, and javac
-    // would report that too.
+    // javac's own error at the constant, and one report for each record, which no round brings
+    // the constant for: neither companion is written, so no navigator names a missing one.
     assertThat(compilation).failed();
-    assertThat(compilation).hadErrorCount(1);
+    assertThat(compilation).hadErrorCount(3);
     assertThat(compilation).hadErrorContaining("cannot find symbol");
+    assertThat(compilation)
+        .hadErrorContaining(
+            "@GenerateFocus: generated nothing for 'Ledger', as no round of this compilation"
+                + " resolved what it names: a value of @GenerateFocus's includeFields().")
+        .inFile(unresolved);
+    assertThat(compilation)
+        .hadErrorContaining(
+            "@GenerateFocus: generated nothing for 'Owner', as no round of this compilation"
+                + " resolved what it names: a value of @GenerateFocus's includeFields() on Ledger.")
+        .inFile(owner);
   }
 
   /** A row that follows its fix lines to {@code followed}, for a shape that draws more than one. */

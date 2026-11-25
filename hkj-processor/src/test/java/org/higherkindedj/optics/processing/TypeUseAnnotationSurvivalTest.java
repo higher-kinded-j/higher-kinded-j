@@ -1371,10 +1371,11 @@ class TypeUseAnnotationSurvivalTest {
     }
 
     @Test
-    @DisplayName("an annotation naming a constant javac cannot resolve yet is left off")
-    void anAnnotationNamingAnUnresolvedConstantIsLeftOff() {
-      // Paths is written in the first round, after the lens is: then javac hands over the value as
-      // a mark, not a string, which written out would be the wrong value.
+    @DisplayName("an annotation naming a constant a later round brings keeps its value")
+    void anAnnotationNamingALaterRoundConstantKeepsItsValue() {
+      // Paths is written in the first round, where javac hands the lens processor the value as a
+      // mark, not a string, which written out would be the wrong value. The record waits for the
+      // round that brings Paths, and the annotation is written with the value it resolves to.
       Compilation compilation =
           javac()
               .withProcessors(new WritesPaths(), new LensProcessor())
@@ -1405,10 +1406,58 @@ class TypeUseAnnotationSurvivalTest {
 
       assertThat(compilation).succeeded();
       assertGeneratedCodeContains(
+          compilation,
+          "com.home.RouteLenses",
+          "public static Lens<Route, @Pathed(\"/home\") String> path()");
+    }
+
+    @Test
+    @DisplayName("an annotation an importer reads before its constant resolves is left off")
+    void anImporterLeavesOffAnAnnotationNamingALaterRoundConstant() {
+      // An importer waits for a type a later round brings, not for a constant a type-use
+      // annotation sets, so it reads the value as javac's mark in the first round, and the
+      // annotation is left off rather than written with the wrong value.
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesPaths(), new ImportOpticsProcessor())
+              .compile(
+                  source(
+                      "com.home.Pathed",
+                      """
+                      package com.home;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_USE)
+                      public @interface Pathed {
+                        String value();
+                      }
+                      """),
+                  source(
+                      "com.home.Route",
+                      """
+                      package com.home;
+
+                      public record Route(@Pathed(Paths.HOME) String path) {}
+                      """),
+                  source(
+                      "com.home.RouteImports",
+                      """
+                      package com.home;
+
+                      import org.higherkindedj.optics.annotations.ImportOptics;
+
+                      @ImportOptics({Route.class})
+                      final class RouteImports {}
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
           compilation, "com.home.RouteLenses", "public static Lens<Route, String> path()");
     }
 
-    /** Writes {@code com.home.Paths} in the first round, after the lens processor has read it. */
+    /** Writes {@code com.home.Paths} in the first round, before the lens processor can see it. */
     @SupportedAnnotationTypes("*")
     private static final class WritesPaths extends AbstractProcessor {
 

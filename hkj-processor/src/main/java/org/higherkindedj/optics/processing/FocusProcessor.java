@@ -6,10 +6,10 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -110,41 +110,45 @@ public class FocusProcessor extends AbstractProcessor {
   /** ClassName for FocusPath, the path every generated method is built from. */
   private static final ClassName FOCUS_PATH_CLASS = WideningAnalysis.FOCUS_PATH_CLASS;
 
+  /** The records waiting for a type a later round brings (see {@link WaitingOptics}). */
+  private final WaitingOptics waiting = new WaitingOptics(GenerateFocus.class);
+
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    // First pass: collect all @GenerateFocus annotated types for navigator resolution
-    Set<String> navigableTypes = new HashSet<>();
-    Set<? extends Element> allAnnotated = roundEnv.getElementsAnnotatedWith(GenerateFocus.class);
-    // A record whose settings cannot be read writes no companion, so nothing navigates into it.
-    for (Element element : allAnnotated) {
-      if (element.getKind() == ElementKind.RECORD
-          && !NavigatorClassGenerator.unreadable(element.getAnnotation(GenerateFocus.class))) {
-        TypeElement typeElement = (TypeElement) element;
-        navigableTypes.add(typeElement.getQualifiedName().toString());
+    // First pass: the records this round generates for, which a navigator steps into by the
+    // analysis their own companions are generated from, since none of those is written yet. A
+    // record waiting for a later round has none either, but it is not stepped into from here: a
+    // record whose navigator would step into it reads what it waits for, and waits with it.
+    List<TypeElement> ready = new ArrayList<>();
+    WaitingOptics.Round round = waiting.round(processingEnv, roundEnv);
+    for (Element element : round.elements()) {
+      if (element.getKind() != ElementKind.RECORD) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            element,
+            "@GenerateFocus",
+            "can only be applied to records, but '"
+                + element.getSimpleName()
+                + "' is a "
+                + element.getKind().toString().toLowerCase(Locale.ROOT)
+                + ".",
+            "The processor derives FocusPath methods from record components.",
+            "Move the annotation to a record, or use @ImportOptics with an OpticsSpec"
+                + " interface for types you cannot change.");
+        continue;
+      }
+      if (round.ready(element)) {
+        ready.add((TypeElement) element);
       }
     }
+    Set<String> navigableTypes =
+        ready.stream()
+            .map(record -> record.getQualifiedName().toString())
+            .collect(Collectors.toUnmodifiableSet());
 
     // Second pass: generate Focus classes
-    for (TypeElement annotation : annotations) {
-      Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-      for (Element element : annotatedElements) {
-        if (element.getKind() != ElementKind.RECORD) {
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              element,
-              "@GenerateFocus",
-              "can only be applied to records, but '"
-                  + element.getSimpleName()
-                  + "' is a "
-                  + element.getKind().toString().toLowerCase(java.util.Locale.ROOT)
-                  + ".",
-              "The processor derives FocusPath methods from record components.",
-              "Move the annotation to a record, or use @ImportOptics with an OpticsSpec"
-                  + " interface for types you cannot change.");
-          continue;
-        }
-        writeFocusFile((TypeElement) element, navigableTypes);
-      }
+    for (TypeElement record : ready) {
+      writeFocusFile(record, navigableTypes);
     }
     return true;
   }
@@ -170,11 +174,8 @@ public class FocusProcessor extends AbstractProcessor {
     String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
 
-    // Check for annotation attributes
+    // Its settings name nothing unresolved, or it would still be waiting, so each reads as written.
     GenerateFocus annotation = recordElement.getAnnotation(GenerateFocus.class);
-    if (NavigatorClassGenerator.unreadable(annotation)) {
-      return;
-    }
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
     if (!Reachability.check(

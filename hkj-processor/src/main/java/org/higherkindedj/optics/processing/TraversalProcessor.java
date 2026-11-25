@@ -77,6 +77,9 @@ public class TraversalProcessor extends AbstractProcessor {
 
   private final List<TraversableGenerator> generators = new ArrayList<>();
 
+  /** The records waiting for a type a later round brings (see {@link WaitingOptics}). */
+  private final WaitingOptics waiting = new WaitingOptics(GenerateTraversals.class);
+
   @Override
   public synchronized void init(ProcessingEnvironment processingEnv) {
     super.init(processingEnv);
@@ -89,12 +92,15 @@ public class TraversalProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (Element element : roundEnv.getElementsAnnotatedWith(GenerateTraversals.class)) {
+    WaitingOptics.Round round = waiting.round(processingEnv, roundEnv);
+    for (Element element : round.elements()) {
       if (element.getKind() != ElementKind.RECORD) {
         error("The @GenerateTraversals annotation can only be applied to records.", element);
         continue;
       }
-      writeTraversalsFile((TypeElement) element);
+      if (round.ready(element)) {
+        writeTraversalsFile((TypeElement) element);
+      }
     }
     return true;
   }
@@ -388,8 +394,8 @@ public class TraversalProcessor extends AbstractProcessor {
    * java.util.Collection} or a {@link java.util.Map} by erasure. A bare {@link Iterable} is not
    * counted — {@code java.nio.file.Path} implements it — so a component of such a type is passed
    * over as any other non-container is, and so is a type variable, even one bounded by a
-   * collection. An unresolved type is kept out on purpose: {@code isSubtype} answers true for an
-   * error type, and the author already has javac's error for it.
+   * collection. An unresolved type is kept out on purpose, as {@code isSubtype} answers true for an
+   * error type.
    */
   private boolean holdsElements(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {

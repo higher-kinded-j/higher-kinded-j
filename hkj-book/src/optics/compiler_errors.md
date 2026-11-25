@@ -20,7 +20,8 @@ Rows below and headings on the page say which, wherever it is not an error.
 
 | The message says | What it means |
 |------------------|---------------|
-| [`cannot find symbol: class XLenses`](#cannot-find-symbol-class-xlenses) | The processor has not run, or the IDE has not indexed the generated sources |
+| [`cannot find symbol: class XLenses`](#cannot-find-symbol-class-xlenses) | The processor has not run, the IDE has not indexed the generated sources, or the record waited for a type that never appeared |
+| [`generated nothing for`](#generated-nothing-no-round-resolved) | A type or constant it needs never appeared |
 | [`can only be applied to records`](#generatelenses-can-only-be-applied-to-records-but-foo-is-a-class) | `@GenerateLenses` or a sibling is on a class |
 | [`can only be applied to sealed interfaces or enums`](#the-generateprisms-annotation-can-only-be-applied-to-sealed-interfaces-or-enums) | `@GeneratePrisms` is on something else |
 | [`does not bind`](#generateprisms-does-not-bind) | A subtype needs a parameter its clause leaves free |
@@ -179,7 +180,7 @@ flowchart TD
 
 Most of this page is the first branch. The processor reads your declaration, finds a shape it cannot write code for, and says so where you wrote it. Those messages name the element they rejected, so reading the processor's own output first is quicker than working backwards from a `cannot find symbol` further down the build.
 
-A `cannot find symbol: class XLenses` sits outside the diagram altogether: it means the processor never ran.
+A `cannot find symbol: class XLenses` sits outside the diagram altogether: the processor never ran, or the record waited for a type that never appeared.
 
 ---
 
@@ -187,9 +188,41 @@ A `cannot find symbol: class XLenses` sits outside the diagram altogether: it me
 
 ### "cannot find symbol: class XLenses"
 
-The annotation processor has not run yet, or the IDE has not picked up the generated sources directory. With `@ImportOptics`, the class is also missing when a type it imports never appeared: the import waits for a type another processor writes, and javac reports that type as missing too. An error reported earlier, or a warning under `-Werror`, stops annotation processing before a waiting import is read, so fix those first.
+The annotation processor has not run yet, or the IDE has not picked up the generated sources directory. The class is also missing when a type the record or the import names never appeared: each waits for a type another processor writes, and javac reports that type as missing too. An error reported earlier, or a warning under `-Werror`, stops annotation processing before a waiting record or import is read, and nothing more is said about it, so fix those first.
 
 **Fix.** Run a build (`./gradlew build` or `mvn compile`). After the build completes, refresh the project in your IDE so it indexes `build/generated/sources/annotationProcessor/java/main` (Gradle) or `target/generated-sources/annotations` (Maven).
+
+Where the record names a type that never appeared, its generator also reports [`generated nothing for`](#generated-nothing-no-round-resolved) at the declaration.
+
+### "@GenerateLenses: generated nothing for 'X', as no round of this compilation resolved what it names: Y" {#generated-nothing-no-round-resolved}
+
+The declaration names a type, or reads a constant, that javac never resolved, so its generator wrote nothing for it. The optics generators wait for a type another annotation processor writes, and generate once it exists, as [Optics over types other processors generate](../tooling/manual_setup.md#optics-over-types-other-processors-generate) says. This message is the case where no round brings it. javac reports the missing name as well, where the source writes it. After an earlier error, or a warning under `-Werror`, the message is not given, since that ended the rounds.
+
+**Fix.** Correct the name, or make it accessible. Where another processor writes the type, add that processor to the processor path, or add the dependency that provides the type.
+
+In Gradle's incremental build the message may have no file or line: a record read from its class file has no position, so the message names it in full, as `generated nothing for 'com.example.Person'`.
+
+```
+@GenerateLenses: generated nothing for 'Poster', as no round of this compilation resolved what
+it names: Avatar. Generated code written before they resolve could misread them, so the
+generator waits for the round that brings them, and none did. Correct each name or make it
+accessible, or add the dependency or the processor that writes it.
+```
+
+A constant or a class literal appears as the annotation member that sets it, such as `a value of @GenerateLenses's targetPackage()`, since javac does not say what was written. A name read in another declaration the record reaches says so, as `Profile in Address`, and so does a value set there, as `on street in Address`: correct it in that declaration.
+
+~~~admonish note title="Why" collapsible=true
+A type another processor writes does not exist in the round that writes it, so javac hands the processor a placeholder named as the source wrote it. A companion written against it would name an imported type without its import, or misread its shape, and fail inside generated code. So the generator waits for the round that brings the type. It waits for each record in your sources the declaration reaches as well, since a fold reads a component's supertypes and a navigator restates that record's components.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "as no round of this compilation resolved what it names" -->
+```java
+@GenerateLenses
+record Poster(Avatar avatar, String title) {}
+```
+~~~
+
 ### "@GenerateLenses: can only be applied to records, but 'Foo' is a class"
 
 `@GenerateLenses`, `@GenerateFocus`, `@GenerateFolds`, `@GenerateGetters`, `@GenerateSetters` and `@GenerateTraversals` only apply to records.

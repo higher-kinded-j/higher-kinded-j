@@ -105,8 +105,9 @@ final class FocusFieldListChecks {
    * one, each list its other settings leave unread, and each {@code widenFields} name whose method
    * widening cannot change.
    *
-   * <p>Asked only of a record whose annotation reads as written (see {@link
-   * NavigatorClassGenerator#unreadable}): a value javac could not resolve is no array of names.
+   * <p>Asked only of a record whose annotation names nothing javac could not resolve, since a
+   * record whose annotation does waits for a later round (see {@link WaitingOptics}): a value javac
+   * could not resolve is no array of names.
    *
    * @param record a record annotated {@code @GenerateFocus}
    */
