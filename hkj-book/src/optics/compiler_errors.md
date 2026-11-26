@@ -209,7 +209,7 @@ generator waits for the round that brings them, and none did. Correct each name 
 accessible, or add the dependency or the processor that writes it.
 ```
 
-A constant or a class literal appears as the annotation member that sets it, such as `a value of @GenerateLenses's targetPackage()`, since javac does not say what was written. A name read in another declaration the record reaches says so, as `Profile in Address`, and so does a value set there, as `on street in Address`: correct it in that declaration.
+A constant or a class literal appears as the annotation member that sets it, such as `a value of @GenerateLenses's targetPackage()`, since javac does not say what was written. So a type-use annotation's class literal naming a class the record's own generator writes is reported too: the generator cannot tell it from one another processor writes. A name read in another declaration the record reaches says so, as `Profile in Address`, and so does a value set there, as `on street in Address`: correct it in that declaration.
 
 ~~~admonish note title="Why" collapsible=true
 A type another processor writes does not exist in the round that writes it, so javac hands the processor a placeholder named as the source wrote it. A companion written against it would name an imported type without its import, or misread its shape, and fail inside generated code. So the generator waits for the round that brings the type. It waits for each record in your sources the declaration reaches as well, since a fold reads a component's supertypes and a navigator restates that record's components.

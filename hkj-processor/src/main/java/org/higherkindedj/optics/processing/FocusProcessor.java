@@ -137,7 +137,10 @@ public class FocusProcessor extends AbstractProcessor {
                 + " interface for types you cannot change.");
         continue;
       }
-      if (round.ready(element)) {
+      // A record read from its class file, written against another version of the annotation,
+      // has settings that cannot be read, so it is passed over, and nothing navigates into it.
+      if (round.ready(element)
+          && !NavigatorClassGenerator.unreadable(element.getAnnotation(GenerateFocus.class))) {
         ready.add((TypeElement) element);
       }
     }
@@ -174,7 +177,8 @@ public class FocusProcessor extends AbstractProcessor {
     String defaultPackage =
         processingEnv.getElementUtils().getPackageOf(recordElement).getQualifiedName().toString();
 
-    // Its settings name nothing unresolved, or it would still be waiting, so each reads as written.
+    // Its settings name nothing unresolved, or it would still be waiting, and are readable, so each
+    // reads as written.
     GenerateFocus annotation = recordElement.getAnnotation(GenerateFocus.class);
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;

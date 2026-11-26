@@ -12,6 +12,7 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
@@ -116,6 +118,36 @@ class OpticsRoundsTest {
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
+    }
+  }
+
+  /** Notes the simple names of the types each round brings, round by round. */
+  @SupportedAnnotationTypes("*")
+  private static final class RoundRoots extends AbstractProcessor {
+
+    private final List<Set<String>> rounds = new ArrayList<>();
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+      return SourceVersion.latestSupported();
+    }
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+      rounds.add(
+          ElementFilter.typesIn(roundEnv.getRootElements()).stream()
+              .map(type -> type.getSimpleName().toString())
+              .collect(Collectors.toUnmodifiableSet()));
+      return false;
+    }
+
+    /** The round, counted from one, that first brings a type of this simple name. */
+    int first(String simpleName) {
+      return IntStream.range(0, rounds.size())
+              .filter(round -> rounds.get(round).contains(simpleName))
+              .findFirst()
+              .orElseThrow()
+          + 1;
     }
   }
 
@@ -573,7 +605,7 @@ class OpticsRoundsTest {
       // the other's for one the round generates too, as another optics annotation asks for it.
       Compilation compilation =
           javac()
-              .withProcessors(new LensProcessor(), new FocusProcessor())
+              .withProcessors(new LensProcessor(), new FocusProcessor(), new GetterProcessor())
               .compile(
                   source(
                       "com.example.Person",
@@ -581,19 +613,93 @@ class OpticsRoundsTest {
                       package com.example;
 
                       import org.higherkindedj.optics.annotations.GenerateFocus;
+                      import org.higherkindedj.optics.annotations.GenerateGetters;
                       import org.higherkindedj.optics.annotations.GenerateLenses;
 
                       @GenerateLenses
                       @GenerateFocus(targetPackage = "com.example.optics")
+                      @GenerateGetters(targetPackage = "")
                       public record Person(
                           String name,
                           com.example.PersonLenses lenses,
-                          com.example.optics.PersonFocus focus) {}
+                          com.example.optics.PersonFocus focus,
+                          com.example.PersonGetters getters) {}
                       """));
 
       assertThat(compilation).succeeded();
       assertThat(compilation).generatedSourceFile("com.example.PersonLenses").isNotNull();
       assertThat(compilation).generatedSourceFile("com.example.optics.PersonFocus").isNotNull();
+      assertThat(compilation).generatedSourceFile("com.example.PersonGetters").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a record and an importer naming each other's companions are each generated")
+    void aRecordAndAnImporterNamingEachOthersCompanionsAreEachGenerated() {
+      // Person names, in full, the AddressLenses the importer writes, and Address names the
+      // PersonLenses the lens generator writes. The generator takes what an importer writes for a
+      // class it need not wait for, so PersonLenses is written, and the importer then finds it.
+      Compilation compilation =
+          javac()
+              .withProcessors(new LensProcessor(), new ImportOpticsProcessor())
+              .compile(
+                  source(
+                      "com.example.Person",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses
+                      public record Person(String name)
+                          implements Marker<com.example.AddressLenses> {}
+                      """),
+                  source(
+                      "com.example.Address",
+                      """
+                      package com.example;
+
+                      public record Address(String street) implements Marker<PersonLenses> {}
+                      """),
+                  source(
+                      "com.example.Imports",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.optics.annotations.ImportOptics;
+
+                      @ImportOptics({Address.class})
+                      public interface Imports {}
+                      """),
+                  MARKER);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.example.PersonLenses").isNotNull();
+      assertThat(compilation).generatedSourceFile("com.example.AddressLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a type of another package named like a companion, written in full, is waited for")
+    void aTypeOfAnotherPackageNamedLikeACompanionIsWaitedFor() {
+      // com.gen.ItemGetters is named like Item's companion, but names another package than the
+      // one that companion is written into. So Basket waits for it, and folds it as the class it
+      // is, rather than as something to iterate.
+      Source itemGetters =
+          new Source("com.gen.ItemGetters", "package com.gen; public final class ItemGetters {}");
+      Compilation compilation =
+          javac()
+              .withProcessors(
+                  new TypeWriter(Stream.concat(WRITTEN.stream(), Stream.of(itemGetters)).toList()),
+                  new GetterProcessor(),
+                  new FoldProcessor())
+              .compile(
+                  record("Item", "@GenerateGetters", "String name"),
+                  record("Basket", "@GenerateFolds", "com.gen.ItemGetters item"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.BasketFolds")
+          .contentsAsUtf8String()
+          .contains("Fold<Basket, ItemGetters> item()");
     }
 
     @Test
@@ -668,6 +774,46 @@ class OpticsRoundsTest {
       assertThat(compilation).succeeded();
       assertThat(compilation).generatedSourceFile("com.example.ALenses").isNotNull();
       assertThat(compilation).generatedSourceFile("com.example.BFocus").isNotNull();
+    }
+
+    @Test
+    @DisplayName(
+        "two records naming each other's companions in full, in a later-round package, do not wait")
+    void twoRecordsNamingEachOthersCompanionsInALaterRoundPackageDoNotWait() {
+      // Neither processor can read where the other's companion is written until Pkgs resolves, and
+      // neither meets the other's record again once it does, so each takes any part of a name
+      // matching that companion's simple name for it.
+      Compilation compilation =
+          javac()
+              .withProcessors(new TypeWriter(WRITTEN), new LensProcessor(), new FocusProcessor())
+              .compile(
+                  source(
+                      "com.example.A",
+                      """
+                      package com.example;
+
+                      import com.gen.Pkgs;
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses(targetPackage = Pkgs.OPTICS)
+                      public record A(String name) implements Marker<com.example.optics.BFocus> {}
+                      """),
+                  source(
+                      "com.example.B",
+                      """
+                      package com.example;
+
+                      import com.gen.Pkgs;
+                      import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                      @GenerateFocus(targetPackage = Pkgs.OPTICS)
+                      public record B(String name) implements Marker<com.example.optics.ALenses> {}
+                      """),
+                  MARKER);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.optics.ALenses").isNotNull();
+      assertThat(compilation).generatedSourceFile("com.example.optics.BFocus").isNotNull();
     }
 
     @ParameterizedTest(name = "{0}")
@@ -953,9 +1099,10 @@ class OpticsRoundsTest {
     void anIsoMethodThatWaitsIsGeneratedApartFromItsOverload() {
       // same() is generated in the first round; same(int) waits for Profile, and is refused for its
       // parameter once it resolves, without same() being generated a second time.
+      RoundRoots roots = new RoundRoots();
       Compilation compilation =
           javac()
-              .withProcessors(new TypeWriter(WRITTEN), new IsoProcessor())
+              .withProcessors(roots, new TypeWriter(WRITTEN), new IsoProcessor())
               .compile(
                   source(
                       "com.example.Wrap",
@@ -983,6 +1130,8 @@ class OpticsRoundsTest {
 
       assertThat(compilation).hadErrorContaining("'same' takes parameters");
       assertThat(compilation).hadErrorCount(1);
+      // WrapIsos is written, for same(), in the round that writes Profile, so before it resolved.
+      Assertions.assertThat(roots.first("WrapIsos")).isEqualTo(roots.first("Profile"));
     }
 
     @Test
@@ -1012,11 +1161,11 @@ class OpticsRoundsTest {
     @DisplayName("records reaching one later-round type through each other are each generated")
     void recordsReachingOneLaterRoundTypeThroughEachOtherAreEachGenerated() {
       // Head reaches Middle, which reaches Tail, which names Profile: Head's walk notes each of
-      // them
-      // as reaching it, so Middle's own walk stops at Tail.
+      // them as reaching it, so Middle's own walk stops at Tail, and each waits for Profile.
+      RoundRoots roots = new RoundRoots();
       Compilation compilation =
           javac()
-              .withProcessors(new TypeWriter(WRITTEN), new LensProcessor())
+              .withProcessors(roots, new TypeWriter(WRITTEN), new LensProcessor())
               .compile(
                   record("Head", "@GenerateLenses", "Middle middle"),
                   record("Middle", "@GenerateLenses", "Tail tail"),
@@ -1029,6 +1178,9 @@ class OpticsRoundsTest {
           .generatedSourceFile("com.example.TailLenses")
           .contentsAsUtf8String()
           .contains("import com.gen.Profile;");
+      // Each is written in the round Profile resolves in, so each is brought by the round after.
+      Assertions.assertThat(Stream.of("HeadLenses", "MiddleLenses", "TailLenses").map(roots::first))
+          .containsOnly(roots.first("Profile") + 1);
     }
   }
 
@@ -1167,6 +1319,7 @@ class OpticsRoundsTest {
               List.of(),
               () -> List.of(new TypeWriter(WRITTEN)));
 
+      Assertions.assertThat(fromSource.succeeded()).isTrue();
       Assertions.assertThat(fromSource.generated().get("com/example/PersonFocus.java"))
           .contains("AddressNavigator<Person> address()");
       Assertions.assertThat(recompiled).isEqualTo(fromSource);

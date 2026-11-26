@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -95,7 +97,9 @@ final class Reprocessing {
    * {@link #fromClassNames(Path, List, List)}, with the processors {@code ahead} supplies run ahead
    * of this module's in both builds, as another library's run beside them. It is asked once for
    * each build, the clean one first, and is to supply fresh processors each time. Gradle deletes
-   * what they generate before the second build too, and they write it again there.
+   * what they generate before the second build too, and they write it again there. They are to
+   * write sources and resources only: a class file one writes through the filer has no source here
+   * to be deleted by, so it would stay on the second build's classpath.
    */
   static Run fromClassNames(
       Path dir, List<JavaFileObject> sources, List<String> options, Supplier<List<Processor>> ahead)
@@ -106,7 +110,8 @@ final class Reprocessing {
   /**
    * {@link #fromClassNames(Path, List, List, Supplier)}, with each of {@code recompiled}, one of
    * {@code sources} declaring one top-level type, compiled from source in the second build, as
-   * Gradle recompiles a changed file and hands the unchanged annotated types over by name.
+   * Gradle recompiles a changed file and hands the unchanged annotated types over by name. Where
+   * any is, it is the changed file, in place of the new, unannotated one.
    */
   static Run fromClassNames(
       Path dir,
@@ -121,22 +126,19 @@ final class Reprocessing {
       throw new AssertionError("the clean build failed: " + clean.run().diagnostics());
     }
     // A recompiled type's class files go as its generated ones do, and it is not handed over.
-    // A source's name is written with '/', and a generated one with the platform's separator.
+    // Each source is named with '/', as each generated one is.
     Set<String> recompiledSources =
         recompiled.stream()
             .map(source -> source.getName().replaceFirst("^/", ""))
             .collect(Collectors.toSet());
     Set<String> removed = new TreeSet<>(clean.run().generated().keySet());
-    recompiledSources.stream()
-        .map(source -> source.replace('/', File.separatorChar))
-        .forEach(removed::add);
+    removed.addAll(recompiledSources);
     Path classes = withoutGenerated(first, removed, dir.resolve("classes"));
     Path second = dir.resolve("second");
-    List<Path> files = new ArrayList<>(writeSources(second.resolve("src"), recompiled));
-    files.add(
-        Files.writeString(
-            Files.createDirectories(second.resolve("src/probe")).resolve("Touched.java"),
-            "package probe;\n\nfinal class Touched {}\n"));
+    List<Path> files =
+        recompiled.isEmpty()
+            ? List.of(placeholder(second.resolve("src")))
+            : writeSources(second.resolve("src"), recompiled);
     Set<String> recompiledTypes =
         recompiledSources.stream()
             .map(source -> source.substring(0, source.length() - ".java".length()))
@@ -150,6 +152,30 @@ final class Reprocessing {
             options,
             withRegistered(ahead))
         .run();
+  }
+
+  /**
+   * Compiles one new, unannotated source under {@code dir} against the class files in {@code
+   * classes}, handing the processors {@code classNames}, as Gradle's incremental build hands over
+   * an unchanged annotated type read from its class file.
+   */
+  static Run byName(Path dir, Path classes, List<String> classNames, List<Processor> processors)
+      throws IOException {
+    return compile(
+            dir,
+            List.of(placeholder(dir.resolve("src"))),
+            classNames,
+            List.of(classes),
+            List.of(),
+            processors)
+        .run();
+  }
+
+  /** The new, unannotated source a second build compiles where no other source changed. */
+  private static Path placeholder(Path src) throws IOException {
+    return Files.writeString(
+        Files.createDirectories(src.resolve("probe")).resolve("Touched.java"),
+        "package probe;\n\nfinal class Touched {}\n");
   }
 
   /**
@@ -223,26 +249,43 @@ final class Reprocessing {
    */
   private static Path withoutGenerated(Path build, Set<String> generatedSources, Path target)
       throws IOException {
-    Set<String> generatedTypes =
-        generatedSources.stream()
-            .map(source -> source.substring(0, source.length() - ".java".length()))
-            .collect(Collectors.toSet());
+    Set<String> generatedTypes = typesOf(generatedSources).collect(Collectors.toSet());
     Path out = build.resolve("out");
     try (Stream<Path> walk = Files.walk(out)) {
       for (Path file : walk.filter(Files::isRegularFile).toList()) {
-        String relative = out.relativize(file).toString();
-        if (!relative.endsWith(".class")) {
-          continue;
-        }
-        String binary = relative.substring(0, relative.length() - ".class".length());
-        int nested = binary.indexOf('$');
-        if (!generatedTypes.contains(nested < 0 ? binary : binary.substring(0, nested))) {
+        String relative = slashed(out.relativize(file));
+        if (relative.endsWith(".class")
+            && !ofGenerated(
+                relative.substring(0, relative.length() - ".class".length()), generatedTypes)) {
           Files.createDirectories(target.resolve(relative).getParent());
           Files.copy(file, target.resolve(relative));
         }
       }
     }
     return target;
+  }
+
+  /**
+   * Whether a class file's binary name, with '/' between packages, is a generated type's, or that
+   * of a class nested in one. A top-level name may hold a '$' too, so each name up to one is asked.
+   */
+  private static boolean ofGenerated(String binary, Set<String> generatedTypes) {
+    return IntStream.rangeClosed(0, binary.length())
+        .filter(end -> end == binary.length() || binary.charAt(end) == '$')
+        .mapToObj(end -> binary.substring(0, end))
+        .anyMatch(generatedTypes::contains);
+  }
+
+  /** The types the Java sources among {@code files} declare, with '/' between packages. */
+  private static Stream<String> typesOf(Collection<String> files) {
+    return files.stream()
+        .filter(file -> file.endsWith(".java"))
+        .map(file -> file.substring(0, file.length() - ".java".length()));
+  }
+
+  /** A relative path with '/' between its names, whatever the platform's separator. */
+  private static String slashed(Path relative) {
+    return relative.toString().replace(File.separatorChar, '/');
   }
 
   private static List<Processor> registeredProcessors() {
@@ -300,13 +343,12 @@ final class Reprocessing {
     Map<String, String> generated = new TreeMap<>();
     try (Stream<Path> walk = Files.walk(gen)) {
       for (Path file : walk.filter(Files::isRegularFile).toList()) {
-        generated.put(gen.relativize(file).toString(), Files.readString(file));
+        generated.put(slashed(gen.relativize(file)), Files.readString(file));
       }
     }
     Set<String> generatedTypes =
-        generated.keySet().stream()
-            .map(source -> source.substring(0, source.length() - ".java".length()))
-            .map(source -> source.replace(File.separatorChar, '.'))
+        typesOf(generated.keySet())
+            .map(source -> source.replace('/', '.'))
             .collect(Collectors.toSet());
     return new Build(
         new Run(
