@@ -119,34 +119,85 @@ public final class Lazy<A> {
     return Objects.requireNonNull(this.value);
   }
 
-  /** Iteratively evaluates a chain of flatMap operations to avoid stack overflow. */
-  @SuppressWarnings("unchecked")
+  /**
+   * Iteratively evaluates a chain of flatMap operations to avoid stack overflow.
+   *
+   * <p>Each Lazy in the chain caches its own value, or the failure that stops the chain, as the
+   * chain reaches it, just as forcing it on its own would. A Lazy in the chain that is already
+   * evaluated gives its cached value and is not run again.
+   */
+  @SuppressWarnings("unchecked") // each step's function takes the value of the Lazy before it
   private A evaluateFlatMapChain() throws Throwable {
-    Deque<Function<Object, Lazy<?>>> continuations = new ArrayDeque<>();
-    Lazy<?> current = this;
+    // The steps still to run, the next one on top
+    Deque<ChainStep> steps = new ArrayDeque<>();
+    try {
+      Object result = unwind(this, steps).force();
+      while (!steps.isEmpty()) {
+        switch (steps.pop()) {
+          case ChainStep.Apply(Lazy<?> owner, Function<Object, Lazy<?>> function) -> {
+            // The Lazy the function returns gives the owner's value, to cache once it is known
+            steps.push(new ChainStep.Cache(owner));
+            Lazy<?> next = function.apply(result);
+            Validation.function().requireNonNullResult(next, "f", FLAT_MAP);
+            result = unwind(next, steps).force();
+          }
+          case ChainStep.Cache(Lazy<?> owner) -> {
+            owner.cache(result, null);
+            // Carry on with what the owner holds, which another thread may have cached first
+            result = owner.force();
+          }
+        }
+      }
+      return (A) result;
+    } catch (Throwable t) {
+      // Every Lazy still waiting for its value depends on the step that failed
+      for (ChainStep step : steps) {
+        step.owner().cache(null, t);
+      }
+      throw t;
+    }
+  }
 
-    // Unwind the initial chain
-    while (current.computation instanceof FlatMapComputation<?, ?> chain) {
-      continuations.push((Function<Object, Lazy<?>>) (Function<?, ?>) chain.function());
+  /**
+   * Pushes a step for each unevaluated flatMap Lazy from {@code lazy} down to the first that is
+   * evaluated or is not a flatMap, and returns that one.
+   */
+  @SuppressWarnings("unchecked") // a flatMap's function takes the value of its source
+  private static Lazy<?> unwind(Lazy<?> lazy, Deque<ChainStep> steps) {
+    Lazy<?> current = lazy;
+    while (!current.evaluated && current.computation instanceof FlatMapComputation<?, ?> chain) {
+      steps.push(
+          new ChainStep.Apply(
+              current, (Function<Object, Lazy<?>>) (Function<?, ?>) chain.function()));
       current = chain.source();
     }
+    return current;
+  }
 
-    // Evaluate the base Lazy (which is a simple computation, not a flatMap chain)
-    Object result = current.force();
-
-    // Apply continuations iteratively
-    while (!continuations.isEmpty()) {
-      Lazy<?> next = (Lazy<?>) continuations.pop().apply(result);
-      Validation.function().requireNonNullResult(next, "f", FLAT_MAP);
-      // If next is itself a flatMap chain, unwind it too
-      while (next.computation instanceof FlatMapComputation<?, ?> chain) {
-        continuations.push((Function<Object, Lazy<?>>) (Function<?, ?>) chain.function());
-        next = chain.source();
-      }
-      result = next.force();
+  /**
+   * Caches what the flatMap chain worked out for this Lazy, a value or a failure, unless another
+   * thread has evaluated it meanwhile.
+   */
+  @SuppressWarnings("unchecked") // the chain gives this Lazy the value of its own last step
+  private synchronized void cache(@Nullable Object result, @Nullable Throwable failure) {
+    if (!evaluated) {
+      this.value = (A) result;
+      this.exception = failure;
+      this.evaluated = true;
     }
+  }
 
-    return (A) result;
+  /** A step of a flatMap chain that {@link #evaluateFlatMapChain} has still to run. */
+  private sealed interface ChainStep {
+
+    /** The Lazy this step works out the value of. */
+    Lazy<?> owner();
+
+    /** Applies the owner's flatMap function to the value of the Lazy before it. */
+    record Apply(Lazy<?> owner, Function<Object, Lazy<?>> function) implements ChainStep {}
+
+    /** Caches the value just worked out in the owner. */
+    record Cache(Lazy<?> owner) implements ChainStep {}
   }
 
   /**
