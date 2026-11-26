@@ -375,7 +375,7 @@ A domain component the wire does not carry needs no visibility. A projection or 
 
 - **It warns whether or not the interface declares such a method**, since the first leaf added arms the trap.
 - **It is a warning, not a refusal.** The Impl is still generated, and only a `-Werror` build fails on it.
-- **`@SuppressWarnings("impl-constant")` keeps a deliberate constant quiet**, on the constant or on a declaration enclosing it. The chapter's checkpoints use it to show the trap. `@SuppressWarnings("all")` does not, since it is the compiler's own switch.
+- **`@SuppressWarnings("impl-constant")` keeps a deliberate constant quiet**, on the constant or on a declaration enclosing it. The chapter's checkpoints use it to show the trap. `@SuppressWarnings("all")` does not, since it is the compiler's own switch. An id set to a constant another processor writes in a later round counts as this one, since the processor cannot read it yet.
 - **Only the constant's type is read, never its initialiser**, so a constant typed as the spec, or as a surface of the Impl, draws no warning. [Bind in the caller](basics.md#bind-in-the-caller) warns of the surface.
 - **Another spec's Impl draws nothing.** It is initialised on its own, so the constant reads it set, unless specs hold each other's Impls in a cycle, of two specs or more, which the processor does not trace.
 

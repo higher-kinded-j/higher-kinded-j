@@ -686,8 +686,10 @@ matter: it maps build-only whatever its width, derived fields included.
   bean property, builder or mix-in method read from one, that another annotation processor writes
   in the same compilation (an Immutables value, a schema-generated DTO) does not exist until the
   round after it is written. The `@GenerateMapping` or `@GenerateMerge` spec is generated once it
-  exists, and so is any spec nesting it. If it never appears, the spec generates nothing: javac
-  names the missing type, and code using the spec's `Impl` reports the `Impl` missing too.
+  exists, and so is any spec nesting it. So is a `@GenerateMapping` spec whose
+  `@MapField(to = ...)` or `@MapKey` names a constant such a type declares. If it never appears,
+  the spec generates nothing: javac names what is missing, and code using the spec's `Impl`
+  reports the `Impl` missing too.
 - **No component ceiling** on `parse`, the validated `patch`, or `@GenerateMerge`'s fallible
   merge: each is assembled via `Validated.fields()` ladders, chunked and combined applicatively
   past 16 legs, so a flat 20-30 field DTO maps without nesting. Error semantics are identical to

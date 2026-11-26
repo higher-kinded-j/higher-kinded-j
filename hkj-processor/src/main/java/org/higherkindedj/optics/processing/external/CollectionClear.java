@@ -16,6 +16,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import org.higherkindedj.optics.processing.util.Lint;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.ProtobufCollection;
 
@@ -220,13 +221,11 @@ final class CollectionClear {
   /**
    * How far a member is deprecated, as javac reads it, by its annotation or by a javadoc tag a
    * class file keeps: 0 not, 1 deprecated, 2 deprecated for removal, which only the annotation
-   * says.
+   * says, or perhaps so where its {@code forRemoval} names a constant a later round writes.
    */
   private static int deprecation(Elements elements, Element member) {
-    Deprecated deprecated = member.getAnnotation(Deprecated.class);
-    return !elements.isDeprecated(member)
-        ? 0
-        : deprecated != null && deprecated.forRemoval() ? 2 : 1;
+    List<Lint> drawn = ProcessorUtils.deprecationOf(elements, Stream.of(member));
+    return drawn.isEmpty() ? 0 : drawn.contains(Lint.REMOVAL) ? 2 : 1;
   }
 
   /** A one-parameter method's parameter, as a call on {@code called} reads it. */

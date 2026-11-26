@@ -208,9 +208,9 @@ dependencies {
 
 ## Mapping over types other processors generate {#mapping-over-types-other-processors-generate}
 
-A mapping may name a type another annotation processor writes in the same compilation: a wire class generated from a schema, say, or a value type another library generates. Such a type does not exist until the processing round after the one that writes it, so the mapping processors wait for it. A `@GenerateMapping` or `@GenerateMerge` spec whose domain or wire type, or anything read from them (a record component, a bean property, a builder, a mix-in method), names a type not written yet is generated once that type exists, and so is any spec that nests it. It maps exactly as it would were the type written by hand, and nothing needs configuring.
+A mapping may name a type another annotation processor writes in the same compilation: a wire class generated from a schema, say. Such a type exists only from the round after the one that writes it, so the mapping processors wait. A `@GenerateMapping` or `@GenerateMerge` spec whose domain or wire type, or anything read from them (a record component, a bean property, a builder, a mix-in method), names a type not written yet is generated once that type exists, and so is any spec that nests it. So is a mapping spec setting `@MapField` or `@MapKey` to such a type's constant. It maps as it would were the type written by hand, with nothing to configure.
 
-If the type never appears, for example because the processor that writes it is missing from the processor path, the spec generates nothing. javac's own error names the missing type, and code that uses the spec's `Impl` reports that `Impl` missing too; supply the type and both errors go.
+If the type never appears, as when its processor is missing from the processor path, the spec generates nothing, nor does a spec nesting it. javac names what is missing, and code that uses the spec's `Impl` reports that `Impl` missing too; supply the type and both errors go.
 
 ## Optics over types other processors generate {#optics-over-types-other-processors-generate}
 

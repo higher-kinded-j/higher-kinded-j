@@ -3526,9 +3526,9 @@ class OrderTracking {
 
 ### `cannot find symbol: class XMappingImpl` {#no-impl-class}
 
-The generated Impl does not exist. Most often the spec was refused, which writes no Impl, so every use of it reports this too.
+The generated Impl does not exist. Most often the spec was refused, which writes no Impl, so every use of it reports this too. It is missing too where the spec waited for a type or constant another processor was to write, and it never came. javac then also reports that type or constant as `cannot find symbol`, as [Mapping over types other processors generate](../tooling/manual_setup.md#mapping-over-types-other-processors-generate) explains.
 
-**Fix.** If the build also printed a `@GenerateMapping:` error, fix that first. Otherwise annotate the spec, and check that `hkj-processor` is on the annotation processor path, not only the compile classpath. Called as `AuthorMappingImpl.INSTANCE.build(...)`, the same cause reads `package AuthorMappingImpl does not exist`.
+**Fix.** If the build also printed a `@GenerateMapping:` error, fix that first. If javac reports a type or constant the spec names as `cannot find symbol`, supply it, for example by adding the processor that writes it to the processor path. Otherwise annotate the spec, and check that `hkj-processor` is on the annotation processor path, not only the compile classpath. Called as `AuthorMappingImpl.INSTANCE.build(...)`, the same cause reads `package AuthorMappingImpl does not exist`.
 
 ```
 cannot find symbol

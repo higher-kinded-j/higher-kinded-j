@@ -74,6 +74,11 @@ public final class Diagnostics {
    * hkj-checker} honours its check ids. {@code "all"} is not honoured, since it is the compiler's
    * own lint switch.
    *
+   * <p>The annotation is read from its mirror, never through a proxy. An id set to a constant javac
+   * could not resolve yet, one another processor writes in a later round, counts as suppressing
+   * {@code id}, since it may resolve to it (see {@link ProcessorUtils#unresolvedMark}). The warning
+   * is decided in the round it is asked about, so one the id turns out not to name is not reported.
+   *
    * <p>{@code @SuppressWarnings} is retained only in source, so this reads an element from a class
    * file as never suppressed. A processor deciding whether to warn about a declaration of a type it
    * is generating for asks {@link #mayWarn} instead, as Gradle's incremental build hands an
@@ -88,8 +93,16 @@ public final class Diagnostics {
     Objects.requireNonNull(id, "id must not be null");
     // Every declaration's enclosing chain ends at its package.
     for (Element at = element; at.getKind() != ElementKind.PACKAGE; at = at.getEnclosingElement()) {
-      SuppressWarnings suppression = at.getAnnotation(SuppressWarnings.class);
-      if (suppression != null && List.of(suppression.value()).contains(id)) {
+      AnnotationMirror suppression =
+          ProcessorUtils.findAnnotation(at, SuppressWarnings.class.getCanonicalName());
+      // javac hands an array member's value over as a list, an id written bare included.
+      if (suppression != null
+          && ProcessorUtils.getAnnotationValue(suppression, "value").getValue()
+              instanceof List<?> ids
+          && ids.stream()
+              .map(AnnotationValue.class::cast)
+              .anyMatch(
+                  value -> ProcessorUtils.unresolvedMark(value) || id.equals(value.getValue()))) {
         return true;
       }
     }
