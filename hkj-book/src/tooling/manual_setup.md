@@ -8,7 +8,7 @@
 
 Most projects should use the [HKJ build plugin](gradle_plugin.md): a single line replaces all the boilerplate below. This page documents the full manual configuration for the projects that cannot use the plugin (constrained environments, in-house build frameworks, or plugins that conflict with the HKJ plugin). If the plugin is an option for you, start there instead.
 
-Both configurations below pin the release to **25** and enable preview features, which go together: `javac` accepts `--enable-preview` only for the release it is running on, so the toolchain has to be Java 25 as well. [Prerequisites](../quickstart.md#prerequisites) explains what the flag is for, and where it is genuinely needed.
+Both configurations below pin the release to **25** and enable preview features, which go together: `javac` accepts `--enable-preview` only for the release it is running on, so the toolchain has to be Java 25 as well. [Prerequisites](../quickstart.md#prerequisites) explains what the flag is for, and where it is genuinely needed. A Maven build that sets neither a release nor a source compiles at Java 8, where the mapping processors [refuse every spec](../mapping/rules.md#java-level).
 
 The Spring Boot starter, and the processor that generates `@HkjHttpClient` clients, are not covered here: [Declarative HTTP Clients](../spring/declarative_http_clients.md#step-1-add-the-starter) shows both, for Gradle and Maven.
 
@@ -63,7 +63,7 @@ repositories {
 
 ---
 
-## Maven Manual Setup
+## Maven Manual Setup {#maven-manual-setup}
 
 ```xml
 <properties>

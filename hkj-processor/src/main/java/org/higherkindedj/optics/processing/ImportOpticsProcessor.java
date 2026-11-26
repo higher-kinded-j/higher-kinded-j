@@ -477,7 +477,9 @@ public class ImportOpticsProcessor extends AbstractProcessor {
                   + "' is not a record, sealed interface, enum, or class with wither methods.",
               "The processor cannot determine how to generate optics for this shape. "
                   + WITHER_METHODS_ARE,
-              "Make the type one of those shapes, or define an OpticsSpec interface for it.");
+              Diagnostics.fixAtJavaLevel(
+                  processingEnv.getSourceVersion(),
+                  "Make the type one of those shapes, or define an OpticsSpec interface for it."));
         }
       }
     }

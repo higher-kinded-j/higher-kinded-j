@@ -115,13 +115,20 @@ public class MergeProcessor extends AbstractProcessor {
    */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+    Set<? extends Element> annotated = roundEnv.getElementsAnnotatedWith(GenerateMerge.class);
+    if (Diagnostics.refusesBelowJava16(
+        processingEnv.getMessager(),
+        processingEnv.getSourceVersion(),
+        annotated,
+        "@GenerateMerge")) {
+      return true;
+    }
     Elements elements = processingEnv.getElementUtils();
     // Every mapping spec the compilation has met, the rounds before this processor's first
     // included: a fill may nest through any of them.
     List<TypeElement> mappings =
         WaitingSpecs.meetMappings(
             elements, roundEnv.getElementsAnnotatedWith(GenerateMapping.class));
-    Set<? extends Element> annotated = roundEnv.getElementsAnnotatedWith(GenerateMerge.class);
     annotated.stream()
         .filter(element -> element.getKind() != ElementKind.INTERFACE)
         .forEach(element -> processSpec(element, List.of()));

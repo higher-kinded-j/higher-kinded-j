@@ -56,6 +56,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [What if two dependencies map the same pair?](#how-a-dependencys-specs-are-found) | The more specific is used, with a note. Where neither is, your own spec or a leaf picks one. | by design |
 | [Can a spec-carrying module sit on the module path?](#how-a-dependencys-specs-are-found) | Not with the index: keep those jars on the classpath, or delegate with a leaf. | not supported yet |
 | [Can a generated `Impl` or envelope reuse a class name from the classpath?](../tooling/manual_setup.md#incremental-compilation) | No, unless HKJ wrote that class: the processor refuses it, `has the name of a class on the classpath`. | by design |
+| [Can a spec compile at Java 15 or earlier?](#java-level) | No: javac reads a jar's records as plain classes there, so the processor refuses every spec, `where javac reads a record as a plain class`. | by design |
 | **Emission tiers** | | |
 | [Why does a bean mapping, or an `@OptionalBridge` component, lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset, and a bridged value can be absent. An all-primitive bean keeps it. | by design |
 | [Why does a record wire's `@Nullable` component cost `asIso()` or `asLens()`?](#where-a-nullable-record-component-lands) | Where the domain declares it non-null, an optic would hand over a `null` the domain's type rules out; `parse` refuses it. | by design |
@@ -588,6 +589,14 @@ Five rules keep the resolution predictable:
 The index is classpath-only. A module with a `module-info` writes no entry and reads none, not supported yet, because the index is one package and the module system allows a package in one module only; the same rule keeps two spec-carrying jars from serving as automatic modules side by side. Across a boundary of that kind, delegate with a leaf calling the other `Impl`'s `asValidatedPrism()`, and give a library bound for a module path the processor option `-Ahkj.mapping.index=false`, which writes no entries and reads none.
 
 None of these index caveats apply to a vocabulary itself: it is found by ordinary inheritance, not through the index at all. A dependency's spec that extends one is another matter, since it can be used here only with the vocabulary on this module's compile classpath too (the last of the five rules).
+
+### A spec is compiled at the release the library is built on {#java-level}
+
+The Java level a build compiles at is set separately from the JDK that runs it, and javac reads every type as that level would. At Java 15 or earlier javac reads a record's class file as a plain class, and up to Java 16 a sealed interface's class file as an open interface. So `@GenerateMapping` and `@GenerateMerge` refuse every spec in a compilation at Java 15 or earlier, `this compilation is at Java 8, where javac reads a record as a plain class`, and generate nothing.
+
+Later levels still fall short of a sealed pair. At Java 16 a spec mapping a sealed pair from a jar is refused, with a sentence saying how javac read it, and a jar's spec for a nested sealed pair is passed over. From Java 17 to 20 a sealed pair's `Impl` fails to compile, since it dispatches with a pattern `switch`, which javac accepts from Java 21.
+
+Compile at the release the library is built on, Java 25 today: javac's `--release 25`, or Maven's `maven.compiler.release` as [Manual Setup](../tooling/manual_setup.md#maven-manual-setup) sets it. A Maven build that sets neither a release nor a source compiles at Java 8, the default of maven-compiler-plugin 3.11 and later.
 
 ---
 
