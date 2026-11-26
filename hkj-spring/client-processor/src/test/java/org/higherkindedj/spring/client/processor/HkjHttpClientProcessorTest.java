@@ -3597,15 +3597,31 @@ class HkjHttpClientProcessorTest {
     @EnumSource(DeprecatedSignatures.Shape.class)
     @DisplayName("each compiles under every lint and -Werror, the base alongside")
     void compilesCleanWithTheBaseAlongside(DeprecatedSignatures.Shape shape) {
-      Compilation compilation =
-          javac()
-              .withProcessors(new HkjHttpClientProcessor())
-              .withOptions(DeprecatedSignatures.LINT)
-              .compile(
-                  Stream.concat(shape.baseSources().stream(), Stream.of(shape.client())).toList());
-
-      DeprecatedSignatures.assertCompiledClean(shape, compilation);
+      assertCompiledCleanWithTheBaseAlongside(shape);
     }
+  }
+
+  @Nested
+  @DisplayName("restates a varargs parameter or a raw type in the client's shape, with no warning")
+  class VarargsAndRawSignatureRestating {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(VarargsAndRawSignatures.Shape.class)
+    @DisplayName("each compiles under every lint and -Werror, the base alongside")
+    void compilesCleanWithTheBaseAlongside(VarargsAndRawSignatures.Shape shape) {
+      assertCompiledCleanWithTheBaseAlongside(shape);
+    }
+  }
+
+  /** Compiles the row's base module and the client together. */
+  private static void assertCompiledCleanWithTheBaseAlongside(RestatedSignature row) {
+    Compilation compilation =
+        javac()
+            .withProcessors(new HkjHttpClientProcessor())
+            .withOptions(RestatedSignature.LINT)
+            .compile(Stream.concat(row.baseSources().stream(), Stream.of(row.client())).toList());
+
+    RestatedSignature.assertCompiledClean(row, compilation);
   }
 
   @Nested

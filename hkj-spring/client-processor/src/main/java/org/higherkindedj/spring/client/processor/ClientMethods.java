@@ -123,6 +123,38 @@ final class ClientMethods {
                                 || elements.overrides(declaration, method, client)));
   }
 
+  /**
+   * Whether the client's implementation of one method takes its last parameter as varargs: where
+   * any of its declarations does. A call through the client can then pass the elements one by one,
+   * as javac finds that declaration among the client's members, and a varargs implementation takes
+   * an array as well, so it accepts every call the client does.
+   *
+   * @param declarations the declarations of one method, as {@link #inheritedBy} groups them
+   * @return true when any declaration is varargs
+   */
+  static boolean takesVarargs(List<ClientMethod> declarations) {
+    return declarations.stream().anyMatch(declaration -> declaration.element().isVarArgs());
+  }
+
+  /**
+   * Whether a method the client's implementation of one method overrides takes its last parameter
+   * otherwise than the implementation does, as {@link #takesVarargs} decides it: as varargs where
+   * the implementation takes an array, or the other way round. javac reports the implementation
+   * then, under {@code overrides}. A client may redeclare a base's varargs method with an array, or
+   * inherit one method from two bases that differ.
+   *
+   * @param client the client interface
+   * @param declarations the declarations of one method, as {@link #inheritedBy} groups them
+   * @param elements the round's element utilities
+   * @return true when one of the methods overridden differs
+   */
+  static boolean differsInVarargs(
+      TypeElement client, List<ClientMethod> declarations, Elements elements) {
+    boolean varargs = takesVarargs(declarations);
+    return overriddenBy(client, declarations, elements)
+        .anyMatch(method -> method.isVarArgs() != varargs);
+  }
+
   /** An interface and every interface it extends, each once, the interface itself first. */
   private static Set<TypeElement> hierarchyOf(TypeElement type, Set<TypeElement> visited) {
     if (visited.add(type)) {
@@ -202,7 +234,7 @@ final class ClientMethods {
         continue;
       }
       TypeElement extended = (TypeElement) ((DeclaredType) parent).asElement();
-      if (isRaw(parent)) {
+      if (RawTypes.isRaw(parent)) {
         return Optional.of(new ClientMethod.RawClause(from, extended));
       }
       Optional<ClientMethod.RawClause> deeper = rawClauseTo(extended, declaring, types, visited);
@@ -211,13 +243,6 @@ final class ClientMethods {
       }
     }
     return Optional.empty();
-  }
-
-  /** Whether a type names a generic class or interface without its type arguments. */
-  private static boolean isRaw(TypeMirror type) {
-    return type.getKind() == TypeKind.DECLARED
-        && ((DeclaredType) type).getTypeArguments().isEmpty()
-        && !((TypeElement) ((DeclaredType) type).asElement()).getTypeParameters().isEmpty();
   }
 
   /**

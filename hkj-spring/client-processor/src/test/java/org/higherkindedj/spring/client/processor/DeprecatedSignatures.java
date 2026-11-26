@@ -2,52 +2,47 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.client.processor;
 
-import static com.google.testing.compile.CompilationSubject.assertThat;
+import static org.higherkindedj.spring.client.processor.RestatedSignature.CHILD;
+import static org.higherkindedj.spring.client.processor.RestatedSignature.EXCHANGE;
+import static org.higherkindedj.spring.client.processor.RestatedSignature.FACADE;
+import static org.higherkindedj.spring.client.processor.RestatedSignature.overrides;
+import static org.higherkindedj.spring.client.processor.RestatedSignature.suppressed;
+import static org.higherkindedj.spring.client.processor.RestatedSignature.upstream;
 
-import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
-import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
-import javax.tools.StandardLocation;
-import org.assertj.core.api.Assertions;
+import org.higherkindedj.spring.client.processor.RestatedSignature.Expected;
 
 /**
  * Deprecated methods and types a client restates, each with what the generated files must carry so
- * that none of them draws a warning. The test that compiles the base alongside the client and the
- * one that reads it from a jar share the table, as the two must agree.
- *
- * <p>Every source the author writes suppresses its own warnings, as an author building with {@code
- * -Werror} must, so a compilation under {@link #LINT} fails on a warning in a generated file alone.
+ * that none of them draws a warning. {@link VarargsAndRawSignatures} is the table beside it for a
+ * signature's shape.
  */
 final class DeprecatedSignatures {
-
-  /** Every lint, as a warning, but the one naming the annotations no processor claims. */
-  static final List<String> LINT = List.of("-Xlint:all,-processing", "-Werror");
 
   /** The base module's types, beside {@code BaseApi}, which each shape declares. */
   static final List<JavaFileObject> BASE_TYPES =
       List.of(
-          source("ApiErr", "public class ApiErr {}"),
-          source("UserDto", "public record UserDto(String id) {}"),
-          source("OldQuery", "@Deprecated public record OldQuery(String text) {}"),
-          source("OldDto", "@Deprecated public record OldDto(String id) {}"),
-          source("OldErr", "@Deprecated public class OldErr {}"),
-          source("Gone", "@Deprecated(forRemoval = true) public class Gone extends ApiErr {}"),
-          source("Doomed", "@Deprecated(forRemoval = true) public interface Doomed {}"),
-          source("OldBound", "@Deprecated public interface OldBound {}"),
-          source("Outer", "@Deprecated public class Outer { public record Inner(String id) {} }"),
-          source(
+          upstream("ApiErr", "public class ApiErr {}"),
+          upstream("UserDto", "public record UserDto(String id) {}"),
+          upstream("OldQuery", "@Deprecated public record OldQuery(String text) {}"),
+          upstream("OldDto", "@Deprecated public record OldDto(String id) {}"),
+          upstream("OldErr", "@Deprecated public class OldErr {}"),
+          upstream("Gone", "@Deprecated(forRemoval = true) public class Gone extends ApiErr {}"),
+          upstream("Doomed", "@Deprecated(forRemoval = true) public interface Doomed {}"),
+          upstream("OldBound", "@Deprecated public interface OldBound {}"),
+          upstream("Outer", "@Deprecated public class Outer { public record Inner(String id) {} }"),
+          upstream(
               "OldMark",
               "@Deprecated @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy"
                   + ".RUNTIME) public @interface OldMark {}"),
-          source(
+          upstream(
               "DoomedMark",
               "@Deprecated(forRemoval = true) @java.lang.annotation.Retention("
                   + "java.lang.annotation.RetentionPolicy.RUNTIME) public @interface DoomedMark {}"),
-          source(
+          upstream(
               "Legacy",
               """
               /**
@@ -60,54 +55,22 @@ final class DeprecatedSignatures {
               public @interface Legacy {}
               """));
 
-  /** The client most shapes use: one that extends the base and declares nothing. */
-  private static final String CHILD =
-      """
-      package com.downstream;
-
-      import com.upstream.BaseApi;
-      import org.higherkindedj.spring.client.HkjHttpClient;
-      import org.springframework.web.service.annotation.HttpExchange;
-
-      @HttpExchange("/users")
-      @HkjHttpClient
-      public interface ChildApi extends BaseApi {}
-      """;
-
   private static final String GET =
       """
         @GetExchange("/{id}")
         EitherPath<ApiErr, UserDto> get(@PathVariable String id);
       """;
 
-  private static final String FACADE = "com.downstream.ChildApiClient";
-
   /** One suppression of both categories, in name order. */
   private static final String BOTH =
       "@SuppressWarnings\\(\\{\\s*\"deprecation\",\\s*\"removal\"\\s*}\\)";
 
-  private static final String EXCHANGE = "com.downstream.ChildApiHttpExchange";
   private static final String CONFIGURATION = "com.downstream.ChildApiClientConfiguration";
 
   private DeprecatedSignatures() {}
 
-  /**
-   * What one generated file must hold: a match for {@code pattern}, or none where it is {@code
-   * absent}.
-   */
-  record Expected(String type, String pattern, boolean absent) {
-
-    static Expected in(String type, String pattern) {
-      return new Expected(type, pattern, false);
-    }
-
-    static Expected notIn(String type, String pattern) {
-      return new Expected(type, pattern, true);
-    }
-  }
-
   /** A deprecated method or type a client restates. */
-  enum Shape {
+  enum Shape implements RestatedSignature {
     NOTHING_DEPRECATED(
         "nothing deprecated, the control",
         "",
@@ -464,10 +427,8 @@ final class DeprecatedSignatures {
       this.expected = List.of(expected);
     }
 
-    /**
-     * The base module's sources: its types and a {@code BaseApi} declaring this shape's members.
-     */
-    List<JavaFileObject> baseSources() {
+    @Override
+    public List<JavaFileObject> baseSources() {
       JavaFileObject baseApi =
           JavaFileObjects.forSourceString(
               "com.upstream.BaseApi",
@@ -492,15 +453,13 @@ final class DeprecatedSignatures {
       return Stream.concat(BASE_TYPES.stream(), Stream.of(baseApi)).toList();
     }
 
-    /**
-     * The client's source, the only one compiled against a base from a jar, named for the top-level
-     * type it declares.
-     */
-    JavaFileObject client() {
+    @Override
+    public JavaFileObject client() {
       return JavaFileObjects.forSourceString("com.downstream." + clientType, client);
     }
 
-    List<Expected> expected() {
+    @Override
+    public List<Expected> expected() {
       return expected;
     }
 
@@ -508,48 +467,5 @@ final class DeprecatedSignatures {
     public String toString() {
       return description;
     }
-  }
-
-  /**
-   * Asserts the compilation succeeded with no warning anywhere, and wrote what the shape expects.
-   */
-  static void assertCompiledClean(Shape shape, Compilation compilation) {
-    assertThat(compilation).succeeded();
-    assertThat(compilation).hadWarningCount(0);
-    for (Expected expected : shape.expected()) {
-      String source = generatedSource(compilation, expected.type());
-      if (expected.absent()) {
-        Assertions.assertThat(source).doesNotContainPattern(expected.pattern());
-      } else {
-        Assertions.assertThat(source).containsPattern(expected.pattern());
-      }
-    }
-  }
-
-  private static String generatedSource(Compilation compilation, String qualifiedName) {
-    Optional<JavaFileObject> file =
-        compilation.generatedFile(
-            StandardLocation.SOURCE_OUTPUT, qualifiedName.replace('.', '/') + ".java");
-    Assertions.assertThat(file).as(qualifiedName).isPresent();
-    try {
-      return file.get().getCharContent(true).toString();
-    } catch (IOException e) {
-      throw new AssertionError(e);
-    }
-  }
-
-  /** A facade method's annotations, suppressing {@code category}, before its signature. */
-  private static String overrides(String category, String signature) {
-    return "@Override\\s+" + suppressed(category, "public " + signature);
-  }
-
-  /** A suppression of one category, before what follows it. */
-  private static String suppressed(String category, String following) {
-    return "@SuppressWarnings\\(\"" + category + "\"\\)\\s+" + following;
-  }
-
-  private static JavaFileObject source(String name, String declaration) {
-    return JavaFileObjects.forSourceString(
-        "com.upstream." + name, "package com.upstream;\n\n" + declaration);
   }
 }

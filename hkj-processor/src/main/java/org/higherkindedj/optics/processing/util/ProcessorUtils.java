@@ -320,6 +320,8 @@ public final class ProcessorUtils {
    * @since 0.4.11
    */
   public static TypeElement firstRawIn(TypeMirror type) {
+    // hkj-spring's client processor keeps a copy of this walk in its RawTypes, with an arm for an
+    // intersection; a change here belongs there too.
     switch (type.getKind()) {
       case ARRAY -> {
         return firstRawIn(((ArrayType) type).getComponentType());
@@ -393,6 +395,8 @@ public final class ProcessorUtils {
    * enclosing types ends at the {@code NoType} past the outermost.
    */
   private static boolean reifiableTarget(TypeMirror target) {
+    // hkj-spring's client processor keeps a copy of this reading in its RawTypes, which also
+    // answers for a type variable; a change here belongs there too.
     return target.getKind() == TypeKind.ARRAY
         ? reifiableTarget(((ArrayType) target).getComponentType())
         : Stream.iterate(

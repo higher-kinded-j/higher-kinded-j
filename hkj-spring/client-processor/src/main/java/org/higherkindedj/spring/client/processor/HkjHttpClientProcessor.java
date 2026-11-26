@@ -406,7 +406,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         inherited instanceof HttpExchanges.Found found ? found.annotations() : List.of();
     writeFile(
         packageName,
-        buildNativeInterface(iface, nativeName, typeVars, methods, infos, inheritedExchange),
+        buildNativeInterface(iface, nativeName, typeVars, groups, infos, inheritedExchange),
         iface);
     writeFile(
         packageName,
@@ -451,7 +451,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       TypeElement iface,
       ClassName nativeName,
       List<TypeVariableName> typeVars,
-      List<ClientMethod> methods,
+      List<List<ClientMethod>> groups,
       List<ReturnInfo> infos,
       List<AnnotationMirror> inheritedExchange) {
     String packageName = nativeName.packageName();
@@ -474,10 +474,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     builder.addAnnotations(
         AnnotationSpecs.copiesOf(typeLevel, packageName, elements, drawnByTypeParameters(iface)));
 
-    for (int i = 0; i < methods.size(); i++) {
-      ClientMethod clientMethod = methods.get(i);
+    for (int i = 0; i < groups.size(); i++) {
+      ClientMethod clientMethod = groups.get(i).getFirst();
       ExecutableElement method = clientMethod.element();
       ReturnInfo info = infos.get(i);
+      boolean varargs = ClientMethods.takesVarargs(groups.get(i));
       TypeName successType =
           info.ignoresBody()
               ? ClassName.get(Void.class)
@@ -489,22 +490,25 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
               .addTypeVariables(clientMethod.typeVariableNames(packageName, elements));
       // The native method writes the success type alone of the return type, and overrides
       // nothing, as the native interface extends nothing.
-      Stream<TypeMirror> written =
+      List<TypeMirror> written =
           Stream.concat(
-              info.ignoresBody() ? Stream.empty() : Stream.of(info.success()),
-              clientMethod.parameterTypesAndBounds().stream());
+                  info.ignoresBody() ? Stream.<TypeMirror>empty() : Stream.of(info.success()),
+                  clientMethod.parameterTypesAndBounds().stream())
+              .toList();
       nativeMethod.addAnnotations(
           AnnotationSpecs.copiesOf(
               copiedAnnotationsOf(method),
               packageName,
               elements,
-              Deprecations.namedBy(written, elements)));
+              Stream.of(drawnByWriting(written), drawnByVarargs(clientMethod, varargs))
+                  .flatMap(Set::stream)
+                  .collect(Lint.inNameOrder())));
       // Copy parameters with their binding annotations (@PathVariable, @RequestBody, …).
       // ParameterSpec.get(VariableElement) drops annotations, so copy them explicitly.
       for (ClientMethod.Parameter parameter : clientMethod.parameters()) {
         nativeMethod.addParameter(copyParameter(parameter, packageName));
       }
-      builder.addMethod(nativeMethod.build());
+      builder.addMethod(nativeMethod.varargs(varargs).build());
     }
     return builder.build();
   }
@@ -525,7 +529,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     // The facade implements the client and redeclares its type parameters, bounds and all, and a
     // deprecated client's native interface carries the copied @Deprecated it names in a field.
     Set<Lint> classDrawn =
-        Stream.of(drawnByClient(iface), drawnByTypeParameters(iface))
+        Stream.of(
+                drawnByClient(iface),
+                drawnByTypeParameters(iface),
+                drawnByVarargsOverrides(iface, groups))
             .flatMap(Set::stream)
             .collect(Lint.inNameOrder());
     TypeSpec.Builder builder =
@@ -551,7 +558,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     Set<String> usedFieldNames = new HashSet<>();
     List<@Nullable String> decoderFields = new ArrayList<>();
     // Each decoder names its error classes, in its field's type and in the constructor that
-    // builds it.
+    // builds it: as class literals, and, where it has overrides, the error type as the type
+    // argument of the chain.
     Set<Lint> constructorDrawn = EnumSet.noneOf(Lint.class);
     for (int i = 0; i < methods.size(); i++) {
       ExecutableElement method = methods.get(i).element();
@@ -574,11 +582,14 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
                   Modifier.PRIVATE,
                   Modifier.FINAL)
               .addAnnotations(
-                  AnnotationSpecs.suppressing(drawnByClassLiterals(Stream.of(error)), List.of()))
+                  AnnotationSpecs.suppressing(drawnByWriting(List.of(error)), List.of()))
               .build());
       constructorDrawn.addAll(
           drawnByClassLiterals(
               Stream.concat(Stream.of(error), overrides.stream().map(StatusOverride::errorType))));
+      if (!overrides.isEmpty()) {
+        constructorDrawn.addAll(drawnByWriting(List.of(error)));
+      }
       constructor.addStatement("this.$L = $L", fieldName, decoderExpression(error, overrides));
       decoderFields.add(fieldName);
     }
@@ -620,7 +631,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * The facade's implementation of one method. It overrides each of the method's declarations, and
    * each method one of them overrides in turn, and calls the native method, which carries the first
    * declaration's annotations, {@code @Deprecated} among them; it writes the client's return type,
-   * parameter types and type parameters. A deprecated one among them is suppressed on it.
+   * parameter types and type parameters, and is varargs where any declaration is. A deprecated one
+   * among them is suppressed on it, as is a raw type it writes, and a varargs parameter of a type
+   * javac does not reify.
    */
   private MethodSpec buildFacadeMethod(
       TypeElement iface,
@@ -632,11 +645,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     ClientMethod clientMethod = declarations.getFirst();
     ExecutableElement method = clientMethod.element();
     String name = method.getSimpleName().toString();
+    boolean varargs = ClientMethods.takesVarargs(declarations);
     Set<Lint> drawn =
         Stream.of(
                 Deprecations.drawnBy(
                     ClientMethods.overriddenBy(iface, declarations, elements), elements),
-                Deprecations.namedBy(clientMethod.written().stream(), elements))
+                drawnByWriting(clientMethod.written()),
+                drawnByVarargs(clientMethod, varargs))
             .flatMap(Set::stream)
             .collect(Lint.inNameOrder());
     MethodSpec.Builder facadeMethod =
@@ -655,6 +670,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           ParameterSpec.builder(parameter.typeName(packageName, elements), parameter.name())
               .build());
     }
+    facadeMethod.varargs(varargs);
 
     CodeBlock call = CodeBlock.of("() -> this.http.$L($L)", name, args);
     facadeMethod.addStatement(
@@ -1480,7 +1496,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * as the status-to-error map the decoder builds, the last one for a status winning, whatever
    * order they are written in, and not at all on a {@code MaybePath}, which builds no decoder. The
    * method's own type variables count by position, so {@code <X> X get()} and {@code <Y> Y get()},
-   * one method to javac, are alike.
+   * one method to javac, are alike. Whether the last parameter is varargs is no part: the generated
+   * methods take varargs where any declaration does, as {@link ClientMethods#takesVarargs} says,
+   * and that accepts a call written for either.
    */
   private Map<String, String> writtenParts(ClientMethod method, String packageName) {
     Map<String, String> parts = new TreeMap<>();
@@ -1988,13 +2006,51 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   }
 
   /**
-   * What redeclaring the client's type parameters draws: a deprecated class among their bounds. The
-   * facade and the native interface both declare them.
+   * What redeclaring the client's type parameters draws: a deprecated class or a raw type among
+   * their bounds. The facade and the native interface both declare them.
    */
   private Set<Lint> drawnByTypeParameters(TypeElement iface) {
-    return Deprecations.namedBy(
-        iface.getTypeParameters().stream().flatMap(parameter -> parameter.getBounds().stream()),
-        processingEnv.getElementUtils());
+    return drawnByWriting(
+        iface.getTypeParameters().stream()
+            .flatMap(parameter -> parameter.getBounds().stream())
+            .toList());
+  }
+
+  /** What writing these types out draws: a deprecated class they name, or a raw type. */
+  private Set<Lint> drawnByWriting(List<? extends TypeMirror> written) {
+    return Stream.of(
+            Deprecations.namedBy(written.stream(), processingEnv.getElementUtils()),
+            RawTypes.namedBy(written.stream()))
+        .flatMap(Set::stream)
+        .collect(Lint.inNameOrder());
+  }
+
+  /**
+   * What declaring a method's last parameter varargs draws: {@link Lint#UNCHECKED} where javac does
+   * not reify the type of its elements, for the heap pollution it reports at the declaration. The
+   * elements' type is the client's, so a base's {@code T...} that the client binds to {@code
+   * UserDto} draws nothing.
+   */
+  private static Set<Lint> drawnByVarargs(ClientMethod method, boolean varargs) {
+    // Cast, not a pattern: a varargs method's last parameter is an array by definition, and so is
+    // that of every method with its erasure.
+    return varargs
+            && !RawTypes.isReifiable(
+                ((ArrayType) method.signature().getParameterTypes().getLast()).getComponentType())
+        ? Set.of(Lint.UNCHECKED)
+        : Set.of();
+  }
+
+  /**
+   * What the facade class draws where one of its methods is varargs and a method it overrides is
+   * not, or the other way round: {@link Lint#OVERRIDES}. Where the method overridden is an
+   * interface's, as each of the facade's is, javac reads that suppression from the class alone.
+   */
+  private Set<Lint> drawnByVarargsOverrides(TypeElement iface, List<List<ClientMethod>> groups) {
+    Elements elements = processingEnv.getElementUtils();
+    return groups.stream().anyMatch(group -> ClientMethods.differsInVarargs(iface, group, elements))
+        ? Set.of(Lint.OVERRIDES)
+        : Set.of();
   }
 
   /** What writing each type as a class literal draws, as {@link #rawClass} writes it. */

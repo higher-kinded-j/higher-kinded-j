@@ -285,6 +285,20 @@ nested in a deprecated class, the facade and its configuration class suppress th
 naming it draws. A type-use annotation deprecated by `@Deprecated` or by a javadoc `@deprecated` tag
 alone is left off the restated types.
 
+A varargs parameter is restated as varargs on both, as the client declares it. Where the client
+inherits one method from two bases, one varargs and one taking an array, both take varargs, which
+accepts an array too. A raw type is suppressed as `rawtypes` on each declaration that writes it out:
+the facade's method for one anywhere in its signature, and the native method for one in a parameter,
+the success type or a bound; the facade and the native interface for one in a bound of a generic
+client's type parameter; and the decoder's field for a raw error type, as well as the constructor
+where the method has an `@OnStatus` override. A varargs parameter
+of a type javac does not reify, such as `List<String>...`, is suppressed as `unchecked` on both
+methods, for the heap pollution javac reports where it is declared. Where the facade's method takes
+varargs and a method it overrides takes an array, or the other way round, the facade suppresses
+`overrides` on the class, which is the only place javac reads that suppression for an interface's
+method. A client that redeclares a base's method with or without `...` draws the same warning in its
+own source, so suppress `overrides` on the interface, not on the method.
+
 A base read from a class file, a jar's or one that Gradle's incremental build did not recompile,
 must have been compiled with `-parameters` where it has a bare `@PathVariable`, `@RequestParam`,
 `@RequestHeader` or `@CookieValue`, which the processor names after its parameter. Without it
