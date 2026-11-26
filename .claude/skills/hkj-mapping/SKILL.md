@@ -1001,6 +1001,12 @@ constructor parameter names. A Gradle build set up by hand passes two flags itse
   javadoc-only `package-info.java` files from the source path, and javac warns of it otherwise.
   The Gradle plugin adds this one too.
 
+Compile at release 25, the release the library is built on today. Below Java 16 javac reads a
+record from a jar as a plain class, so `@GenerateMapping` and `@GenerateMerge` refuse every spec
+there (`this compilation is at Java 8, where javac reads a record as a plain class`). A Maven
+build that sets neither `maven.compiler.release` nor `maven.compiler.source` compiles at Java 8.
+A sealed pair needs Java 21 at least, since its `Impl` dispatches with a pattern `switch`.
+
 Processor diagnostics name the offending element, the reason, and the fix, so read the compile error
 before rearranging the spec.
 

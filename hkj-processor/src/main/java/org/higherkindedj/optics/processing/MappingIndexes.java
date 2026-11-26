@@ -86,7 +86,8 @@ final class MappingIndexes {
     if ("false".equals(env.getOptions().get(OPTION))) {
       return new IndexUse.Off();
     }
-    // getModuleOf is null only below --release 9, where no spec can compile (records).
+    // getModuleOf is null only below Java 9, and MappingProcessor and MergeProcessor refuse every
+    // spec below Java 16 before this.
     if (!elements.getModuleOf(inRound).isUnnamed()) {
       return new IndexUse.NamedModule();
     }

@@ -304,6 +304,13 @@ public class MappingProcessor extends AbstractProcessor {
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     Elements elements = processingEnv.getElementUtils();
     Set<? extends Element> annotated = roundEnv.getElementsAnnotatedWith(GenerateMapping.class);
+    if (Diagnostics.refusesBelowJava16(
+        processingEnv.getMessager(),
+        processingEnv.getSourceVersion(),
+        annotated,
+        "@GenerateMapping")) {
+      return true;
+    }
     annotated.stream()
         .filter(element -> element.getKind() != ElementKind.INTERFACE)
         .forEach(element -> processSpec(element, List.of()));
@@ -7812,13 +7819,15 @@ public class MappingProcessor extends AbstractProcessor {
             + memberNames
             + ", and a sealed interface with a record for each is the domain type that holds the"
             + " same choice.",
-        "Declare '"
-            + name
-            + "' as a sealed interface permitting records named after the members, "
-            + memberNames.stream().map(ProcessorUtils::capitalise).toList()
-            + ", or as an Optional of one; or rename '"
-            + name
-            + "', and map each member to an Optional component named after it.");
+        Diagnostics.fixAtJavaLevel(
+            processingEnv.getSourceVersion(),
+            "Declare '"
+                + name
+                + "' as a sealed interface permitting records named after the members, "
+                + memberNames.stream().map(ProcessorUtils::capitalise).toList()
+                + ", or as an Optional of one; or rename '"
+                + name
+                + "', and map each member to an Optional component named after it."));
   }
 
   /**
@@ -17357,7 +17366,10 @@ public class MappingProcessor extends AbstractProcessor {
             + "' must both be records, or both sealed interfaces.",
         "Records map component-wise; sealed hierarchies map by dispatching over their permitted"
             + " subtype pairs; a record domain may also map to a bean-shaped wire.",
-        "Use two record types, two sealed interface types, or a record domain with a bean wire.");
+        Diagnostics.fixAtJavaLevel(
+            processingEnv.getSourceVersion(),
+            "Use two record types, two sealed interface types, or a record domain with a bean"
+                + " wire."));
   }
 
   /** The wire (against a record domain) must be a record or a bean-shaped class. */

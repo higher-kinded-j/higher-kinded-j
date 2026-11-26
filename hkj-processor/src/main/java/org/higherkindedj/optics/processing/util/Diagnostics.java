@@ -4,9 +4,11 @@ package org.higherkindedj.optics.processing.util;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
+import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
@@ -32,6 +34,11 @@ import javax.tools.Diagnostic;
  * migrated as they are touched.
  */
 public final class Diagnostics {
+
+  /** Where the Java-level diagnostics send the user: the release the library is built on. */
+  private static final String AT_RELEASE_25 =
+      "at release 25, the release Higher-Kinded-J is built on, with javac's --release 25, Gradle's"
+          + " options.release or Maven's maven.compiler.release set to 25.";
 
   private Diagnostics() {}
 
@@ -234,6 +241,81 @@ public final class Diagnostics {
             + " choose between them. The filer reported: "
             + reason,
         "Declare the package in only one of those modules, or compile the modules separately.");
+  }
+
+  /**
+   * Reports each annotated element where the compilation is below Java 16, and says whether it is.
+   * Below Java 16, javac reads a record from a class file as a plain class, so a processor whose
+   * inputs must be records can only misdescribe them; below Java 9 it also has no modules, where
+   * {@code Elements.getModuleOf} returns null. It reports this on each element in place of reading
+   * them.
+   *
+   * @param messager the processing-round messager; must not be null
+   * @param source the compilation's source version, from {@code getSourceVersion()}; must not be
+   *     null
+   * @param annotated the elements this round annotated with {@code annotation}; must not be null
+   * @param annotation the annotation tag, for example {@code "@GenerateMapping"}; must not be null
+   * @return whether the compilation is below Java 16, where the caller generates nothing
+   */
+  public static boolean refusesBelowJava16(
+      Messager messager,
+      SourceVersion source,
+      Set<? extends Element> annotated,
+      String annotation) {
+    Objects.requireNonNull(messager, "messager must not be null");
+    Objects.requireNonNull(source, "source must not be null");
+    Objects.requireNonNull(annotated, "annotated must not be null");
+    Objects.requireNonNull(annotation, "annotation must not be null");
+    if (source.compareTo(SourceVersion.RELEASE_16) >= 0) {
+      return false;
+    }
+    annotated.forEach(
+        element ->
+            error(
+                messager,
+                element,
+                annotation,
+                "this compilation is at Java "
+                    + javaLevel(source)
+                    + ", where javac reads a record as a plain class.",
+                "The processor reads records, and javac reads a compiled record as one only from"
+                    + " Java 16.",
+                "Compile " + AT_RELEASE_25));
+    return true;
+  }
+
+  /**
+   * A shape refusal's fix, followed below Java 17 by a sentence saying how javac reads records and
+   * sealed interfaces there. Below Java 16 javac reads a record from a class file as a plain class,
+   * and below Java 17 a sealed interface as an open one, so a type refused for its shape may be the
+   * very shape the processor asked for.
+   *
+   * @param source the compilation's source version, from {@code getSourceVersion()}; must not be
+   *     null
+   * @param fix the refusal's fix; must not be null
+   * @return {@code fix}, with the sentence below Java 17 (non-null)
+   */
+  public static String fixAtJavaLevel(SourceVersion source, String fix) {
+    Objects.requireNonNull(source, "source must not be null");
+    Objects.requireNonNull(fix, "fix must not be null");
+    if (source.compareTo(SourceVersion.RELEASE_17) >= 0) {
+      return fix;
+    }
+    boolean recordsToo = source.compareTo(SourceVersion.RELEASE_16) < 0;
+    return fix
+        + " This compilation is at Java "
+        + javaLevel(source)
+        + ", where javac reads "
+        + (recordsToo
+            ? "a record as a plain class and a sealed interface as an open one: if the type is a"
+                + " record or a sealed interface, compile "
+            : "a sealed interface as an open one: if the type is a sealed interface, compile ")
+        + AT_RELEASE_25;
+  }
+
+  /** The Java level a source version names: {@code "8"} for {@code RELEASE_8}. */
+  private static String javaLevel(SourceVersion source) {
+    return source.name().substring("RELEASE_".length());
   }
 
   /**
