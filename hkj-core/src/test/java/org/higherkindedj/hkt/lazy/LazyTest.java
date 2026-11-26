@@ -10,9 +10,13 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.exception.KindUnwrapException;
@@ -431,6 +435,86 @@ class LazyTest extends LazyTestBase {
       assertThatThrownBy(lazy::force).isInstanceOf(RuntimeException.class);
 
       assertThat(counter.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("A flatMap step already forced is not run again by a Lazy built on it")
+    void forcedFlatMapStepIsNotRunAgain() throws Throwable {
+      AtomicInteger runs = new AtomicInteger(0);
+      Lazy<Integer> step = Lazy.now(1).flatMap(n -> Lazy.now(n + runs.incrementAndGet()));
+      Lazy<Integer> next = step.flatMap(n -> Lazy.now(n * 10));
+
+      assertThat(step.force()).isEqualTo(2);
+      assertThat(next.force()).isEqualTo(20);
+      assertThat(runs.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Forcing a flatMap chain caches the value of each step in it")
+    void forcingChainCachesEachStep() throws Throwable {
+      AtomicInteger runs = new AtomicInteger(0);
+      Lazy<Integer> step = Lazy.now(1).flatMap(n -> Lazy.now(n + runs.incrementAndGet()));
+      Lazy<Integer> next = step.flatMap(n -> Lazy.now(n * 10));
+
+      assertThat(next.force()).isEqualTo(20);
+      assertThat(step.isEvaluated()).isTrue();
+      assertThat(step.force()).isEqualTo(2);
+      assertThat(runs.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Forcing a flatMap chain caches a failure in each step it reaches")
+    void forcingChainCachesFailureInEachStep() {
+      AtomicInteger runs = new AtomicInteger(0);
+      Lazy<Integer> step =
+          Lazy.now(1)
+              .flatMap(
+                  n -> {
+                    runs.incrementAndGet();
+                    throw new IllegalStateException("step failed");
+                  });
+      Lazy<Integer> next = step.flatMap(n -> Lazy.now(n * 10));
+
+      assertThatThrownBy(next::force).hasMessage("step failed");
+      assertThat(step.hasFailed()).isTrue();
+      assertThatThrownBy(step::force).hasMessage("step failed");
+      assertThat(runs.get()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("A chain carries on with the value another thread cached in a step meanwhile")
+    void chainCarriesOnWithValueCachedElsewhere() throws Throwable {
+      CountDownLatch chainInStep = new CountDownLatch(1);
+      Semaphore stepCachedElsewhere = new Semaphore(0);
+      AtomicInteger runs = new AtomicInteger(0);
+      Lazy<Integer> step =
+          Lazy.now(0)
+              .flatMap(
+                  n -> {
+                    int run = runs.incrementAndGet();
+                    if (run == 1) {
+                      chainInStep.countDown();
+                      stepCachedElsewhere.acquireUninterruptibly();
+                    }
+                    return Lazy.now(run);
+                  });
+      Lazy<Integer> next = step.flatMap(n -> Lazy.now(n * 10));
+      CompletableFuture<Integer> chain =
+          CompletableFuture.supplyAsync(
+              () -> {
+                try {
+                  return next.force();
+                } catch (Throwable t) {
+                  throw new CompletionException(t);
+                }
+              });
+
+      chainInStep.await();
+      assertThat(step.force()).isEqualTo(2);
+      stepCachedElsewhere.release();
+
+      assertThat(chain.get()).isEqualTo(20);
+      assertThat(step.force()).isEqualTo(2);
     }
   }
 
