@@ -199,7 +199,19 @@ Every supported return type maps to the same native method shape, `ResponseEntit
 
 You never reference the generated names. You autowire your own interface. Nor can another class take one. A class compiled beside the client fails the write. One read from a class file, a dependency's or a hand-written class Gradle's [incremental build](../tooling/manual_setup.md#incremental-compilation) did not recompile, is refused with `has the name of a class on the classpath`. Rename that class, or rename the client.
 
-The generated files restate each method the client declares or inherits: the facade, `UserClientApiClient`, implements it, and the native interface, `UserClientApiHttpExchange`, declares it again. Your own `@SuppressWarnings` cannot reach them. So where a method is deprecated, or its signature names a deprecated type, each generated declaration that would draw the warning suppresses `deprecation`, or `removal`, itself. The facade's method overrides the deprecated method and names its types, so it suppresses both; the native method carries the method's copied `@Deprecated`, and suppresses only the types it names. A deprecated error type is suppressed on the facade's decoder field and constructor as well, and a deprecated `@OnStatus` error type on the constructor. A deprecated bound of a generic client's type parameter is suppressed on the facade and the native interface. A deprecated client, or one nested in a deprecated class, is suppressed on the facade and its configuration class. javac reports each deprecation where your own source names it, so the client builds under `-Werror` wherever that source does. A type-use annotation deprecated by a javadoc `@deprecated` tag alone is left off the restated types, as one marked `@Deprecated` is.
+The generated files restate each method the client declares or inherits: the facade, `UserClientApiClient`, implements it, and the native interface, `UserClientApiHttpExchange`, declares it again. Your own `@SuppressWarnings` cannot reach them. So where a method is deprecated, or its signature names a deprecated type, each generated declaration that would draw the warning suppresses `deprecation`, or `removal`, itself. The facade's method overrides the deprecated method and names its types, so it suppresses both; the native method carries the method's copied `@Deprecated`, and suppresses only the types it names. A deprecated error type is suppressed on the facade's decoder field and constructor as well, and a deprecated `@OnStatus` error type on the constructor. A deprecated bound of a generic client's type parameter is suppressed on the facade and the native interface. A deprecated client, or one nested in a deprecated class, is suppressed on the facade and its configuration class. A type-use annotation deprecated by a javadoc `@deprecated` tag alone is left off the restated types, as one marked `@Deprecated` is.
+
+The shape of a signature is restated as your interface writes it, with what it draws suppressed:
+
+| Your interface has | The generated files |
+|---|---|
+| A varargs parameter | Restate it as varargs |
+| One method from two bases, one varargs and one taking an array | Take varargs, which accepts an array too |
+| A raw type, in a signature, a bound or an error type | Suppress `rawtypes` on each declaration that writes it out |
+| A varargs parameter of a type javac does not reify, such as `List<String>...` | Suppress `unchecked`, for the heap pollution javac reports there |
+| A method that differs in varargs from one the facade overrides | Suppress `overrides` on the facade class, the only place javac reads it for an interface's method |
+
+A client that redeclares a base's method with or without `...` draws that `overrides` warning in its own source, so suppress it on your interface, not on the method. javac reports the rest where your own source writes them. So the client builds under `-Werror` wherever that source does.
 
 ---
 

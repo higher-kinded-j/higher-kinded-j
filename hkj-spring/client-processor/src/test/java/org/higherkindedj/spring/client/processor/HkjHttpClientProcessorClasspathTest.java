@@ -1609,22 +1609,41 @@ class HkjHttpClientProcessorClasspathTest {
     @EnumSource(DeprecatedSignatures.Shape.class)
     @DisplayName("each compiles under every lint and -Werror")
     void compilesClean(DeprecatedSignatures.Shape shape) throws IOException {
-      // The base module is compiled on its own, where javac reads its deprecations from the class
-      // files, a javadoc tag's included.
-      Compilation base =
-          javac()
-              .withProcessors()
-              .withOptions("-parameters")
-              .withClasspath(TEST_CLASSPATH)
-              .compile(shape.baseSources());
-      assertThat(base).succeeded();
-      Path dir = Files.createTempDirectory(tmp, "base");
-      layOut(base, dir);
-      Compilation compilation =
-          compiler(dir).withOptions(DeprecatedSignatures.LINT).compile(shape.client());
-
-      DeprecatedSignatures.assertCompiledClean(shape, compilation);
+      // javac reads the base's deprecations from its class files, a javadoc tag's included.
+      assertCompiledCleanFromAJar(shape);
     }
+  }
+
+  @Nested
+  @DisplayName(
+      "a varargs parameter or a raw type a jar's base declares, restated in the client's shape"
+          + " with no warning")
+  class VarargsAndRawSignatureRestating {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(VarargsAndRawSignatures.Shape.class)
+    @DisplayName("each compiles under every lint and -Werror")
+    void compilesClean(VarargsAndRawSignatures.Shape shape) throws IOException {
+      // A suppression the base writes is gone from its class files.
+      assertCompiledCleanFromAJar(shape);
+    }
+  }
+
+  /** Compiles the row's base module on its own, then the client against its class files. */
+  private void assertCompiledCleanFromAJar(RestatedSignature row) throws IOException {
+    Compilation base =
+        javac()
+            .withProcessors()
+            .withOptions("-parameters")
+            .withClasspath(TEST_CLASSPATH)
+            .compile(row.baseSources());
+    assertThat(base).succeeded();
+    Path dir = Files.createTempDirectory(tmp, "base");
+    layOut(base, dir);
+    Compilation compilation =
+        compiler(dir).withOptions(RestatedSignature.LINT).compile(row.client());
+
+    RestatedSignature.assertCompiledClean(row, compilation);
   }
 
   @Test
