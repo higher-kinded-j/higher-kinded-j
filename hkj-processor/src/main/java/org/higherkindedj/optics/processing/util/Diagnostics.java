@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.util;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -95,18 +96,24 @@ public final class Diagnostics {
     for (Element at = element; at.getKind() != ElementKind.PACKAGE; at = at.getEnclosingElement()) {
       AnnotationMirror suppression =
           ProcessorUtils.findAnnotation(at, SuppressWarnings.class.getCanonicalName());
-      // javac hands an array member's value over as a list, an id written bare included.
       if (suppression != null
-          && ProcessorUtils.getAnnotationValue(suppression, "value").getValue()
-              instanceof List<?> ids
-          && ids.stream()
-              .map(AnnotationValue.class::cast)
+          && ids(ProcessorUtils.getAnnotationValue(suppression, "value"))
               .anyMatch(
                   value -> ProcessorUtils.unresolvedMark(value) || id.equals(value.getValue()))) {
         return true;
       }
     }
     return false;
+  }
+
+  /**
+   * The ids a {@code SuppressWarnings} value names. javac hands an array member's value over as a
+   * list, an id written bare included; a value handed over bare is read as the one id it is.
+   */
+  private static Stream<AnnotationValue> ids(AnnotationValue value) {
+    return value.getValue() instanceof List<?> ids
+        ? ids.stream().map(AnnotationValue.class::cast)
+        : Stream.of(value);
   }
 
   /**

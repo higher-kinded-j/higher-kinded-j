@@ -72,7 +72,7 @@ class OpticsRoundsTest {
               "package com.gen; public final class Pkgs { private Pkgs() {} public static final"
                   + " String OPTICS = \"com.example.optics\"; public static final String FIELD ="
                   + " \"address\"; public static final int DEPTH = 2; public static final boolean"
-                  + " REMOVE = true; }"));
+                  + " REMOVE = true; public static final boolean KEEP = false; }"));
 
   /** An interface an element can name a companion in, as a supertype clause's argument. */
   private static final JavaFileObject MARKER =
@@ -1060,6 +1060,102 @@ class OpticsRoundsTest {
   @Nested
   @DisplayName("What an element's wait reads")
   class Reading {
+
+    /**
+     * An imported builder whose setter adds to a collection, and whose clear method empties it
+     * first, each with the deprecation given.
+     */
+    private static List<JavaFileObject> archive(String setter, String clear) {
+      return List.of(
+          source(
+              "com.example.Archive",
+              """
+              package com.example;
+
+              import com.gen.Pkgs;
+              import java.util.Collection;
+              import java.util.List;
+
+              public final class Archive {
+                public List<String> getGones() { return List.of(); }
+                public Builder toBuilder() { return new Builder(); }
+
+                public static final class Builder {
+                  %s public Builder gones(Collection<? extends String> more) { return this; }
+                  %s public Builder clearGones() { return this; }
+                  public Archive build() { return new Archive(); }
+                }
+              }
+              """
+                  .formatted(setter, clear)),
+          source(
+              "com.example.ArchiveOpticsSpec",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+
+              @ImportOptics
+              public interface ArchiveOpticsSpec extends OpticsSpec<Archive> {
+                @ViaBuilder(getter = "getGones")
+                Lens<Archive, List<String>> gones();
+              }
+              """));
+    }
+
+    /**
+     * Imports the archive's optics. An imported lens calling a deprecated builder method draws
+     * javac's warning, written by hand too, so the compilation is not run with {@code -Werror}.
+     */
+    private static Compilation importing(List<Source> written, List<JavaFileObject> sources) {
+      return javac()
+          .withProcessors(new TypeWriter(written), new ImportOpticsProcessor())
+          .compile(sources);
+    }
+
+    @ParameterizedTest(name = "setter {0}, clear {1}")
+    @org.junit.jupiter.params.provider.CsvSource(
+        delimiter = '|',
+        value = {
+          "@Deprecated | @Deprecated(forRemoval = Pkgs.KEEP)",
+          "@Deprecated(forRemoval = Pkgs.REMOVE) | @Deprecated(forRemoval = true)"
+        })
+    @DisplayName(
+        "a builder's clear method deprecated by a constant a later round brings is chosen as it is"
+            + " once the constant resolves")
+    void aLaterForRemovalChoosesTheClearAsResolved(String setter, String clear) {
+      List<JavaFileObject> sources = archive(setter, clear);
+      Compilation compilation = importing(WRITTEN, sources);
+      Compilation byHand =
+          importing(
+              List.of(),
+              Stream.concat(sources.stream(), WRITTEN.stream().map(Source::byHand)).toList());
+
+      assertThat(compilation).succeeded();
+      assertThat(byHand).succeeded();
+      Map<String, String> generated = opticsSourcesOf(compilation, WRITTEN);
+      Assertions.assertThat(generated)
+          .isNotEmpty()
+          .isEqualTo(opticsSourcesOf(byHand, List.of()))
+          .allSatisfy((name, text) -> Assertions.assertThat(text).contains("clearGones()"));
+    }
+
+    @Test
+    @DisplayName("a clear method a later-round constant deprecates for removal is still called")
+    void aLaterRemovalClearIsCalled() {
+      // Until the constant resolves it may be false, which calls the clear, so the clear is called.
+      Compilation compilation =
+          importing(WRITTEN, archive("@Deprecated", "@Deprecated(forRemoval = Pkgs.REMOVE)"));
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(opticsSourcesOf(compilation, WRITTEN))
+          .isNotEmpty()
+          .allSatisfy((name, text) -> Assertions.assertThat(text).contains("clearGones()"));
+    }
 
     @Test
     @DisplayName(

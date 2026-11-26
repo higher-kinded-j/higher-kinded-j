@@ -8,10 +8,16 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.junit.jupiter.api.DisplayName;
@@ -191,5 +197,68 @@ class DiagnosticsTest {
     assertThatNullPointerException()
         .isThrownBy(() -> Diagnostics.mayWarn(elements, element, null))
         .withMessage("id must not be null");
+  }
+
+  /** A fake of {@code type} answering each method named in {@code answers}, by name. */
+  private static <T> T fake(Class<T> type, Map<String, Object> answers) {
+    return type.cast(
+        Proxy.newProxyInstance(
+            DiagnosticsTest.class.getClassLoader(),
+            new Class<?>[] {type},
+            (proxy, method, args) ->
+                switch (method.getName()) {
+                  case "contentEquals" -> answers.get("toString").equals(args[0].toString());
+                  default -> {
+                    if (!answers.containsKey(method.getName())) {
+                      throw new UnsupportedOperationException(method.getName());
+                    }
+                    yield answers.get(method.getName());
+                  }
+                }));
+  }
+
+  private static Name name(String text) {
+    return fake(Name.class, Map.of("toString", text));
+  }
+
+  /**
+   * A method in a package, carrying {@code @SuppressWarnings} whose value is handed over as given:
+   * the shape another compiler front end may give a value javac wraps in a list.
+   */
+  private static Element suppressing(AnnotationValue value) {
+    TypeElement annotationType =
+        fake(TypeElement.class, Map.of("getQualifiedName", name("java.lang.SuppressWarnings")));
+    DeclaredType declared = fake(DeclaredType.class, Map.of("asElement", annotationType));
+    ExecutableElement member =
+        fake(ExecutableElement.class, Map.of("getSimpleName", name("value")));
+    AnnotationMirror mirror =
+        fake(
+            AnnotationMirror.class,
+            Map.of("getAnnotationType", declared, "getElementValues", Map.of(member, value)));
+    Element pkg = fake(Element.class, Map.of("getKind", ElementKind.PACKAGE));
+    return fake(
+        Element.class,
+        Map.of(
+            "getKind",
+            ElementKind.METHOD,
+            "getAnnotationMirrors",
+            List.of(mirror),
+            "getEnclosingElement",
+            pkg));
+  }
+
+  /** A string value as javac hands one over, written in quotes. */
+  private static AnnotationValue id(String id) {
+    return fake(AnnotationValue.class, Map.of("getValue", id, "toString", "\"" + id + "\""));
+  }
+
+  @Test
+  @DisplayName("suppressed reads a value handed over bare as the one id it is, and a list's each")
+  void suppressedReadsABareValueAsOneId() {
+    assertThat(Diagnostics.suppressed(suppressing(id("impl-constant")), "impl-constant")).isTrue();
+    assertThat(Diagnostics.suppressed(suppressing(id("unchecked")), "impl-constant")).isFalse();
+    AnnotationValue array =
+        fake(AnnotationValue.class, Map.of("getValue", List.of(id("impl-constant"))));
+    assertThat(Diagnostics.suppressed(suppressing(array), "impl-constant")).isTrue();
   }
 }
