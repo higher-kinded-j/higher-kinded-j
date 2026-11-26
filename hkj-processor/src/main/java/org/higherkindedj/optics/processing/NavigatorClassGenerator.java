@@ -177,16 +177,17 @@ public class NavigatorClassGenerator {
   /**
    * Whether a record's {@code @GenerateFocus} cannot be read as this processor declares it: a class
    * file written against another version of the annotation, one of whose attributes has since
-   * changed type, reads as a value of the wrong type. No navigator into the record can be generated
-   * from settings that cannot be read, so the record is treated as not navigable. A record in
-   * source never reaches here with such settings: one whose settings name something javac has not
-   * resolved waits for a later round, and so does every record whose navigator would read them (see
-   * {@link WaitingOptics}). Every attribute is read, so one added later is covered too.
+   * changed type, reads as a value of the wrong type. Neither the record's own companion nor a
+   * navigator into it can be generated from settings that cannot be read, so the processor passes
+   * over such a record handed to it by name, and treats it as not navigable. A record in source
+   * never has such settings: one whose settings name something javac has not resolved waits for a
+   * later round, and so does every record whose navigator would read them (see {@link
+   * WaitingOptics}). Every attribute is read, so one added later is covered too.
    *
    * @param settings the annotation as javac reads it
    * @return true when an attribute cannot be read
    */
-  private static boolean unreadable(GenerateFocus settings) {
+  static boolean unreadable(GenerateFocus settings) {
     try {
       for (Method attribute : GenerateFocus.class.getDeclaredMethods()) {
         attribute.invoke(settings);
@@ -2290,8 +2291,15 @@ public class NavigatorClassGenerator {
         || widening(record, component).declined() != null) {
       return;
     }
-    // Ask about what the method would reach with every container widened.
+    // Ask about what the method would reach with every container widened. A target whose
+    // settings another version of the annotation wrote is not one without @GenerateFocus, and
+    // nothing can be said of a navigator into it.
     MethodPath widened = widenedPath(record, component);
+    if (widened.focus() instanceof DeclaredType declared
+        && declared.asElement().getAnnotation(GenerateFocus.class) instanceof GenerateFocus settings
+        && unreadable(settings)) {
+      return;
+    }
     Target widenedTarget = navigableElement(widened.focus(), companionPackage(record));
     Target refused = refusedContainerTarget(component, companionPackage(record));
 

@@ -542,12 +542,12 @@ class FocusIncludeFieldsTest {
     followedCleanly(row.followed().source());
   }
 
-  @Test
-  @DisplayName(
-      "a classpath record whose settings another annotation version wrote is not stepped into")
-  void classpathRecordWithUnreadableSettingsIsNotNavigable(@TempDir Path temp) throws IOException {
-    // Compiled against an @GenerateFocus whose targetPackage was an int, the class file holds a
-    // value this version reads as the wrong type, so no navigator into Skewed can be generated.
+  /**
+   * The class files of {@code com.example.Skewed}, compiled against an {@code @GenerateFocus} whose
+   * targetPackage was an int, as another version of the annotation could declare it, and without
+   * that annotation's own: the class file holds a value this version reads as the wrong type.
+   */
+  private static Path skewedDependency(Path dir) throws IOException {
     Compilation upstream =
         javac()
             .withOptions("-proc:none")
@@ -567,19 +567,60 @@ class FocusIncludeFieldsTest {
                     """),
                 source("Skewed", "@GenerateFocus(targetPackage = 3)", "String name"));
     clean(upstream);
-    Path dependency =
-        classDirectoryWithout(
-            upstream,
-            temp.resolve("dependency"),
-            "org.higherkindedj.optics.annotations.GenerateFocus");
+    return classDirectoryWithout(
+        upstream, dir, "org.higherkindedj.optics.annotations.GenerateFocus");
+  }
+
+  @Test
+  @DisplayName(
+      "a classpath record whose settings another annotation version wrote is not stepped into")
+  void classpathRecordWithUnreadableSettingsIsNotNavigable(@TempDir Path temp) throws IOException {
+    // No navigator into Skewed can be generated from settings that cannot be read.
     Compilation written =
         javac()
             .withProcessors(new FocusProcessor())
-            .withClasspath(classpathWith(dependency))
+            .withClasspath(classpathWith(skewedDependency(temp.resolve("dependency"))))
             .compile(source("Subject", "@GenerateFocus", "Skewed skewed, String name"));
     clean(written);
     assertGeneratedCodeContains(
         written, "com.example.SubjectFocus", "public static FocusPath<Subject, Skewed> skewed()");
+  }
+
+  @Test
+  @DisplayName(
+      "an included field into a record whose settings another annotation version wrote is quiet")
+  void includedFieldIntoRecordWithUnreadableSettingsIsQuiet(@TempDir Path temp) throws IOException {
+    // Skewed carries @GenerateFocus, so the field is not one into a record without it, and nothing
+    // can be said of a navigator from settings that cannot be read.
+    Compilation written =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withClasspath(classpathWith(skewedDependency(temp.resolve("dependency"))))
+            .compile(
+                source(
+                    "Subject",
+                    "@GenerateFocus(includeFields = \"skewed\")",
+                    "Skewed skewed, String name"));
+    clean(written);
+  }
+
+  @Test
+  @DisplayName(
+      "a record handed over by name, its settings written by another annotation version, is"
+          + " passed over")
+  void recordHandedOverByNameWithUnreadableSettingsIsPassedOver(@TempDir Path temp)
+      throws IOException {
+    // Gradle's incremental build hands an unchanged annotated record over by name, read from its
+    // class file, and no companion can be generated from settings that cannot be read.
+    Reprocessing.Run run =
+        Reprocessing.byName(
+            temp.resolve("build"),
+            skewedDependency(temp.resolve("classes")),
+            List.of("com.example.Skewed"),
+            List.of(new FocusProcessor()));
+    assertThat(run.succeeded()).isTrue();
+    assertThat(run.generated()).isEmpty();
+    assertThat(run.diagnostics()).isEmpty();
   }
 
   @Test

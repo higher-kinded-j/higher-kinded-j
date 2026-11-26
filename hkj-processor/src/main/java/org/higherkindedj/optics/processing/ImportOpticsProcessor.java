@@ -26,6 +26,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.annotations.ImportOptics;
 import org.higherkindedj.optics.processing.external.ExternalLensGenerator;
@@ -152,25 +153,37 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     for (Element importer : importers) {
       AnnotationMirror importOptics = ProcessorUtils.findAnnotation(importer, IMPORT_OPTICS_FQN);
       String target = targetPackage(importOptics, defaultPackageOf(importer));
-      if (importer instanceof TypeElement type && SpecInterfaceAnalyser.isSpecInterface(type)) {
-        addCompanion(
-            names,
-            target,
-            SpecInterfaceGenerator.generatedClassName(type.getSimpleName().toString()));
-      }
-      listedClasses(importOptics).stream()
-          .map(AnnotationValue::getValue)
-          .filter(TypeMirror.class::isInstance)
-          .map(listed -> processingEnv.getTypeUtils().asElement((TypeMirror) listed))
-          .filter(TypeElement.class::isInstance)
-          .map(listed -> listed.getSimpleName().toString())
-          .forEach(
-              simpleName -> {
-                addCompanion(names, target, simpleName + "Lenses");
-                addCompanion(names, target, simpleName + "Prisms");
-              });
+      generatedNames(processingEnv.getTypeUtils(), importer, importOptics)
+          .forEach(simpleName -> addCompanion(names, target, simpleName));
     }
     return names;
+  }
+
+  /**
+   * The simple names of the classes an importer generates: a spec's own generated class, and a
+   * companion for each class it lists. The optics generators exempt them too (see {@link
+   * WaitingOptics}), so a type one generates for may name a class an importer writes.
+   *
+   * @param types the type utilities of the compilation
+   * @param importer the element carrying {@code @ImportOptics}
+   * @param importOptics its annotation
+   * @return the names, in the order the annotation gives them
+   */
+  static Stream<String> generatedNames(
+      Types types, Element importer, AnnotationMirror importOptics) {
+    Stream<String> spec =
+        importer instanceof TypeElement type && SpecInterfaceAnalyser.isSpecInterface(type)
+            ? Stream.of(SpecInterfaceGenerator.generatedClassName(type.getSimpleName().toString()))
+            : Stream.empty();
+    Stream<String> listed =
+        listedClasses(importOptics).stream()
+            .map(AnnotationValue::getValue)
+            .filter(TypeMirror.class::isInstance)
+            .map(entry -> types.asElement((TypeMirror) entry))
+            .filter(TypeElement.class::isInstance)
+            .map(entry -> entry.getSimpleName().toString())
+            .flatMap(simpleName -> Stream.of(simpleName + "Lenses", simpleName + "Prisms"));
+    return Stream.concat(spec, listed);
   }
 
   private static void addCompanion(Set<String> names, String targetPackage, String simpleName) {

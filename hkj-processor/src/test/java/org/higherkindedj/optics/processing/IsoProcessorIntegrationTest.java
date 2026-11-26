@@ -8,6 +8,7 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -187,6 +188,43 @@ public class IsoProcessorIntegrationTest {
     assertThat(packagePrivateAcrossPackages).failed();
     assertThat(packagePrivateAcrossPackages)
         .hadErrorContaining("cannot be reached from 'com.other'");
+  }
+
+  @Test
+  @DisplayName("passes over a type carrying an @GenerateIsos that another version let types carry")
+  void passesOverATypeCarryingAnIsoAnnotationFromAnotherVersion() {
+    // This version targets methods alone, but one written against another version, as a class
+    // file can be, reaches the processor on a type. Only a method has an iso to generate.
+    Compilation compilation =
+        javac()
+            .withProcessors(new IsoProcessor())
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "org.higherkindedj.optics.annotations.GenerateIsos",
+                    """
+                    package org.higherkindedj.optics.annotations;
+
+                    import java.lang.annotation.ElementType;
+                    import java.lang.annotation.Target;
+
+                    @Target({ElementType.TYPE, ElementType.METHOD})
+                    public @interface GenerateIsos {
+                      String targetPackage() default "";
+                    }
+                    """),
+                JavaFileObjects.forSourceString(
+                    "com.example.Shapes",
+                    """
+                    package com.example;
+
+                    import org.higherkindedj.optics.annotations.GenerateIsos;
+
+                    @GenerateIsos
+                    public final class Shapes {}
+                    """));
+
+    assertThat(compilation).succeededWithoutWarnings();
+    Assertions.assertThat(compilation.generatedSourceFiles()).isEmpty();
   }
 
   @Test

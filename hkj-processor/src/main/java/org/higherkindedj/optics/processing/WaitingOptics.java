@@ -11,8 +11,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
@@ -36,6 +38,7 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.annotations.GenerateSetters;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.optics.annotations.ImportOptics;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.TypeKey;
@@ -80,14 +83,19 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * them reaches the declaration in source behind it; a dependency's other types name nothing a later
  * round brings.
  *
- * <p>A missing type any part of whose name, as written, is named like a companion of an element
- * carrying an optics annotation, met by this processor in any round so far, does not count: a
- * simple name, a qualified one, or a type nested in a companion, such as a navigator. Such a
- * companion is written once that element is generated, so waiting for it would never end, and two
- * elements naming each other's would each wait for the other. The match is by simple name, and
- * reads no package, so it holds however the name was imported; a type of another package named like
- * a companion is taken for it too, and written as the source wrote it. {@link WaitingImporters}
- * matches its own companions by the whole name instead, simple or qualified.
+ * <p>A missing type named as a companion is named does not count, and nor does a type nested in
+ * one, such as a navigator. The companions are those of each element carrying an optics annotation
+ * that this processor has met in any round so far, and the classes each {@code @ImportOptics}
+ * importer met so far generates. Such a companion is written once its element is generated, so
+ * waiting for it would never end, and two elements naming each other's would each wait for the
+ * other, across two generators or a generator and an importer. A simple name is taken for a
+ * companion's whatever package it was imported from, as javac keeps no import for a type it could
+ * not resolve, so a type of another package named like a companion is taken for it too, and written
+ * as the source wrote it. A qualified name is a companion's only where it names the package the
+ * companion is written into, so one naming another package waits for that type. Where that package
+ * cannot be read yet, as where a target package is a constant a later round brings, any part of a
+ * name matches the companion's simple name. {@link WaitingImporters} matches its own companions by
+ * the whole name, simple or qualified.
  *
  * <p>javac keeps, for the whole compilation, its failure to find a type a class file names before a
  * later round writes it, so in Gradle's incremental build a declaration in source naming that type
@@ -125,6 +133,9 @@ final class WaitingOptics {
               Collectors.toUnmodifiableMap(
                   entry -> entry.getKey().getCanonicalName(), Map.Entry::getValue));
 
+  /** The annotation an importer carries, as a mirror names it. */
+  private static final String IMPORT_OPTICS = ImportOptics.class.getCanonicalName();
+
   /**
    * The prefix of HKJ's own annotations, whose values the generators read: the optics annotations,
    * and those read beside them, such as {@code @TraverseField}.
@@ -141,10 +152,14 @@ final class WaitingOptics {
   private final Set<Key> waiting = new LinkedHashSet<>();
 
   /**
-   * The simple names of the companions of every element carrying an optics annotation this
-   * processor has met, which no element waits for.
+   * The companions of every element carrying an optics annotation this processor has met, and the
+   * classes every importer it has met generates, which no element waits for: each by its simple
+   * name, and by its qualified name where the package it is written into can be read.
    */
   private final Set<String> companions = new HashSet<>();
+
+  /** The simple names of those companions whose package could not be read. */
+  private final Set<String> unplaced = new HashSet<>();
 
   /**
    * The qualified names of the types the rounds this processor has seen brought as their root
@@ -261,15 +276,17 @@ final class WaitingOptics {
     Elements elements = processingEnv.getElementUtils();
     List<Element> waited = waiting.stream().flatMap(key -> key.in(elements)).toList();
     waiting.clear();
-    // What another optics annotation asks for counts too, and so does what an element met in an
-    // earlier round asks for, so two elements naming each other's companions across two
-    // processors are each generated, however long either waits.
-    COMPANIONS.keySet().stream()
-        .flatMap(optic -> roundEnv.getElementsAnnotatedWith(optic).stream())
-        .flatMap(WaitingOptics::companionsOf)
-        .forEach(companions::add);
+    // What another optics annotation or an importer asks for counts too, and so does what an
+    // element met in an earlier round asks for, so two elements naming each other's companions
+    // across two processors are each generated, however long either waits. A waiting element is
+    // asked again, as the package its companion is written into may have resolved since.
+    Stream.concat(
+            Stream.concat(COMPANIONS.keySet().stream(), Stream.of(ImportOptics.class))
+                .flatMap(annotated -> roundEnv.getElementsAnnotatedWith(annotated).stream()),
+            waited.stream())
+        .forEach(element -> noteCompanions(processingEnv, element));
     ElementFilter.typesIn(roundEnv.getRootElements()).forEach(this::bring);
-    Reader reader = new Reader(elements, Set.copyOf(companions), Set.copyOf(brought));
+    Reader reader = new Reader(elements, new Exempt(companions, unplaced, brought));
     if (roundEnv.processingOver()) {
       if (!roundEnv.errorRaised()) {
         waited.forEach(element -> report(processingEnv, element, reader));
@@ -332,20 +349,85 @@ final class WaitingOptics {
   }
 
   /**
-   * The simple names of the classes an element is generated as: for each optics annotation it
-   * carries, the companion that annotation asks for.
+   * Notes the classes an element is generated as: for each optics annotation it carries, the
+   * companion that annotation asks for, and for an importer, each class it generates. Each is
+   * written into the package the annotation's {@code targetPackage} names, or the element's own.
    */
-  private static Stream<String> companionsOf(Element element) {
+  private void noteCompanions(ProcessingEnvironment processingEnv, Element element) {
     Element owner =
         element instanceof ExecutableElement method ? method.getEnclosingElement() : element;
-    return element.getAnnotationMirrors().stream()
-        .flatMap(mirror -> Stream.ofNullable(COMPANION_SUFFIXES.get(qualifiedName(mirror))))
-        .map(suffix -> owner.getSimpleName() + suffix);
+    String ownPackage =
+        processingEnv.getElementUtils().getPackageOf(owner).getQualifiedName().toString();
+    for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
+      String annotationName = qualifiedName(mirror);
+      Stream<String> generated =
+          annotationName.equals(IMPORT_OPTICS)
+              ? ImportOpticsProcessor.generatedNames(processingEnv.getTypeUtils(), element, mirror)
+              : Stream.ofNullable(COMPANION_SUFFIXES.get(annotationName))
+                  .map(suffix -> owner.getSimpleName() + suffix);
+      Optional<String> target = targetPackage(mirror, ownPackage);
+      generated.forEach(
+          simpleName -> {
+            companions.add(simpleName);
+            target.ifPresentOrElse(
+                packageName ->
+                    companions.add(
+                        packageName.isEmpty() ? simpleName : packageName + "." + simpleName),
+                () -> unplaced.add(simpleName));
+          });
+    }
+  }
+
+  /**
+   * The package an annotation's {@code targetPackage} names, or {@code ownPackage} where it names
+   * none. It is empty where the value cannot be read as a package: javac's mark for a constant it
+   * could not resolve, or a value of another type, from a class file written against another
+   * version of the annotation.
+   */
+  private static Optional<String> targetPackage(AnnotationMirror mirror, String ownPackage) {
+    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+        mirror.getElementValues().entrySet()) {
+      if (entry.getKey().getSimpleName().contentEquals("targetPackage")) {
+        AnnotationValue value = entry.getValue();
+        return value.getValue() instanceof String written && !ProcessorUtils.unresolvedMark(value)
+            ? Optional.of(written.isEmpty() ? ownPackage : written)
+            : Optional.empty();
+      }
+    }
+    return Optional.of(ownPackage);
   }
 
   private static String qualifiedName(AnnotationMirror mirror) {
     // An annotation type's element is a TypeElement, one that did not resolve included.
     return ((TypeElement) mirror.getAnnotationType().asElement()).getQualifiedName().toString();
+  }
+
+  /**
+   * What no element waits for in a round: the companions met so far, each by its simple name and,
+   * where its package can be read, its qualified name; the simple names of those whose package
+   * cannot; and the types the rounds have brought.
+   */
+  private record Exempt(Set<String> companions, Set<String> unplaced, Set<String> brought) {
+
+    Exempt {
+      companions = Set.copyOf(companions);
+      unplaced = Set.copyOf(unplaced);
+      brought = Set.copyOf(brought);
+    }
+
+    /**
+     * Whether a name javac could not resolve, as written, is a companion's or that of a type nested
+     * in one, such as a navigator: whether the name, or a part of it ending at a dot, is a
+     * companion's simple or qualified name, or any part of it the simple name of one whose package
+     * cannot be read.
+     */
+    boolean companion(String name) {
+      return IntStream.rangeClosed(0, name.length())
+              .filter(end -> end == name.length() || name.charAt(end) == '.')
+              .mapToObj(end -> name.substring(0, end))
+              .anyMatch(companions::contains)
+          || Stream.of(name.split("\\.")).anyMatch(unplaced::contains);
+    }
   }
 
   /** What one declaration names that javac could not resolve, and the declarations it reaches. */
@@ -365,8 +447,7 @@ final class WaitingOptics {
   private static final class Reader {
 
     private final Elements elements;
-    private final Set<String> companions;
-    private final Set<String> brought;
+    private final Exempt exempt;
     private final Map<Element, Found> reached = new HashMap<>();
 
     /** Declarations whose whole reach was read and names nothing. */
@@ -375,10 +456,9 @@ final class WaitingOptics {
     /** Declarations that name, or reach one that names, something javac could not resolve. */
     private final Set<Element> dirty = new HashSet<>();
 
-    Reader(Elements elements, Set<String> companions, Set<String> brought) {
+    Reader(Elements elements, Exempt exempt) {
       this.elements = elements;
-      this.companions = companions;
-      this.brought = brought;
+      this.exempt = exempt;
     }
 
     /**
@@ -393,10 +473,7 @@ final class WaitingOptics {
       Deque<Element> pending = new ArrayDeque<>(List.of(element));
       while (!pending.isEmpty()) {
         Element next = pending.removeFirst();
-        Found found =
-            next.equals(element)
-                ? Scan.of(elements, companions, brought, element, true)
-                : read(next);
+        Found found = next.equals(element) ? Scan.of(elements, exempt, element, true) : read(next);
         if (dirty.contains(next) || !found.names().isEmpty()) {
           // Each declaration back along the way to the element reaches the name too.
           for (Element at = next; !at.equals(element); at = from.get(at)) {
@@ -420,7 +497,7 @@ final class WaitingOptics {
      * then each it reaches, nearest first, with where each was read.
      */
     List<String> awaited(Element element) {
-      Found own = Scan.of(elements, companions, brought, element, true);
+      Found own = Scan.of(elements, exempt, element, true);
       Set<String> awaited = new LinkedHashSet<>(own.names());
       Set<Element> seen = new HashSet<>(Set.of(element));
       Deque<Element> pending = new ArrayDeque<>(own.reached());
@@ -438,7 +515,7 @@ final class WaitingOptics {
     /** What a declaration an element reaches names, read once a round. */
     private Found read(Element declaration) {
       return reached.computeIfAbsent(
-          declaration, reachable -> Scan.of(elements, companions, brought, reachable, false));
+          declaration, reachable -> Scan.of(elements, exempt, reachable, false));
     }
   }
 
@@ -451,28 +528,24 @@ final class WaitingOptics {
   private static final class Scan {
 
     private final Elements elements;
-    private final Set<String> companions;
-    private final Set<String> brought;
+    private final Exempt exempt;
     private final Element site;
     private final boolean own;
     private final boolean counts;
     private final Set<String> names = new LinkedHashSet<>();
     private final Set<Element> next = new LinkedHashSet<>();
 
-    private Scan(
-        Elements elements, Set<String> companions, Set<String> brought, Element site, boolean own) {
+    private Scan(Elements elements, Exempt exempt, Element site, boolean own) {
       this.elements = elements;
-      this.companions = companions;
-      this.brought = brought;
+      this.exempt = exempt;
       this.site = site;
       this.own = own;
       this.counts = !ProcessorUtils.readFromClassFile(elements, site);
     }
 
     /** What {@code site} names that javac could not resolve, and the declarations it reaches. */
-    static Found of(
-        Elements elements, Set<String> companions, Set<String> brought, Element site, boolean own) {
-      Scan scan = new Scan(elements, companions, brought, site, own);
+    static Found of(Elements elements, Exempt exempt, Element site, boolean own) {
+      Scan scan = new Scan(elements, exempt, site, own);
       scan.annotations(site);
       // The optics annotations sit on a type or a method, and what is reached is a type.
       if (site instanceof ExecutableElement method) {
@@ -515,7 +588,7 @@ final class WaitingOptics {
       switch (type.getKind()) {
         case ERROR -> {
           String name = ((DeclaredType) type).asElement().toString();
-          if (!companion(name) && !brought.contains(name)) {
+          if (!exempt.companion(name) && !exempt.brought().contains(name)) {
             name(name + in());
           }
           // javac keeps the type arguments of a type it could not resolve.
@@ -568,7 +641,7 @@ final class WaitingOptics {
       DeclaredType type = mirror.getAnnotationType();
       if (type.getKind() == TypeKind.ERROR) {
         String name = type.asElement().toString();
-        if (!brought.contains(name)) {
+        if (!exempt.brought().contains(name)) {
           name(name + in());
         }
       } else if (read) {
@@ -601,14 +674,6 @@ final class WaitingOptics {
             nested.getElementValues().values().stream().anyMatch(this::unresolved);
         default -> ProcessorUtils.unresolvedMark(value);
       };
-    }
-
-    /**
-     * Whether a name javac could not resolve, as written, is a companion or a type nested in one,
-     * such as a navigator: whether any part of it is a companion's simple name.
-     */
-    private boolean companion(String name) {
-      return Stream.of(name.split("\\.")).anyMatch(companions::contains);
     }
 
     /** Notes a name javac could not resolve, where the site is one whose names count. */
