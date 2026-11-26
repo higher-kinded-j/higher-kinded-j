@@ -93,7 +93,7 @@ final class CollectionClear {
         .map(name -> CallableMembers.accessorNamed(types, builderType, members, name))
         .filter(Objects::nonNull)
         .findFirst()
-        .filter(clear -> deprecation(elements, clear) <= deprecation(elements, setter))
+        .filter(clear -> deprecation(elements, clear, true) <= deprecation(elements, setter, false))
         .filter(clear -> clear.getThrownTypes().isEmpty());
   }
 
@@ -221,11 +221,18 @@ final class CollectionClear {
   /**
    * How far a member is deprecated, as javac reads it, by its annotation or by a javadoc tag a
    * class file keeps: 0 not, 1 deprecated, 2 deprecated for removal, which only the annotation
-   * says, or perhaps so where its {@code forRemoval} names a constant a later round writes.
+   * says. A {@code forRemoval} set to a constant a later round writes may be either, so it reads as
+   * 1 where {@code least} and 2 otherwise: the clear method is ranked at its least and the setter
+   * at its most, so the clear is called wherever it may be no more deprecated than the setter, as
+   * it is once the constant resolves to {@code false}. Resolved to {@code true}, the lens still
+   * empties the collection before the setter adds to it, and javac reports the call as it reports
+   * any use of a method deprecated for removal.
    */
-  private static int deprecation(Elements elements, Element member) {
+  private static int deprecation(Elements elements, Element member, boolean least) {
     List<Lint> drawn = ProcessorUtils.deprecationOf(elements, Stream.of(member));
-    return drawn.isEmpty() ? 0 : drawn.contains(Lint.REMOVAL) ? 2 : 1;
+    return drawn.isEmpty()
+        ? 0
+        : drawn.contains(Lint.REMOVAL) && !(least && drawn.contains(Lint.DEPRECATION)) ? 2 : 1;
   }
 
   /** A one-parameter method's parameter, as a call on {@code called} reads it. */
