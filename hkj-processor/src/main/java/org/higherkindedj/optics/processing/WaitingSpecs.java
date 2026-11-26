@@ -26,6 +26,8 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
+import org.higherkindedj.optics.annotations.MapField;
+import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.TypeKey;
 
@@ -42,15 +44,30 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * spec or none. javac supplies a generated type in the round after the one that writes it, and each
  * round asks again.
  *
- * <p>Only a declaration in source makes a spec wait. A type a later round can supply is named from
- * source; a dependency's class file naming a type missing from the classpath is a broken dependency
- * no round repairs. In Gradle's incremental build a type of this compilation is read from a class
- * file too, the generated types it names deleted, so a domain, wire or parent interface that names
- * one no longer holds a spec back there. A class file still names the types a spec nests through,
- * though, so its record components and permitted subtypes count towards the specs a waiting mapping
- * holds back. A spec still waiting when processing ends generates nothing and reports nothing:
- * everything it waits for is a source reference, which javac reports as {@code cannot find symbol}.
- * Which file a type was read from is the compiler's to say (see {@link
+ * <p>A constant such a type declares is missing in that round too. Set as the value of a {@code
+ * MapField} or {@code MapKey}, as {@code @MapField(to = Names.FULL)} does, it reaches the processor
+ * as javac's mark for a value it could not resolve (see {@link ProcessorUtils#unresolvedMark}), and
+ * reading the annotation's member through its proxy throws, which stops javac. So a mapping spec
+ * also waits while one of the two, on a method of the spec or of an interface it extends, sets such
+ * a mark; a merge spec's own methods carry neither, and a merge nesting a waiting mapping waits
+ * with it. Every interface is read for this, whatever file the compiler says it came from: both
+ * take a {@code String}, which a class file holds as a plain value, so a mark found is a source
+ * one, even in an interface the compiler cannot place.
+ *
+ * <p>A spec is classified only once it holds no mark. Every member whose value the processor reads
+ * through a proxy is declared on the spec or an interface it extends, each of which is read here,
+ * and that is what keeps those reads safe: a read of another spec's member would need that spec
+ * checked too.
+ *
+ * <p>Only a declaration in source makes a spec wait for a type. A type a later round can supply is
+ * named from source; a dependency's class file naming a type missing from the classpath is a broken
+ * dependency no round repairs. In Gradle's incremental build a type of this compilation is read
+ * from a class file too, the generated types it names deleted, so a domain, wire or parent
+ * interface that names one no longer holds a spec back there. A class file still names the types a
+ * spec nests through, though, so its record components and permitted subtypes count towards the
+ * specs a waiting mapping holds back. A spec still waiting when processing ends generates nothing
+ * and reports nothing: everything it waits for is a source reference, which javac reports as {@code
+ * cannot find symbol}. Which file a type was read from is the compiler's to say (see {@link
  * ProcessorUtils#compiledFromSource}); a type it cannot place is read as a class file. A spec's own
  * declaration is read whatever the compiler says, the spec Gradle's incremental build hands over by
  * name as well as one met in source, so the spec still waits for a type it names itself, and for a
@@ -71,6 +88,14 @@ final class WaitingSpecs {
    * processor unwrapped, and holding keys only, so a finished compilation is never kept reachable.
    */
   private static final Map<Elements, Set<TypeKey>> MAPPING_SPECS = new WeakHashMap<>();
+
+  /**
+   * The annotations whose values the mapping processor reads through a proxy: each takes one {@code
+   * String} and goes on a method. An annotation with members it comes to read that way belongs here
+   * too, or a constant a later round writes stops javac there.
+   */
+  private static final Set<String> VALUED =
+      Set.of(MapField.class.getCanonicalName(), MapKey.class.getCanonicalName());
 
   private WaitingSpecs() {}
 
@@ -132,6 +157,7 @@ final class WaitingSpecs {
     for (TypeElement spec : mappingSpecs) {
       Reach reach = new Reach(elements, impls);
       reach.declaration(spec);
+      reach.values(spec);
       Set<TypeKey> pair = new LinkedHashSet<>();
       Stream.of(MappingProcessor.findMappingSpec(spec), MappingProcessor.findUpdateSpec(spec))
           .filter(Objects::nonNull)
@@ -195,6 +221,7 @@ final class WaitingSpecs {
     private final Set<ImplName> impls;
     private final Set<TypeKey> names = new HashSet<>();
     private final Set<TypeKey> opened = new HashSet<>();
+    private final Set<TypeKey> valued = new HashSet<>();
     private boolean unresolved;
 
     Reach(Elements elements, Set<ImplName> impls) {
@@ -218,6 +245,31 @@ final class WaitingSpecs {
             .filter(element -> opened.add(key(element)))
             .ifPresent(this::declaration);
       }
+    }
+
+    /**
+     * The {@code MapField} and {@code MapKey} on the methods of a mapping spec, or of an interface
+     * it extends: unresolved where one sets a value javac could not resolve. Every interface the
+     * type extends is read in turn, each once for this spec, from source or a class file alike.
+     */
+    void values(TypeElement type) {
+      if (!valued.add(key(type))) {
+        return;
+      }
+      unresolved |=
+          ElementFilter.methodsIn(type.getEnclosedElements()).stream()
+              .flatMap(method -> method.getAnnotationMirrors().stream())
+              .filter(
+                  mirror ->
+                      VALUED.contains(
+                          ((TypeElement) mirror.getAnnotationType().asElement())
+                              .getQualifiedName()
+                              .toString()))
+              .flatMap(mirror -> mirror.getElementValues().values().stream())
+              .anyMatch(ProcessorUtils::unresolvedMark);
+      type.getInterfaces().stream()
+          .flatMap(parent -> declaredType(parent).stream())
+          .forEach(parent -> values((TypeElement) parent.asElement()));
     }
 
     /**

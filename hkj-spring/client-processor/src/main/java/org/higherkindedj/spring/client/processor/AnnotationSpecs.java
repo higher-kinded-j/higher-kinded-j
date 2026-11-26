@@ -401,7 +401,7 @@ final class AnnotationSpecs {
      */
     private Writability ofValue(
         AnnotationValue value, ExecutableElement member, TypeMirror declared) {
-      if (value.getValue() instanceof String && !value.toString().startsWith("\"")) {
+      if (unresolvedMark(value)) {
         return new Unresolved(nameOf(member.getEnclosingElement()), member.toString());
       }
       if (declared instanceof ArrayType array && !(value.getValue() instanceof List)) {
@@ -619,5 +619,15 @@ final class AnnotationSpecs {
       current = current.getEnclosingElement();
     }
     return ((PackageElement) current).getQualifiedName().toString();
+  }
+
+  /**
+   * Whether an annotation value is javac's mark for one it could not resolve. In source, javac
+   * hands over a class literal or a constant it could not resolve as a mark that visits as a string
+   * but, unlike a string, is not written in quotes. hkj-processor's {@code
+   * ProcessorUtils.unresolvedMark} answers the same way; a change to one belongs in the other.
+   */
+  static boolean unresolvedMark(AnnotationValue value) {
+    return value.getValue() instanceof String && !value.toString().startsWith("\"");
   }
 }

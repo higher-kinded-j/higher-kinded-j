@@ -607,16 +607,33 @@ public final class ProcessorUtils {
     // hkj-spring's client processor reads a deprecation the same way, in its Deprecations; a change
     // here belongs there too.
     return used.filter(elements::isDeprecated)
-        .map(
-            element ->
-                Optional.ofNullable(element.getAnnotation(Deprecated.class))
-                        .filter(Deprecated::forRemoval)
-                        .isPresent()
-                    ? Lint.REMOVAL
-                    : Lint.DEPRECATION)
+        .flatMap(element -> deprecationOf(element).stream())
         .distinct()
         .sorted()
         .toList();
+  }
+
+  /**
+   * The categories a use of one element {@link Elements#isDeprecated} says is deprecated draws:
+   * {@link Lint#REMOVAL} where its {@code Deprecated} says {@code forRemoval}, and {@link
+   * Lint#DEPRECATION} otherwise, as where a javadoc tag alone deprecates it. The annotation is read
+   * from its mirror, never through a proxy, so a {@code forRemoval} set to a constant javac could
+   * not resolve yet, one another processor writes in a later round, does not throw (see {@link
+   * #unresolvedMark}). It draws both, since it may resolve either way, and suppressing both covers
+   * the use.
+   */
+  private static List<Lint> deprecationOf(Element deprecated) {
+    return Optional.ofNullable(findAnnotation(deprecated, Deprecated.class.getCanonicalName()))
+        .map(mirror -> getAnnotationValue(mirror, "forRemoval"))
+        .map(
+            forRemoval ->
+                unresolvedMark(forRemoval)
+                    ? List.of(Lint.DEPRECATION, Lint.REMOVAL)
+                    : List.of(
+                        Boolean.TRUE.equals(forRemoval.getValue())
+                            ? Lint.REMOVAL
+                            : Lint.DEPRECATION))
+        .orElse(List.of(Lint.DEPRECATION));
   }
 
   /**

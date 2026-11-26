@@ -1659,6 +1659,9 @@ class ProcessorUtilsTest {
                         @Deprecated(forRemoval = true)
                         public void gone() {}
 
+                        @Deprecated(since = "1.0", forRemoval = false)
+                        public void kept() {}
+
                         public void current() {}
 
                         public record Rebuilt(String name, int count) {}
@@ -1683,6 +1686,8 @@ class ProcessorUtilsTest {
           .isEqualTo("[@java.lang.SuppressWarnings(\"deprecation\")]");
       assertThat(RENDERED.get("called.gone"))
           .isEqualTo("[@java.lang.SuppressWarnings(\"removal\")]");
+      assertThat(RENDERED.get("called.kept"))
+          .isEqualTo("[@java.lang.SuppressWarnings(\"deprecation\")]");
       assertThat(RENDERED.get("called.current")).isEqualTo("[]");
     }
 

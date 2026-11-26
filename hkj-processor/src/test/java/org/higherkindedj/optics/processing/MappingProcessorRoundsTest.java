@@ -28,8 +28,11 @@ import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Specs naming types another annotation processor writes. javac has no such type in the round that
@@ -46,12 +49,17 @@ class MappingProcessorRoundsTest {
   private static final String IMPORTS =
       """
       import java.util.List;
+      import java.util.Map;
       import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
       import org.higherkindedj.hkt.validated.FieldError;
       import org.higherkindedj.hkt.validated.Validated;
       import org.higherkindedj.optics.annotations.GenerateMapping;
       import org.higherkindedj.optics.annotations.GenerateMerge;
+      import org.higherkindedj.optics.annotations.MapField;
+      import org.higherkindedj.optics.annotations.MapKey;
       import org.higherkindedj.optics.annotations.MappingSpec;
+      import org.higherkindedj.optics.validated.StandardCodecs;
+      import org.higherkindedj.optics.validated.ValidatedPrism;
 
       """;
 
@@ -744,5 +752,320 @@ class MappingProcessorRoundsTest {
         .allSatisfy(
             error ->
                 Assertions.assertThat(error.getSource().toUri().getPath()).contains("/shipping/"));
+  }
+
+  /** The constants the annotation values of {@link LaterValue}'s rows name. */
+  private static final String NAMES =
+      """
+      public final class Names {
+        private Names() {}
+
+        public static final String FULL = "fullName";
+        public static final String COUNTS = "counts";
+        public static final String HELD = "impl-constant";
+        public static final boolean REMOVE = true;
+      }
+      """;
+
+  private static final JavaFileObject CUSTOMER =
+      source("Customer", "public record Customer(String name) {}");
+
+  private static final JavaFileObject CUSTOMER_DTO =
+      source("CustomerDto", "public record CustomerDto(String fullName) {}");
+
+  /** Renames the customer's name to a constant another processor writes. */
+  private static final JavaFileObject RENAMING_CUSTOMER_MAPPING =
+      source(
+          "CustomerMapping",
+          """
+          @GenerateMapping
+          public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+            @MapField(to = Names.FULL)
+            String name();
+          }
+          """);
+
+  /**
+   * One shape a spec can read an HKJ annotation value through, set to a constant another processor
+   * writes in its first round, with the Impls it generates.
+   */
+  enum LaterValue {
+    RENAME(
+        "a @MapField rename on the spec",
+        List.of("CustomerMappingImpl"),
+        CUSTOMER,
+        CUSTOMER_DTO,
+        RENAMING_CUSTOMER_MAPPING),
+    QUALIFIED_RENAME(
+        "a @MapField rename naming the constant by its qualified name",
+        List.of("CustomerMappingImpl"),
+        CUSTOMER,
+        CUSTOMER_DTO,
+        source(
+            "CustomerMapping",
+            """
+            @GenerateMapping
+            public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+              @MapField(to = com.example.rounds.Names.FULL)
+              String name();
+            }
+            """)),
+    MIX_IN_RENAME(
+        "a @MapField rename on a mix-in the spec extends",
+        List.of("CustomerMappingImpl"),
+        CUSTOMER,
+        CUSTOMER_DTO,
+        source(
+            "CustomerVocabulary",
+            """
+            public interface CustomerVocabulary {
+              @MapField(to = Names.FULL)
+              String name();
+            }
+            """),
+        source(
+            "CustomerMapping",
+            """
+            @GenerateMapping
+            public interface CustomerMapping
+                extends CustomerVocabulary, MappingSpec<Customer, CustomerDto> {}
+            """)),
+    KEY_LEAF(
+        "a @MapKey key leaf",
+        List.of("TallyMappingImpl"),
+        source("Tally", "public record Tally(Map<Integer, String> counts) {}"),
+        source("TallyDto", "public record TallyDto(Map<String, String> counts) {}"),
+        source(
+            "TallyMapping",
+            """
+            @GenerateMapping
+            public interface TallyMapping extends MappingSpec<Tally, TallyDto> {
+              @MapKey(Names.COUNTS)
+              default ValidatedPrism<String, Integer> countKey() {
+                return StandardCodecs.intFromString();
+              }
+            }
+            """)),
+    NESTED(
+        "a spec nesting a spec with a @MapField rename",
+        List.of("CustomerMappingImpl", "OrderMappingImpl"),
+        CUSTOMER,
+        CUSTOMER_DTO,
+        RENAMING_CUSTOMER_MAPPING,
+        source("Order", "public record Order(String id, Customer customer) {}"),
+        source("OrderDto", "public record OrderDto(String id, CustomerDto customer) {}"),
+        spec("OrderMapping", "Order", "OrderDto")),
+    MERGED(
+        "a merge nesting a spec with a @MapField rename",
+        List.of("CustomerMappingImpl", "AccountAssemblyImpl"),
+        CUSTOMER,
+        CUSTOMER_DTO,
+        RENAMING_CUSTOMER_MAPPING,
+        NAMED,
+        source("Holder", "public record Holder(CustomerDto customer) {}"),
+        source("Account", "public record Account(String id, Customer customer) {}"),
+        source(
+            "AccountAssembly",
+            """
+            @GenerateMerge
+            public interface AccountAssembly {
+              Validated<NonEmptyList<FieldError>, Account> assemble(Named named, Holder holder);
+            }
+            """));
+
+    private final String description;
+    private final List<String> impls;
+    private final List<JavaFileObject> sources;
+
+    LaterValue(String description, List<String> impls, JavaFileObject... sources) {
+      this.description = description;
+      this.impls = impls;
+      this.sources = List.of(sources);
+    }
+
+    @Override
+    public String toString() {
+      return description;
+    }
+  }
+
+  @Nested
+  @DisplayName("Each HKJ annotation value a spec reads, set to a constant a later round brings")
+  class LaterValues {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LaterValue.class)
+    @DisplayName("a spec waits for the constant, and maps as it would were it written by hand")
+    void aSpecWaitsForTheConstant(LaterValue later) {
+      Compilation compilation =
+          compile(Map.of("Names", NAMES), later.sources.toArray(JavaFileObject[]::new));
+      Compilation byHand =
+          compile(
+              Map.of(),
+              Stream.concat(later.sources.stream(), Stream.of(source("Names", NAMES)))
+                  .toArray(JavaFileObject[]::new));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(byHand).succeededWithoutWarnings();
+      Assertions.assertThat(later.impls)
+          .allSatisfy(
+              impl ->
+                  Assertions.assertThat(generatedSource(compilation, impl))
+                      .isEqualTo(generatedSource(byHand, impl)));
+    }
+
+    @Test
+    @DisplayName(
+        "where the compiler cannot say which file a mix-in came from, a spec still waits for the"
+            + " constant the mix-in's rename names")
+    void aMixInsConstantWaitsWithoutAFileObjectLookup() {
+      // Read without a file lookup, the mix-in counts as a class file, whose types make nothing
+      // wait; its annotation values are read all the same, as a class file holds no mark.
+      JavaFileObject[] sources = LaterValue.MIX_IN_RENAME.sources.toArray(JavaFileObject[]::new);
+      Compilation compilation =
+          compile(
+              new TypeWriter(Map.of("Names", NAMES)),
+              GeneratorTestHelper.withoutFileObjectLookup(
+                  new MappingProcessor(), new MergeProcessor()),
+              List.of(),
+              List.of(),
+              sources);
+      Compilation byHand =
+          compile(
+              Map.of(),
+              Stream.concat(Stream.of(sources), Stream.of(source("Names", NAMES)))
+                  .toArray(JavaFileObject[]::new));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "CustomerMappingImpl"))
+          .isEqualTo(generatedSource(byHand, "CustomerMappingImpl"));
+    }
+
+    @Test
+    @DisplayName(
+        "a value of an annotation the mapping processor does not read does not hold a spec back")
+    void anotherAnnotationsValueDoesNotWait() {
+      TypeWriter writer = new TypeWriter(Map.of());
+      Compilation compilation =
+          compile(
+              writer,
+              List.of(),
+              List.of(),
+              CUSTOMER,
+              source("CustomerDto", "public record CustomerDto(String name) {}"),
+              source(
+                  "CustomerMapping",
+                  """
+                  @GenerateMapping
+                  public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+                    // another library's annotation
+                    @Deprecated(since = Names.FULL)
+                    default String note() {
+                      return "";
+                    }
+
+                    // an HKJ annotation the optics generators read
+                    @org.higherkindedj.optics.annotations.InstanceOf(Missing.class)
+                    default String other() {
+                      return "";
+                    }
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .isNotEmpty()
+          .allSatisfy(
+              error ->
+                  Assertions.assertThat(error.getMessage(null)).contains("cannot find symbol"));
+      Assertions.assertThat(writer.roots()).contains(PKG + ".CustomerMappingImpl");
+    }
+
+    @Test
+    @DisplayName(
+        "a @SuppressWarnings id a later round brings keeps a spec's held Impl quiet, as written by"
+            + " hand")
+    void aLaterSuppressionKeepsAHeldImplQuiet() {
+      JavaFileObject spec =
+          source(
+              "CustomerMapping",
+              """
+              @GenerateMapping
+              public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+                @SuppressWarnings(Names.HELD)
+                CustomerMappingImpl HELD = CustomerMappingImpl.INSTANCE;
+
+                @MapField(to = "fullName")
+                String name();
+              }
+              """);
+      Compilation compilation = compile(Map.of("Names", NAMES), CUSTOMER, CUSTOMER_DTO, spec);
+      Compilation byHand = compile(Map.of(), CUSTOMER, CUSTOMER_DTO, spec, source("Names", NAMES));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(byHand).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "CustomerMappingImpl"))
+          .isEqualTo(generatedSource(byHand, "CustomerMappingImpl"));
+    }
+
+    @Test
+    @DisplayName(
+        "a component deprecated for removal by a constant a later round brings is suppressed, in a"
+            + " mapping and a merge")
+    void aLaterForRemovalIsSuppressedBothWays() {
+      Compilation compilation =
+          compile(
+              Map.of("Names", NAMES),
+              source(
+                  "Customer",
+                  """
+                  public record Customer(@Deprecated(forRemoval = Names.REMOVE) String name) {}
+                  """),
+              CUSTOMER_DTO,
+              RENAMING_CUSTOMER_MAPPING,
+              source(
+                  "Badge",
+                  "public record Badge(@Deprecated(forRemoval = Names.REMOVE) String id) {}"),
+              source("Aged", "public record Aged(int age) {}"),
+              source("Person", "public record Person(String id, int age) {}"),
+              source(
+                  "PersonAssembly",
+                  """
+                  @GenerateMerge
+                  public interface PersonAssembly {
+                    Person assemble(Badge badge, Aged aged);
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      // The mapping waits for its rename's constant, so it reads the resolved one.
+      Assertions.assertThat(generatedSource(compilation, "CustomerMappingImpl"))
+          .contains("@SuppressWarnings(\"removal\")");
+      // The merge reads the component in the round the constant is missing, so it suppresses the
+      // use whichever way the constant resolves.
+      Assertions.assertThat(generatedSource(compilation, "PersonAssemblyImpl"))
+          .contains("@SuppressWarnings({\"deprecation\", \"removal\"})");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LaterValue.class)
+    @DisplayName("a constant no round brings generates nothing, and is javac's error on the spec")
+    void aConstantThatNeverAppearsIsJavacsError(LaterValue later) {
+      TypeWriter writer = new TypeWriter(Map.of());
+      Compilation compilation =
+          compile(writer, List.of(), List.of(), later.sources.toArray(JavaFileObject[]::new));
+
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .isNotEmpty()
+          .allSatisfy(
+              error -> {
+                Assertions.assertThat(error.getMessage(null)).contains("cannot find symbol");
+                Assertions.assertThat(error.getSource()).isNotNull();
+                Assertions.assertThat(error.getSource().getName()).doesNotContain("Impl");
+              });
+      Assertions.assertThat(writer.roots())
+          .doesNotContainAnyElementsOf(later.impls.stream().map(impl -> PKG + "." + impl).toList());
+    }
   }
 }

@@ -71,7 +71,8 @@ class OpticsRoundsTest {
               "com.gen.Pkgs",
               "package com.gen; public final class Pkgs { private Pkgs() {} public static final"
                   + " String OPTICS = \"com.example.optics\"; public static final String FIELD ="
-                  + " \"address\"; public static final int DEPTH = 2; }"));
+                  + " \"address\"; public static final int DEPTH = 2; public static final boolean"
+                  + " REMOVE = true; }"));
 
   /** An interface an element can name a companion in, as a supertype clause's argument. */
   private static final JavaFileObject MARKER =
@@ -1059,6 +1060,29 @@ class OpticsRoundsTest {
   @Nested
   @DisplayName("What an element's wait reads")
   class Reading {
+
+    @Test
+    @DisplayName(
+        "a component deprecated for removal by a constant a later round brings is suppressed"
+            + " whichever way it resolves")
+    void aLaterForRemovalIsSuppressedBothWays() {
+      // The generators do not wait for another library's annotation, so the lens reads the
+      // component in the round its forRemoval is still javac's mark.
+      Compilation compilation =
+          javac()
+              .withProcessors(new TypeWriter(WRITTEN), new LensProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(
+                  record(
+                      "Point",
+                      "@GenerateLenses",
+                      "@Deprecated(forRemoval = Pkgs.REMOVE) int x, int y"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(
+              contents(compilation.generatedSourceFile("com.example.PointLenses").orElseThrow()))
+          .contains("@SuppressWarnings({\"deprecation\", \"removal\"})");
+    }
 
     @Test
     @DisplayName("a value of another library's annotation on a declaration does not hold it back")

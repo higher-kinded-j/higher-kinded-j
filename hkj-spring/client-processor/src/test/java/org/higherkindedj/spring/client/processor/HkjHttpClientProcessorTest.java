@@ -2411,6 +2411,36 @@ class HkjHttpClientProcessorTest {
       return generated;
     }
 
+    @Test
+    @DisplayName(
+        "a type deprecated for removal by a constant a later round brings is suppressed whichever"
+            + " way it resolves")
+    void aLaterForRemovalIsSuppressedBothWays() {
+      // The client waits for nothing here, so it reads the type in the round its forRemoval is
+      // still javac's mark.
+      Compilation compilation =
+          javac()
+              .withProcessors(new WritesTypes(), new HkjHttpClientProcessor())
+              .compile(
+                  laterRoundClient(
+                      "", "@GetExchange(\"/old\") EitherPath<UserError, OldDto> old();"),
+                  JavaFileObjects.forSourceString(
+                      "com.example.OldDto",
+                      "package com.example; @Deprecated(forRemoval = com.gen.Codes.REMOVE) public"
+                          + " record OldDto(String id) {}"),
+                  USER_DTO,
+                  USER_ERROR);
+
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(clientSourcesOf(compilation))
+          .isNotEmpty()
+          .anySatisfy(
+              (name, source) ->
+                  Assertions.assertThat(source)
+                      .containsPattern(
+                          "@SuppressWarnings\\(\\{\\s*\"deprecation\",\\s*\"removal\""));
+    }
+
     @ParameterizedTest(name = "{0}")
     @EnumSource(LaterRound.class)
     @DisplayName("a client reports what it names that no round brings")
@@ -2657,7 +2687,7 @@ class HkjHttpClientProcessorTest {
                   "com.gen.Codes",
                   "package com.gen; public final class Codes { private Codes() {} public static"
                       + " final int GONE = 410; public static final String GROUP = \"people\";"
-                      + " }"),
+                      + " public static final boolean REMOVE = true; }"),
               new Source("com.gen.Page", "package com.gen; public final class Page<T> {}"),
               new Source("com.gen.Named", "package com.gen; public interface Named {}"));
 

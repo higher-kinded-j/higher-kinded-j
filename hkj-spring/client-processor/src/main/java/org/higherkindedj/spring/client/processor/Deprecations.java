@@ -2,10 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.spring.client.processor;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
@@ -48,14 +51,36 @@ final class Deprecations {
    */
   static Set<Lint> drawnBy(Stream<? extends Element> used, Elements elements) {
     return used.filter(elements::isDeprecated)
-        .map(
-            element -> {
-              Deprecated deprecated = element.getAnnotation(Deprecated.class);
-              return deprecated != null && deprecated.forRemoval()
-                  ? Lint.REMOVAL
-                  : Lint.DEPRECATION;
-            })
+        .flatMap(Deprecations::drawnByOne)
         .collect(Lint.inNameOrder());
+  }
+
+  /**
+   * The categories using one deprecated element draws, its {@code Deprecated} read from its mirror,
+   * never through a proxy. A {@code forRemoval} set to a constant javac could not resolve yet, one
+   * another processor writes in a later round, draws both, since it may resolve either way, and
+   * suppressing both covers the use.
+   */
+  private static Stream<Lint> drawnByOne(Element deprecated) {
+    Optional<AnnotationValue> forRemoval =
+        deprecated.getAnnotationMirrors().stream()
+            .filter(
+                mirror ->
+                    ((TypeElement) mirror.getAnnotationType().asElement())
+                        .getQualifiedName()
+                        .contentEquals(Deprecated.class.getCanonicalName()))
+            .flatMap(mirror -> mirror.getElementValues().entrySet().stream())
+            .filter(entry -> entry.getKey().getSimpleName().contentEquals("forRemoval"))
+            .<AnnotationValue>map(Map.Entry::getValue)
+            .findFirst();
+    return forRemoval
+        .map(
+            value ->
+                AnnotationSpecs.unresolvedMark(value)
+                    ? Stream.of(Lint.DEPRECATION, Lint.REMOVAL)
+                    : Stream.of(
+                        Boolean.TRUE.equals(value.getValue()) ? Lint.REMOVAL : Lint.DEPRECATION))
+        .orElseGet(() -> Stream.of(Lint.DEPRECATION));
   }
 
   /**
