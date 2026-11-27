@@ -179,7 +179,7 @@ A class file keeps no annotation retained in source alone, so what such an annot
 
 A type-use annotation another processor writes reaches an optic from source alone too, for another reason. Where Gradle reads a record from its class file and deletes that processor's output, javac never resolves the annotation in that compilation again. That holds in the class file and in a record recompiled beside it, so the optic leaves it off. Under `@NullMarked` a `@Nullable` left off changes the optic's signature; the next clean build writes it.
 
-Where a class file Gradle reads names a type another processor writes, javac shows the effect processors only its name, modifiers, annotations and permitted subtypes, though its own compile reads all of it:
+Where a class file Gradle reads names a type another processor writes, javac shows the effect processors only its name, modifiers, annotations, permitted subtypes and record components, though its own compile reads all of it:
 
 | An effect annotation over such a type | In the build after a change |
 |---|---|
