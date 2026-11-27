@@ -11,9 +11,18 @@ import com.google.testing.compile.CompilationSubject;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.higherkindedj.optics.processing.Reprocessing.Run;
@@ -655,7 +664,8 @@ class ClassFileReprocessingTest {
             + " class file names and the classpath lacks generates and reports nothing")
     void aClassTheClasspathLacksGeneratesAndReportsNothing() throws IOException {
       // A class literal a class file names reaches the processors as an error type, where a source
-      // reference leaves javac's mark, and no later round resolves it.
+      // reference leaves javac's mark, and no later round resolves it. Each processor waits for it
+      // all the same, as a round may bring it (see EffectTypesWritten), and none here does.
       Compilation clean =
           javac()
               .withProcessors(GeneratorTestHelper.registeredProcessors().toList())
@@ -823,6 +833,402 @@ class ClassFileReprocessingTest {
       assertThat(byName.succeeded()).isTrue();
       assertThat(byName.generated()).isEmpty();
       assertThat(byName.diagnostics()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Effect types a processor writes")
+  class EffectTypesWritten {
+
+    /**
+     * Writes one source in its first round, standing in for any processor whose output an effect
+     * annotation names.
+     */
+    private static final class TypeWriter extends AbstractProcessor {
+
+      private final String qualifiedName;
+      private final String text;
+      private boolean written;
+
+      TypeWriter(String qualifiedName, String text) {
+        this.qualifiedName = qualifiedName;
+        this.text = text;
+      }
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        if (!written) {
+          written = true;
+          write();
+        }
+        return false;
+      }
+
+      private void write() {
+        try (Writer out = processingEnv.getFiler().createSourceFile(qualifiedName).openWriter()) {
+          out.write(text);
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }
+    }
+
+    /** One operation, as a plain sealed interface and as an effect algebra. */
+    private static final String LATER_OP =
+        """
+        package com.example;
+
+        public sealed interface LaterOp<A> permits LaterOp.Only {
+          record Only<A>(String text) implements LaterOp<A> {}
+        }
+        """;
+
+    /** The same, gaining a second operation. */
+    private static final String LATER_OP_EXTENDED =
+        """
+        package com.example;
+
+        public sealed interface LaterOp<A> permits LaterOp.Only, LaterOp.Extra {
+          record Only<A>(String text) implements LaterOp<A> {}
+
+          record Extra<A>(String text) implements LaterOp<A> {}
+        }
+        """;
+
+    private static final String LATER_ALGEBRA =
+        """
+        package com.example;
+
+        import java.util.function.Function;
+        import org.higherkindedj.hkt.Unit;
+        import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+        @EffectAlgebra
+        public sealed interface LaterOp<A> permits LaterOp.Only {
+          <B> LaterOp<B> mapK(Function<? super A, ? extends B> f);
+
+          record Only<A>(String text, Function<Unit, A> k) implements LaterOp<A> {
+            @Override
+            public <B> LaterOp<B> mapK(Function<? super A, ? extends B> f) {
+              return new Only<>(text, k.andThen(f));
+            }
+          }
+        }
+        """;
+
+    private static final JavaFileObject CONSOLE =
+        JavaFileObjects.forSourceString(
+            "com.example.Console",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+            @PathSource(witness = ConsoleOpKind.Witness.class)
+            public interface Console<A> {}
+            """);
+
+    private static final JavaFileObject LATER_INTERPRETER =
+        JavaFileObjects.forSourceString(
+            "com.example.LaterInterpreter",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.Handles;
+
+            @Handles(LaterOp.class)
+            public final class LaterInterpreter {
+              public void handleOnly(LaterOp.Only<?> op) {}
+            }
+            """);
+
+    private static final JavaFileObject APP_EFFECTS =
+        JavaFileObjects.forSourceString(
+            "com.example.AppEffects",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+            @ComposeEffects
+            public record AppEffects(Class<LaterOp<?>> later, Class<ConsoleOp<?>> console) {}
+            """);
+
+    /** The effect algebra ConsoleOp, carrying {@code annotation} beside its own. */
+    private static JavaFileObject consoleOp(String annotation) {
+      return JavaFileObjects.forSourceString(
+          "com.example.ConsoleOp",
+          """
+          package com.example;
+
+          import java.util.function.Function;
+          import org.higherkindedj.hkt.Unit;
+          import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+          import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+          @EffectAlgebra
+          %s
+          public sealed interface ConsoleOp<A> permits ConsoleOp.Only {
+            <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f);
+
+            record Only<A>(String text, Function<Unit, A> k) implements ConsoleOp<A> {
+              @Override
+              public <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f) {
+                return new Only<>(text, k.andThen(f));
+              }
+            }
+          }
+          """
+              .formatted(annotation));
+    }
+
+    /**
+     * A processor that writes the type named as each build's text in turn, the clean build's first.
+     */
+    private static Supplier<List<Processor>> writing(String qualifiedName, String... builds) {
+      Iterator<String> texts = List.of(builds).iterator();
+      return () -> List.of(new TypeWriter(qualifiedName, texts.next()));
+    }
+
+    private static Supplier<List<Processor>> writingLaterOp(String... builds) {
+      return writing("com.example.LaterOp", builds);
+    }
+
+    static Stream<Arguments> pathSources() {
+      JavaFileObject annotated = consoleOp("@PathSource(witness = ConsoleOpKind.Witness.class)");
+      return Stream.of(
+          arguments(
+              "on the algebra itself",
+              List.of(annotated),
+              List.of(),
+              List.of("com/example/ConsoleOpPath.java")),
+          arguments(
+              "on a separate type",
+              List.of(consoleOp(""), CONSOLE),
+              List.of(),
+              List.of("com/example/ConsolePath.java")),
+          arguments(
+              "on a separate type compiled from source beside it",
+              List.of(annotated, CONSOLE),
+              List.of(CONSOLE),
+              List.of("com/example/ConsoleOpPath.java", "com/example/ConsolePath.java")));
+    }
+
+    @ParameterizedTest(name = "@PathSource {0}")
+    @MethodSource("pathSources")
+    @DisplayName(
+        "a @PathSource over the witness @EffectAlgebra writes generates and reports what a clean"
+            + " build does")
+    void aPathSourceOverAWrittenWitness(
+        String shape,
+        List<JavaFileObject> sources,
+        List<JavaFileObject> recompiled,
+        List<String> paths)
+        throws IOException {
+      // The class file names the witness, missing until @EffectAlgebra writes it, so javac answers
+      // every processor from its failed lookup there for the rest of the build.
+      Run fromSource = Reprocessing.fromSource(tmp.resolve("source"), sources, List.of());
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"), sources, recompiled, List.of(), List::of);
+
+      assertThat(fromSource.generated()).containsKeys(paths.toArray(String[]::new));
+      assertThat(fromSource.diagnostics())
+          .hasSize(paths.size())
+          .allSatisfy(note -> assertThat(note).startsWith("NOTE: @PathSource: '"));
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName(
+        "a @Handles over an algebra another processor writes reports a missing handler as a clean"
+            + " build does")
+    void aHandlesOverAWrittenAlgebra() throws IOException {
+      List<JavaFileObject> sources = List.of(LATER_INTERPRETER);
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, List.of(), writingLaterOp(LATER_OP_EXTENDED));
+      // The other processor's output gains an operation between the two builds.
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(),
+              writingLaterOp(LATER_OP, LATER_OP_EXTENDED));
+
+      assertThat(fromSource.diagnostics())
+          .containsExactly(
+              "ERROR: No handler for operation: Extra. Expected method:"
+                  + " handleExtra(LaterOp.Extra)");
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName(
+        "a @ComposeEffects naming a type another processor writes, not an algebra, is refused as a"
+            + " clean build refuses it")
+    void aCompositionOverAWrittenNonAlgebra() throws IOException {
+      List<JavaFileObject> sources = List.of(consoleOp(""), APP_EFFECTS);
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, List.of(), writingLaterOp(LATER_OP));
+      // The other processor's output stops being an algebra between the two builds.
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(),
+              writingLaterOp(LATER_ALGEBRA, LATER_OP));
+
+      assertThat(fromSource.diagnostics())
+          .containsExactly(
+              "ERROR: @ComposeEffects field 'later' names com.example.LaterOp, which is not"
+                  + " annotated @EffectAlgebra. Composition derives the witness and Ops from that"
+                  + " annotation.");
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName(
+        "an algebra another processor writes, which a class file names, is refused with why, where"
+            + " the clean build generates it")
+    void aWrittenAlgebraAClassFileNamesIsRefused() throws IOException {
+      List<JavaFileObject> sources = List.of(consoleOp(""), APP_EFFECTS);
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, List.of(), writingLaterOp(LATER_ALGEBRA));
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(),
+              writingLaterOp(LATER_ALGEBRA, LATER_ALGEBRA));
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated())
+          .containsKeys("com/example/AppEffectsSupport.java", "com/example/LaterOpFunctor.java");
+      // Hidden, the algebra shows neither its type parameter nor its mapK, and a Functor guessed
+      // without them could map by a cast where it should call mapK.
+      assertThat(fromClassFiles.diagnostics())
+          .containsExactly(
+              "ERROR: @ComposeEffects field 'later' names com.example.LaterOp, which @EffectAlgebra"
+                  + " rejects because javac shows annotation processors none of its type"
+                  + " parameters or methods in this compilation, so its Kind and Ops are not"
+                  + " generated.",
+              "ERROR: @EffectAlgebra: the support classes of 'com.example.LaterOp' cannot be"
+                  + " generated in this compilation. javac shows annotation processors none of its"
+                  + " type parameters or methods. A class file this compilation read, such as one"
+                  + " Gradle did not recompile, names it, and another processor writes it. javac"
+                  + " looked the name up as the file was written, found nothing, and keeps that"
+                  + " answer for every processor until the compilation ends. Build from clean,"
+                  + " which compiles every type from source; each incremental build after a change"
+                  + " refuses it again. To build incrementally, declare 'LaterOp' in source rather"
+                  + " than have a processor write it.");
+      assertThat(fromClassFiles.generated())
+          .doesNotContainKeys(
+              "com/example/LaterOpFunctor.java", "com/example/AppEffectsSupport.java");
+    }
+
+    @Test
+    @DisplayName(
+        "a @PathSource over an error type another processor writes generates what a clean build"
+            + " does")
+    void aPathSourceOverAWrittenErrorType() throws IOException {
+      List<JavaFileObject> sources =
+          List.of(
+              JavaFileObjects.forSourceString(
+                  "com.example.BoxKind",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.TypeArity;
+                  import org.higherkindedj.hkt.WitnessArity;
+
+                  public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
+                    final class Witness implements WitnessArity<TypeArity.Unary> {}
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Box",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+                  @PathSource(
+                      witness = BoxKind.Witness.class,
+                      errorType = Failure.class,
+                      capability = PathSource.Capability.RECOVERABLE)
+                  public interface Box<A> {}
+                  """));
+      String failure =
+          """
+          package com.example;
+
+          public record Failure(String reason) {}
+          """;
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, List.of(), writing("com.example.Failure", failure));
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(),
+              writing("com.example.Failure", failure, failure));
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated())
+          .hasEntrySatisfying(
+              "com/example/BoxPath.java", path -> assertThat(path).contains("recoverWith("));
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName(
+        "a misspelt @ComposeEffects algebra is left for javac to report, bare, nested in a type"
+            + " the compilation declares, or named like a type of the unnamed package")
+    void aMisspeltAlgebraIsLeftForJavac() throws IOException {
+      // javac makes a name it cannot find in ConsoleOp an error type belonging to ConsoleOp, which
+      // a round brought, and which it shows in full: nothing hides it, so it is waited for. A bare
+      // name it cannot find belongs to no package, so the unnamed package's Unnamed, which the
+      // other processor writes and a named package cannot see, does not hide it either.
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"),
+              List.of(
+                  consoleOp(""),
+                  JavaFileObjects.forSourceString(
+                      "com.example.AppEffects",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+                      @ComposeEffects
+                      public record AppEffects(
+                          Class<ConsoleOpp<?>> bare,
+                          Class<ConsoleOp.Typo<?>> nested,
+                          Class<Unnamed<?>> unnamed) {}
+                      """)),
+              List.of(),
+              writing("Unnamed", "public interface Unnamed<A> {}\n"));
+
+      assertThat(fromSource.succeeded()).isFalse();
+      assertThat(fromSource.diagnostics())
+          .hasSize(3)
+          .allSatisfy(error -> assertThat(error).startsWith("ERROR: cannot find symbol"));
     }
   }
 }

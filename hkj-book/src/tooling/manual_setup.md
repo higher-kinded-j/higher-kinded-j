@@ -179,6 +179,17 @@ A class file keeps no annotation retained in source alone, so what such an annot
 
 A type-use annotation another processor writes reaches an optic from source alone too, for another reason. Where Gradle reads a record from its class file and deletes that processor's output, javac never resolves the annotation in that compilation again. That holds in the class file and in a record recompiled beside it, so the optic leaves it off. Under `@NullMarked` a `@Nullable` left off changes the optic's signature; the next clean build writes it.
 
+Where a class file Gradle reads names a type another processor writes, javac shows the effect processors only its name, modifiers, annotations and permitted subtypes, though its own compile reads all of it:
+
+| An effect annotation over such a type | In the build after a change |
+|---|---|
+| `@PathSource`, naming it as the witness or error type | generates the Path a clean build does, and leaves checking that type to javac's compile of the Path |
+| `@Handles`, naming it as the algebra | checks the interpreter as a clean build does |
+| `@EffectAlgebra`, on it | refuses it, `the support classes of '…' cannot be generated in this compilation`, as its type parameter and `mapK` cannot be read |
+| `@ComposeEffects`, naming it as an algebra | refuses the component, `which @EffectAlgebra rejects because javac shows annotation processors none of its type parameters or methods` |
+
+An algebra carrying `@EffectAlgebra` is refused whichever annotation names it. A clean build generates it, and each incremental build after a change refuses it again, so declare such an algebra in source to build incrementally.
+
 Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first. Gradle's `--info` output names the cause of a full recompilation, as in `Full recompilation is required because ...`.
 
 ## Multi-module builds
@@ -234,7 +245,7 @@ The effect processors wait too:
 
 Each processor waits for a constant or a class another annotation processor writes, where it reads one. A bridge declared with `@GeneratePathBridge(suffix = Names.SUFFIX)`, say, is generated once `Names` exists, and is what it would be were the constant written by hand. Waiting for a type another processor writes into an algebra's operations, a bridged method's signature or a bridged interface's supertype is not supported yet.
 
-If what it waits for never appears, the processor generates nothing for the declaration, and javac names what is missing where the source writes it. Code that uses the class the processor would have written reports that class missing too; supply what is missing and both errors go. A `@PathSource` witness waits in the same way, as [A witness another processor writes](../effect/path_source.md#a-witness-another-processor-writes) shows.
+If what it waits for never appears, the processor generates nothing for the declaration, and javac names what is missing where the source writes it. Code that uses the class the processor would have written reports that class missing too; supply what is missing and both errors go. A `@PathSource` witness waits in the same way, as [A witness another processor writes](../effect/path_source.md#a-witness-another-processor-writes) shows. In Gradle's incremental build a written type can reach the processors only in part, as [Incremental compilation](#incremental-compilation) says.
 
 ---
 

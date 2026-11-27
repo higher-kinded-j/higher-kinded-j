@@ -24,6 +24,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
@@ -101,6 +102,10 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                 + "Add the 'sealed' modifier to "
                 + typeElement.getSimpleName(),
             element);
+        continue;
+      }
+      if (waiting.stale(typeElement.asType())) {
+        refuseStale(typeElement);
         continue;
       }
       if (typeElement.getTypeParameters().size() != 1) {
@@ -1038,6 +1043,30 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
       sb.append(Character.toUpperCase(c));
     }
     return sb.toString();
+  }
+
+  /**
+   * Refuses an algebra javac hides from the processors though a round brought it (see {@link
+   * WaitingEffects#stale}): with neither its type parameter nor its {@code mapK} to read, the
+   * Functor could be generated wrong, mapping by a cast where the algebra maps its continuation.
+   * javac gives the hidden algebra no position, so it is named in full.
+   */
+  private void refuseStale(TypeElement algebra) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        algebra,
+        "@EffectAlgebra",
+        "the support classes of '"
+            + algebra.getQualifiedName()
+            + "' cannot be generated in this compilation",
+        "javac shows annotation processors none of its type parameters or methods. A class file"
+            + " this compilation read, such as one Gradle did not recompile, names it, and another"
+            + " processor writes it. javac looked the name up as the file was written, found"
+            + " nothing, and keeps that answer for every processor until the compilation ends.",
+        "Build from clean, which compiles every type from source; each incremental build after a"
+            + " change refuses it again. To build incrementally, declare '"
+            + algebra.getSimpleName()
+            + "' in source rather than have a processor write it.");
   }
 
   private void error(String msg, Element element) {

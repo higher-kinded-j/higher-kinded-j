@@ -156,15 +156,20 @@ public class PathSourceProcessor extends AbstractProcessor {
   /**
    * Whether an attribute names a type or a constant javac has not resolved: a value that is javac's
    * mark for one, which a later round's generated sources may supply, or a class literal whose type
-   * reads as an error type, as one a class file names does where the classpath lacks it.
+   * reads as an error type, as one a class file names does where the classpath lacks it. A witness
+   * or error type javac hides though a round has brought it (see {@link WaitingEffects#stale}) is
+   * not waited for: the Path names it as the class literal does. The checks that read its
+   * declaration, whether it is generic, reachable or of one type parameter, find nothing to read,
+   * so javac's compile of the Path makes them, and a declaration a clean build refuses fails there
+   * instead, or, for a generic error type, draws javac's raw-type warnings.
    */
-  private static boolean unresolved(TypeElement type) {
+  private boolean unresolved(TypeElement type) {
     if (WaitingEffects.unresolved(type, PathSource.class)) {
       return true;
     }
     PathSource annotation = type.getAnnotation(PathSource.class);
-    return getWitnessType(annotation).getKind() == TypeKind.ERROR
-        || getErrorType(annotation).getKind() == TypeKind.ERROR;
+    return Stream.of(getWitnessType(annotation), getErrorType(annotation))
+        .anyMatch(waiting::waitsFor);
   }
 
   @ExcludeFromJacocoGeneratedReport
@@ -505,12 +510,13 @@ public class PathSourceProcessor extends AbstractProcessor {
   /**
    * Whether the witness implements {@code WitnessArity<TypeArity.Unary>}. Without hkj-api on the
    * classpath there is nothing to check it against, and the generated file reports the Kind it
-   * cannot find.
+   * cannot find. A witness javac hides (see {@link WaitingEffects#stale}) shows no supertypes, so
+   * javac's compile of the Path checks it instead.
    */
   private boolean unaryWitness(TypeMirror witness) {
     Elements elements = processingEnv.getElementUtils();
     TypeElement arity = elements.getTypeElement("org.higherkindedj.hkt.WitnessArity");
-    if (arity == null) {
+    if (arity == null || waiting.stale(witness)) {
       return true;
     }
     // TypeArity ships beside WitnessArity, so its Unary is present wherever WitnessArity is.

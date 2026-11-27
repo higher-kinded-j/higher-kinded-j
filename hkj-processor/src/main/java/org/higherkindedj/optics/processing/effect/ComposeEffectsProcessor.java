@@ -201,12 +201,14 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
    * declined to write would bury it under a page of "package does not exist".
    */
   private boolean isComposableAlgebra(TypeElement algebra, RecordComponentElement component) {
+    boolean stale = compositions.stale(algebra.asType());
     if (algebra.getAnnotation(EffectAlgebra.class) == null) {
       // An algebra with several type parameters can never carry @EffectAlgebra, so say that
       // rather than leaving the reader to wonder which annotation to add. ErrorOp and StateOp
-      // are hand-written for exactly this reason and are the likeliest names to land here.
+      // are hand-written for exactly this reason and are the likeliest names to land here. A
+      // stale algebra shows no type parameters, so its count says nothing.
       String reason =
-          algebra.getTypeParameters().size() == 1
+          stale || algebra.getTypeParameters().size() == 1
               ? "."
               : ", and an algebra with "
                   + algebra.getTypeParameters().size()
@@ -231,6 +233,18 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
               + algebra.getQualifiedName()
               + ", which @EffectAlgebra rejects because it is not a sealed interface, so its Kind"
               + " and Ops are not generated.",
+          component);
+      return false;
+    }
+    if (stale) {
+      error(
+          "@ComposeEffects field '"
+              + component.getSimpleName()
+              + "' names "
+              + algebra.getQualifiedName()
+              + ", which @EffectAlgebra rejects because javac shows annotation processors none of"
+              + " its type parameters or methods in this compilation, so its Kind and Ops are not"
+              + " generated.",
           component);
       return false;
     }
@@ -305,28 +319,29 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
    * ComposeEffects} sets, or what a component names (see {@link
    * #unresolved(RecordComponentElement)}).
    */
-  private static boolean unresolved(TypeElement composition) {
+  private boolean unresolved(TypeElement composition) {
     return WaitingEffects.unresolved(composition, ComposeEffects.class)
-        || composition.getRecordComponents().stream().anyMatch(ComposeEffectsProcessor::unresolved);
+        || composition.getRecordComponents().stream().anyMatch(this::unresolved);
   }
 
   /**
    * Whether a component names something javac could not resolve: its type, the algebra it names as
    * {@code Class<XOp<?>>}, or a value that algebra's {@code EffectAlgebra} sets, whose
    * targetPackage names the types the support class composes. Another processor may write any of
-   * them.
+   * them. A type javac hides though a round has brought it (see {@link WaitingEffects#stale}) is
+   * not waited for: the component is checked as naming it, and a hidden algebra is refused.
    */
-  private static boolean unresolved(RecordComponentElement component) {
+  private boolean unresolved(RecordComponentElement component) {
     TypeMirror type = component.asType();
     if (type.getKind() != TypeKind.DECLARED) {
-      return type.getKind() == TypeKind.ERROR;
+      return compositions.waitsFor(type);
     }
     DeclaredType declared = (DeclaredType) type;
     return ((TypeElement) declared.asElement()).getQualifiedName().contentEquals(CLASS_FQN)
         && declared.getTypeArguments().stream()
             .anyMatch(
                 argument ->
-                    argument.getKind() == TypeKind.ERROR
+                    compositions.waitsFor(argument)
                         || (argument.getKind() == TypeKind.DECLARED
                             && WaitingEffects.unresolved(
                                 ((DeclaredType) argument).asElement(), EffectAlgebra.class)));
@@ -604,18 +619,20 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       }
 
       TypeElement interpreterType = (TypeElement) element;
-      // An algebra another processor writes is checked in the round that brings it.
+      // An algebra another processor writes is checked in the round that brings it. One a class
+      // file names reads as an error type until then, and for good where the classpath lacks it.
+      // One javac hides though a round brought it keeps the permitted subtypes this check reads.
       if (!interpreters.ready(
-          elements, interpreterType, WaitingEffects.unresolved(interpreterType, Handles.class))) {
+          elements,
+          interpreterType,
+          WaitingEffects.unresolved(interpreterType, Handles.class)
+              || algebraUnseen(interpreterType))) {
         continue;
       }
 
       // Get the referenced effect algebra class
       TypeElement algebraType = getHandlesAlgebraType(interpreterType);
       if (algebraType == null) continue;
-      if (algebraType.asType().getKind() == TypeKind.ERROR) {
-        continue; // a class file names an algebra the classpath lacks (see WaitingEffects)
-      }
 
       // Check that the algebra is sealed
       if (!algebraType.getModifiers().contains(Modifier.SEALED)) {
@@ -674,23 +691,35 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     }
   }
 
+  /**
+   * Whether the algebra an interpreter's {@code @Handles} names is an error type a later round may
+   * still resolve: one javac hides though a round brought it is checked as it is.
+   */
+  private boolean algebraUnseen(TypeElement interpreterType) {
+    return interpreters.waitsFor(handlesValue(interpreterType.getAnnotation(Handles.class)));
+  }
+
   // Package-private for tests.
   TypeElement getHandlesAlgebraType(TypeElement interpreterType) {
     Handles annotation = interpreterType.getAnnotation(Handles.class);
     if (annotation == null) return null;
 
+    TypeMirror mirror = handlesValue(annotation);
+    Element element = processingEnv.getTypeUtils().asElement(mirror);
+    if (element instanceof TypeElement typeElement) {
+      return typeElement;
+    }
+    error("Cannot resolve @Handles value type", interpreterType);
+    return null;
+  }
+
+  /** The type a {@code @Handles} names, read from the MirroredTypeException its proxy throws. */
+  private static TypeMirror handlesValue(Handles annotation) {
     try {
-      // This will throw MirroredTypeException, which is how we get the TypeMirror
       annotation.value();
       throw new AssertionError("Expected MirroredTypeException from annotation.value()");
     } catch (MirroredTypeException e) {
-      TypeMirror mirror = e.getTypeMirror();
-      Element element = processingEnv.getTypeUtils().asElement(mirror);
-      if (element instanceof TypeElement typeElement) {
-        return typeElement;
-      }
-      error("Cannot resolve @Handles value type", interpreterType);
-      return null;
+      return e.getTypeMirror();
     }
   }
 
