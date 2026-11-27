@@ -47,12 +47,14 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * build, javac's Filer looks the name up as the processor writes it. That lookup fails, and javac
  * answers every processor from the failed lookup for the rest of the compilation. Such a type reads
  * as an error type, and so does each type naming it. As an element it keeps its name, modifiers,
- * annotations and permitted subtypes, and has no type parameters, supertypes or members. javac's
- * own compile reads it as written. No later round shows it, so nothing waits for it (see {@link
- * #stale}). A processor reads what it keeps, leaves to javac's compile a check it cannot make
- * without the rest, and says why where it cannot generate without it. A processor first called in a
- * round after the one that brought such a type cannot tell it from one never written, as javac
- * calls a processor only once its annotation appears, so it waits there as for a missing class.
+ * annotations, permitted subtypes and record components, and has no type parameters, supertypes or
+ * other members. {@code Elements.getFileObjectOf} throws on it, so a processor must not ask which
+ * file such a type came from. javac's own compile reads it as written. No later round shows it, so
+ * nothing waits for it (see {@link #stale}). A processor reads what it keeps, leaves to javac's
+ * compile a check it cannot make without the rest, and says why where it cannot generate without
+ * it. A processor first called in a round after the one that brought such a type cannot tell it
+ * from one never written, as javac calls a processor only once its annotation appears, so it waits
+ * there as for a missing class.
  *
  * <p>Nothing is written in the last round, which javac also makes of the round after an error. A
  * type still waiting there generates nothing and reports nothing. What a declaration in source
@@ -123,9 +125,9 @@ final class WaitingEffects {
    * Whether javac hides a type from the processors though a round has brought it: an error type
    * whose outermost enclosing type, or itself where none encloses it, is a top-level type that also
    * reads as an error type and that a round this processor has seen brought as a root element. Such
-   * a type keeps its name, modifiers, annotations and permitted subtypes as an element, and lacks
-   * its type parameters, supertypes and members. A name javac could not find in a type it can read,
-   * as {@code Holder.Typo}, belongs to that type, and is not hidden.
+   * a type keeps its name, modifiers, annotations, permitted subtypes and record components as an
+   * element, and lacks its type parameters, supertypes and other members. A name javac could not
+   * find in a type it can read, as {@code Holder.Typo}, belongs to that type, and is not hidden.
    *
    * @param type a type the processor reads
    * @return true where the type is an error type that waiting would never resolve, though javac has
