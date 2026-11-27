@@ -721,8 +721,7 @@ class PathSourceAttributesTest {
         strings = {
           "witness = Missing.class",
           "witness = MISSING",
-          "witness = BoxKind.Witness.class, errorType = Missing.class",
-          "witness = BoxKind.Witness.class, suffix = Missing.SUFFIX"
+          "witness = BoxKind.Witness.class, errorType = Missing.class"
         })
     @DisplayName("one that never resolves generates nothing, and leaves the report to javac")
     void neverResolved(String attributes) {

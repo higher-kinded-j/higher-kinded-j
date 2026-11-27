@@ -22,6 +22,7 @@ import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
@@ -75,6 +76,15 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
   private static final ClassName NULL_MARKED =
       ClassName.get("org.jspecify.annotations", "NullMarked");
 
+  /** The type each component is declared as, naming the algebra it composes. */
+  private static final String CLASS_FQN = "java.lang.Class";
+
+  /** The compositions waiting for what a later round brings (see {@link WaitingEffects}). */
+  private final WaitingEffects compositions = new WaitingEffects(ComposeEffects.class);
+
+  /** The interpreters waiting for an algebra a later round brings (see {@link WaitingEffects}). */
+  private final WaitingEffects interpreters = new WaitingEffects(Handles.class);
+
   /**
    * One composed effect, resolved from a {@code Class<XOp<?>>} record component.
    *
@@ -93,12 +103,17 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
    * carries {@code @EffectAlgebra}: reading that type is what lets the generated support spell the
    * composed witness.
    *
-   * <p>Every bad component is reported before giving up, so one recompile shows the whole list.
+   * <p>A component naming what javac has not resolved yet is passed over, for the composition to
+   * wait for (see {@link #unresolved(RecordComponentElement)}). Every other bad component is
+   * reported before giving up, so one recompile shows the whole list.
    */
   private List<EffectBinding> resolveBindings(List<? extends RecordComponentElement> components) {
     List<EffectBinding> bindings = new ArrayList<>();
     boolean resolved = true;
     for (RecordComponentElement component : components) {
+      if (unresolved(component)) {
+        continue;
+      }
       TypeElement algebra = effectAlgebraOf(component);
       if (algebra == null) {
         resolved = false;
@@ -117,26 +132,24 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     return resolved ? bindings : null;
   }
 
-  /** The effect algebra a component names, or null (having reported why) when it names none. */
+  /**
+   * The effect algebra a component names, or null (having reported why) when it names none. A
+   * component whose type, or the algebra its {@code Class} names, javac has not resolved is passed
+   * over before this (see {@link #unresolved(RecordComponentElement)}); any other shape is refused.
+   */
   private TypeElement effectAlgebraOf(RecordComponentElement component) {
     String expected =
         "@ComposeEffects fields must be declared Class<XOp<?>> where XOp is annotated"
             + " @EffectAlgebra; field '"
             + component.getSimpleName()
             + "' is ";
-    if (component.asType().getKind() == TypeKind.ERROR) {
-      return null; // javac already reports the unresolvable type; a second message adds nothing
-    }
     if (!(component.asType() instanceof DeclaredType declared)
-        || !((TypeElement) declared.asElement()).getQualifiedName().contentEquals("java.lang.Class")
+        || !((TypeElement) declared.asElement()).getQualifiedName().contentEquals(CLASS_FQN)
         || declared.getTypeArguments().size() != 1) {
       error(expected + ProcessorUtils.qualifiedTypeName(component.asType()), component);
       return null;
     }
     TypeMirror argument = declared.getTypeArguments().get(0);
-    if (argument.getKind() == TypeKind.ERROR) {
-      return null; // as above
-    }
     if (!(argument instanceof DeclaredType algebraType)) {
       error(expected + ProcessorUtils.qualifiedTypeName(component.asType()), component);
       return null;
@@ -287,8 +300,41 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
   // @ComposeEffects processing
   // =========================================================================
 
+  /**
+   * Whether the composition reads something javac could not resolve: a value its own {@code
+   * ComposeEffects} sets, or what a component names (see {@link
+   * #unresolved(RecordComponentElement)}).
+   */
+  private static boolean unresolved(TypeElement composition) {
+    return WaitingEffects.unresolved(composition, ComposeEffects.class)
+        || composition.getRecordComponents().stream().anyMatch(ComposeEffectsProcessor::unresolved);
+  }
+
+  /**
+   * Whether a component names something javac could not resolve: its type, the algebra it names as
+   * {@code Class<XOp<?>>}, or a value that algebra's {@code EffectAlgebra} sets, whose
+   * targetPackage names the types the support class composes. Another processor may write any of
+   * them.
+   */
+  private static boolean unresolved(RecordComponentElement component) {
+    TypeMirror type = component.asType();
+    if (type.getKind() != TypeKind.DECLARED) {
+      return type.getKind() == TypeKind.ERROR;
+    }
+    DeclaredType declared = (DeclaredType) type;
+    return ((TypeElement) declared.asElement()).getQualifiedName().contentEquals(CLASS_FQN)
+        && declared.getTypeArguments().stream()
+            .anyMatch(
+                argument ->
+                    argument.getKind() == TypeKind.ERROR
+                        || (argument.getKind() == TypeKind.DECLARED
+                            && WaitingEffects.unresolved(
+                                ((DeclaredType) argument).asElement(), EffectAlgebra.class)));
+  }
+
   private void processComposeEffects(RoundEnvironment roundEnv) {
-    for (Element element : roundEnv.getElementsAnnotatedWith(ComposeEffects.class)) {
+    Elements elements = processingEnv.getElementUtils();
+    for (Element element : compositions.round(elements, roundEnv)) {
       if (element.getKind() != ElementKind.RECORD) {
         error("@ComposeEffects can only annotate record types", element);
         continue;
@@ -303,13 +349,17 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
             element);
         continue;
       }
-
       // Resolve the algebras before looking for duplicates: a field's declared type may be
       // Class<X> for several X that share one algebra, and two malformed fields are the same
-      // java.lang.Class as each other, which would otherwise be reported as a duplicate.
+      // java.lang.Class as each other, which would otherwise be reported as a duplicate. Each
+      // component that resolves is refused before the composition waits for one that does not, so
+      // one compile reports every bad component.
       List<EffectBinding> bindings = resolveBindings(components);
       if (bindings == null) {
         continue; // fields do not name effect algebras; errors already reported
+      }
+      if (!compositions.ready(elements, typeElement, unresolved(typeElement))) {
+        continue;
       }
 
       Set<String> seenWitnesses = new HashSet<>();
@@ -546,19 +596,25 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
   // =========================================================================
 
   private void processHandles(RoundEnvironment roundEnv) {
-    for (Element element : roundEnv.getElementsAnnotatedWith(Handles.class)) {
+    Elements elements = processingEnv.getElementUtils();
+    for (Element element : interpreters.round(elements, roundEnv)) {
       if (element.getKind() != ElementKind.CLASS) {
         error("@Handles can only annotate classes", element);
         continue;
       }
 
       TypeElement interpreterType = (TypeElement) element;
+      // An algebra another processor writes is checked in the round that brings it.
+      if (!interpreters.ready(
+          elements, interpreterType, WaitingEffects.unresolved(interpreterType, Handles.class))) {
+        continue;
+      }
 
       // Get the referenced effect algebra class
       TypeElement algebraType = getHandlesAlgebraType(interpreterType);
       if (algebraType == null) continue;
       if (algebraType.asType().getKind() == TypeKind.ERROR) {
-        continue; // javac already reports the unresolvable type; a second message adds nothing
+        continue; // a class file names an algebra the classpath lacks (see WaitingEffects)
       }
 
       // Check that the algebra is sealed

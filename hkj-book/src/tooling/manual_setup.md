@@ -220,6 +220,22 @@ The wait covers a component's type with every type argument in it, a type-parame
 
 If the type never appears, the generator writes nothing for the declaration, and says so there with what never resolved, as [Compiler Messages](../optics/compiler_errors.md#generated-nothing-no-round-resolved) shows. A declaration read from its class file has no position, so the message names it in full. javac's own error names the missing type where the source writes it.
 
+## Effect annotations naming what other processors generate {#effect-annotations-naming-what-other-processors-generate}
+
+The effect processors wait too:
+
+| Annotation | Waits while any of this is not written yet |
+|---|---|
+| `@GeneratePathBridge` | its own values, and the `@PathVia` values of each method the bridge wraps, inherited ones included |
+| `@EffectAlgebra` | its own values |
+| `@ComposeEffects` | its own values, each algebra it names, and the `@EffectAlgebra` values of each |
+| `@PathSource` | its own values, its witness and error type included |
+| `@Handles` | its value: the algebra the interpreter is checked against |
+
+Each processor waits for a constant or a class another annotation processor writes, where it reads one. A bridge declared with `@GeneratePathBridge(suffix = Names.SUFFIX)`, say, is generated once `Names` exists, and is what it would be were the constant written by hand. Waiting for a type another processor writes into an algebra's operations, a bridged method's signature or a bridged interface's supertype is not supported yet.
+
+If what it waits for never appears, the processor generates nothing for the declaration, and javac names what is missing where the source writes it. Code that uses the class the processor would have written reports that class missing too; supply what is missing and both errors go. A `@PathSource` witness waits in the same way, as [A witness another processor writes](../effect/path_source.md#a-witness-another-processor-writes) shows.
+
 ---
 
 **Previous:** [Build Plugins](gradle_plugin.md)

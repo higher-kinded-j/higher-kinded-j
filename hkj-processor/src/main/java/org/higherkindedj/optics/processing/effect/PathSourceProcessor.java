@@ -5,7 +5,6 @@ package org.higherkindedj.optics.processing.effect;
 import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
-import java.lang.annotation.AnnotationTypeMismatchException;
 import java.util.*;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
@@ -27,7 +26,6 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
-import org.higherkindedj.optics.processing.util.TypeKey;
 
 /**
  * Annotation processor that generates Path wrapper classes for custom effect types.
@@ -96,40 +94,23 @@ public class PathSourceProcessor extends AbstractProcessor {
   private static final ClassName MONAD = ClassName.get("org.higherkindedj.hkt", "Monad");
   private static final ClassName MONAD_ERROR = ClassName.get("org.higherkindedj.hkt", "MonadError");
 
-  /**
-   * The annotated types whose attributes name a type or constant javac has not resolved yet.
-   * Another processor may generate it, such as the witness {@code @EffectAlgebra} writes, and javac
-   * supplies it in the round after the one that writes it.
-   */
-  private final Set<TypeKey> waiting = new LinkedHashSet<>();
+  /** The types waiting for a value a later round brings (see {@link WaitingEffects}). */
+  private final WaitingEffects waiting = new WaitingEffects(PathSource.class);
 
   /**
    * Generates a Path for each type annotated this round, and for each one waiting on an earlier
    * round whose attributes now resolve. A type still waiting when processing ends generates nothing
-   * and reports nothing: what it waits for is a reference javac reports as {@code cannot find
-   * symbol}.
+   * and reports nothing (see {@link WaitingEffects}).
    */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    // Nothing is written in the last round, which javac also makes of the round after an error.
-    if (roundEnv.processingOver()) {
-      waiting.clear();
-      return true;
-    }
     Elements elements = processingEnv.getElementUtils();
-    // A waiting type is read afresh: javac attributes its annotation again each round.
-    List<TypeElement> candidates =
-        Stream.concat(
-                waiting.stream().map(key -> key.in(elements)),
-                roundEnv.getElementsAnnotatedWith(PathSource.class).stream()
-                    .filter(this::acceptedKind)
-                    .map(TypeElement.class::cast))
-            .toList();
-    waiting.clear();
-    for (TypeElement type : candidates) {
-      if (unresolved(type)) {
-        waiting.add(TypeKey.of(elements, type));
-      } else {
+    for (Element element : waiting.round(elements, roundEnv)) {
+      if (!acceptedKind(element)) {
+        continue;
+      }
+      TypeElement type = (TypeElement) element;
+      if (waiting.ready(elements, type, unresolved(type))) {
         writePathClass(type);
       }
     }
@@ -173,20 +154,17 @@ public class PathSourceProcessor extends AbstractProcessor {
   }
 
   /**
-   * Whether an attribute names a type or a constant javac has not resolved, which a later round's
-   * generated sources may supply. A class literal whose type is unresolved reads as an error type;
-   * any other unresolved value reads as a value of the wrong type.
+   * Whether an attribute names a type or a constant javac has not resolved: a value that is javac's
+   * mark for one, which a later round's generated sources may supply, or a class literal whose type
+   * reads as an error type, as one a class file names does where the classpath lacks it.
    */
   private static boolean unresolved(TypeElement type) {
-    PathSource annotation = type.getAnnotation(PathSource.class);
-    try {
-      annotation.suffix();
-      annotation.targetPackage();
-      return getWitnessType(annotation).getKind() == TypeKind.ERROR
-          || getErrorType(annotation).getKind() == TypeKind.ERROR;
-    } catch (AnnotationTypeMismatchException e) {
+    if (WaitingEffects.unresolved(type, PathSource.class)) {
       return true;
     }
+    PathSource annotation = type.getAnnotation(PathSource.class);
+    return getWitnessType(annotation).getKind() == TypeKind.ERROR
+        || getErrorType(annotation).getKind() == TypeKind.ERROR;
   }
 
   @ExcludeFromJacocoGeneratedReport

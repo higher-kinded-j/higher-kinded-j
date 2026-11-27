@@ -80,62 +80,65 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
+  /** The algebras waiting for a value a later round brings (see {@link WaitingEffects}). */
+  private final WaitingEffects waiting = new WaitingEffects(EffectAlgebra.class);
+
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (TypeElement annotation : annotations) {
-      for (Element element : roundEnv.getElementsAnnotatedWith(annotation)) {
-        if (element.getKind() != ElementKind.INTERFACE) {
-          error(
-              "@EffectAlgebra can only annotate sealed interfaces, but found "
-                  + element.getKind().toString().toLowerCase(Locale.ROOT),
-              element);
-          continue;
-        }
-        TypeElement typeElement = (TypeElement) element;
-        if (!typeElement.getModifiers().contains(Modifier.SEALED)) {
-          error(
-              "@EffectAlgebra can only annotate sealed interfaces. "
-                  + "Add the 'sealed' modifier to "
-                  + typeElement.getSimpleName(),
-              element);
-          continue;
-        }
-        if (typeElement.getTypeParameters().size() != 1) {
-          error(
-              "Effect algebra must have exactly one type parameter <A> (the result type), "
-                  + "found "
-                  + typeElement.getTypeParameters().size(),
-              element);
-          continue;
-        }
-        if (!isUnbounded(typeElement.getTypeParameters().getFirst())) {
-          error(
-              "Effect algebra's result type parameter must be unbounded: the generated Kind and"
-                  + " Functor range over every type, so there is nowhere to carry a bound",
-              element);
-          continue;
-        }
-
-        // Validate all permits are records with no extra type params
-        List<TypeElement> permits = getPermittedRecords(typeElement);
-        if (permits == null) continue; // errors already reported
-        if (!Reachability.check(
-            processingEnv,
-            "@EffectAlgebra",
-            element,
-            Reachability.companion(
-                generatedPackage(processingEnv.getElementUtils(), typeElement),
-                processingEnv
-                    .getElementUtils()
-                    .getPackageOf(typeElement)
-                    .getQualifiedName()
-                    .toString()),
-            crossings(typeElement, permits))) {
-          continue;
-        }
-
-        writeAlgebraClasses(typeElement, permits, element);
+    Elements elements = processingEnv.getElementUtils();
+    for (Element element : waiting.round(elements, roundEnv)) {
+      if (element.getKind() != ElementKind.INTERFACE) {
+        error(
+            "@EffectAlgebra can only annotate sealed interfaces, but found "
+                + element.getKind().toString().toLowerCase(Locale.ROOT),
+            element);
+        continue;
       }
+      TypeElement typeElement = (TypeElement) element;
+      if (!typeElement.getModifiers().contains(Modifier.SEALED)) {
+        error(
+            "@EffectAlgebra can only annotate sealed interfaces. "
+                + "Add the 'sealed' modifier to "
+                + typeElement.getSimpleName(),
+            element);
+        continue;
+      }
+      if (typeElement.getTypeParameters().size() != 1) {
+        error(
+            "Effect algebra must have exactly one type parameter <A> (the result type), "
+                + "found "
+                + typeElement.getTypeParameters().size(),
+            element);
+        continue;
+      }
+      if (!isUnbounded(typeElement.getTypeParameters().getFirst())) {
+        error(
+            "Effect algebra's result type parameter must be unbounded: the generated Kind and"
+                + " Functor range over every type, so there is nowhere to carry a bound",
+            element);
+        continue;
+      }
+
+      // Validate all permits are records with no extra type params
+      List<TypeElement> permits = getPermittedRecords(typeElement);
+      if (permits == null) continue; // errors already reported
+      // Every refusal above reads no value, so an algebra waits only once none of them refuses it.
+      if (!waiting.ready(
+          elements, typeElement, WaitingEffects.unresolved(typeElement, EffectAlgebra.class))) {
+        continue;
+      }
+      if (!Reachability.check(
+          processingEnv,
+          "@EffectAlgebra",
+          element,
+          Reachability.companion(
+              generatedPackage(elements, typeElement),
+              elements.getPackageOf(typeElement).getQualifiedName().toString()),
+          crossings(typeElement, permits))) {
+        continue;
+      }
+
+      writeAlgebraClasses(typeElement, permits, element);
     }
     return true;
   }
@@ -168,8 +171,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
    * The algebra a witness belongs to, where this processor generated it. It writes {@code
    * XKind.Witness} beside an {@code XKindHelper} whose {@code narrow} returns the algebra {@code
    * X}, so the helper names it wherever targetPackage put them; the witness's Kind must then be the
-   * one this processor writes for {@code X}. Shared with {@code PathSourceProcessor}, which notes a
-   * Path over such a witness.
+   * one this processor writes for {@code X}. An algebra whose targetPackage javac could not resolve
+   * has nothing written for it yet, so no witness is its. Shared with {@code PathSourceProcessor},
+   * which notes a Path over such a witness.
    */
   static Optional<TypeElement> algebraOf(Elements elements, Element witness) {
     return witness.getEnclosingElement() instanceof TypeElement kind
@@ -180,6 +184,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .filter(DeclaredType.class::isInstance)
             .map(type -> (TypeElement) ((DeclaredType) type).asElement())
             .filter(algebra -> algebra.getAnnotation(EffectAlgebra.class) != null)
+            .filter(algebra -> !WaitingEffects.unresolved(algebra, EffectAlgebra.class))
             .filter(
                 algebra ->
                     kind.getQualifiedName()
@@ -988,7 +993,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
   /**
    * The package this processor writes an algebra's types into: its targetPackage, or the algebra's
-   * own. Shared with {@code ComposeEffectsProcessor}, which names those types.
+   * own. Shared with {@code ComposeEffectsProcessor}, which names those types. Read only of an
+   * algebra whose targetPackage javac has resolved (see {@link WaitingEffects}), since the
+   * annotation's proxy throws on one it has not.
    */
   static String generatedPackage(Elements elements, TypeElement algebra) {
     String targetPackage = algebra.getAnnotation(EffectAlgebra.class).targetPackage();
