@@ -2,9 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import com.google.testing.compile.Compilation;
+import com.google.testing.compile.CompilationSubject;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -639,6 +642,187 @@ class ClassFileReprocessingTest {
       assertThat(fromSource.diagnostics()).isEmpty();
       assertThat(fromSource.generated()).containsKey("com/example/FeeOptics.java");
       assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+  }
+
+  @Nested
+  @DisplayName("Effect annotation values")
+  class EffectValues {
+
+    @Test
+    @DisplayName(
+        "a @PathSource witness or error type, a @Handles algebra or a @ComposeEffects algebra that a"
+            + " class file names and the classpath lacks generates and reports nothing")
+    void aClassTheClasspathLacksGeneratesAndReportsNothing() throws IOException {
+      // A class literal a class file names reaches the processors as an error type, where a source
+      // reference leaves javac's mark, and no later round resolves it.
+      Compilation clean =
+          javac()
+              .withProcessors(GeneratorTestHelper.registeredProcessors().toList())
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.BoxKind",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.Kind;
+                      import org.higherkindedj.hkt.TypeArity;
+                      import org.higherkindedj.hkt.WitnessArity;
+
+                      public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
+                        final class Witness implements WitnessArity<TypeArity.Unary> {}
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Box",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+                      @PathSource(witness = BoxKind.Witness.class)
+                      public interface Box<A> {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Failure",
+                      """
+                      package com.example;
+
+                      public record Failure(String reason) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Recovering",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+                      @PathSource(
+                          witness = ApiResultKind.Witness.class,
+                          errorType = Failure.class,
+                          capability = PathSource.Capability.RECOVERABLE)
+                      public interface Recovering<A> {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.ApiResultKind",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.Kind;
+                      import org.higherkindedj.hkt.TypeArity;
+                      import org.higherkindedj.hkt.WitnessArity;
+
+                      public interface ApiResultKind<A> extends Kind<ApiResultKind.Witness, A> {
+                        final class Witness implements WitnessArity<TypeArity.Unary> {}
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.GoneOp",
+                      """
+                      package com.example;
+
+                      import java.util.function.Function;
+                      import org.higherkindedj.hkt.Unit;
+                      import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                      @EffectAlgebra
+                      public sealed interface GoneOp<A> permits GoneOp.Only {
+                        <B> GoneOp<B> mapK(Function<? super A, ? extends B> f);
+
+                        record Only<A>(String text, Function<Unit, A> k) implements GoneOp<A> {
+                          @Override
+                          public <B> GoneOp<B> mapK(Function<? super A, ? extends B> f) {
+                            return new Only<>(text, k.andThen(f));
+                          }
+                        }
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.KeptOp",
+                      """
+                      package com.example;
+
+                      import java.util.function.Function;
+                      import org.higherkindedj.hkt.Unit;
+                      import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+                      @EffectAlgebra
+                      public sealed interface KeptOp<A> permits KeptOp.Only {
+                        <B> KeptOp<B> mapK(Function<? super A, ? extends B> f);
+
+                        record Only<A>(String text, Function<Unit, A> k) implements KeptOp<A> {
+                          @Override
+                          public <B> KeptOp<B> mapK(Function<? super A, ? extends B> f) {
+                            return new Only<>(text, k.andThen(f));
+                          }
+                        }
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.AppEffects",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+                      @ComposeEffects
+                      public record AppEffects(Class<GoneOp<?>> gone, Class<KeptOp<?>> kept) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.LaterOp",
+                      """
+                      package com.example;
+
+                      public sealed interface LaterOp<A> permits LaterOp.Only {
+                        record Only<A>(String text) implements LaterOp<A> {}
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.LaterInterpreter",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.Handles;
+
+                      @Handles(LaterOp.class)
+                      public final class LaterInterpreter {
+                        public void handleOnly(LaterOp.Only<?> op) {}
+                      }
+                      """));
+      CompilationSubject.assertThat(clean).succeeded();
+      CompilationSubject.assertThat(clean).generatedSourceFile("com.example.BoxPath");
+      CompilationSubject.assertThat(clean).generatedSourceFile("com.example.RecoveringPath");
+      CompilationSubject.assertThat(clean).generatedSourceFile("com.example.AppEffectsSupport");
+
+      // The clean build's class files, less those of a witness, an error type, two algebras and the
+      // Paths.
+      Path classes =
+          GeneratorTestHelper.classDirectoryWithout(
+              clean,
+              tmp.resolve("classes"),
+              "com.example.BoxKind",
+              "com.example.BoxKind$Witness",
+              "com.example.Failure",
+              "com.example.GoneOp",
+              "com.example.GoneOp$Only",
+              "com.example.LaterOp",
+              "com.example.LaterOp$Only",
+              "com.example.BoxPath",
+              "com.example.RecoveringPath");
+      Run byName =
+          Reprocessing.byName(
+              tmp.resolve("by-name"),
+              classes,
+              List.of(
+                  "com.example.Box",
+                  "com.example.Recovering",
+                  "com.example.LaterInterpreter",
+                  "com.example.AppEffects"),
+              GeneratorTestHelper.registeredProcessors().toList());
+
+      assertThat(byName.succeeded()).isTrue();
+      assertThat(byName.generated()).isEmpty();
+      assertThat(byName.diagnostics()).isEmpty();
     }
   }
 }

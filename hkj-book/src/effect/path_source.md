@@ -434,7 +434,9 @@ The witness may be a type another annotation processor generates in the same bui
 the processors again over each batch of generated sources, a round at a time, so `@PathSource`
 waits, and writes the Path in the round after the witness appears. A witness that never appears is
 left for javac to report: `cannot find symbol`, or `package TracedKind does not exist` for a
-`Witness` nested in a `Kind` interface that was never generated.
+`Witness` nested in a `Kind` interface that was never generated. The other effect annotations wait
+in the same way, as [Effect annotations naming what other processors generate](../tooling/manual_setup.md#effect-annotations-naming-what-other-processors-generate)
+shows.
 
 [`@EffectAlgebra`](effect_handlers_intro.md) writes such a witness, but an effect algebra comes with
 a `Functor` and no `Monad`, so you have nothing to pass to `of`. The Path is generated all the

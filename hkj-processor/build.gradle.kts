@@ -208,6 +208,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.GeneratorRegistry*",
                 "org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor*",
                 "org.higherkindedj.optics.processing.effect.PathProcessor*",
+                "org.higherkindedj.optics.processing.effect.WaitingEffects*",
                 "org.higherkindedj.optics.processing.external.InstanceOfNarrowing*",
                 "org.higherkindedj.optics.processing.external.CopyStrategyChecks*",
                 "org.higherkindedj.optics.processing.external.SetterChecks*",

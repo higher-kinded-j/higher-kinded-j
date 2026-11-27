@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
 import org.higherkindedj.hkt.effect.annotation.PathVia;
@@ -90,26 +91,41 @@ public class PathProcessor extends AbstractProcessor {
       ClassName.get("org.higherkindedj.hkt.effect", "OptionalPath");
   private static final ClassName IO_PATH = ClassName.get("org.higherkindedj.hkt.effect", "IOPath");
 
+  /** The interfaces waiting for a value a later round brings (see {@link WaitingEffects}). */
+  private final WaitingEffects waiting = new WaitingEffects(GeneratePathBridge.class);
+
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (TypeElement annotation : annotations) {
-      Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-      for (Element element : annotatedElements) {
-        if (element.getKind() != ElementKind.INTERFACE) {
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              element,
-              BRIDGE_TAG,
-              "'" + element.getSimpleName() + "' is not an interface.",
-              "The bridge holds one delegate and calls it through an interface reference, which is"
-                  + " the only shape it knows how to wrap.",
-              "Move @GeneratePathBridge onto the service interface, or extract one.");
-          continue;
-        }
-        writeBridgeClass((TypeElement) element);
+    Elements elements = processingEnv.getElementUtils();
+    for (Element element : waiting.round(elements, roundEnv)) {
+      if (element.getKind() != ElementKind.INTERFACE) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            element,
+            BRIDGE_TAG,
+            "'" + element.getSimpleName() + "' is not an interface.",
+            "The bridge holds one delegate and calls it through an interface reference, which is"
+                + " the only shape it knows how to wrap.",
+            "Move @GeneratePathBridge onto the service interface, or extract one.");
+        continue;
+      }
+      TypeElement interfaceElement = (TypeElement) element;
+      if (waiting.ready(elements, interfaceElement, unresolved(interfaceElement))) {
+        writeBridgeClass(interfaceElement);
       }
     }
     return true;
+  }
+
+  /**
+   * Whether a value the bridge reads is one javac could not resolve: one the interface's {@code
+   * GeneratePathBridge} sets, or one a {@code PathVia} sets on a method it bridges, inherited ones
+   * included.
+   */
+  private boolean unresolved(TypeElement interfaceElement) {
+    return WaitingEffects.unresolved(interfaceElement, GeneratePathBridge.class)
+        || pathViaMethodsOf(interfaceElement).stream()
+            .anyMatch(method -> WaitingEffects.unresolved(method, PathVia.class));
   }
 
   @ExcludeFromJacocoGeneratedReport
