@@ -202,6 +202,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.WaitingSpecs*",
                 "org.higherkindedj.optics.processing.WaitingImporters*",
                 "org.higherkindedj.optics.processing.WaitingOptics*",
+                "org.higherkindedj.optics.processing.TraversalBodies*",
                 "org.higherkindedj.optics.processing.NavigatorClassGenerator*",
                 "org.higherkindedj.optics.processing.FocusFieldListChecks*",
                 "org.higherkindedj.optics.processing.WideningAnalysis*",

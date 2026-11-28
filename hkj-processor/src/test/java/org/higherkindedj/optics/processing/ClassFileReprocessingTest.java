@@ -134,6 +134,41 @@ class ClassFileReprocessingTest {
           }
           """);
 
+  /**
+   * A record whose containers are declared nullable, JSpecify's way and JSR-305's, so that each
+   * traversal checks for a null container before its body, and a container that is not.
+   */
+  private static final List<JavaFileObject> NULLABLE_TRAVERSALS =
+      List.of(
+          JavaFileObjects.forSourceString(
+              "javax.annotation.Nullable",
+              """
+              package javax.annotation;
+
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+
+              @Retention(RetentionPolicy.RUNTIME)
+              public @interface Nullable {}
+              """),
+          JavaFileObjects.forSourceString(
+              "com.example.Shelf",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              import org.jspecify.annotations.Nullable;
+
+              @GenerateTraversals
+              public record Shelf(
+                  @Nullable List<String> titles,
+                  String @Nullable [] labels,
+                  @javax.annotation.Nullable Map<String, String> notes,
+                  List<String> plain) {}
+              """));
+
   private static final JavaFileObject ISO =
       JavaFileObjects.forSourceString(
           "com.example.PointConverters",
@@ -279,6 +314,7 @@ class ClassFileReprocessingTest {
     return Stream.of(
         arguments("@GenerateMapping, every golden case", MappingGoldenFileTest.fixtures()),
         arguments("@GenerateIsos", List.of(ISO)),
+        arguments("@GenerateTraversals, nullable containers", NULLABLE_TRAVERSALS),
         arguments("@GenerateErrorEnvelope", ENVELOPE),
         arguments("@PathSource", PATH_SOURCE));
   }
@@ -322,6 +358,20 @@ class ClassFileReprocessingTest {
 
     assertThat(fromSource.generated()).isNotEmpty();
     assertThat(fromClassFiles).isEqualTo(fromSource);
+  }
+
+  @Test
+  @DisplayName("a traversal read from a class file checks each nullable container, as from source")
+  void aTraversalReadFromAClassFileChecksEachNullableContainer() throws Exception {
+    Run fromClassFiles =
+        Reprocessing.fromClassNames(tmp.resolve("class-files"), NULLABLE_TRAVERSALS, PARAMETERS);
+
+    String traversals = fromClassFiles.generated().get("com/example/ShelfTraversals.java");
+    assertThat(traversals)
+        .contains("if (source.titles() == null)")
+        .contains("if (source.labels() == null)")
+        .contains("if (source.notes() == null)")
+        .doesNotContain("if (source.plain() == null)");
   }
 
   /** Each generator's annotation, the sources it generates from, and the class it writes. */

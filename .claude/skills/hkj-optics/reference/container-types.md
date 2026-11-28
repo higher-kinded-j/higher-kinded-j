@@ -88,6 +88,8 @@ public static AffinePath<Contractor, String> nickname() {
 
 Any of the six recognised `@Nullable` annotations does this, wherever that annotation's own `@Target` puts it (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each(EachInstances.listEach())` and `@Nullable Optional<T>` is `.nullable().some(FocusPaths.optionalSome())`, and a null container has no focus. A nullable container inside another, as in `List<@Nullable List<T>>`, is ruled out the same way, and a navigator passes over a null element it would read. Position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 
+A traversal from `@GenerateTraversals` or `@ImportOptics` reads the same annotations, and a null nullable container has no elements there too: `Traversals.getAll` returns an empty list, and `Traversals.modify` hands the record back as it is.
+
 ### List<T> -> TraversalPath (element traversal)
 <!-- verify -->
 ```java

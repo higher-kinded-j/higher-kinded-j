@@ -160,6 +160,28 @@ Two limits follow from `Collection` being all the declaration says, and `Travers
 
 A component declared as some *other* `Collection` subtype (`Deque<Task>`, `SortedSet<Tag>`, `ArrayList<String>`) has no generator, and is not silently skipped: the processor reports a note on the component, naming the type nothing supports and what to do about it. A note rather than a warning, because the annotation has no per-component opt-out and a processor warning would fail a `-Werror` build with no way to answer it. See [Compiler Errors](compiler_errors.md#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note).
 
+#### Nullable Components {#nullable-components}
+
+A component declared `@Nullable` may hold no container at all. Its traversal reads a null container as an empty one: `getAll` returns an empty list, and `modify` hands the record back as it is.
+
+<!-- verify -->
+```java
+import org.jspecify.annotations.Nullable;
+
+@GenerateTraversals
+record Bench(String coach, @Nullable List<Player> reserves) {}
+
+Bench noReserves = new Bench("Ada", null);
+
+// nothing to read, and the record handed back as it was
+List<Player> none = Traversals.getAll(BenchTraversals.reserves(), noReserves);
+Bench same =
+    Traversals.modify(
+        BenchTraversals.reserves(), p -> new Player(p.name(), p.score() + 10), noReserves);
+```
+
+The processor checks for null before the generator's own code runs. Every container type gets the check, a [generator plugin](../tooling/generator_plugins.md)'s included, and so does a traversal `@ImportOptics` generates for a record. A Focus path over the same component finds no elements either. Both read `@Nullable` the same way, and [How do I handle nullable fields?](focus_reference.md#how-do-i-handle-nullable-fields) lists the annotations and the positions that count. `List<@Nullable Player>` declares the players nullable, not the list.
+
 ### Step 2: Composing a Deep Traversal
 
 Just like other optics, `Traversal`s can be composed with `andThen`. We can chain them together to create a single, deep traversal from the `League` all the way down to each player's `score`.

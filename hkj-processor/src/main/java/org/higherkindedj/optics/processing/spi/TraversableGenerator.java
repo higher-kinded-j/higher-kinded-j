@@ -251,6 +251,10 @@ public interface TraversableGenerator {
    * it already has, which javac reports under {@code -Xlint:cast} in every build that compiles the
    * generated source.
    *
+   * <p>The body may read the component as non-null. Where the record declares it nullable, with a
+   * recognised {@code @Nullable}, hkj's processors write a null check before the body that hands
+   * the record back as it is, so a null container has no elements, as it has for the Focus path.
+   *
    * <p>hkj's processors call the {@link GenerationContext} form, {@link
    * #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, whose default
    * reaches this one. A generator whose body names a type overrides that form too, and names each
