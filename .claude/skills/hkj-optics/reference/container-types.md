@@ -55,9 +55,10 @@ All Eclipse Collections types have cardinality `ZERO_OR_MORE`. The sorted sets a
 | `io.vavr.collection.Set<A>`       | Vavr           | **`FocusPath`** ^1  | `fromIterableCollecting(list -> HashSet.ofAll(list))`    |
 | `HashBag<A>`                       | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(HashBag::new)`                   |
 | `HashMultiSet<A>`                  | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(HashMultiSet::new)`              |
+| `TreeMultiSet<A>`                  | Apache Commons | **`FocusPath`** ^1  | `fromIterableRebuilding((source, list) -> list.stream().collect(Collectors.toCollection(() -> new TreeMultiSet<>(source.comparator()))))` |
 | `UnmodifiableList<A>`              | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(UnmodifiableList::new)`           |
 
-All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fromIterableCollecting(collector)`.
+All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fromIterableCollecting(collector)`, except `TreeMultiSet`. It is rebuilt with the source's comparator, as the Eclipse sorted sets are, and a wildcard element, `TreeMultiSet<? extends A>`, is refused in the same way.
 
 ## Generated Code Examples
 

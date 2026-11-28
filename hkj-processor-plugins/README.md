@@ -6,7 +6,7 @@ Traversal generator plugins for Higher-Kinded-J's `@GenerateTraversals` annotati
 
 When you annotate a Java record with `@GenerateTraversals`, the `TraversalProcessor` in `hkj-processor` generates traversal optics for each record component whose type is a supported container. The processor discovers generator plugins at compile time via Java's `ServiceLoader` mechanism.
 
-This module ships 32 generators covering JDK collections, Higher-Kinded-J core types, and five popular third-party libraries.
+This module ships 33 generators covering JDK collections, Higher-Kinded-J core types, and five popular third-party libraries.
 
 ## Supported Types
 
@@ -62,6 +62,7 @@ This module ships 32 generators covering JDK collections, Higher-Kinded-J core t
 |------|-----------|
 | `HashBag<A>` | `ApacheHashBagGenerator` |
 | `HashMultiSet<A>` | `ApacheHashMultiSetGenerator` |
+| `TreeMultiSet<A>` | `ApacheTreeMultiSetGenerator` |
 | `UnmodifiableList<A>` | `ApacheUnmodifiableListGenerator` |
 
 ### PCollections

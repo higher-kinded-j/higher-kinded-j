@@ -15,7 +15,7 @@ When you annotate a record with `@GenerateTraversals`, the annotation processor 
 
 Each container type is handled by a **generator plugin**: a small class that implements the `TraversableGenerator` SPI (Service Provider Interface). The processor discovers these plugins at compile time via Java's `ServiceLoader` and delegates code generation to whichever plugin claims support for the field's type.
 
-Higher-Kinded-J ships 32 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
+Higher-Kinded-J ships 33 generator plugins covering JDK types, HKJ core types, and five popular third-party collection libraries.
 
 ---
 
@@ -106,6 +106,7 @@ dependencies {
 |------|-------|
 | `HashBag<A>` | Deprecated in commons-collections4 4.6.0, which recommends `HashMultiSet` |
 | `HashMultiSet<A>` | |
+| `TreeMultiSet<A>` | Rebuilt with the source's comparator |
 | `UnmodifiableList<A>` | |
 
 #### PCollections
@@ -176,7 +177,7 @@ ServiceLoader.load(TraversableGenerator.class)
     ├── OptionalGenerator     (supports Optional<A>)
     ├── EitherGenerator       (supports Either<L, R>)
     ├── GuavaImmutableListGenerator  (supports ImmutableList<A>)
-    └── ... 27 more generators
+    └── ... 28 more generators
 ```
 
 A plugin that cannot be loaded is reported as an error, once, and every other generator still loads. See [the message it prints](../optics/compiler_errors.md#traversablegenerator-plugin-cannot-be-loaded).
@@ -453,7 +454,7 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **32 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
+* **33 built-in generators** cover JDK types, HKJ core types, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
 * **Third-party support activates automatically** when the library is on the classpath; no configuration required
 * **The SPI is extensible**: implement `TraversableGenerator`, register it with `@ServiceProvider`, and the processor discovers it at compile time
 * **Most generators follow a common pattern**: convert to `java.util.List`, traverse with `Traversals.traverseList()`, convert back to the original type; map-shaped ones traverse with `Traversals.traverseMapValues()` and rebuild from the JDK `Map` it returns
