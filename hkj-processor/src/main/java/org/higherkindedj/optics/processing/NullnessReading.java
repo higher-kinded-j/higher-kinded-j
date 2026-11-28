@@ -238,6 +238,26 @@ final class NullnessReading {
   }
 
   /**
+   * Whether a component that a plain merge or a mapping's optic copies as it is may hand on a
+   * {@code null}: its declaration says so, at the sites {@link
+   * NullableAnnotations#declaresNullable(RecordComponentElement)} reads, the backing field
+   * included, or the accessor the copy calls says it may answer one ({@link #readsNullable}). An
+   * accessor the record declares itself may say so where the component says nothing, and the copy
+   * hands on what it answers.
+   *
+   * <p>It reads wider than {@link #readsNullable}, which {@code build} reads the domain with, and
+   * where an accessor the record declares itself decides alone: a check that refuses a merge or
+   * withholds an optic gives a {@code null} declared on the value the benefit of the doubt. Inside
+   * the value a merge reads the accessor alone ({@link #nullableElement}), as {@code build} does.
+   *
+   * @param component the source component a copy reads
+   * @return whether the copy may hand on a {@code null}
+   */
+  static boolean copiesNullable(RecordComponentElement component) {
+    return NullableAnnotations.declaresNullable(component) || readsNullable(component);
+  }
+
+  /**
    * A type as a record declares it and as it is instantiated, read together, with the scopes the
    * declaration is read in, and {@code arguments}, the scopes where the type arguments it is
    * instantiated with are written. A type variable with no nullness annotation of its own, as

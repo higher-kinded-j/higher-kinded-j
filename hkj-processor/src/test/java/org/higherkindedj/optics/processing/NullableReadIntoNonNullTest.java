@@ -799,6 +799,92 @@ class NullableReadIntoNonNullTest {
 
             @GenerateMapping
             public interface NoteViewMapping extends MappingSpec<Note, DraftDto> {}
+
+            // A wire whose own accessor answers a null its component does not declare, which the
+            // optic calls: at the top, inside the value, and on a projection.
+            public record Contact(String email) {}
+
+            public record AccessorDto(String email) {
+              public @Nullable String email() {
+                return email.isBlank() ? null : email;
+              }
+            }
+
+            @GenerateMapping
+            public interface AccessorMapping extends MappingSpec<Contact, AccessorDto> {}
+
+            public record Roll(List<String> names) {}
+
+            public record AccessorRollDto(List<String> names) {
+              public List<@Nullable String> names() {
+                return names;
+              }
+            }
+
+            @GenerateMapping
+            public interface AccessorRollMapping extends MappingSpec<Roll, AccessorRollDto> {}
+
+            public record Member(String id, String nick) {}
+
+            public record AccessorNickView(String nick) {
+              public @Nullable String nick() {
+                return nick.isBlank() ? null : nick;
+              }
+            }
+
+            @GenerateMapping
+            public interface AccessorNickViewMapping extends MappingSpec<Member, AccessorNickView> {}
+
+            // An annotation that reaches only the field once the record declares its accessor.
+            public record LegacyFieldDto(@com.legacy.Nullable String email) {
+              public String email() {
+                return email;
+              }
+            }
+
+            @GenerateMapping
+            public interface LegacyFieldMapping extends MappingSpec<Contact, LegacyFieldDto> {}
+
+            // An accessor stricter than its component still costs the optic: the component says
+            // what the wire holds, inside the value and through a type argument.
+            public record StrictRollDto(List<@Nullable String> names) {
+              public List<String> names() {
+                return names.stream().filter(name -> name != null).toList();
+              }
+            }
+
+            @GenerateMapping
+            public interface StrictRollMapping extends MappingSpec<Roll, StrictRollDto> {}
+
+            public record StrictBox<T extends @Nullable Object>(T email) {
+              public @NonNull T email() {
+                return java.util.Objects.requireNonNull(email);
+              }
+            }
+
+            @GenerateMapping
+            public interface StrictBoxMapping extends MappingSpec<Contact, StrictBox<@Nullable String>> {}
+
+            // An accessor whose type variable leaves its nullness to the argument costs it too.
+            public record DeferredBox<T extends @Nullable Object>(@NonNull T email) {
+              public T email() {
+                return email;
+              }
+            }
+
+            @GenerateMapping
+            public interface DeferredBoxMapping
+                extends MappingSpec<Contact, DeferredBox<@Nullable String>> {}
+
+            // An accessor of the record's own that declares nothing nullable keeps the optic.
+            public record PlainAccessorDto(String email) {
+              public String email() {
+                return email;
+              }
+            }
+
+            @GenerateMapping
+            public interface PlainAccessorMapping extends MappingSpec<Contact, PlainAccessorDto> {}
           }
           """);
 
@@ -856,7 +942,13 @@ class NullableReadIntoNonNullTest {
         "PinnedKeysMapping",
         "PinnedValuesMapping",
         "PinnedTagsMapping",
-        "ArrayItemsMapping");
+        "ArrayItemsMapping",
+        "AccessorMapping",
+        "AccessorRollMapping",
+        "LegacyFieldMapping",
+        "StrictRollMapping",
+        "StrictBoxMapping",
+        "DeferredBoxMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -907,7 +999,8 @@ class NullableReadIntoNonNullTest {
         "AnyListMapping",
         "RawRosterMapping",
         "ShelvingMapping",
-        "IntsMapping");
+        "IntsMapping",
+        "PlainAccessorMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -922,7 +1015,8 @@ class NullableReadIntoNonNullTest {
         "AccountViewMapping",
         "HoledTagsMapping",
         "HoledKeysViewMapping",
-        "HoledPathKeysViewMapping");
+        "HoledPathKeysViewMapping",
+        "AccessorNickViewMapping");
   }
 
   @Test

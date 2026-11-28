@@ -555,7 +555,7 @@ matter: it maps build-only whatever its width, derived fields included.
   over a `null` too, so a domain component declared `@Nullable` that `build` copies into a record
   component, setter or builder setter declared non-null (a non-null annotation, or `@NullMarked`
   without `@Nullable`) is refused, and so is a plain `@GenerateMerge` source copied into such a
-  target. Mark the wire side `@Nullable` (on a Lombok bean, its field), or declare the domain side
+  target, a `@Nullable` on the source record's own accessor included. Mark the wire side `@Nullable` (on a Lombok bean, its field), or declare the domain side
   non-null; a merge can instead take a leaf and return `Validated`. `parse` needs no such rule: it
   refuses every unbridged `null` read. A type variable counts as the spec instantiates it:
   `One<@Nullable String>` makes a domain `T` nullable, `ItemDto<String>` a wire `T` non-null. The
@@ -596,7 +596,9 @@ matter: it maps build-only whatever its width, derived fields included.
   reaches (`List<@Nullable String>`, a map's values or keys, what a key holds, an array's
   elements, a wildcard's bound), and the domain declares its own non-null, `parse` refuses the
   `null` and no total optic can hand it over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not
-  `asLens()`. A type argument counts where an unannotated type variable leaves the nullness to it
+  `asLens()`. A record's own accessor counts too: a `@Nullable` on its return type, or inside it,
+  costs the optics as one on the component does, and an accessor stricter than its component keeps
+  the cost. A type argument counts where an unannotated type variable leaves the nullness to it
   (`Page<@Nullable String>` for `Page<T extends @Nullable Object>`), and an annotated use
   (`@NonNull T`) decides alone for the value itself. What any type variable holds, annotated or
   not, is still its argument's, or its bound's where that rules a `null` out (`L extends

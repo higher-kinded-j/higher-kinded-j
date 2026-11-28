@@ -334,7 +334,7 @@ public class MergeProcessor extends AbstractProcessor {
       RecordComponentElement from = componentNamed(source, fill.component());
       RecordComponentElement to = componentNamed(target, fill.component());
       NullnessReading.NonNullSite site =
-          from.asType().getKind().isPrimitive() || !NullableAnnotations.declaresNullable(from)
+          from.asType().getKind().isPrimitive() || !NullnessReading.copiesNullable(from)
               ? null
               : NullnessReading.nonNullComponent(processingEnv.getTypeUtils(), target, to);
       if (site == null) {
