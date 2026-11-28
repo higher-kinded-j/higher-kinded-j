@@ -14941,13 +14941,13 @@ public class MappingProcessor extends AbstractProcessor {
    * hand it over. The wire's component may be declared nullable, at the component or at the
    * accessor the optic calls ({@link NullnessReading#copiesNullable}), where the domain's is
    * declared non-null, read as the check on {@code build} reads its write site ({@link
-   * NullnessReading#nonNullComponent}). That reads wider than {@link #nullableSource} reads the
-   * domain's for {@code build}, where an accessor the record declares itself decides alone: a check
-   * that withholds an optic gives a declared {@code null} the benefit of the doubt. Or an element,
-   * at a level the copy's null scan reaches ({@link NullScan}), may be declared nullable, in the
-   * component's type or in the accessor's, where the domain's element at that level rules a null
-   * out, and so may a map's key at its level, or an element inside a key that is itself a
-   * container, which {@code parse} reports too ({@link NullnessReading#copiedInto}).
+   * NullnessReading#nonNullComponent}). That reads the component as well as the accessor {@link
+   * #nullableSource} reads the domain's at for {@code build}: a check that withholds an optic gives
+   * a declared {@code null} the benefit of the doubt. Or an element, at a level the copy's null
+   * scan reaches ({@link NullScan}), may be declared nullable, in the component's type or in the
+   * accessor's, where the domain's element at that level rules a null out, and so may a map's key
+   * at its level, or an element inside a key that is itself a container, which {@code parse}
+   * reports too ({@link NullnessReading#copiedInto}).
    *
    * <p>Each type is read as the record declares it and as it is instantiated ({@link Written}):
    * {@code wireType} and {@code domainType} are the instantiated components, {@code scan} is the
@@ -14987,7 +14987,8 @@ public class MappingProcessor extends AbstractProcessor {
     boolean domainNonNull =
         NullnessReading.nonNullComponent(types, domain, to) != null
             || NullnessReading.deferredNonNull(types, domain, to, domainSide).isPresent();
-    if ((NullnessReading.copiesNullable(from) || wireSide.nullable()) && domainNonNull) {
+    if ((NullnessReading.copiesNullable(from) || wireSide.nullable() || readSide.nullable())
+        && domainNonNull) {
       return true;
     }
     // A null the component or the canonical constructor's parameter rules out is one parse

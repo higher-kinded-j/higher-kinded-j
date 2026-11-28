@@ -247,7 +247,8 @@ final class NullnessReading {
    *
    * <p>It reads wider than {@link #readsNullable}, which {@code build} reads the domain with, and
    * where an accessor the record declares itself decides alone: a check that refuses a merge or
-   * withholds an optic gives a declared {@code null} the benefit of the doubt.
+   * withholds an optic gives a {@code null} declared on the value the benefit of the doubt. Inside
+   * the value a merge reads the accessor alone ({@link #nullableElement}), as {@code build} does.
    *
    * @param component the source component a copy reads
    * @return whether the copy may hand on a {@code null}

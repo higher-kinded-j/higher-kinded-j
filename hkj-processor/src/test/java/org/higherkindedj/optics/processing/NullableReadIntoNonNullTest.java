@@ -864,6 +864,27 @@ class NullableReadIntoNonNullTest {
 
             @GenerateMapping
             public interface StrictBoxMapping extends MappingSpec<Contact, StrictBox<@Nullable String>> {}
+
+            // An accessor whose type variable leaves its nullness to the argument costs it too.
+            public record DeferredBox<T extends @Nullable Object>(@NonNull T email) {
+              public T email() {
+                return email;
+              }
+            }
+
+            @GenerateMapping
+            public interface DeferredBoxMapping
+                extends MappingSpec<Contact, DeferredBox<@Nullable String>> {}
+
+            // An accessor of the record's own that declares nothing nullable keeps the optic.
+            public record PlainAccessorDto(String email) {
+              public String email() {
+                return email;
+              }
+            }
+
+            @GenerateMapping
+            public interface PlainAccessorMapping extends MappingSpec<Contact, PlainAccessorDto> {}
           }
           """);
 
@@ -926,7 +947,8 @@ class NullableReadIntoNonNullTest {
         "AccessorRollMapping",
         "LegacyFieldMapping",
         "StrictRollMapping",
-        "StrictBoxMapping");
+        "StrictBoxMapping",
+        "DeferredBoxMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -977,7 +999,8 @@ class NullableReadIntoNonNullTest {
         "AnyListMapping",
         "RawRosterMapping",
         "ShelvingMapping",
-        "IntsMapping");
+        "IntsMapping",
+        "PlainAccessorMapping");
   }
 
   @ParameterizedTest(name = "{0}")
