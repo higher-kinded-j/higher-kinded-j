@@ -799,6 +799,51 @@ class NullableReadIntoNonNullTest {
 
             @GenerateMapping
             public interface NoteViewMapping extends MappingSpec<Note, DraftDto> {}
+
+            // A wire whose own accessor answers a null its component does not declare, which the
+            // optic calls: at the top, inside the value, and on a projection.
+            public record Contact(String email) {}
+
+            public record AccessorDto(String email) {
+              public @Nullable String email() {
+                return email.isBlank() ? null : email;
+              }
+            }
+
+            @GenerateMapping
+            public interface AccessorMapping extends MappingSpec<Contact, AccessorDto> {}
+
+            public record Roll(List<String> names) {}
+
+            public record AccessorRollDto(List<String> names) {
+              public List<@Nullable String> names() {
+                return names;
+              }
+            }
+
+            @GenerateMapping
+            public interface AccessorRollMapping extends MappingSpec<Roll, AccessorRollDto> {}
+
+            public record Member(String id, String nick) {}
+
+            public record AccessorNickView(String nick) {
+              public @Nullable String nick() {
+                return nick.isBlank() ? null : nick;
+              }
+            }
+
+            @GenerateMapping
+            public interface AccessorNickViewMapping extends MappingSpec<Member, AccessorNickView> {}
+
+            // An annotation that reaches only the field once the record declares its accessor.
+            public record LegacyFieldDto(@com.legacy.Nullable String email) {
+              public String email() {
+                return email;
+              }
+            }
+
+            @GenerateMapping
+            public interface LegacyFieldMapping extends MappingSpec<Contact, LegacyFieldDto> {}
           }
           """);
 
@@ -856,7 +901,10 @@ class NullableReadIntoNonNullTest {
         "PinnedKeysMapping",
         "PinnedValuesMapping",
         "PinnedTagsMapping",
-        "ArrayItemsMapping");
+        "ArrayItemsMapping",
+        "AccessorMapping",
+        "AccessorRollMapping",
+        "LegacyFieldMapping");
   }
 
   @ParameterizedTest(name = "{0}")
@@ -922,7 +970,8 @@ class NullableReadIntoNonNullTest {
         "AccountViewMapping",
         "HoledTagsMapping",
         "HoledKeysViewMapping",
-        "HoledPathKeysViewMapping");
+        "HoledPathKeysViewMapping",
+        "AccessorNickViewMapping");
   }
 
   @Test

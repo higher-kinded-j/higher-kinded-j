@@ -14970,8 +14970,11 @@ public class MappingProcessor extends AbstractProcessor {
     Elements elements = processingEnv.getElementUtils();
     RecordComponentElement from = componentNamed(wire.element(), wireName);
     RecordComponentElement to = componentNamed(domain, name);
+    // The optic calls the wire's accessor, so its return type is the one read, as the check on
+    // build reads the domain's.
     Written wireSide =
-        new Written(from.asType(), wireType, List.of(from), writtenScopes(spec, spec));
+        new Written(
+            from.getAccessor().getReturnType(), wireType, List.of(from), writtenScopes(spec, spec));
     Written domainSide =
         new Written(to.asType(), domainType, List.of(to), writtenScopes(spec, arguments));
     // The domain's component is read where its canonical constructor takes it, unless its
@@ -14979,7 +14982,7 @@ public class MappingProcessor extends AbstractProcessor {
     boolean domainNonNull =
         NullnessReading.nonNullComponent(types, domain, to) != null
             || NullnessReading.deferredNonNull(types, domain, to, domainSide).isPresent();
-    if ((NullableAnnotations.declaresNullable(from) || wireSide.nullable()) && domainNonNull) {
+    if ((NullnessReading.copiesNullable(from) || wireSide.nullable()) && domainNonNull) {
       return true;
     }
     // A null the component or the canonical constructor's parameter rules out is one parse

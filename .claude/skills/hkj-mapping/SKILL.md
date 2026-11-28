@@ -450,7 +450,7 @@ Depending on what the mapping can honour:
 
 | Mapping is | You also get |
 |------------|--------------|
-| Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element or map key) the domain declares non-null |
+| Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element or map key), on the component or on its own accessor, that the domain declares non-null |
 | A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, on a bean wire any reference property (it can be unset), or on a record wire a `@Nullable` component (or element or map key) the domain declares non-null: validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
 | Full (it builds and parses, and no property is `@ReadOnly`, its own or a nested spec's) | `asValidatedPrism()` |
 | A bean wire with getters and nothing that writes it | `parse` + `asValidatedParse()`, **no** `build` |

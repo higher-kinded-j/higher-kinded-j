@@ -207,6 +207,21 @@ class NullableCopyIntoNonNullTest {
                   public interface MergedAssembly {
                     Merged merge(Names names, Labels labels);
                   }
+
+                  // The merge calls the accessor, which answers a null the component does not
+                  // declare.
+                  public record Remarks(String note) {
+                    public @Nullable String note() {
+                      return note.isBlank() ? null : note;
+                    }
+                  }
+
+                  public record Remarked(List<String> names, String note) {}
+
+                  @GenerateMerge
+                  public interface RemarkedAssembly {
+                    Remarked merge(Names names, Remarks remarks);
+                  }
                 }
                 """));
 
@@ -272,9 +287,13 @@ class NullableCopyIntoNonNullTest {
                 + " reports a null as 'note: must not be null'.");
     assertThat(compilation)
         .hadErrorContaining(
+            "source component 'Remarks.note' is declared @Nullable, and the merge copies it to the"
+                + " record component 'Remarked.note', which is declared non-null.");
+    assertThat(compilation)
+        .hadErrorContaining(
             "As 'Account.id' may be absent, mark the parameter of setId(String) @Nullable; or"
                 + " declare 'Account.id' non-null");
-    Assertions.assertThat(compilation.errors()).hasSize(10);
+    Assertions.assertThat(compilation.errors()).hasSize(11);
   }
 
   @Test
