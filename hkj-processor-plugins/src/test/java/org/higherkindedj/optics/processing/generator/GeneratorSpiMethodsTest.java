@@ -386,6 +386,7 @@ class GeneratorSpiMethodsTest {
               "org.apache.commons.collections4.multiset.HashMultiSet"),
           gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
+      assertEquals(OptionalInt.empty(), gen.getOrderedTypeArgumentIndex());
     }
 
     @Test

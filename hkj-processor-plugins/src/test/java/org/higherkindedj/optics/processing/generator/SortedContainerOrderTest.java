@@ -25,10 +25,11 @@ import org.junit.jupiter.params.provider.CsvSource;
  * {@code @GenerateFocus(widenCollections = true)}, beside a probe that names the generated optics
  * as user code would, and the probe is run. A source in reverse order must come back in reverse
  * order from either route, an element with no natural order must be sorted by the source's
- * comparator rather than fail, a source in natural order, whose Eclipse comparator is null, must
- * stay in natural order, and a mutable source must be left as it was. A {@code PSortedSet} or
- * {@code PSortedMap} of another implementation may report a null comparator for natural order, as
- * {@code SortedSet} allows, and must stay in natural order too.
+ * comparator rather than fail, a source in natural order, whose Eclipse or Apache comparator is
+ * null, must stay in natural order, a multiset must keep each element's count, and a mutable source
+ * must be left as it was. A {@code PSortedSet} or {@code PSortedMap} of another implementation may
+ * report a null comparator for natural order, as {@code SortedSet} allows, and must stay in natural
+ * order too.
  */
 @DisplayName("Generated optics over a sorted container")
 class SortedContainerOrderTest {
@@ -135,10 +136,6 @@ class SortedContainerOrderTest {
             private static final Ec EC = new Ec(SortedSets.mutable.of(REVERSE, "a", "b", "c"));
             private static final Ei EI = new Ei(SortedSets.immutable.of(REVERSE, "a", "b", "c"));
             private static final Pc PC = new Pc(TreePSet.from(REVERSE, List.of("a", "b", "c")));
-            private static final Am AM = new Am(multiSet(REVERSE, "a", "b", "b", "c"));
-            private static final Am AM_NATURAL = new Am(multiSet(null, "c", "b", "a", "b"));
-            private static final AmLeaf AM_LEAF =
-                new AmLeaf(multiSet(BY_NAME_REVERSED, new Leaf("a"), new Leaf("b"), new Leaf("b")));
             private static final Pm PM =
                 new Pm(TreePMap.from(REVERSE, Map.of("a", 1, "b", 2, "c", 3)));
             private static final Ec EC_NATURAL = new Ec(SortedSets.mutable.of("c", "a", "b"));
@@ -160,6 +157,10 @@ class SortedContainerOrderTest {
             private static final PmLeaf PM_LEAF =
                 new PmLeaf(
                     TreePMap.from(BY_NAME_REVERSED, Map.of(new Leaf("a"), 1, new Leaf("b"), 2)));
+            private static final Am AM = new Am(multiSet(REVERSE, "a", "b", "b", "c"));
+            private static final Am AM_NATURAL = new Am(multiSet(null, "c", "b", "a", "b"));
+            private static final AmLeaf AM_LEAF =
+                new AmLeaf(multiSet(BY_NAME_REVERSED, new Leaf("a"), new Leaf("b"), new Leaf("b")));
 
             public static List<String> run(String which) {
               return switch (which) {
@@ -201,6 +202,15 @@ class SortedContainerOrderTest {
                     entries(Traversals.modify(PmLeafTraversals.scores(), TENFOLD, PM_LEAF).scores());
                 case "pm leaf focus" ->
                     entries(PmLeafFocus.scores().modifyAll(TENFOLD, PM_LEAF).scores());
+                case "ec source untouched" -> {
+                  // A mutable source is read, never rebuilt in place, by either route.
+                  var traversed = Traversals.modify(EcTraversals.names(), UP, EC);
+                  var focused = EcFocus.names().modifyAll(UP, EC);
+                  if (traversed.names() == EC.names() || focused.names() == EC.names()) {
+                    throw new AssertionError("the rebuild handed back the source's own set");
+                  }
+                  yield strings(EC.names());
+                }
                 case "am traversal" -> strings(Traversals.modify(AmTraversals.names(), UP, AM).names());
                 case "am focus" -> strings(AmFocus.names().modifyAll(UP, AM).names());
                 case "am natural traversal" ->
@@ -218,15 +228,6 @@ class SortedContainerOrderTest {
                     throw new AssertionError("the rebuild handed back the source's own multiset");
                   }
                   yield strings(AM.names());
-                }
-                case "ec source untouched" -> {
-                  // A mutable source is read, never rebuilt in place, by either route.
-                  var traversed = Traversals.modify(EcTraversals.names(), UP, EC);
-                  var focused = EcFocus.names().modifyAll(UP, EC);
-                  if (traversed.names() == EC.names() || focused.names() == EC.names()) {
-                    throw new AssertionError("the rebuild handed back the source's own set");
-                  }
-                  yield strings(EC.names());
                 }
                 default -> throw new IllegalArgumentException(which);
               };

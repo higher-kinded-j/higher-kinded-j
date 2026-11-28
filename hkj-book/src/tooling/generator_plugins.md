@@ -106,7 +106,7 @@ dependencies {
 |------|-------|
 | `HashBag<A>` | Deprecated in commons-collections4 4.6.0, which recommends `HashMultiSet` |
 | `HashMultiSet<A>` | |
-| `TreeMultiSet<A>` | Rebuilt with the source's comparator |
+| `TreeMultiSet<A>` | Rebuilt with the source's comparator. commons-collections4 4.6.0 recommends it in place of `TreeBag`, which has no generator |
 | `UnmodifiableList<A>` | |
 
 #### PCollections

@@ -43,7 +43,7 @@ A navigator's method returns the same path type as the static method for the sam
 | `ImmutableSortedSet<A>`  | **`FocusPath`** ^1  | `fromIterableRebuilding((source, list) -> SortedSets.immutable.ofAll(source.comparator(), list))` |
 | `MutableSortedSet<A>`    | **`FocusPath`** ^1  | `fromIterableRebuilding((source, list) -> SortedSets.mutable.ofAll(source.comparator(), list))` |
 
-All Eclipse Collections types have cardinality `ZERO_OR_MORE`. The sorted sets are rebuilt with the source's comparator, so a custom order is kept; a wildcard element, `MutableSortedSet<? extends A>`, is refused under `@GenerateTraversals` (a note, no traversal) and, where the field is widened, `@GenerateFocus` (an error).
+All Eclipse Collections types have cardinality `ZERO_OR_MORE`. The sorted sets are rebuilt with the source's comparator, so a custom order is kept; a wildcard element, such as `MutableSortedSet<? extends A>`, is refused under `@GenerateTraversals` (a note, no traversal) and, where the field is widened, `@GenerateFocus` (an error).
 
 ## Guava, Vavr, and Apache Commons
 
@@ -58,7 +58,7 @@ All Eclipse Collections types have cardinality `ZERO_OR_MORE`. The sorted sets a
 | `TreeMultiSet<A>`                  | Apache Commons | **`FocusPath`** ^1  | `fromIterableRebuilding((source, list) -> list.stream().collect(Collectors.toCollection(() -> new TreeMultiSet<>(source.comparator()))))` |
 | `UnmodifiableList<A>`              | Apache Commons | **`FocusPath`** ^1  | `fromIterableCollecting(UnmodifiableList::new)`           |
 
-All third-party types have cardinality `ZERO_OR_MORE` and use `EachInstances.fromIterableCollecting(collector)`, except `TreeMultiSet`. It is rebuilt with the source's comparator, as the Eclipse sorted sets are, and a wildcard element, `TreeMultiSet<? extends A>`, is refused in the same way.
+All the types in this table have cardinality `ZERO_OR_MORE` and use `EachInstances.fromIterableCollecting(collector)`, except `TreeMultiSet`. It uses `fromIterableRebuilding`, so it is rebuilt with the source's comparator, as the Eclipse sorted sets are. A wildcard element, such as `TreeMultiSet<? extends A>`, is refused as theirs is: a note and no traversal under `@GenerateTraversals`, and an error where `@GenerateFocus` widens the field.
 
 ## Generated Code Examples
 

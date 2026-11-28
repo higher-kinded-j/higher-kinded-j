@@ -17,6 +17,10 @@ import org.higherkindedj.optics.util.Traversals;
 /// Base of Traversable Generators for Apache Collections that are both:
 /// * A collection of 0...n, not 1
 /// * Of a single type/column
+///
+/// The traversal copies the component into a JDK list, traverses it, and rebuilds the collection
+/// with the constructor that takes a collection. A sorted collection's generator overrides
+/// [#rebuild(String)] to rebuild it with the source's comparator too.
 public abstract class ApacheBaseSingleIterableTraversableGenerator
     extends BaseTraversableGenerator {
   /** Base package name for Apache Commons Collections 4. */
@@ -110,7 +114,8 @@ public abstract class ApacheBaseSingleIterableTraversableGenerator
 
   /**
    * The expression that rebuilds the component's collection from the traversed elements, held in
-   * {@code newList}, with {@code source} the record being traversed.
+   * {@code newList}, with {@code source} the record being traversed. A sorted multiset's generator
+   * overrides it to collect the elements into a multiset made with the source's comparator.
    *
    * @param componentName the name of the record component being rebuilt
    * @return the expression, by default {@code new <supportedType><>(newList)}
