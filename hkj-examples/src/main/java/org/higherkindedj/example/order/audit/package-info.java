@@ -14,7 +14,7 @@
  *
  * <pre>{@code
  * WriterPath<AuditLog, ValidatedOrder> validated =
- *     Path.writer(AuditLog.monoid(), validatedOrder)
+ *     Path.writerPure(validatedOrder, AuditLog.monoid())
  *         .tell(AuditLog.of("ORDER_VALIDATED", "Order " + orderId + " validated"));
  * }</pre>
  */

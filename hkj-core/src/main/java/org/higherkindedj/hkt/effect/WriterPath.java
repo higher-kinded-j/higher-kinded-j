@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Pair;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
@@ -106,6 +107,9 @@ public final class WriterPath<W, A> implements Chainable<WriterPath<W, ?>, A> {
 
   /**
    * Creates a WriterPath that only produces output/log, with {@link Unit} as its value.
+   *
+   * <p>To append to a path you already have, call {@link #tell(Object) path.tell(log)}. Called
+   * through a path, this static form ignores that path and starts a new one.
    *
    * @param log the log to produce; must not be null
    * @param monoid the Monoid for combining logs; must not be null
@@ -310,16 +314,73 @@ public final class WriterPath<W, A> implements Chainable<WriterPath<W, ?>, A> {
   }
 
   /**
-   * Adds additional output to the current log.
+   * Appends {@code log} to this path's log, and keeps its value.
+   *
+   * <p>The static {@link #tell(Object, Monoid)} starts a path with a log; this one adds to the log
+   * of a path you have. It joins the logs with this path's {@link Monoid}, this path's log first,
+   * so {@code path.tell(log)} gives the {@link Writer} that {@code path.via(a ->
+   * WriterPath.tell(log, path.monoid()).map(_ -> a))} gives.
+   *
+   * <pre>{@code
+   * WriterPath<List<String>, Integer> paid = WriterPath.writer(1, List.of("paid"), Monoids.list());
+   *
+   * paid.tell(List.of("shipped")).written(); // [paid, shipped]
+   * paid.tell(List.of("shipped")).value();   // 1
+   * }</pre>
+   *
+   * @param log the log to append; must not be null
+   * @return a new WriterPath with the same value and the joined log
+   * @throws NullPointerException if log is null
+   * @since 0.6.0
+   */
+  public WriterPath<W, A> tell(W log) {
+    Objects.requireNonNull(log, "log must not be null");
+    return new WriterPath<>(
+        new Writer<>(monoid.combine(writer.log(), log), writer.value()), monoid);
+  }
+
+  /**
+   * Pairs this path's value with its log, and leaves the log as it is.
+   *
+   * <p>This is {@link org.higherkindedj.hkt.MonadWriter#listen MonadWriter.listen} on a path: the
+   * value becomes a {@link Pair} of the value and the log, and {@link #written()} gives the same
+   * log as before. Steps chained after it go on adding to that log.
+   *
+   * <pre>{@code
+   * WriterPath<List<String>, Integer> paid = WriterPath.writer(1, List.of("paid"), Monoids.list());
+   *
+   * paid.listen().value();   // Pair[first=1, second=[paid]]
+   * paid.listen().written(); // [paid]
+   *
+   * // to read a part of the log, map the pair's second
+   * paid.listen().map(p -> p.mapSecond(List::size)).value(); // Pair[first=1, second=1]
+   * }</pre>
+   *
+   * @return a new WriterPath whose value pairs this path's value with its log
+   * @since 0.6.0
+   */
+  public WriterPath<W, Pair<A, W>> listen() {
+    return new WriterPath<>(
+        new Writer<>(writer.log(), Pair.of(writer.value(), writer.log())), monoid);
+  }
+
+  /**
+   * Appends {@code additionalLog} to this path's log, as {@link #tell(Object) tell(log)} does.
+   *
+   * <p>Elsewhere, as in {@link org.higherkindedj.hkt.MonadWriter#listen MonadWriter.listen}, {@code
+   * listen} reads the log and leaves it as it is, which {@link #listen()} does here.
    *
    * @param additionalLog the additional log to append; must not be null
    * @return a new WriterPath with the combined log
    * @throws NullPointerException if additionalLog is null
+   * @deprecated since 0.6.0, scheduled for removal in 0.7.0. Use {@link #tell(Object) tell(log)},
+   *     which appends the same log. The {@code MigrateDeprecationsTo0_7_0} recipe in {@code
+   *     hkj-openrewrite} renames each call.
    */
+  @Deprecated(since = "0.6.0", forRemoval = true)
   public WriterPath<W, A> listen(W additionalLog) {
     Objects.requireNonNull(additionalLog, "additionalLog must not be null");
-    W combinedLog = monoid.combine(writer.log(), additionalLog);
-    return new WriterPath<>(new Writer<>(combinedLog, writer.value()), monoid);
+    return tell(additionalLog);
   }
 
   // ===== Conversions =====

@@ -10,6 +10,7 @@ import java.util.function.Function;
 import net.jqwik.api.*;
 import net.jqwik.api.constraints.IntRange;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Pair;
 import org.higherkindedj.hkt.Unit;
 
 /**
@@ -162,6 +163,45 @@ class WriterPathPropertyTest {
 
     assertThat(path.written()).isEqualTo(log);
     assertThat(path.value()).isEqualTo(Unit.INSTANCE);
+  }
+
+  @Property
+  @Label("listen pairs the value with the log, and leaves the log as it is")
+  void listenPairsTheValueWithTheLog(
+      @ForAll("writerPaths") WriterPath<List<String>, Integer> path) {
+    WriterPath<List<String>, Pair<Integer, List<String>>> listened = path.listen();
+
+    assertThat(listened.value()).isEqualTo(Pair.of(path.value(), path.written()));
+    assertThat(listened.written()).isEqualTo(path.written());
+  }
+
+  @Property
+  @Label("path.tell(w) == path.via(a -> WriterPath.tell(w, monoid).map(_ -> a))")
+  void tellAppendsAsViaWithTheStaticTellDoes(
+      @ForAll("writerPaths") WriterPath<List<String>, Integer> path,
+      @ForAll @IntRange(min = -100, max = 100) int n) {
+    List<String> log = List.of("appended " + n);
+
+    assertThat(path.tell(log).run())
+        .isEqualTo(path.via(a -> WriterPath.tell(log, LOG_MONOID).map(_ -> a)).run());
+  }
+
+  @Property
+  @Label("Tell-empty: path.tell(monoid.empty()) == path")
+  void tellOfTheEmptyLogLeavesThePath(
+      @ForAll("writerPaths") WriterPath<List<String>, Integer> path) {
+    assertThat(path.tell(LOG_MONOID.empty()).run()).isEqualTo(path.run());
+  }
+
+  @Property
+  @Label("Tell-combine: path.tell(a).tell(b) == path.tell(monoid.combine(a, b))")
+  void tellTwiceIsTellOfTheCombinedLog(
+      @ForAll("writerPaths") WriterPath<List<String>, Integer> path,
+      @ForAll @IntRange(min = -100, max = 100) int n) {
+    List<String> a = List.of("first " + n);
+    List<String> b = List.of("second " + n);
+
+    assertThat(path.tell(a).tell(b).run()).isEqualTo(path.tell(LOG_MONOID.combine(a, b)).run());
   }
 
   @Property

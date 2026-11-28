@@ -22,6 +22,7 @@ import javax.sql.DataSource;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Pair;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.ReaderPath;

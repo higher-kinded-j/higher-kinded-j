@@ -422,7 +422,11 @@ WriterPath<List<String>, String> formatted = computation.map(n -> "Value: " + n)
 
 // Add to log
 WriterPath<List<String>, Integer> withExtra =
-    computation.listen(List.of("Extra info"));
+    computation.tell(List.of("Extra info"));
+
+// Read the log beside the value (log unchanged)
+WriterPath<List<String>, Pair<Integer, List<String>>> listened =
+    withExtra.listen();
 
 // Chain with log accumulation
 WriterPath<List<String>, Result> pipeline =
