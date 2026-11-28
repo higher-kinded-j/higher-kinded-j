@@ -43,7 +43,7 @@ public class TrampolineMonad extends TrampolineFunctor implements Monad<Trampoli
   /** Singleton instance of {@code TrampolineMonad}. */
   public static final TrampolineMonad INSTANCE = new TrampolineMonad();
 
-  /** Private constructor to enforce the singleton pattern. */
+  /** Protected for subclasses; use {@link #INSTANCE}. */
   protected TrampolineMonad() {
     super();
   }

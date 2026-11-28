@@ -36,7 +36,7 @@ import org.jspecify.annotations.Nullable;
 public class CompletableFutureMonad extends CompletableFutureApplicative
     implements MonadError<CompletableFutureKind.Witness, Throwable> {
 
-  public static Class<CompletableFutureMonad> COMPLETABLE_FUTURE_MONAD_CLASS =
+  public static final Class<CompletableFutureMonad> COMPLETABLE_FUTURE_MONAD_CLASS =
       CompletableFutureMonad.class;
 
   /** Singleton instance of {@code CompletableFutureMonad}. */

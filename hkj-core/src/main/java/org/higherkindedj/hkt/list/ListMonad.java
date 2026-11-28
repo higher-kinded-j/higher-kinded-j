@@ -27,7 +27,7 @@ public class ListMonad implements MonadZero<ListKind.Witness> {
   /** A ListMonad singleton */
   public static final ListMonad INSTANCE = new ListMonad();
 
-  /** Private constructor to enforce singleton pattern. */
+  /** Protected for {@link ListSelective}, which extends this class; use {@link #INSTANCE}. */
   protected ListMonad() {}
 
   /**

@@ -144,7 +144,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 ~~~admonish warning title="Common Misunderstandings"
 - **"`orElse` always falls back."** `Maybe`'s and `Optional`'s do. `List`'s, `Stream`'s and `VStream`'s join both containers.
 - **"`orElse` picks whichever value is present."** It prefers the first. Two present prices give the offer, not the catalogue's.
-- **"Every type with a `Monad` has an `Alternative`."** Only `Maybe`, `Optional`, `List`, `Stream` and `VStream` have one. `Instances.alternative(either())` compiles, and throws `ClassCastException` when it runs, as [what the compiler checks](instances_facade.md#what-the-compiler-checks) explains.
+- **"Every type with a `Monad` has an `Alternative`."** Only `Maybe`, `Optional`, `List`, `Stream` and `VStream` have one. `Instances.alternative(either())` does not compile, as [what the compiler checks](instances_facade.md#what-the-compiler-checks) explains.
 - **"This `orElse` is `Selective`'s."** [Selective](selective.md)'s `orElse` takes a list of `Choice` containers, and is a different method.
 ~~~
 

@@ -72,7 +72,7 @@ Each type's zero is what a failed test leaves:
 | `Optional` | `Optional.empty()` | Ends the chain at an empty `Optional` |
 | `Stream` | An empty stream | Drops that element, lazily |
 
-`Instances.monadZero(token)` gives the instance for `list()`, `maybe()`, `optional()` and `stream()`, and for any other token fails when it runs, as [what the compiler checks](instances_facade.md#what-the-compiler-checks) explains.
+`Instances.monadZero(token)` gives the instance for `list()`, `maybe()`, `optional()` and `stream()`, and for any other token does not compile, as [what the compiler checks](instances_facade.md#what-the-compiler-checks) explains.
 
 ## Guarding a `For` comprehension with `when` {#guarding-a-for-comprehension-with-when}
 
@@ -138,7 +138,7 @@ import org.higherkindedj.hkt.maybe.MaybeKind;
 - **"Filtering needs a `For` comprehension."** `filter(predicate, ma)` filters directly, as `bulk` does.
 - **"`when` works with any `Monad`."** Only a comprehension given a `MonadZero` has it.
 - **"A filtered `Maybe` keeps the value it failed on."** It gives `Nothing`, and the value is gone, as it is from `optional.filter`.
-- **"`Either` has a zero."** `Either` has no empty value to give, since a `Left` must hold an error. `Instances.monadZero(either())` compiles, and throws `ClassCastException` when it runs.
+- **"`Either` has a zero."** `Either` has no empty value to give, since a `Left` must hold an error. `Instances.monadZero(either())` does not compile.
 ~~~
 
 ---

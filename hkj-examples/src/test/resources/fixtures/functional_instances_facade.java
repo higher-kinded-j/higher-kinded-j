@@ -8,6 +8,7 @@
 // (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.instances.Witnesses.either;
+import static org.higherkindedj.hkt.instances.Witnesses.io;
 import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
@@ -23,6 +24,8 @@ import org.higherkindedj.hkt.MonadZero;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.Unit;
 import java.util.List;
 import org.higherkindedj.hkt.either.EitherKind;
@@ -30,6 +33,8 @@ import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.either_t.EitherTMonad;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.instances.Witnesses;
+import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.writer_t.WriterTKind;
 import org.higherkindedj.hkt.state_t.StateTKind;
 import org.higherkindedj.hkt.reader_t.ReaderTKind;

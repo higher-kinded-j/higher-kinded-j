@@ -275,7 +275,7 @@ Where this lives: [Should you use `recoverWith` or `handleErrorWith`?](#constant
 | `EitherT`, `MaybeT`, `OptionalT`, whose errors are `L`, `Unit` and `Unit` | `Instances.eitherT(outer)`, `Instances.maybeT(outer)` and `Instances.optionalT(outer)` |
 | `IO`, `List`, `Writer`, `State`, `Reader` and the other transformers | Nowhere: they have none |
 
-`Instances.monadError(token)` casts the token's `Monad`, and the compiler can check neither that cast nor `E`. [What the compiler checks](instances_facade.md#what-the-compiler-checks) says what fails, and when.
+`Instances.monadError(token)` takes `E` from the token's instance, and does not compile for a token whose instance has none, such as `io()`, as [what the compiler checks](instances_facade.md#what-the-compiler-checks) explains.
 
 ### The same names on a Path {#the-same-names-on-a-path}
 

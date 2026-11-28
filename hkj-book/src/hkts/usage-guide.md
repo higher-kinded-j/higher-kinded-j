@@ -83,9 +83,7 @@ The same method runs unchanged on an `Either`:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/foundations/workflow/WorkingWithKindBook.java:either}}
 ```
 
-~~~admonish warning title="The compiler does not check `E`"
-`Instances.monadError` takes `E` from the variable you assign it to, and nothing checks it against the instance. `MonadError<MaybeKind.Witness, String>` compiles, then throws `ClassCastException` when you raise a `String`. Declare the error type the instance has, `Unit` for `Maybe`, from the table in [Obtaining Instances](../functional/instances_facade.md#zero-argument-lookups).
-~~~
+Each variable declares the error type its instance has, `Unit` for `Maybe` and the left type for `Either`, because `Instances.monadError` takes `E` from the instance, as [what the compiler checks](../functional/instances_facade.md#what-the-compiler-checks) explains.
 
 ## Recover in code for any container {#recover-in-code-for-any-container}
 
@@ -106,9 +104,9 @@ You can now write one method over a type class and run it on any container that 
 ~~~
 
 ~~~admonish question title="Checkpoint: an error type the instance does not have" id="check-kind-error-type"
-This compiles. What happens when it runs?
+Does this compile? If not, what is the fix?
 
-<!-- verify -->
+<!-- verify:rejects "inference variable E has incompatible equality constraints" -->
 ```java
 MonadError<OptionalKind.Witness, String> me = Instances.monadError(optional());
 me.raiseError("out of stock");
@@ -116,7 +114,7 @@ me.raiseError("out of stock");
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-kind-error-type-answer"
-**`raiseError` throws `ClassCastException`.** `Instances.monadError` takes `E` from the variable, and nothing checks it against the instance: `Optional`'s error type is `Unit`, not `String`. Declare `MonadError<OptionalKind.Witness, Unit>`, and raise `Unit.INSTANCE`.
+**No: javac reports "inference variable E has incompatible equality constraints String,Unit".** `Instances.monadError` takes `E` from the instance, and `Optional`'s error type is `Unit`, not `String`. Declare `MonadError<OptionalKind.Witness, Unit>`, and raise `Unit.INSTANCE`.
 
 Where this lives: [Take it through the steps](#take-it-through-the-steps), with each type's error type in [Obtaining Instances](../functional/instances_facade.md#zero-argument-lookups).
 ~~~

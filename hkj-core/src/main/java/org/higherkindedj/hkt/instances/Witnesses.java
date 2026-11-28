@@ -43,10 +43,15 @@ import org.higherkindedj.hkt.vtask.VTaskMonad;
 /**
  * Typed witness tokens used as keys for the zero-argument lookups on {@link Instances}.
  *
- * <p>Each factory method returns an {@link Of} token that carries the canonical {@link Monad} for
- * the corresponding data type. Because the token is generic (rather than {@code Class}-keyed),
- * phantom-typed witnesses such as {@code Either}, {@code Reader}, {@code Context} and {@code State}
- * still infer their type parameter from the assignment target:
+ * <p>Each factory method returns an {@link Of} token that carries the canonical instance for the
+ * corresponding data type, and names that instance's class in its type: {@code maybe()} is an
+ * {@code Of<MaybeKind.Witness, MaybeMonad>}. The compiler therefore knows what each instance can
+ * do, so {@code Instances.monadZero(list())} compiles and {@code Instances.monadZero(either())}
+ * does not.
+ *
+ * <p>Because the token is generic (rather than {@code Class}-keyed), phantom-typed witnesses such
+ * as {@code Either}, {@code Reader}, {@code Context} and {@code State} still infer their type
+ * parameter from the assignment target:
  *
  * <pre>{@code
  * import static org.higherkindedj.hkt.instances.Witnesses.*;
@@ -57,9 +62,9 @@ import org.higherkindedj.hkt.vtask.VTaskMonad;
  * }</pre>
  *
  * <p>These tokens cover the stateless-singleton and phantom-typed-nullary families. The
- * argument-carrying instances ({@code validated}, {@code writer}, the monad transformers) are not
- * tokenised because they have a required dependency; they are exposed directly on {@link Instances}
- * with that dependency in the method signature.
+ * argument-carrying instances ({@code validated}, {@code eitherOrBoth}, {@code writer}, the monad
+ * transformers) are not tokenised because they have a required dependency; they are exposed
+ * directly on {@link Instances} with that dependency in the method signature.
  *
  * @see Instances
  */
@@ -68,53 +73,59 @@ public final class Witnesses {
   private Witnesses() {}
 
   /**
-   * A typed witness token carrying the canonical {@link Monad} for a unary type constructor.
+   * A typed witness token carrying the canonical instance for a unary type constructor.
    *
    * <p>Obtain instances via the factory methods on {@link Witnesses} (for example {@link
-   * Witnesses#maybe()}); this type is not meant to be constructed directly.
+   * Witnesses#maybe()}); this type is not meant to be constructed directly. To hold a token in a
+   * local variable, use {@code var}, which keeps the instance's class. A field, parameter or
+   * generic method names the capability its code asks for, as in {@code Of<F, ? extends
+   * MonadZero<F>>}, or writes {@code Of<F, ?>} where only {@code monad}, {@code applicative} and
+   * {@code functor} will read it. Either form survives a token's class changing to one with more
+   * capabilities, which naming the class would not.
    *
    * @param <F> the witness type of the unary type constructor
+   * @param <M> the class of the instance the token carries. {@link Instances#monadError}, {@link
+   *     Instances#monadZero} and {@link Instances#alternative} read the capability, and a {@code
+   *     MonadError}'s error type, from it
    */
-  public static final class Of<F extends WitnessArity<TypeArity.Unary>> {
+  public static final class Of<F extends WitnessArity<TypeArity.Unary>, M extends Monad<F>> {
 
-    private final Monad<F> monad;
+    private final M instance;
 
-    private Of(Monad<F> monad) {
-      this.monad = monad;
+    private Of(M instance) {
+      this.instance = instance;
     }
 
-    /**
-     * Returns the canonical monad this token carries. Package-private; used by {@link Instances}.
-     */
-    Monad<F> monad() {
-      return monad;
+    /** Returns the instance this token carries. Package-private; used by {@link Instances}. */
+    M instance() {
+      return instance;
     }
   }
 
   // --- Stateless singletons -------------------------------------------------
 
   /** Token for {@code Maybe} ({@link MaybeMonad#INSTANCE}). */
-  public static Of<MaybeKind.Witness> maybe() {
+  public static Of<MaybeKind.Witness, MaybeMonad> maybe() {
     return new Of<>(MaybeMonad.INSTANCE);
   }
 
   /** Token for {@code IO} ({@link IOMonad#INSTANCE}). */
-  public static Of<IOKind.Witness> io() {
+  public static Of<IOKind.Witness, IOMonad> io() {
     return new Of<>(IOMonad.INSTANCE);
   }
 
   /** Token for {@code List} ({@link ListMonad#INSTANCE}). */
-  public static Of<ListKind.Witness> list() {
+  public static Of<ListKind.Witness, ListMonad> list() {
     return new Of<>(ListMonad.INSTANCE);
   }
 
   /** Token for {@code NonEmptyList} ({@link NonEmptyListMonad#INSTANCE}). */
-  public static Of<NonEmptyListKind.Witness> nonEmptyList() {
+  public static Of<NonEmptyListKind.Witness, NonEmptyListMonad> nonEmptyList() {
     return new Of<>(NonEmptyListMonad.INSTANCE);
   }
 
   /** Token for {@code Optional} ({@link OptionalMonad#INSTANCE}). */
-  public static Of<OptionalKind.Witness> optional() {
+  public static Of<OptionalKind.Witness, OptionalMonad> optional() {
     return new Of<>(OptionalMonad.INSTANCE);
   }
 
@@ -123,44 +134,44 @@ public final class Witnesses {
    *
    * <p>Named {@code try_} because {@code try} is a Java reserved word.
    */
-  public static Of<TryKind.Witness> try_() {
+  public static Of<TryKind.Witness, TryMonad> try_() {
     return new Of<>(TryMonad.INSTANCE);
   }
 
   /** Token for {@code VTask} ({@link VTaskMonad#INSTANCE}). */
-  public static Of<VTaskKind.Witness> vtask() {
+  public static Of<VTaskKind.Witness, VTaskMonad> vtask() {
     return new Of<>(VTaskMonad.INSTANCE);
   }
 
   /** Token for {@code VStream} ({@link VStreamAlternative#INSTANCE}, also its monad). */
-  public static Of<VStreamKind.Witness> vstream() {
+  public static Of<VStreamKind.Witness, VStreamAlternative> vstream() {
     return new Of<>(VStreamAlternative.INSTANCE);
   }
 
   /** Token for {@code Lazy} ({@link LazyMonad#INSTANCE}). */
-  public static Of<LazyKind.Witness> lazy() {
+  public static Of<LazyKind.Witness, LazyMonad> lazy() {
     return new Of<>(LazyMonad.INSTANCE);
   }
 
   /** Token for {@code Stream} ({@link StreamMonad#INSTANCE}). */
-  public static Of<StreamKind.Witness> stream() {
+  public static Of<StreamKind.Witness, StreamMonad> stream() {
     return new Of<>(StreamMonad.INSTANCE);
   }
 
   /** Token for {@code CompletableFuture} ({@link CompletableFutureMonad#INSTANCE}). */
-  public static Of<CompletableFutureKind.Witness> completableFuture() {
+  public static Of<CompletableFutureKind.Witness, CompletableFutureMonad> completableFuture() {
     return new Of<>(CompletableFutureMonad.INSTANCE);
   }
 
   /** Token for {@code Trampoline} ({@link TrampolineMonad#INSTANCE}). */
-  public static Of<TrampolineKind.Witness> trampoline() {
+  public static Of<TrampolineKind.Witness, TrampolineMonad> trampoline() {
     return new Of<>(TrampolineMonad.INSTANCE);
   }
 
   // --- Phantom-typed nullary ------------------------------------------------
 
   /** Token for {@code Id} ({@link IdMonad#instance()}). */
-  public static Of<IdKind.Witness> id() {
+  public static Of<IdKind.Witness, IdMonad> id() {
     return new Of<>(IdMonad.instance());
   }
 
@@ -170,7 +181,7 @@ public final class Witnesses {
    *
    * @param <L> the fixed "left" type of the {@code Either}
    */
-  public static <L> Of<EitherKind.Witness<L>> either() {
+  public static <L> Of<EitherKind.Witness<L>, EitherMonad<L>> either() {
     return new Of<>(EitherMonad.<L>instance());
   }
 
@@ -180,7 +191,7 @@ public final class Witnesses {
    *
    * @param <R> the environment type of the {@code Reader}
    */
-  public static <R> Of<ReaderKind.Witness<R>> reader() {
+  public static <R> Of<ReaderKind.Witness<R>, ReaderMonad<R>> reader() {
     return new Of<>(ReaderMonad.<R>instance());
   }
 
@@ -190,7 +201,7 @@ public final class Witnesses {
    *
    * @param <R> the environment type of the {@code Context}
    */
-  public static <R> Of<ContextKind.Witness<R>> context() {
+  public static <R> Of<ContextKind.Witness<R>, ContextMonad<R>> context() {
     return new Of<>(ContextMonad.<R>instance());
   }
 
@@ -200,7 +211,7 @@ public final class Witnesses {
    *
    * @param <S> the state type of the {@code State} computation
    */
-  public static <S> Of<StateKind.Witness<S>> state() {
+  public static <S> Of<StateKind.Witness<S>, StateMonad<S>> state() {
     return new Of<>(StateMonad.<S>instance());
   }
 }

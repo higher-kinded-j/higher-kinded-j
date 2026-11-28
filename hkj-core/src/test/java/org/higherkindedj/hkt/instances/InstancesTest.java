@@ -3,10 +3,17 @@
 package org.higherkindedj.hkt.instances;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Functor;
@@ -24,7 +31,6 @@ import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherMonad;
 import org.higherkindedj.hkt.either_t.EitherTKind;
 import org.higherkindedj.hkt.id.IdMonad;
-import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.list.ListMonad;
 import org.higherkindedj.hkt.maybe.MaybeKind;
@@ -38,6 +44,8 @@ import org.higherkindedj.hkt.reader_t.ReaderTKind;
 import org.higherkindedj.hkt.state.StateKind;
 import org.higherkindedj.hkt.state.StateMonad;
 import org.higherkindedj.hkt.state_t.StateTKind;
+import org.higherkindedj.hkt.trymonad.TryKind;
+import org.higherkindedj.hkt.trymonad.TryMonad;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.hkt.vstream.VStreamAlternative;
@@ -131,13 +139,76 @@ class InstancesTest {
     }
 
     @Test
-    @DisplayName("monadError on a non-MonadError canonical instance fails fast")
-    void monadErrorIsNotTotal() {
-      // IO is a Monad but not a MonadError: asking for the wrong capability is a
-      // programming error and fails fast, exactly like calling a missing method.
-      assertThatThrownBy(
-              () -> Instances.<IOKind.Witness, Object>monadError(io()).raiseError(Unit.INSTANCE))
-          .isInstanceOf(ClassCastException.class);
+    @DisplayName("monadError takes its error type from the instance, with no target to read")
+    void monadErrorTypeComesFromTheInstance() {
+      var maybeErrors = Instances.monadError(maybe());
+      var tryErrors = Instances.monadError(try_());
+
+      // each assignment compiles only because E was inferred as the instance's own error type
+      MonadError<MaybeKind.Witness, Unit> unitErrors = maybeErrors;
+      MonadError<TryKind.Witness, Throwable> throwableErrors = tryErrors;
+
+      assertThat(unitErrors).isSameAs(MaybeMonad.INSTANCE);
+      assertThat(throwableErrors).isSameAs(TryMonad.INSTANCE);
+    }
+  }
+
+  @Nested
+  @DisplayName("Every token names its instance's class")
+  class TokenTypes {
+
+    /**
+     * The compiler checks monadError, monadZero and alternative against the class a token's type
+     * names, so that class must be the one the token carries: a token naming a superclass of its
+     * instance, as vstream() naming VStreamMonad would, refuses a lookup that works.
+     */
+    @Test
+    @DisplayName("each token's second type argument is the class of the instance it carries")
+    void secondTypeArgumentIsTheInstanceClass() throws ReflectiveOperationException {
+      List<Method> tokens =
+          Arrays.stream(Witnesses.class.getDeclaredMethods())
+              .filter(m -> Modifier.isPublic(m.getModifiers()))
+              .filter(m -> Modifier.isStatic(m.getModifiers()))
+              .toList();
+
+      assertThat(tokens).isNotEmpty();
+      for (Method token : tokens) {
+        ParameterizedType of = (ParameterizedType) token.getGenericReturnType();
+        Type named = of.getActualTypeArguments()[1];
+        Class<?> namedClass =
+            named instanceof ParameterizedType p ? (Class<?>) p.getRawType() : (Class<?>) named;
+        Witnesses.Of<?, ?> value = (Witnesses.Of<?, ?>) token.invoke(null);
+
+        assertThat(Instances.monad(value).getClass())
+            .as("the class %s() names", token.getName())
+            .isEqualTo(namedClass);
+      }
+    }
+
+    /**
+     * With the token's instance class, this bound is what makes a lookup for a capability the
+     * instance lacks a compile error rather than a cast that fails at run time.
+     */
+    @Test
+    @DisplayName(
+        "monadError, monadZero and alternative bound the token's instance by the capability")
+    void richerLookupsBoundTheInstance() throws NoSuchMethodException {
+      Map<String, Class<?>> capabilities =
+          Map.of(
+              "monadError", MonadError.class,
+              "monadZero", MonadZero.class,
+              "alternative", Alternative.class);
+
+      for (Map.Entry<String, Class<?>> lookup : capabilities.entrySet()) {
+        Method method = Instances.class.getMethod(lookup.getKey(), Witnesses.Of.class);
+        ParameterizedType token = (ParameterizedType) method.getGenericParameterTypes()[0];
+        Type instance = token.getActualTypeArguments()[1];
+        Type bound = instance instanceof WildcardType w ? w.getUpperBounds()[0] : instance;
+
+        assertThat(bound instanceof ParameterizedType p ? p.getRawType() : bound)
+            .as("the bound %s puts on the token's instance", lookup.getKey())
+            .isEqualTo(lookup.getValue());
+      }
     }
   }
 

@@ -36,7 +36,7 @@ public class IdMonad implements Monad<IdKind.Witness> {
 
   private static final IdMonad INSTANCE = new IdMonad();
 
-  /** Private constructor to enforce singleton pattern. */
+  /** Protected for {@link IdSelective}, which extends this class; use {@link #instance()}. */
   protected IdMonad() {}
 
   /**

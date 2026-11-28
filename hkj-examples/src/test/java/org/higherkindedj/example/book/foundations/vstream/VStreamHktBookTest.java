@@ -119,13 +119,11 @@ class VStreamHktBookTest {
     }
 
     @Test
-    @DisplayName("there is no MonadZero or Selective, so monadZero(vstream()) throws")
+    @DisplayName("VStream's instance is no MonadZero and no Selective")
     void noMonadZeroOrSelective() {
       assertThat(Instances.monad(vstream()))
           .isNotInstanceOf(MonadZero.class)
           .isNotInstanceOf(Selective.class);
-      assertThatThrownBy(() -> Instances.monadZero(vstream()))
-          .isInstanceOf(ClassCastException.class);
     }
   }
 

@@ -61,7 +61,7 @@ public class OptionalMonad extends OptionalFunctor
   /** Singleton instance of {@code OptionalMonad}. */
   public static final OptionalMonad INSTANCE = new OptionalMonad();
 
-  /** Private constructor to enforce the singleton pattern. */
+  /** Protected for {@link OptionalSelective}, which extends this class; use {@link #INSTANCE}. */
   protected OptionalMonad() {
     // Default constructor
   }
