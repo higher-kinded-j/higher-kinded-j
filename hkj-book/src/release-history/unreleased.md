@@ -42,6 +42,7 @@ Copies, guards and `JsonNullable` reads keep what a `@Nullable` component declar
 
 ~~~admonish info title="At a glance"
 - **javac checks what each step of a Path chain returns.** A step of another kind of Path, or one that fails with an error the chain does not carry, is a compile error in the IDE as well as the build.
+- **javac checks each capability `Instances` looks up.** `Instances.monadZero(either())`, which threw `ClassCastException` when it ran, is a compile error, as is a `MonadError` declared with an error type its instance does not have.
 - **`@ImportOptics` pairs a JavaBeans-spelt wither with its getter**: a `witheMail` beside `geteMail()` gives an `eMail()` lens.
 - **A `@GenerateFocus` message that offers a navigator asks first for the renames it needs.** Following its fix line no longer leads into another note or error.
 - **A `@GenerateMapping` bean refusal's fix line compiles once followed**, and names the near miss it passed over, such as `setx(int)` beside `Integer getX()`.
