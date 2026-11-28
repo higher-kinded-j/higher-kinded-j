@@ -267,9 +267,7 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
             algebraPackage,
             EffectAlgebraProcessor.crossings(
                 algebra,
-                algebra.getPermittedSubclasses().stream()
-                    .map(subtype -> (TypeElement) processingEnv.getTypeUtils().asElement(subtype))
-                    .toList()));
+                EffectAlgebraProcessor.operationsOf(processingEnv.getTypeUtils(), algebra)));
     if (hidden.isPresent()) {
       error(
           "@ComposeEffects field '"
@@ -326,10 +324,11 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
 
   /**
    * Whether a component names something javac could not resolve: its type, the algebra it names as
-   * {@code Class<XOp<?>>}, or a value that algebra's {@code EffectAlgebra} sets, whose
-   * targetPackage names the types the support class composes. Another processor may write any of
-   * them. A type javac hides though a round has brought it (see {@link WaitingEffects#stale}) is
-   * not waited for: the component is checked as naming it, and a hidden algebra is refused.
+   * {@code Class<XOp<?>>}, a value that algebra's {@code EffectAlgebra} sets, whose targetPackage
+   * names the types the support class composes, or a type one of that algebra's operations holds,
+   * for which the algebra's own support classes wait. Another processor may write any of them. A
+   * type javac hides though a round has brought it (see {@link WaitingEffects#stale}) is not waited
+   * for: the component is checked as naming it, and a hidden algebra is refused.
    */
   private boolean unresolved(RecordComponentElement component) {
     TypeMirror type = component.asType();
@@ -343,8 +342,20 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
                 argument ->
                     compositions.waitsFor(argument)
                         || (argument.getKind() == TypeKind.DECLARED
-                            && WaitingEffects.unresolved(
-                                ((DeclaredType) argument).asElement(), EffectAlgebra.class)));
+                            && algebraWaits((TypeElement) ((DeclaredType) argument).asElement())));
+  }
+
+  /**
+   * Whether an algebra a component names waits for a later round: for a value its {@code
+   * EffectAlgebra} sets, or a type one of its operations holds. The support class names the Kind
+   * and Ops its processor generates once neither does.
+   */
+  private boolean algebraWaits(TypeElement algebra) {
+    return WaitingEffects.unresolved(algebra, EffectAlgebra.class)
+        || EffectAlgebraProcessor.componentsWait(
+            processingEnv.getElementUtils(),
+            compositions,
+            EffectAlgebraProcessor.operationsOf(processingEnv.getTypeUtils(), algebra));
   }
 
   private void processComposeEffects(RoundEnvironment roundEnv) {

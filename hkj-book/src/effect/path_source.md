@@ -430,9 +430,9 @@ record Traced<A>(A value, List<String> log) implements TracedKind<A> {}
 
 ### A witness another processor writes {#a-witness-another-processor-writes}
 
-The witness may be a type another annotation processor generates in the same build. javac runs
-the processors again over each batch of generated sources, a round at a time, so `@PathSource`
-waits, and writes the Path in the round after the witness appears. A witness that never appears is
+The witness may be a type another annotation processor generates in the same build, and so may one
+of its supertypes. javac runs the processors again over each batch of generated sources, a round at
+a time, so `@PathSource` waits, and writes the Path in the round after that type appears. A witness that never appears is
 left for javac to report: `cannot find symbol`, or `package TracedKind does not exist` for a
 `Witness` nested in a `Kind` interface that was never generated. The other effect annotations wait
 in the same way, as [Effect annotations naming what other processors generate](../tooling/manual_setup.md#effect-annotations-naming-what-other-processors-generate)

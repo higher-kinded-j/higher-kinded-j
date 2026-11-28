@@ -655,6 +655,277 @@ class ClassFileReprocessingTest {
   }
 
   @Nested
+  @DisplayName(
+      "Effect annotations over a library whose class files name a type the classpath lacks")
+  class EffectLibraries {
+
+    /** A type-use annotation of a dependency the consumer's classpath lacks. */
+    private static final JavaFileObject NUL =
+        JavaFileObjects.forSourceString(
+            "dep.Nul",
+            """
+            package dep;
+
+            import java.lang.annotation.ElementType;
+            import java.lang.annotation.Target;
+
+            @Target(ElementType.TYPE_USE)
+            public @interface Nul {}
+            """);
+
+    private static JavaFileObject source(String qualifiedName, String text) {
+      return JavaFileObjects.forSourceString(qualifiedName, text);
+    }
+
+    /** The consumer's {@code app.Api}, bridging a library interface it extends. */
+    private static JavaFileObject api(String extended) {
+      return source(
+          "app.Api",
+          """
+          package app;
+
+          import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+
+          @GeneratePathBridge
+          public interface Api extends %s {}
+          """
+              .formatted(extended));
+    }
+
+    /** The consumer's {@code app.Box}, a Path over the library's witness. */
+    private static final JavaFileObject BOX =
+        source(
+            "app.Box",
+            """
+            package app;
+
+            import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+            @PathSource(witness = lib.BoxKind.Witness.class)
+            public interface Box<A> {}
+            """);
+
+    /** A library witness of {@code arity}, implementing {@code implemented} beside it. */
+    private static JavaFileObject boxKind(String arity, String implemented) {
+      return source(
+          "lib.BoxKind",
+          """
+          package lib;
+
+          import org.higherkindedj.hkt.Kind;
+          import org.higherkindedj.hkt.TypeArity;
+          import org.higherkindedj.hkt.WitnessArity;
+
+          public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
+            final class Witness implements WitnessArity<TypeArity.%s>, %s {}
+          }
+          """
+              .formatted(arity, implemented));
+    }
+
+    /** A library effect algebra whose one operation holds {@code component}. */
+    private static JavaFileObject algebra(String name, String component) {
+      return source(
+          "lib." + name,
+          """
+          package lib;
+
+          import java.util.function.Function;
+          import org.higherkindedj.hkt.Unit;
+          import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+
+          @EffectAlgebra
+          public sealed interface %1$s<A> permits %1$s.Only {
+            <B> %1$s<B> mapK(Function<? super A, ? extends B> f);
+
+            record Only<A>(%2$s, Function<Unit, A> k) implements %1$s<A> {
+              @Override
+              public <B> %1$s<B> mapK(Function<? super A, ? extends B> f) {
+                return new Only<>(text, k.andThen(f));
+              }
+            }
+          }
+          """
+              .formatted(name, component));
+    }
+
+    static Stream<Arguments> libraries() {
+      return Stream.of(
+          arguments(
+              "an inherited @PathVia method's parameter annotation",
+              "dep.Nul",
+              List.of(
+                  NUL,
+                  source(
+                      "lib.UserApi",
+                      """
+                      package lib;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      public interface UserApi {
+                        @PathVia
+                        Optional<String> findById(@dep.Nul Long id);
+                      }
+                      """)),
+              List.of(api("lib.UserApi")),
+              "app.ApiPaths"),
+          arguments(
+              "a type argument of a supertype's clause",
+              "dep.Nul",
+              List.of(
+                  NUL,
+                  source(
+                      "lib.Named",
+                      """
+                      package lib;
+
+                      import java.util.Optional;
+                      import java.util.function.Supplier;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      public interface Named extends Supplier<@dep.Nul String> {
+                        @PathVia
+                        Optional<String> findByName(String name);
+                      }
+                      """)),
+              List.of(api("lib.Named")),
+              "app.ApiPaths"),
+          arguments(
+              "an operation's component annotation, in an algebra a composition names",
+              "dep.Nul",
+              List.of(
+                  NUL, algebra("LogOp", "@dep.Nul String text"), algebra("DbOp", "String text")),
+              List.of(
+                  source(
+                      "app.AppEffects",
+                      """
+                      package app;
+
+                      import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
+
+                      @ComposeEffects
+                      public record AppEffects(Class<lib.LogOp<?>> log, Class<lib.DbOp<?>> db) {}
+                      """)),
+              "app.AppEffectsSupport"),
+          arguments(
+              "a type argument of a @PathSource witness's supertype",
+              "dep.Nul",
+              List.of(
+                  NUL,
+                  source("lib.Tagged", "package lib;\n\npublic interface Tagged<T> {}\n"),
+                  boxKind("Unary", "Tagged<@dep.Nul String>")),
+              List.of(BOX),
+              "app.BoxPath"),
+          arguments(
+              "a @PathSource witness's supertype",
+              "dep.Marker",
+              List.of(
+                  source("dep.Marker", "package dep;\n\npublic interface Marker {}\n"),
+                  boxKind("Unary", "dep.Marker")),
+              List.of(BOX),
+              "app.BoxPath"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("libraries")
+    @DisplayName(
+        "a type a library's class file names that the classpath lacks is not waited for, and the"
+            + " class is generated as where the classpath has it")
+    void aMissingTypeALibraryNamesIsNotWaitedFor(
+        String shape,
+        String missing,
+        List<JavaFileObject> library,
+        List<JavaFileObject> app,
+        String generated)
+        throws IOException {
+      // A dependency declared compile-only, such as an annotation library, is missing from the
+      // consumer's classpath, and no round of its compilation brings what the library names.
+      Compilation lib =
+          javac()
+              .withProcessors(GeneratorTestHelper.registeredProcessors().toList())
+              .compile(library);
+      CompilationSubject.assertThat(lib).succeeded();
+      // Deleting a class file that is not there throws, so the missing class was compiled first.
+      Path classes = GeneratorTestHelper.classDirectoryWithout(lib, tmp.resolve("lib"), missing);
+      Compilation compilation =
+          javac()
+              .withClasspath(GeneratorTestHelper.classpathWith(classes))
+              .withProcessors(GeneratorTestHelper.registeredProcessors().toList())
+              .compile(app);
+
+      CompilationSubject.assertThat(compilation).succeeded();
+      CompilationSubject.assertThat(compilation).generatedSourceFile(generated);
+    }
+
+    @Test
+    @DisplayName(
+        "a library witness of another arity, with a supertype the classpath lacks, is refused as"
+            + " where the classpath has it")
+    void aWitnessOfAnotherArityIsRefused() throws IOException {
+      // The supertype it lacks cannot be the one giving the witness one type parameter, as the
+      // arity it implements can be given only once.
+      Compilation lib =
+          javac()
+              .compile(
+                  source("dep.Marker", "package dep;\n\npublic interface Marker {}\n"),
+                  boxKind("Binary", "dep.Marker"));
+      Path classes =
+          GeneratorTestHelper.classDirectoryWithout(lib, tmp.resolve("lib"), "dep.Marker");
+      Compilation compilation =
+          javac()
+              .withClasspath(GeneratorTestHelper.classpathWith(classes))
+              .withProcessors(GeneratorTestHelper.registeredProcessors().toList())
+              .compile(BOX);
+
+      CompilationSubject.assertThat(compilation)
+          .hadErrorContaining("is not a witness of one type parameter")
+          .inFile(BOX);
+    }
+
+    @Test
+    @DisplayName(
+        "an inherited @PathVia method naming a class the classpath lacks is bridged, and javac"
+            + " reports the class")
+    void anInheritedMethodNamingAMissingClassIsBridged() throws IOException {
+      Compilation lib =
+          javac()
+              .compile(
+                  source("dep.Missing", "package dep;\n\npublic final class Missing {}\n"),
+                  source(
+                      "lib.UserApi",
+                      """
+                      package lib;
+
+                      import java.util.Optional;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      public interface UserApi {
+                        @PathVia
+                        Optional<dep.Missing> findMissing(Long id);
+                      }
+                      """));
+      Path classes =
+          GeneratorTestHelper.classDirectoryWithout(lib, tmp.resolve("lib"), "dep.Missing");
+      Compilation compilation =
+          javac()
+              .withClasspath(GeneratorTestHelper.classpathWith(classes))
+              .withProcessors(GeneratorTestHelper.registeredProcessors().toList())
+              .compile(api("lib.UserApi"));
+
+      // The bridge names it as the class file does, so javac reports it there, not nothing.
+      CompilationSubject.assertThat(compilation).failed();
+      assertThat(compilation.errors())
+          .anySatisfy(
+              error -> {
+                assertThat(error.getSource().getName()).endsWith("/app/ApiPaths.java");
+                assertThat(error.getMessage(null)).contains("package dep does not exist");
+              });
+    }
+  }
+
+  @Nested
   @DisplayName("Effect annotation values")
   class EffectValues {
 
@@ -964,6 +1235,18 @@ class ClassFileReprocessingTest {
             public record AppEffects(Class<LaterOp<?>> later, Class<ConsoleOp<?>> console) {}
             """);
 
+    /** A type-use annotation, for another processor to write. */
+    private static final String TAG =
+        """
+        package com.example.gen;
+
+        import java.lang.annotation.ElementType;
+        import java.lang.annotation.Target;
+
+        @Target(ElementType.TYPE_USE)
+        public @interface Tag {}
+        """;
+
     /** The effect algebra ConsoleOp, carrying {@code annotation} beside its own. */
     private static JavaFileObject consoleOp(String annotation) {
       return JavaFileObjects.forSourceString(
@@ -1002,6 +1285,26 @@ class ClassFileReprocessingTest {
 
     private static Supplier<List<Processor>> writingLaterOp(String... builds) {
       return writing("com.example.LaterOp", builds);
+    }
+
+    /** A source in {@code com.example}, declaring {@code body} after the effect imports. */
+    private static JavaFileObject example(String simpleName, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + simpleName,
+          """
+          package com.example;
+
+          import java.util.Optional;
+          import java.util.function.Function;
+          import org.higherkindedj.hkt.Kind;
+          import org.higherkindedj.hkt.Unit;
+          import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+          import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+          import org.higherkindedj.hkt.effect.annotation.PathSource;
+          import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+          """
+              + body);
     }
 
     static Stream<Arguments> pathSources() {
@@ -1193,6 +1496,296 @@ class ClassFileReprocessingTest {
           .hasEntrySatisfying(
               "com/example/BoxPath.java", path -> assertThat(path).contains("recoverWith("));
       assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName(
+        "a bridged interface extending a type another processor writes, which a class file names,"
+            + " is refused with why, where the clean build bridges that type's methods")
+    void aBridgeOverAWrittenSupertypeIsRefused() throws IOException {
+      List<JavaFileObject> sources =
+          List.of(
+              example(
+                  "UserService",
+                  """
+                  @GeneratePathBridge
+                  public interface UserService extends Lookups {
+                    @PathVia
+                    Optional<String> findByName(String name);
+                  }
+                  """));
+      String lookups =
+          """
+          package com.example;
+
+          import java.util.Optional;
+          import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+          public interface Lookups {
+            @PathVia
+            Optional<String> findById(Long id);
+          }
+          """;
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, List.of(), writing("com.example.Lookups", lookups));
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(),
+              writing("com.example.Lookups", lookups, lookups));
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated())
+          .hasEntrySatisfying(
+              "com/example/UserServicePaths.java",
+              bridge -> assertThat(bridge).contains("findById(", "findByName("));
+      // Hidden, Lookups shows no methods, and a bridge written without them would compile, short
+      // of what the clean build bridges.
+      assertThat(fromClassFiles.diagnostics())
+          .containsExactly(
+              "ERROR: @GeneratePathBridge: the bridge for 'com.example.UserService' cannot be"
+                  + " generated in this compilation. javac shows annotation processors none of the"
+                  + " methods of its supertype 'com.example.Lookups'. A class file this"
+                  + " compilation read, such as one Gradle did not recompile, names it, and another"
+                  + " processor writes it. javac looked the name up as the file was written, found"
+                  + " nothing, and keeps that answer for every processor until the compilation"
+                  + " ends. Build from clean, which compiles every type from source; each"
+                  + " incremental build after a change refuses the bridge again. To build"
+                  + " incrementally, declare 'Lookups' in source rather than have a processor"
+                  + " write it.");
+      assertThat(fromClassFiles.generated()).doesNotContainKey("com/example/UserServicePaths.java");
+    }
+
+    static Stream<Arguments> writtenTypesNamedInFull() {
+      return Stream.of(
+          arguments(
+              "a bridged signature, with a targetPackage",
+              "com.example.UserDto",
+              """
+              package com.example;
+
+              public record UserDto(String name) {}
+              """,
+              List.of(
+                  example(
+                      "UserService",
+                      """
+                      @GeneratePathBridge(targetPackage = "com.example.paths")
+                      public interface UserService {
+                        @PathVia
+                        Optional<UserDto> findById(Long id);
+                      }
+                      """)),
+              "com/example/paths/UserServicePaths.java"),
+          arguments(
+              "an operation's component, from another package",
+              "com.example.gen.Msg",
+              """
+              package com.example.gen;
+
+              public record Msg(String text) {}
+              """,
+              List.of(
+                  example(
+                      "ConsoleOp",
+                      """
+                      @EffectAlgebra
+                      public sealed interface ConsoleOp<A> permits ConsoleOp.Only {
+                        <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f);
+
+                        record Only<A>(com.example.gen.Msg msg, Function<Unit, A> k)
+                            implements ConsoleOp<A> {
+                          @Override
+                          public <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f) {
+                            return new Only<>(msg, k.andThen(f));
+                          }
+                        }
+                      }
+                      """)),
+              "com/example/ConsoleOpOps.java"),
+          arguments(
+              "a supertype of a @PathSource witness",
+              "com.example.UnaryWitness",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.TypeArity;
+              import org.higherkindedj.hkt.WitnessArity;
+
+              public interface UnaryWitness extends WitnessArity<TypeArity.Unary> {}
+              """,
+              List.of(
+                  example(
+                      "BoxKind",
+                      """
+                      public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
+                        final class Witness implements UnaryWitness {}
+                      }
+                      """),
+                  example(
+                      "Box",
+                      """
+                      @PathSource(witness = BoxKind.Witness.class)
+                      public interface Box<A> {}
+                      """)),
+              "com/example/BoxPath.java"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("writtenTypesNamedInFull")
+    @DisplayName(
+        "a type another processor writes, which a class file names, is named in full, and"
+            + " generates what a clean build does")
+    void aWrittenTypeAClassFileNamesGeneratesAsCleanBuildDoes(
+        String shape,
+        String qualifiedName,
+        String text,
+        List<JavaFileObject> sources,
+        String generated)
+        throws IOException {
+      // -parameters, as a class file keeps no parameter names without it.
+      List<String> options = List.of("-parameters");
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, options, writing(qualifiedName, text));
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(),
+              options,
+              writing(qualifiedName, text, text));
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated()).containsKey(generated);
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    @Test
+    @DisplayName(
+        "a bridged interface recompiled from source, naming a type another class file hides, waits"
+            + " for the round that brings it, then generates what a clean build does")
+    void aRecompiledBridgeNamingAHiddenType() throws IOException {
+      // OtherService's class file names UserDto, so javac hides it; UserService, recompiled, names
+      // it too, and waits only until a round has brought it.
+      JavaFileObject userService =
+          example(
+              "UserService",
+              """
+              @GeneratePathBridge
+              public interface UserService {
+                @PathVia
+                Optional<UserDto> findById(Long id);
+              }
+              """);
+      List<JavaFileObject> sources =
+          List.of(
+              userService,
+              example(
+                  "OtherService",
+                  """
+                  @GeneratePathBridge
+                  public interface OtherService {
+                    @PathVia
+                    Optional<UserDto> findOther(Long id);
+                  }
+                  """));
+      String userDto =
+          """
+          package com.example;
+
+          public record UserDto(String name) {}
+          """;
+      List<String> options = List.of("-parameters");
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, options, writing("com.example.UserDto", userDto));
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(userService),
+              options,
+              writing("com.example.UserDto", userDto, userDto));
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated())
+          .containsKeys("com/example/UserServicePaths.java", "com/example/OtherServicePaths.java");
+      assertThat(fromClassFiles).isEqualTo(fromSource);
+    }
+
+    static Stream<Arguments> writtenAnnotations() {
+      return Stream.of(
+          arguments(
+              "a bridged signature",
+              example(
+                  "UserService",
+                  """
+                  @GeneratePathBridge
+                  public interface UserService {
+                    @PathVia
+                    Optional<@com.example.gen.Tag String> findById(Long id);
+                  }
+                  """),
+              "com/example/UserServicePaths.java",
+              "OptionalPath<@Tag String>"),
+          arguments(
+              "an operation's component",
+              example(
+                  "ConsoleOp",
+                  """
+                  @EffectAlgebra
+                  public sealed interface ConsoleOp<A> permits ConsoleOp.Only {
+                    <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f);
+
+                    record Only<A>(@com.example.gen.Tag String text, Function<Unit, A> k)
+                        implements ConsoleOp<A> {
+                      @Override
+                      public <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f) {
+                        return new Only<>(text, k.andThen(f));
+                      }
+                    }
+                  }
+                  """),
+              "com/example/ConsoleOpOps.java",
+              "@Tag String text"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("writtenAnnotations")
+    @DisplayName(
+        "a type-use annotation another processor writes, which a class file names, is left off, as"
+            + " an optic leaves it off")
+    void aWrittenAnnotationAClassFileNamesIsLeftOff(
+        String shape, JavaFileObject source, String generated, String annotated)
+        throws IOException {
+      // javac never resolves Tag in the second build, so the generated code cannot write it, and
+      // the next clean build writes it again.
+      List<JavaFileObject> sources = List.of(source);
+      List<String> options = List.of("-parameters");
+      Run fromSource =
+          Reprocessing.fromSource(
+              tmp.resolve("source"), sources, options, writing("com.example.gen.Tag", TAG));
+      Run fromClassFiles =
+          Reprocessing.fromClassNames(
+              tmp.resolve("class-files"),
+              sources,
+              List.of(),
+              options,
+              writing("com.example.gen.Tag", TAG, TAG));
+
+      assertThat(fromSource.diagnostics()).isEmpty();
+      assertThat(fromSource.generated())
+          .hasEntrySatisfying(generated, file -> assertThat(file).contains(annotated));
+      assertThat(fromClassFiles.succeeded()).isTrue();
+      assertThat(fromClassFiles.diagnostics()).isEmpty();
+      assertThat(fromClassFiles.generated())
+          .hasEntrySatisfying(
+              generated,
+              file ->
+                  assertThat(file).contains(annotated.replace("@Tag ", "")).doesNotContain("@Tag"));
     }
 
     @Test
