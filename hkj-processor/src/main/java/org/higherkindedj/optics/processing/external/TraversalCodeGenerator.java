@@ -16,7 +16,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKi
  * <ul>
  *   <li>{@code @TraverseWith} - uses an explicit traversal reference
  *   <li>{@code @ThroughField} - composes a lens to a field with a traversal for the field's
- *       container type
+ *       container type, stepping past a null first where the field is declared nullable
  * </ul>
  */
 public class TraversalCodeGenerator {
@@ -35,6 +35,9 @@ public class TraversalCodeGenerator {
       "org.higherkindedj.optics.util.Traversals.forArray()";
   private static final String MAP_VALUES_TRAVERSAL =
       "org.higherkindedj.optics.util.Traversals.forMapValues()";
+
+  private static final ClassName AFFINES =
+      ClassName.get("org.higherkindedj.optics.util", "Affines");
 
   /**
    * Generates the traversal code block.
@@ -120,11 +123,26 @@ public class TraversalCodeGenerator {
     // Raw: this composition hands the processor something it cannot type-check. The checked
     // composition never reaches here; generateTraversalReturnStatement emits its body.
     return CodeBlock.of(
-        "$L.$L().andThen(($T) $L)",
+        "$L.$L()$L.andThen(($T) $L)",
         specClassName,
         fieldName,
+        pastNull(info),
         ClassName.get("org.higherkindedj.optics", "Traversal"),
         traversal);
+  }
+
+  /**
+   * The step a composition takes past a null field before the container's traversal, or nothing for
+   * a field that is not declared nullable. A null container then has no elements, as it has for a
+   * record's traversal, where the container's traversal would throw on it.
+   *
+   * @param info the @ThroughField annotation values
+   * @return the step, or an empty block
+   */
+  private static CodeBlock pastNull(TraversalHintInfo info) {
+    return info.nullableField()
+        ? CodeBlock.of(".andThen($T.nullable())", AFFINES)
+        : CodeBlock.of("");
   }
 
   /**
@@ -150,7 +168,7 @@ public class TraversalCodeGenerator {
     if (hintKind == TraversalHintKind.THROUGH_FIELD && lensReturnType != null) {
       return CodeBlock.builder()
           .addStatement("$T lens = $L.$L()", lensReturnType, specClassName, info.fieldName())
-          .addStatement("return lens.andThen($L)", info.fieldTraversal())
+          .addStatement("return lens$L.andThen($L)", pastNull(info), info.fieldTraversal())
           .build();
     }
 

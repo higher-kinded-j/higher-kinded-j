@@ -11,8 +11,8 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -22,6 +22,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import org.higherkindedj.optics.processing.NullableAnnotations;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
@@ -1277,6 +1278,7 @@ public class SpecInterfaceAnalyser {
       String fieldName = ProcessorUtils.getAnnotationString(throughField, "field", "");
       String traversal = ProcessorUtils.getAnnotationString(throughField, "traversal", "");
 
+      TraversalHintInfo info;
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
         Optional<AutoDetectedTraversal> autoDetected =
@@ -1285,23 +1287,23 @@ public class SpecInterfaceAnalyser {
           // Error already reported in autoDetectTraversalForField
           return Optional.empty();
         }
-        return Optional.of(
-            new TraversalHintResult(
-                TraversalHintKind.THROUGH_FIELD,
-                autoDetected.get().checkedComposition()
-                    ? TraversalHintInfo.forCheckedThroughField(
-                        fieldName,
-                        autoDetected.get().reference(),
-                        autoDetected.get().lens().type(),
-                        autoDetected.get().lens().declared())
-                    : TraversalHintInfo.forThroughField(
-                        fieldName, autoDetected.get().reference())));
+        info =
+            autoDetected.get().checkedComposition()
+                ? TraversalHintInfo.forCheckedThroughField(
+                    fieldName,
+                    autoDetected.get().reference(),
+                    autoDetected.get().lens().type(),
+                    autoDetected.get().lens().declared())
+                : TraversalHintInfo.forThroughField(fieldName, autoDetected.get().reference());
+      } else {
+        info = TraversalHintInfo.forThroughField(fieldName, traversal);
       }
-
       return Optional.of(
           new TraversalHintResult(
               TraversalHintKind.THROUGH_FIELD,
-              TraversalHintInfo.forThroughField(fieldName, traversal)));
+              nullableField(sourceType, fieldName, specInterface)
+                  ? info.withNullableField()
+                  : info));
     }
 
     error(
@@ -1663,13 +1665,39 @@ public class SpecInterfaceAnalyser {
     // holds a spec back until its source type resolves, which leaves DECLARED alone. That is what
     // makes the cast total, the same reasoning parseCopyStrategy's spells out.
     DeclaredType declaredSource = (DeclaredType) sourceType;
+    Element member = findFieldMember(declaredSource, fieldName);
+    if (member == null) {
+      return null;
+    }
+    return switch (member.getKind()) {
+      case RECORD_COMPONENT ->
+          ProcessorUtils.memberTypeOf(
+              typeUtils, declaredSource, ((RecordComponentElement) member).getAccessor());
+      case METHOD ->
+          ProcessorUtils.memberTypeOf(typeUtils, declaredSource, (ExecutableElement) member);
+      default ->
+          ProcessorUtils.carriesInstantiation(declaredSource)
+              ? typeUtils.asMemberOf(declaredSource, member)
+              : member.asType();
+    };
+  }
+
+  /**
+   * The member a named field is read through on the source type: a record component, an accessor
+   * under any of its spellings, or a public field, looked for in that order.
+   *
+   * @param declaredSource the source type to search
+   * @param fieldName the field name to find
+   * @return the member, or null if not found
+   */
+  private Element findFieldMember(DeclaredType declaredSource, String fieldName) {
     TypeElement typeElement = (TypeElement) declaredSource.asElement();
 
     // For records, check record components first
     if (typeElement.getKind() == ElementKind.RECORD) {
       for (var component : typeElement.getRecordComponents()) {
         if (component.getSimpleName().contentEquals(fieldName)) {
-          return ProcessorUtils.memberTypeOf(typeUtils, declaredSource, component.getAccessor());
+          return component;
         }
       }
     }
@@ -1689,24 +1717,48 @@ public class SpecInterfaceAnalyser {
           && method.getParameters().isEmpty()
           && method.getModifiers().contains(Modifier.PUBLIC)
           && !method.getModifiers().contains(Modifier.STATIC)) {
-        return ProcessorUtils.memberTypeOf(typeUtils, declaredSource, method);
+        return method;
       }
     }
 
     // Look for public field directly
     for (var enclosed : typeElement.getEnclosedElements()) {
-      if (enclosed.getKind() == ElementKind.FIELD) {
-        VariableElement field = (VariableElement) enclosed;
-        if (field.getSimpleName().contentEquals(fieldName)
-            && field.getModifiers().contains(Modifier.PUBLIC)) {
-          return ProcessorUtils.carriesInstantiation(declaredSource)
-              ? typeUtils.asMemberOf(declaredSource, field)
-              : field.asType();
-        }
+      if (enclosed.getKind() == ElementKind.FIELD
+          && enclosed.getSimpleName().contentEquals(fieldName)
+          && enclosed.getModifiers().contains(Modifier.PUBLIC)) {
+        return enclosed;
       }
     }
 
     return null;
+  }
+
+  /**
+   * Whether the field a {@code @ThroughField} traversal composes through may hold null: the spec's
+   * lens for it declares a nullable focus, or the member that lens reads on the source is declared
+   * nullable, each with a recognised {@code @Nullable}. The lens decides what the composition is
+   * typed against, and the member decides what it hands over, so either one is enough. The
+   * composition then steps past a null before the container's traversal, so a null container has no
+   * elements, as it has for a record's traversal.
+   *
+   * @param sourceType the instantiated source type
+   * @param fieldName the field the traversal composes through
+   * @param specInterface the spec interface, whose lens for the field the traversal composes with
+   * @return whether the field is declared nullable
+   */
+  private boolean nullableField(
+      TypeMirror sourceType, String fieldName, TypeElement specInterface) {
+    LensMember lens = declaredLens(specInterface, fieldName);
+    // A lens with both its type arguments names its focus second; a missing or raw one says
+    // nothing, and the member alone decides.
+    boolean lensNullable =
+        lens != null
+            && lens.type().getTypeArguments().size() == 2
+            && NullableAnnotations.isNullable(
+                ((DeclaredType) lens.declared()).getTypeArguments().get(1));
+    Element member = findFieldMember((DeclaredType) sourceType, fieldName);
+    return lensNullable
+        || (member != null && NullableAnnotations.memberHasNullableAnnotation(member));
   }
 
   private void error(String msg, Element element) {

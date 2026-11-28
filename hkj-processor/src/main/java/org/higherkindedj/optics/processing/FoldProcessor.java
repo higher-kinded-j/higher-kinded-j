@@ -177,6 +177,14 @@ public class FoldProcessor extends AbstractProcessor {
                     WildcardTypeName.subtypeOf(monoidType)),
                 "f")
             .addParameter(recordTypeName, "source");
+    if (NullableAnnotations.hasNullableAnnotation(component)) {
+      // A null the component is declared to hold has nothing in it to fold, as the Focus path
+      // reads it, so the fold gives the monoid's empty value rather than a null to the function.
+      foldMap
+          .beginControlFlow("if (source.$L() == null)", componentName)
+          .addStatement("return monoid.empty()")
+          .endControlFlow();
+    }
     if (isIterable) {
       // For Iterable types, fold over each element, declared as the fold's own element type: a
       // 'var' would infer whatever the container's class declares, which can be a type this

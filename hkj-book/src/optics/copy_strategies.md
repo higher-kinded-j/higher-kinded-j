@@ -147,6 +147,8 @@ Order discounted =
 | `A[]`, `A` a reference type | `Traversals.forArray()` |
 | `Map<K, V>` | `Traversals.forMapValues()` |
 
+A field the spec's lens declares nullable, as in `Lens<Order, @Nullable List<LineItem>>`, or one the source declares nullable, has no elements when it is null. The composition steps past the null with `Affines.nullable()` before the container's traversal, auto-detected or named, as a [record's traversal](traversals.md#nullable-components) does.
+
 Detection reads the focus of the spec's own lens for the field, which is the lens the generated traversal composes with, so a spec that declares no lens for the field is refused. The match is on the interface itself. A lens focusing something narrower is refused at the declaration: a concrete container (`ArrayList<LineItem>`, `HashSet<Tag>`, `TreeMap<K, V>`, `HashMap<K, V>`) or another interface (`Deque`, `SortedSet`). Each standard traversal promises no more than the interface type, `forList()` hands back an unmodifiable `List`, and the field could not take that value back, so the generated traversal would throw `ClassCastException` on first use. An array of a primitive (`int[]`) is refused for the same reason, since the array traversal walks an `Object[]`.
 
 Two routes get you past a refusal. Where the type is yours, declare the field as the interface. Otherwise name a traversal that rebuilds the declared type, built with `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map, exposed as a static method:
