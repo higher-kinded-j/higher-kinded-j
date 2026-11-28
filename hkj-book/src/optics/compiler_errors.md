@@ -123,6 +123,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`is already taken`](#pathvia-the-bridge-signature-for-x-is-already-taken) | Two `@PathVia` methods produce the same bridge signature |
 | [`is not a method name`](#pathvia-pathvianame---is-not-a-method-name) | `@PathVia(name = ...)` is not a Java identifier |
 | [`cannot be reached from 'p'`](#generatepathbridge-on-x-the-signature-names-y-which-cannot-be-reached-from-p) | Under `targetPackage`, part of the signature is not visible there |
+| [`cannot be generated in this compilation`](#generatepathbridge-cannot-be-generated-in-this-compilation) | An incremental build hides a supertype another processor writes |
 | [`no @PathVia method was found`](#generatepathbridge-no-pathvia-method-was-found-among-xs-members-a-warning) | **Warning.** The interface has nothing to bridge |
 
 **From javac, on code you wrote** ([Focus DSL chains](#focus-dsl-chains), [Free Monad](#free-monad-dsl-programs)):
@@ -2661,6 +2662,20 @@ interface Vault {
     Optional<Secret> find(String id);
 }
 ```
+~~~
+
+### "@GeneratePathBridge: the bridge for 'X' cannot be generated in this compilation" {#generatepathbridge-cannot-be-generated-in-this-compilation}
+
+A supertype of the interface, however far up, is a type another annotation processor writes that a class file this build read names, so the interface is refused whatever that type declares. Only an incremental build, such as Gradle's, compiles beside class files that way.
+
+```
+error: @GeneratePathBridge: the bridge for 'com.example.UserService' cannot be generated in this compilation. javac shows annotation processors none of the methods of its supertype 'com.example.Lookups'. A class file this compilation read, such as one Gradle did not recompile, names it, and another processor writes it. javac looked the name up as the file was written, found nothing, and keeps that answer for every processor until the compilation ends. Build from clean, which compiles every type from source; each incremental build after a change refuses the bridge again. To build incrementally, declare 'Lookups' in source rather than have a processor write it.
+```
+
+**Fix.** Build from clean, which compiles every type from source, or declare the supertype in source rather than have a processor write it. [Incremental compilation](../tooling/manual_setup.md#incremental-compilation) lists what each effect processor does in that build.
+
+~~~admonish note title="Why" collapsible=true
+javac shows annotation processors none of that type's methods, so the bridge cannot be written with the methods the interface inherits. A bridge written without them would compile, short of what a clean build bridges, so the interface is refused instead. An interface read from its class file has no position, so the message may have no file or line, and names the interface in full.
 ~~~
 
 ### "@GeneratePathBridge: no @PathVia method was found among 'X's members" (a warning)

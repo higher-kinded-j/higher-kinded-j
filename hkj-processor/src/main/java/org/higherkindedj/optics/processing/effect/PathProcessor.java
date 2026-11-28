@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -91,7 +92,9 @@ public class PathProcessor extends AbstractProcessor {
       ClassName.get("org.higherkindedj.hkt.effect", "OptionalPath");
   private static final ClassName IO_PATH = ClassName.get("org.higherkindedj.hkt.effect", "IOPath");
 
-  /** The interfaces waiting for a value a later round brings (see {@link WaitingEffects}). */
+  /**
+   * The interfaces waiting for a value or a type a later round brings (see {@link WaitingEffects}).
+   */
   private final WaitingEffects waiting = new WaitingEffects(GeneratePathBridge.class);
 
   @Override
@@ -110,7 +113,19 @@ public class PathProcessor extends AbstractProcessor {
         continue;
       }
       TypeElement interfaceElement = (TypeElement) element;
-      if (waiting.ready(elements, interfaceElement, unresolved(interfaceElement))) {
+      List<WaitingEffects.Supertype> supertypes = WaitingEffects.supertypesOf(interfaceElement);
+      Optional<TypeMirror> hidden =
+          supertypes.stream()
+              .map(WaitingEffects.Supertype::type)
+              .filter(waiting::stale)
+              .findFirst();
+      if (hidden.isPresent()) {
+        refuseHiddenSupertype(interfaceElement, hidden.get());
+        continue;
+      }
+      // Each method refusal reads the signatures and members waited for, so the interface waits
+      // before any of them.
+      if (waiting.ready(elements, interfaceElement, unresolved(interfaceElement, supertypes))) {
         writeBridgeClass(interfaceElement);
       }
     }
@@ -118,14 +133,94 @@ public class PathProcessor extends AbstractProcessor {
   }
 
   /**
-   * Whether a value the bridge reads is one javac could not resolve: one the interface's {@code
-   * GeneratePathBridge} sets, or one a {@code PathVia} sets on a method it bridges, inherited ones
-   * included.
+   * Whether what the bridge reads is something javac could not resolve, which another processor may
+   * write: a value the interface's {@code GeneratePathBridge} sets, or one a {@code PathVia} sets
+   * on a method it bridges, inherited ones included, or a type.
+   *
+   * <p>A supertype counts wherever it is named, however far up, since one javac could not resolve
+   * hides the methods the interface inherits from it. Waiting for one a class file names is what
+   * lets a later round tell a hidden one, which is refused, from one still to come. javac reports
+   * one the classpath lacks where an interface in source reaches it; an interface read from its
+   * class file reaches one only where the classpath changed under the build that wrote it, and
+   * waits there for good. Otherwise a type counts where a declaration in source writes it (see
+   * {@link WaitingEffects#inSource}), each of which the bridge writes down: a supertype's type
+   * arguments, the bounds of the interface's type parameters, and the signature of each method it
+   * bridges. One a class file names is written down in full, as the class file names it.
+   *
+   * <p>A supertype javac hides though a round has brought it is refused before this is asked (see
+   * {@link #refuseHiddenSupertype}); a hidden type elsewhere is not waited for, and is named in
+   * full as javac's compile reads it.
    */
-  private boolean unresolved(TypeElement interfaceElement) {
+  private boolean unresolved(
+      TypeElement interfaceElement, List<WaitingEffects.Supertype> supertypes) {
+    Elements elements = processingEnv.getElementUtils();
+    List<ExecutableElement> bridged = pathViaMethodsOf(interfaceElement);
     return WaitingEffects.unresolved(interfaceElement, GeneratePathBridge.class)
-        || pathViaMethodsOf(interfaceElement).stream()
-            .anyMatch(method -> WaitingEffects.unresolved(method, PathVia.class));
+        || bridged.stream().anyMatch(method -> WaitingEffects.unresolved(method, PathVia.class))
+        || supertypes.stream()
+            .flatMap(
+                supertype ->
+                    WaitingEffects.inSource(elements, supertype.declaration())
+                        ? WaitingEffects.partsOf(supertype.type())
+                        : Stream.of(supertype.type()))
+            .anyMatch(waiting::waitsFor)
+        || Stream.concat(
+                WaitingEffects.inSource(elements, interfaceElement)
+                    ? interfaceElement.getTypeParameters().stream()
+                        .flatMap(parameter -> parameter.getBounds().stream())
+                    : Stream.empty(),
+                bridged.stream()
+                    .filter(
+                        method ->
+                            WaitingEffects.inSource(
+                                elements, (TypeElement) method.getEnclosingElement()))
+                    .flatMap(PathProcessor::signatureOf))
+            .flatMap(WaitingEffects::partsOf)
+            .anyMatch(waiting::waitsFor);
+  }
+
+  /**
+   * A method's signature as it declares it: its return type, its parameter types, the types it
+   * throws, and the bounds of its type parameters, with the types of the annotations on each
+   * parameter, where javac keeps a type-use one it could not resolve (see {@link
+   * WaitingEffects#annotationTypesOf}).
+   */
+  private static Stream<TypeMirror> signatureOf(ExecutableElement method) {
+    return Stream.of(
+            Stream.of(method.getReturnType()),
+            method.getParameters().stream()
+                .flatMap(
+                    parameter ->
+                        Stream.concat(
+                            WaitingEffects.annotationTypesOf(parameter),
+                            Stream.of(parameter.asType()))),
+            method.getThrownTypes().stream(),
+            method.getTypeParameters().stream()
+                .flatMap(parameter -> parameter.getBounds().stream()))
+        .flatMap(Function.identity());
+  }
+
+  /**
+   * Refuses an interface with a supertype javac hides from the processors though a round brought it
+   * (see {@link WaitingEffects#stale}): the bridge would be written without the methods that
+   * supertype declares, which a clean build bridges. The interface is named in full, as one Gradle
+   * hands over by name is read from its class file, which gives it no position.
+   */
+  private void refuseHiddenSupertype(TypeElement interfaceElement, TypeMirror supertype) {
+    // Cast, not a pattern: a stale type is an error type, whose element is a type.
+    TypeElement hidden = (TypeElement) ((DeclaredType) supertype).asElement();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        interfaceElement,
+        BRIDGE_TAG,
+        "the bridge for '"
+            + interfaceElement.getQualifiedName()
+            + "' cannot be generated in this compilation.",
+        "javac shows annotation processors none of the methods of its supertype '"
+            + hidden.getQualifiedName()
+            + "'. "
+            + WaitingEffects.HIDDEN_BECAUSE,
+        WaitingEffects.hiddenFix("the bridge", hidden));
   }
 
   @ExcludeFromJacocoGeneratedReport

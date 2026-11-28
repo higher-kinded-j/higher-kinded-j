@@ -35,17 +35,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Effect annotation values set to a constant another annotation processor writes, and algebras
- * another processor writes. javac has neither in the round that writes it: reading such a value
- * through the annotation's proxy throws, which stops javac, and such an algebra reads as an error
- * type. So the element waits for the round that brings it, and generates what it would were it
- * written by hand. Each case compiles beside a processor that writes them in its first round.
+ * Effect annotation values set to a constant another annotation processor writes, and types and
+ * algebras another processor writes. javac has none of them in the round that writes it: reading
+ * such a value through the annotation's proxy throws, which stops javac, and such a type reads as
+ * an error type. So the element waits for the round that brings it, and generates what it would
+ * were it written by hand. Each case compiles beside a processor that writes them in its first
+ * round.
  */
-@DisplayName("Effect annotation values and algebras a later round brings")
+@DisplayName("Effect annotation values, types and algebras a later round brings")
 class EffectRoundsTest {
 
   private static final String PKG = "com.example.rounds";
@@ -128,22 +130,35 @@ class EffectRoundsTest {
     /** Whether this writer wrote the file, rather than an effect processor. */
     boolean wrote(JavaFileObject file) {
       return sources.keySet().stream()
-          .anyMatch(name -> file.getName().endsWith("/" + name + ".java"));
+          .anyMatch(name -> file.getName().endsWith("/" + name.replace('.', '/') + ".java"));
     }
 
-    private void write(String simpleName, String body) {
+    private void write(String relativeName, String body) {
       try (Writer out =
-          processingEnv.getFiler().createSourceFile(PKG + "." + simpleName).openWriter()) {
-        out.write("package " + PKG + ";\n\n" + IMPORTS + body);
+          processingEnv.getFiler().createSourceFile(PKG + "." + relativeName).openWriter()) {
+        out.write(text(relativeName, body));
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
     }
   }
 
-  private static JavaFileObject source(String simpleName, String body) {
-    return JavaFileObjects.forSourceString(
-        PKG + "." + simpleName, "package " + PKG + ";\n\n" + IMPORTS + body);
+  /**
+   * The text of a type named relative to {@link #PKG}: {@code Names} in it, {@code gen.Msg} in its
+   * {@code gen} subpackage.
+   */
+  private static String text(String relativeName, String body) {
+    String qualifiedName = PKG + "." + relativeName;
+    return "package "
+        + qualifiedName.substring(0, qualifiedName.lastIndexOf('.'))
+        + ";\n\n"
+        + IMPORTS
+        + body;
+  }
+
+  /** A source of the type named relative to {@link #PKG}, as {@link TypeWriter} would write it. */
+  private static JavaFileObject source(String relativeName, String body) {
+    return JavaFileObjects.forSourceString(PKG + "." + relativeName, text(relativeName, body));
   }
 
   /** A bridged service, with the attributes given to its two annotations. */
@@ -285,6 +300,288 @@ class EffectRoundsTest {
     }
   }
 
+  /** A type-use annotation, for another processor to write into the {@code gen} subpackage. */
+  private static final String TAG =
+      """
+      import java.lang.annotation.ElementType;
+      import java.lang.annotation.Target;
+
+      @Target(ElementType.TYPE_USE)
+      public @interface Tag {}
+      """;
+
+  /**
+   * One place an effect processor reads a type, naming one another processor writes in its first
+   * round, with a type it generates and the types written.
+   */
+  enum LaterType {
+    BRIDGE_SUPERTYPE(
+        "a supertype of a bridged interface",
+        "UserServicePaths",
+        Map.of(
+            "Lookups",
+            """
+            public interface Lookups {
+              @PathVia
+              Optional<String> findById(Long id);
+            }
+            """),
+        source(
+            "UserService",
+            """
+            @GeneratePathBridge
+            public interface UserService extends Lookups {}
+            """)),
+    BRIDGE_SUPERTYPE_OF_SUPERTYPES(
+        "a supertype two of a bridged interface's own supertypes share",
+        "UserServicePaths",
+        Map.of(
+            "Lookups",
+            """
+            public interface Lookups {
+              @PathVia
+              Optional<String> findById(Long id);
+            }
+            """),
+        source("Named", "public interface Named extends Lookups {}"),
+        source("Keyed", "public interface Keyed extends Lookups {}"),
+        source(
+            "UserService",
+            """
+            @GeneratePathBridge
+            public interface UserService extends Named, Keyed {}
+            """)),
+    BRIDGE_RETURN_TYPE(
+        "a bridged return type's argument, with a targetPackage",
+        "paths.UserServicePaths",
+        Map.of("UserDto", "public record UserDto(String name) {}"),
+        source(
+            "UserService",
+            """
+            @GeneratePathBridge(targetPackage = "com.example.rounds.paths")
+            public interface UserService {
+              @PathVia
+              Optional<UserDto> findById(Long id);
+            }
+            """)),
+    BRIDGE_PARAMETER_TYPE(
+        "a bridged parameter's array component, imported",
+        "UserServicePaths",
+        Map.of("gen.UserKey", "public record UserKey(long id) {}"),
+        source(
+            "UserService",
+            """
+            import com.example.rounds.gen.UserKey;
+
+            @GeneratePathBridge
+            public interface UserService {
+              @PathVia
+              Optional<String> findFirst(UserKey[] keys);
+            }
+            """)),
+    BRIDGE_WILDCARD_BOUND(
+        "a wildcard's bound in a bridged parameter type, imported",
+        "UserServicePaths",
+        Map.of("gen.UserKey", "public record UserKey(long id) {}"),
+        source(
+            "UserService",
+            """
+            import com.example.rounds.gen.UserKey;
+            import java.util.List;
+
+            @GeneratePathBridge
+            public interface UserService {
+              @PathVia
+              Optional<String> findAny(List<? extends UserKey> keys);
+            }
+            """)),
+    BRIDGE_THROWN_TYPE(
+        "a bridged thrown type, imported",
+        "UserServicePaths",
+        Map.of("gen.LookupFailure", "public final class LookupFailure extends Exception {}"),
+        source(
+            "UserService",
+            """
+            import com.example.rounds.gen.LookupFailure;
+
+            @GeneratePathBridge
+            public interface UserService {
+              @PathVia
+              Optional<String> findById(Long id) throws LookupFailure;
+            }
+            """)),
+    BRIDGE_METHOD_BOUND(
+        "the bound of a bridged method's type parameter, imported",
+        "UserServicePaths",
+        Map.of("gen.Shape", "public interface Shape {}"),
+        source(
+            "UserService",
+            """
+            import com.example.rounds.gen.Shape;
+
+            @GeneratePathBridge
+            public interface UserService {
+              @PathVia
+              <T extends Shape> Optional<T> findById(Long id);
+            }
+            """)),
+    BRIDGE_INTERFACE_BOUND(
+        "the bound of a bridged interface's type parameter, imported",
+        "UserServicePaths",
+        Map.of("gen.Shape", "public interface Shape {}"),
+        source(
+            "UserService",
+            """
+            import com.example.rounds.gen.Shape;
+
+            @GeneratePathBridge
+            public interface UserService<T extends Shape> {
+              @PathVia
+              Optional<T> findById(Long id);
+            }
+            """)),
+    BRIDGE_TYPE_USE_ANNOTATION(
+        "a type-use annotation in a bridged signature, imported",
+        "UserServicePaths",
+        Map.of("gen.Tag", TAG),
+        source(
+            "UserService",
+            """
+            import com.example.rounds.gen.Tag;
+
+            @GeneratePathBridge
+            public interface UserService {
+              @PathVia
+              Optional<@Tag String> findById(Long id);
+            }
+            """)),
+    BRIDGE_PARAMETER_ANNOTATION(
+        "a type-use annotation on a bridged parameter, imported",
+        "UserServicePaths",
+        Map.of("gen.Tag", TAG),
+        source(
+            "UserService",
+            """
+            import com.example.rounds.gen.Tag;
+
+            @GeneratePathBridge
+            public interface UserService {
+              @PathVia
+              Optional<String> findByName(@Tag String name);
+            }
+            """)),
+    ALGEBRA_COMPONENT(
+        "an operation's component, imported",
+        "ConsoleOpOps",
+        Map.of("gen.Msg", "public record Msg(String text) {}"),
+        source(
+            "ConsoleOp",
+            """
+            import com.example.rounds.gen.Msg;
+
+            @EffectAlgebra
+            public sealed interface ConsoleOp<A> permits ConsoleOp.Only {
+              <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f);
+
+              record Only<A>(Msg msg, Function<Unit, A> k) implements ConsoleOp<A> {
+                @Override
+                public <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f) {
+                  return new Only<>(msg, k.andThen(f));
+                }
+              }
+            }
+            """)),
+    ALGEBRA_COMPONENT_ANNOTATION(
+        "a type-use annotation on an operation's component, imported",
+        "ConsoleOpOps",
+        Map.of("gen.Tag", TAG),
+        source(
+            "ConsoleOp",
+            """
+            import com.example.rounds.gen.Tag;
+
+            @EffectAlgebra
+            public sealed interface ConsoleOp<A> permits ConsoleOp.Only {
+              <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f);
+
+              record Only<A>(@Tag String text, Function<Unit, A> k) implements ConsoleOp<A> {
+                @Override
+                public <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f) {
+                  return new Only<>(text, k.andThen(f));
+                }
+              }
+            }
+            """)),
+    ALGEBRA_COMPONENT_COMPOSED(
+        "an operation's component, in an algebra a composition names",
+        "AppEffectsSupport",
+        Map.of("gen.Msg", "public record Msg(String text) {}"),
+        source(
+            "ConsoleOp",
+            """
+            import com.example.rounds.gen.Msg;
+
+            @EffectAlgebra
+            public sealed interface ConsoleOp<A> permits ConsoleOp.Only {
+              <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f);
+
+              record Only<A>(Msg msg, Function<Unit, A> k) implements ConsoleOp<A> {
+                @Override
+                public <B> ConsoleOp<B> mapK(Function<? super A, ? extends B> f) {
+                  return new Only<>(msg, k.andThen(f));
+                }
+              }
+            }
+            """),
+        algebra("DbOp", ""),
+        composition("")),
+    PATH_SOURCE_WITNESS_SUPERTYPE(
+        "a supertype of a @PathSource witness",
+        "BoxPath",
+        Map.of(
+            "UnaryWitness",
+            "public interface UnaryWitness extends WitnessArity<TypeArity.Unary> {}"),
+        source(
+            "BoxKind",
+            """
+            public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
+              final class Witness implements UnaryWitness {}
+            }
+            """),
+        box("capability = PathSource.Capability.CHAINABLE"));
+
+    private final String description;
+    private final String generated;
+    private final Map<String, String> written;
+    private final List<JavaFileObject> sources;
+
+    LaterType(
+        String description,
+        String generated,
+        Map<String, String> written,
+        JavaFileObject... sources) {
+      this.description = description;
+      this.generated = PKG + "." + generated;
+      this.written = Map.copyOf(written);
+      this.sources = List.of(sources);
+    }
+
+    /** The sources, with the written types among them, as were they written by hand. */
+    List<JavaFileObject> byHand() {
+      // In name order, as the writer writes them.
+      return Stream.concat(
+              sources.stream(),
+              new TreeMap<>(written)
+                  .entrySet().stream().map(type -> source(type.getKey(), type.getValue())))
+          .toList();
+    }
+
+    @Override
+    public String toString() {
+      return description;
+    }
+  }
+
   /**
    * The writer goes first, then the effect processors: javac does not offer a round to a processor
    * supporting every annotation once an earlier processor has claimed that round's annotations.
@@ -354,6 +651,48 @@ class EffectRoundsTest {
               error -> {
                 Assertions.assertThat(error.getMessage(null)).contains("cannot find symbol");
                 Assertions.assertThat(error.getSource()).isNotNull();
+              });
+      Assertions.assertThat(writer.roots()).doesNotContain(later.generated);
+    }
+  }
+
+  @Nested
+  @DisplayName("Each type an effect processor reads, naming one a later round brings")
+  class LaterTypes {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LaterType.class)
+    @DisplayName("waits for the type, and generates what it would were it written by hand")
+    void anElementWaitsForTheType(LaterType later) {
+      TypeWriter writer = new TypeWriter(later.written);
+      Compilation compilation = compile(writer, later.sources);
+      TypeWriter none = new TypeWriter(Map.of());
+      Compilation byHand = compile(none, later.byHand());
+
+      assertThat(byHand).succeededWithoutWarnings();
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(writer.roots()).contains(later.generated);
+      Assertions.assertThat(generatedSources(compilation, writer))
+          .isEqualTo(generatedSources(byHand, none));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LaterType.class)
+    @DisplayName("a type no round brings generates nothing, and leaves the report to javac")
+    void aTypeThatNeverAppearsIsJavacsError(LaterType later) {
+      TypeWriter writer = new TypeWriter(Map.of());
+      Compilation compilation = compile(writer, later.sources);
+
+      // javac names a missing type, or the package an import names, where the source writes it.
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .isNotEmpty()
+          .allSatisfy(
+              error -> {
+                Assertions.assertThat(error.getMessage(null))
+                    .containsAnyOf("cannot find symbol", "does not exist");
+                Assertions.assertThat(error.getSource().getName())
+                    .doesNotStartWith("/SOURCE_OUTPUT");
               });
       Assertions.assertThat(writer.roots()).doesNotContain(later.generated);
     }
@@ -507,6 +846,68 @@ class EffectRoundsTest {
               Assertions.assertThat(member.getReturnType().isArray()).isFalse();
               Assertions.assertThat(member.getReturnType().isAnnotation()).isFalse();
             });
+  }
+
+  @Test
+  @DisplayName(
+      "a composition over an algebra permitting an operation another processor writes reads it"
+          + " without asking where it was declared")
+  void aCompositionOverAWrittenPermit() {
+    // Waiting for an operation another processor writes is not supported yet, so the algebra
+    // refuses it; the composition must not stop javac asking for the file of a type it has not
+    // resolved.
+    Compilation compilation =
+        compile(
+            new TypeWriter(
+                Map.of("Print", "public record Print<A>(String text) implements ConsoleOp<A> {}")),
+            List.of(
+                source(
+                    "ConsoleOp",
+                    """
+                    @EffectAlgebra
+                    public sealed interface ConsoleOp<A> permits Print {}
+                    """),
+                algebra("DbOp", ""),
+                composition("")));
+
+    assertThat(compilation).hadErrorContaining("Permit must be a record type: Print");
+    Assertions.assertThat(diagnostics(compilation))
+        .noneMatch(diagnostic -> diagnostic.contains("uncaught exception"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource(
+      delimiter = '|',
+      value = {
+        "'' | which is not annotated @EffectAlgebra",
+        "@EffectAlgebra | can only annotate sealed interfaces"
+      })
+  @DisplayName(
+      "a composition naming a class that permits a type variable refuses it, rather than reading"
+          + " the type variable as an operation")
+  void aCompositionOverAPermittedTypeVariable(String annotation, String refusal) {
+    // javac refuses 'permits T' only after the processors have run, so they meet it.
+    Compilation compilation =
+        compile(
+            new TypeWriter(Map.of()),
+            List.of(
+                source(
+                    "Bad",
+                    """
+                    public class Bad<T> {
+                      %s
+                      public sealed class Op<A> permits T {}
+                    }
+                    """
+                        .formatted(annotation)),
+                source(
+                    "Comp",
+                    """
+                    @ComposeEffects
+                    public record Comp(Class<Bad<?>.Op<?>> a, Class<Bad<?>.Op<?>> b) {}
+                    """)));
+
+    assertThat(compilation).hadErrorContaining(refusal);
   }
 
   @Test

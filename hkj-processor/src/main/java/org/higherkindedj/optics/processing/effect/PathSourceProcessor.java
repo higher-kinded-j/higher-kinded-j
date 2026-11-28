@@ -156,20 +156,41 @@ public class PathSourceProcessor extends AbstractProcessor {
   /**
    * Whether an attribute names a type or a constant javac has not resolved: a value that is javac's
    * mark for one, which a later round's generated sources may supply, or a class literal whose type
-   * reads as an error type, as one a class file names does where the classpath lacks it. A witness
-   * or error type javac hides though a round has brought it (see {@link WaitingEffects#stale}) is
-   * not waited for: the Path names it as the class literal does. The checks that read its
-   * declaration, whether it is generic, reachable or of one type parameter, find nothing to read,
-   * so javac's compile of the Path makes them, and a declaration a clean build refuses fails there
-   * instead, or, for a generic error type, draws javac's raw-type warnings.
+   * reads as an error type, as one a class file names does where the classpath lacks it, or a type
+   * a declaration in source among the witness's supertypes writes (see {@link
+   * WaitingEffects#inSource}), which leaves the check that it is a witness of one type parameter
+   * nothing to read. A witness or error type javac hides though a round has brought it (see {@link
+   * WaitingEffects#stale}) is not waited for: the Path names it as the class literal does. The
+   * checks that read its declaration, whether it is generic, reachable or of one type parameter,
+   * find nothing to read, so javac's compile of the Path makes them, and a declaration a clean
+   * build refuses fails there instead, or, for a generic error type, draws javac's raw-type
+   * warnings. A supertype of the witness that does not resolve and is not waited for, one a class
+   * file names or one javac hides, leaves javac's compile the same check.
    */
   private boolean unresolved(TypeElement type) {
     if (WaitingEffects.unresolved(type, PathSource.class)) {
       return true;
     }
     PathSource annotation = type.getAnnotation(PathSource.class);
-    return Stream.of(getWitnessType(annotation), getErrorType(annotation))
-        .anyMatch(waiting::waitsFor);
+    TypeMirror witness = getWitnessType(annotation);
+    return Stream.of(witness, getErrorType(annotation)).anyMatch(waiting::waitsFor)
+        || supertypesOf(witness).stream()
+            .filter(
+                supertype ->
+                    WaitingEffects.inSource(
+                        processingEnv.getElementUtils(), supertype.declaration()))
+            .flatMap(supertype -> WaitingEffects.partsOf(supertype.type()))
+            .anyMatch(waiting::waitsFor);
+  }
+
+  /**
+   * The supertypes of a witness a class literal names, and theirs in turn (see {@link
+   * WaitingEffects#supertypesOf}); none for one that reads as no declared type.
+   */
+  private static List<WaitingEffects.Supertype> supertypesOf(TypeMirror witness) {
+    return witness.getKind() == TypeKind.DECLARED
+        ? WaitingEffects.supertypesOf((TypeElement) ((DeclaredType) witness).asElement())
+        : List.of();
   }
 
   @ExcludeFromJacocoGeneratedReport
@@ -512,6 +533,14 @@ public class PathSourceProcessor extends AbstractProcessor {
    * classpath there is nothing to check it against, and the generated file reports the Kind it
    * cannot find. A witness javac hides (see {@link WaitingEffects#stale}) shows no supertypes, so
    * javac's compile of the Path checks it instead.
+   *
+   * <p>Nor is javac asked about a witness with a supertype that reads as an error type, a hidden
+   * one or one a class file names that the classpath lacks: asking whether such a witness is a
+   * subtype leaves javac's own compile reading it without that supertype, so the generated Path
+   * then fails to compile. Its arity is read from the supertypes that resolve instead. One naming
+   * {@code WitnessArity} gives it, as a type implements that interface once; where none does, the
+   * arity may come through the one that does not resolve, and javac's compile of the Path checks
+   * it.
    */
   private boolean unaryWitness(TypeMirror witness) {
     Elements elements = processingEnv.getElementUtils();
@@ -522,7 +551,22 @@ public class PathSourceProcessor extends AbstractProcessor {
     // TypeArity ships beside WitnessArity, so its Unary is present wherever WitnessArity is.
     TypeElement unary = elements.getTypeElement("org.higherkindedj.hkt.TypeArity.Unary");
     Types types = processingEnv.getTypeUtils();
-    return types.isSubtype(witness, types.getDeclaredType(arity, unary.asType()));
+    List<WaitingEffects.Supertype> supertypes = supertypesOf(witness);
+    if (supertypes.stream().noneMatch(supertype -> supertype.type().getKind() == TypeKind.ERROR)) {
+      return types.isSubtype(witness, types.getDeclaredType(arity, unary.asType()));
+    }
+    return supertypes.stream()
+        .map(WaitingEffects.Supertype::type)
+        .filter(supertype -> supertype.getKind() == TypeKind.DECLARED)
+        .map(DeclaredType.class::cast)
+        .filter(supertype -> supertype.asElement().equals(arity))
+        .findFirst()
+        // A raw WitnessArity names no arity, so it gives none.
+        .map(
+            given ->
+                given.getTypeArguments().stream()
+                    .anyMatch(argument -> types.isSameType(argument, unary.asType())))
+        .orElse(true);
   }
 
   /**

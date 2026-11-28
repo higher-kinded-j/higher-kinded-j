@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.optics.processing.util.Diagnostics;
@@ -81,7 +82,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
-  /** The algebras waiting for a value a later round brings (see {@link WaitingEffects}). */
+  /**
+   * The algebras waiting for a value or a type a later round brings (see {@link WaitingEffects}).
+   */
   private final WaitingEffects waiting = new WaitingEffects(EffectAlgebra.class);
 
   @Override
@@ -127,9 +130,13 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
       // Validate all permits are records with no extra type params
       List<TypeElement> permits = getPermittedRecords(typeElement);
       if (permits == null) continue; // errors already reported
-      // Every refusal above reads no value, so an algebra waits only once none of them refuses it.
+      // Every refusal above reads no value and no component, so an algebra waits only once none
+      // of them refuses it.
       if (!waiting.ready(
-          elements, typeElement, WaitingEffects.unresolved(typeElement, EffectAlgebra.class))) {
+          elements,
+          typeElement,
+          WaitingEffects.unresolved(typeElement, EffectAlgebra.class)
+              || componentsWait(elements, waiting, permits))) {
         continue;
       }
       if (!Reachability.check(
@@ -170,6 +177,40 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                                 operation.asType())),
                         operation.getRecordComponents().stream()
                             .map(component -> Reachability.component(operation, component)))));
+  }
+
+  /**
+   * The operations an algebra permits, as declarations: each type among its permitted subtypes. A
+   * permitted type variable, which javac refuses only after the processors have run, is none.
+   * Shared with {@code ComposeEffectsProcessor}, which reads an algebra this processor may not have
+   * accepted.
+   */
+  static List<TypeElement> operationsOf(Types types, TypeElement algebra) {
+    return ElementFilter.typesIn(
+        algebra.getPermittedSubclasses().stream().map(types::asElement).toList());
+  }
+
+  /**
+   * Whether the type of a component of one of an algebra's operations names one {@code waiting}
+   * waits for (see {@link WaitingEffects#waitsFor}), at any depth or as a type-use annotation on
+   * it, the component's own annotations included (see {@link WaitingEffects#annotationTypesOf}).
+   * The Ops class names each such type, in its factories and its {@code Bound} methods, so a type
+   * another processor writes there must exist before it is generated. Only an operation declared in
+   * source counts (see {@link WaitingEffects#inSource}): one read from a class file names its types
+   * in full. Shared with {@code ComposeEffectsProcessor}, whose support class names what this
+   * processor generates for the algebra.
+   */
+  static boolean componentsWait(
+      Elements elements, WaitingEffects waiting, List<TypeElement> operations) {
+    return operations.stream()
+        .filter(operation -> WaitingEffects.inSource(elements, operation))
+        .flatMap(operation -> operation.getRecordComponents().stream())
+        .flatMap(
+            component ->
+                Stream.concat(
+                    WaitingEffects.annotationTypesOf(component),
+                    WaitingEffects.partsOf(component.asType())))
+        .anyMatch(waiting::waitsFor);
   }
 
   /**
@@ -1059,14 +1100,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
         "the support classes of '"
             + algebra.getQualifiedName()
             + "' cannot be generated in this compilation",
-        "javac shows annotation processors none of its type parameters or methods. A class file"
-            + " this compilation read, such as one Gradle did not recompile, names it, and another"
-            + " processor writes it. javac looked the name up as the file was written, found"
-            + " nothing, and keeps that answer for every processor until the compilation ends.",
-        "Build from clean, which compiles every type from source; each incremental build after a"
-            + " change refuses it again. To build incrementally, declare '"
-            + algebra.getSimpleName()
-            + "' in source rather than have a processor write it.");
+        "javac shows annotation processors none of its type parameters or methods. "
+            + WaitingEffects.HIDDEN_BECAUSE,
+        WaitingEffects.hiddenFix("it", algebra));
   }
 
   private void error(String msg, Element element) {

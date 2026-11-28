@@ -183,12 +183,16 @@ Where a class file Gradle reads names a type another processor writes, javac sho
 
 | An effect annotation over such a type | In the build after a change |
 |---|---|
-| `@PathSource`, naming it as the witness or error type | generates the Path a clean build does, and leaves checking that type to javac's compile of the Path |
+| `@PathSource`, naming it as the witness or error type, or as a supertype of the witness | generates the Path a clean build does, and leaves checking that type to javac's compile of the Path |
 | `@Handles`, naming it as the algebra | checks the interpreter as a clean build does |
 | `@EffectAlgebra`, on it | refuses it, `the support classes of '…' cannot be generated in this compilation`, as its type parameter and `mapK` cannot be read |
+| `@EffectAlgebra`, naming it in an operation's component | generates the classes a clean build does |
 | `@ComposeEffects`, naming it as an algebra | refuses the component, `which @EffectAlgebra rejects because javac shows annotation processors none of its type parameters or methods` |
+| `@GeneratePathBridge`, naming it in a bridged signature or a bound | generates the bridge a clean build does |
+| `@GeneratePathBridge`, on an interface extending it | refuses the interface, `the bridge for '…' cannot be generated in this compilation`, whatever that type declares, as the methods it inherits cannot be read |
+| `@GeneratePathBridge` or `@EffectAlgebra`, naming it as a type-use annotation in what it copies | generates what a clean build does, without that annotation, as an optic leaves one off |
 
-An algebra carrying `@EffectAlgebra` is refused whichever annotation names it. A clean build generates it, and each incremental build after a change refuses it again, so declare such an algebra in source to build incrementally.
+An algebra carrying `@EffectAlgebra` is refused whichever annotation names it. So is a `@GeneratePathBridge` interface with a type another processor writes, which a class file names, anywhere among its supertypes, even a supertype declaring no `@PathVia` method. A clean build generates both, and each incremental build after a change refuses them again, so declare such an algebra or supertype in source to build incrementally.
 
 Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first. Gradle's `--info` output names the cause of a full recompilation, as in `Full recompilation is required because ...`.
 
@@ -237,13 +241,13 @@ The effect processors wait too:
 
 | Annotation | Waits while any of this is not written yet |
 |---|---|
-| `@GeneratePathBridge` | its own values, and the `@PathVia` values of each method the bridge wraps, inherited ones included |
-| `@EffectAlgebra` | its own values |
-| `@ComposeEffects` | its own values, each algebra it names, and the `@EffectAlgebra` values of each |
-| `@PathSource` | its own values, its witness and error type included |
+| `@GeneratePathBridge` | its own values, the `@PathVia` values of each method the bridge wraps, inherited ones included, and every type in those methods' signatures, in the interface's type-parameter bounds and among its supertypes, however far up |
+| `@EffectAlgebra` | its own values, and every type in each operation's components, type-use annotations included |
+| `@ComposeEffects` | its own values, each algebra it names, and what `@EffectAlgebra` waits for in each |
+| `@PathSource` | its own values, its witness and error type included, and the witness's supertypes |
 | `@Handles` | its value: the algebra the interpreter is checked against |
 
-Each processor waits for a constant or a class another annotation processor writes, where it reads one. A bridge declared with `@GeneratePathBridge(suffix = Names.SUFFIX)`, say, is generated once `Names` exists, and is what it would be were the constant written by hand. Waiting for a type another processor writes into an algebra's operations, a bridged method's signature or a bridged interface's supertype is not supported yet.
+Each processor waits for a constant or a type another annotation processor writes, where it reads one. A bridge declared with `@GeneratePathBridge(suffix = Names.SUFFIX)`, say, is generated once `Names` exists, and a bridge over `UserService extends Lookups` once `Lookups` does. Either is what it would be were that type written by hand. A dependency's class file names each of its types in full, so nothing waits for one it names, even one the classpath lacks, such as an annotation the dependency declares compile-only. A bridged interface's supertype is the exception: the bridge waits for it, and javac reports one the classpath lacks, `class file for … not found`. Waiting for an operation another processor writes, which an algebra's `permits` clause names, is not supported yet.
 
 If what it waits for never appears, the processor generates nothing for the declaration, and javac names what is missing where the source writes it. Code that uses the class the processor would have written reports that class missing too; supply what is missing and both errors go. A `@PathSource` witness waits in the same way, as [A witness another processor writes](../effect/path_source.md#a-witness-another-processor-writes) shows. In Gradle's incremental build a written type can reach the processors only in part, as [Incremental compilation](#incremental-compilation) says.
 
