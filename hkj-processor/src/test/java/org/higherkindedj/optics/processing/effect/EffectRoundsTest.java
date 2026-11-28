@@ -929,4 +929,33 @@ class EffectRoundsTest {
     assertThat(compilation).hadErrorContaining("field 'bad' is java.lang.String");
     assertThat(compilation).hadErrorContaining("cannot find symbol");
   }
+
+  @Test
+  @DisplayName(
+      "a composition refuses an algebra not annotated @EffectAlgebra at once, rather than waiting"
+          + " for a type one of its operations holds")
+  void aCompositionRefusesAnUnannotatedAlgebraAtOnce() {
+    // No Kind or Ops is generated for it, so nothing the composition names waits for the type.
+    Compilation compilation =
+        compile(
+            new TypeWriter(Map.of()),
+            List.of(
+                source(
+                    "PlainOp",
+                    """
+                    public sealed interface PlainOp<A> permits PlainOp.Only {
+                      record Only<A>(Msg text) implements PlainOp<A> {}
+                    }
+                    """),
+                algebra("DbOp", ""),
+                source(
+                    "AppEffects",
+                    """
+                    @ComposeEffects
+                    public record AppEffects(Class<PlainOp<?>> plain, Class<DbOp<?>> db) {}
+                    """)));
+
+    assertThat(compilation).hadErrorContaining("which is not annotated @EffectAlgebra");
+    assertThat(compilation).hadErrorContaining("cannot find symbol");
+  }
 }

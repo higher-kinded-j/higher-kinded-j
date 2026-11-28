@@ -348,14 +348,16 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
   /**
    * Whether an algebra a component names waits for a later round: for a value its {@code
    * EffectAlgebra} sets, or a type one of its operations holds. The support class names the Kind
-   * and Ops its processor generates once neither does.
+   * and Ops its processor generates once neither does. An algebra without the annotation has none
+   * generated, so it waits for nothing, and {@link #isComposableAlgebra} refuses it in this round.
    */
   private boolean algebraWaits(TypeElement algebra) {
     return WaitingEffects.unresolved(algebra, EffectAlgebra.class)
-        || EffectAlgebraProcessor.componentsWait(
-            processingEnv.getElementUtils(),
-            compositions,
-            EffectAlgebraProcessor.operationsOf(processingEnv.getTypeUtils(), algebra));
+        || (algebra.getAnnotation(EffectAlgebra.class) != null
+            && EffectAlgebraProcessor.componentsWait(
+                processingEnv.getElementUtils(),
+                compositions,
+                EffectAlgebraProcessor.operationsOf(processingEnv.getTypeUtils(), algebra)));
   }
 
   private void processComposeEffects(RoundEnvironment roundEnv) {

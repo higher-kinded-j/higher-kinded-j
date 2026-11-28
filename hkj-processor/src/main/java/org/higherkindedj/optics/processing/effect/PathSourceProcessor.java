@@ -6,6 +6,8 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -17,6 +19,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -537,10 +540,10 @@ public class PathSourceProcessor extends AbstractProcessor {
    * <p>Nor is javac asked about a witness with a supertype that reads as an error type, a hidden
    * one or one a class file names that the classpath lacks: asking whether such a witness is a
    * subtype leaves javac's own compile reading it without that supertype, so the generated Path
-   * then fails to compile. Its arity is read from the supertypes that resolve instead. One naming
-   * {@code WitnessArity} gives it, as a type implements that interface once; where none does, the
-   * arity may come through the one that does not resolve, and javac's compile of the Path checks
-   * it.
+   * then fails to compile. Its arity is read from the supertypes that resolve instead (see {@link
+   * #arityGiven}). One naming {@code WitnessArity} gives it, as a type implements that interface
+   * once; where none does, the arity may come through the one that does not resolve, and javac's
+   * compile of the Path checks it.
    */
   private boolean unaryWitness(TypeMirror witness) {
     Elements elements = processingEnv.getElementUtils();
@@ -555,18 +558,53 @@ public class PathSourceProcessor extends AbstractProcessor {
     if (supertypes.stream().noneMatch(supertype -> supertype.type().getKind() == TypeKind.ERROR)) {
       return types.isSubtype(witness, types.getDeclaredType(arity, unary.asType()));
     }
-    return supertypes.stream()
-        .map(WaitingEffects.Supertype::type)
-        .filter(supertype -> supertype.getKind() == TypeKind.DECLARED)
-        .map(DeclaredType.class::cast)
-        .filter(supertype -> supertype.asElement().equals(arity))
-        .findFirst()
+    return arityGiven(supertypes, arity)
         // A raw WitnessArity names no arity, so it gives none.
         .map(
             given ->
-                given.getTypeArguments().stream()
-                    .anyMatch(argument -> types.isSameType(argument, unary.asType())))
+                given.stream().anyMatch(argument -> types.isSameType(argument, unary.asType())))
         .orElse(true);
+  }
+
+  /**
+   * The type arguments the first clause naming {@code WitnessArity} passes it, among supertypes
+   * read nearest first (see {@link WaitingEffects#supertypesOf}), or none where no clause that
+   * resolves names it. A clause names its declaration's type parameters, such as {@code A} in
+   * {@code Arity<A> extends WitnessArity<A>}, so each is read as what the clause naming that
+   * declaration passes it, and a raw clause passes none. That reads the supertypes alone, as javac
+   * is not asked (see {@link #unaryWitness}).
+   */
+  private static Optional<List<TypeMirror>> arityGiven(
+      List<WaitingEffects.Supertype> supertypes, TypeElement arity) {
+    // Read nearest first, a declaration's clauses come after the clause naming it, so what that
+    // clause passes is known by then. The witness, being no generic type, is passed nothing.
+    Map<Element, Map<Element, TypeMirror>> passed = new HashMap<>();
+    for (WaitingEffects.Supertype supertype : supertypes) {
+      if (supertype.type().getKind() != TypeKind.DECLARED) {
+        continue;
+      }
+      DeclaredType clause = (DeclaredType) supertype.type();
+      Map<Element, TypeMirror> given = passed.getOrDefault(supertype.declaration(), Map.of());
+      List<TypeMirror> arguments =
+          clause.getTypeArguments().stream()
+              .map(
+                  argument ->
+                      argument.getKind() == TypeKind.TYPEVAR
+                          ? given.getOrDefault(((TypeVariable) argument).asElement(), argument)
+                          : argument)
+              .toList();
+      TypeElement declaration = (TypeElement) clause.asElement();
+      if (declaration.equals(arity)) {
+        return Optional.of(arguments);
+      }
+      List<? extends TypeParameterElement> parameters = declaration.getTypeParameters();
+      passed.putIfAbsent(
+          declaration,
+          IntStream.range(0, arguments.size())
+              .boxed()
+              .collect(Collectors.toUnmodifiableMap(parameters::get, arguments::get)));
+    }
+    return Optional.empty();
   }
 
   /**
