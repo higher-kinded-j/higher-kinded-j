@@ -190,7 +190,8 @@ class GeneratedTraversalSourceCompilesTest {
               "MutableSortedSet<Leaf>",
               "ImmutableSortedSet<Leaf>",
               "PSortedSet<Leaf>",
-              "PSortedMap<Leaf, Leaf>"),
+              "PSortedMap<Leaf, Leaf>",
+              "TreeMultiSet<Leaf>"),
           // A wildcard where a sorted container is ordered types the source's comparator for an
           // unknown type, which the rebuilt container cannot be given, so the processor notes the
           // component and generates nothing for it.
@@ -202,7 +203,8 @@ class GeneratedTraversalSourceCompilesTest {
               "PSortedSet<? extends Leaf>",
               "PSortedSet<? extends String>",
               "PSortedMap<? extends String, Leaf>",
-              "PSortedMap<?, Leaf>"));
+              "PSortedMap<?, Leaf>",
+              "TreeMultiSet<? extends Leaf>"));
 
   static Stream<Arguments> shapes() {
     return SHAPES.stream().map(shape -> Arguments.of(shape.label(), shape));
@@ -250,6 +252,7 @@ class GeneratedTraversalSourceCompilesTest {
             """
             package com.example;
 
+            import org.apache.commons.collections4.multiset.TreeMultiSet;
             import org.eclipse.collections.api.set.sorted.MutableSortedSet;
             import org.higherkindedj.hkt.either.Either;
             import org.higherkindedj.hkt.maybe.Maybe;
@@ -311,6 +314,9 @@ class GeneratedTraversalSourceCompilesTest {
         Arguments.of(
             "record Holder<T>(MutableSortedSet<T> f0) {}",
             "public static <T> Traversal<Holder<T>, T> f0()"),
+        Arguments.of(
+            "record Holder<T>(TreeMultiSet<T> f0) {}",
+            "public static <T> Traversal<Holder<T>, T> f0()"),
         // A record is free to call a type parameter F, which is what the effect is called; the
         // effect takes another name rather than being shadowed by it. Every container that writes
         // the effect into the body it generates has to read that name from the same place.
@@ -369,6 +375,7 @@ class GeneratedTraversalSourceCompilesTest {
         import com.google.common.collect.ImmutableList;
         import org.apache.commons.collections4.bag.HashBag;
         import org.apache.commons.collections4.multiset.HashMultiSet;
+        import org.apache.commons.collections4.multiset.TreeMultiSet;
         import org.eclipse.collections.api.list.MutableList;
         import org.eclipse.collections.api.set.sorted.ImmutableSortedSet;
         import org.eclipse.collections.api.set.sorted.MutableSortedSet;

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashBagGenerator;
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashMultiSetGenerator;
+import org.higherkindedj.optics.processing.generator.apache.ApacheTreeMultiSetGenerator;
 import org.higherkindedj.optics.processing.generator.apache.ApacheUnmodifiableListGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.ArrayGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.ListGenerator;
@@ -203,6 +204,12 @@ class CardinalityTest {
     @DisplayName("ApacheHashMultiSetGenerator should have ZERO_OR_MORE cardinality")
     void apacheHashMultiSetGeneratorCardinality() {
       assertEquals(Cardinality.ZERO_OR_MORE, new ApacheHashMultiSetGenerator().getCardinality());
+    }
+
+    @Test
+    @DisplayName("ApacheTreeMultiSetGenerator should have ZERO_OR_MORE cardinality")
+    void apacheTreeMultiSetGeneratorCardinality() {
+      assertEquals(Cardinality.ZERO_OR_MORE, new ApacheTreeMultiSetGenerator().getCardinality());
     }
 
     @Test

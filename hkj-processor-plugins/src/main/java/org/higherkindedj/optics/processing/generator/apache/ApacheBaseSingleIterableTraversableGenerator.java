@@ -37,6 +37,9 @@ public abstract class ApacheBaseSingleIterableTraversableGenerator
   /** Class name for Apache Commons Collections {@code HashMultiSet}. */
   public static final ClassName HASH_MULTI_SET = ClassName.get(MULTISET_PACKAGE, "HashMultiSet");
 
+  /** Class name for Apache Commons Collections {@code TreeMultiSet}. */
+  public static final ClassName TREE_MULTI_SET = ClassName.get(MULTISET_PACKAGE, "TreeMultiSet");
+
   /** Class name for Apache Commons Collections {@code UnmodifiableList}. */
   public static final ClassName UNMODIFIABLE_LIST = ClassName.get(LIST_PACKAGE, "UnmodifiableList");
 
@@ -94,9 +97,8 @@ public abstract class ApacheBaseSingleIterableTraversableGenerator
 
         // 3. Map over the effect to convert the inner List back to our type.
         .addStatement(
-            "final var effectOfConvertBack = applicative.map("
-                + "newList -> new $T<>(newList), effectOfList)",
-            supportedType)
+            "final var effectOfConvertBack = applicative.map(newList -> $L, effectOfList)",
+            rebuild(componentName))
 
         // 4. Map over the final effect to reconstruct the record with the original type.
         .addStatement(
@@ -104,5 +106,16 @@ public abstract class ApacheBaseSingleIterableTraversableGenerator
             recordTypeName(component, recordClassName),
             constructorArgs)
         .build();
+  }
+
+  /**
+   * The expression that rebuilds the component's collection from the traversed elements, held in
+   * {@code newList}, with {@code source} the record being traversed.
+   *
+   * @param componentName the name of the record component being rebuilt
+   * @return the expression, by default {@code new <supportedType><>(newList)}
+   */
+  protected CodeBlock rebuild(final String componentName) {
+    return CodeBlock.of("new $T<>(newList)", supportedType);
   }
 }

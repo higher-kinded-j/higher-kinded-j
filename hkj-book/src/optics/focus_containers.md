@@ -133,6 +133,7 @@ Whichever way you reach a field, by the static method or by a navigator on a rec
 | `ImmutableList`, `ImmutableSet` | Guava | `EachInstances.fromIterableCollecting(...)` |
 | `List`, `Set` | Vavr | `EachInstances.fromIterableCollecting(...)` |
 | `HashBag`, `HashMultiSet`, `UnmodifiableList` | Apache Commons | `EachInstances.fromIterableCollecting(...)` |
+| `TreeMultiSet` | Apache Commons | `EachInstances.fromIterableRebuilding(...)` |
 | `PVector`, `PStack`, `PSet`, `PBag` | PCollections | `EachInstances.fromIterableCollecting(...)` |
 | `PSortedSet` | PCollections | `EachInstances.fromIterableRebuilding(...)` |
 | `PMap` | PCollections | `EachInstances.mapValuesEachCollecting(...)` |

@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashBagGenerator;
 import org.higherkindedj.optics.processing.generator.apache.ApacheHashMultiSetGenerator;
+import org.higherkindedj.optics.processing.generator.apache.ApacheTreeMultiSetGenerator;
 import org.higherkindedj.optics.processing.generator.apache.ApacheUnmodifiableListGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.ArrayGenerator;
 import org.higherkindedj.optics.processing.generator.basejdk.CollectionGenerator;
@@ -385,6 +386,25 @@ class GeneratorSpiMethodsTest {
               "org.apache.commons.collections4.multiset.HashMultiSet"),
           gen.getRequiredImports());
       assertEquals(0, gen.getFocusTypeArgumentIndex());
+    }
+
+    @Test
+    @DisplayName("ApacheTreeMultiSetGenerator")
+    void apacheTreeMultiSet() {
+      var gen = new ApacheTreeMultiSetGenerator();
+      assertEquals(Cardinality.ZERO_OR_MORE, gen.getCardinality());
+      assertEquals(
+          "EachInstances.fromIterableRebuilding((source, list) -> list.stream()"
+              + ".collect(Collectors.toCollection(() -> new TreeMultiSet<>(source.comparator()))))",
+          gen.generateOpticExpression());
+      assertEquals(
+          Set.of(
+              "org.higherkindedj.optics.each.EachInstances",
+              "java.util.stream.Collectors",
+              "org.apache.commons.collections4.multiset.TreeMultiSet"),
+          gen.getRequiredImports());
+      assertEquals(0, gen.getFocusTypeArgumentIndex());
+      assertEquals(OptionalInt.of(0), gen.getOrderedTypeArgumentIndex());
     }
 
     @Test

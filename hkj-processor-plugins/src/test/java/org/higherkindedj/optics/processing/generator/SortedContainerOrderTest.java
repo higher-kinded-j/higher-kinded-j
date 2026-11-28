@@ -38,6 +38,7 @@ class SortedContainerOrderTest {
       package com.example;
 
       import java.util.*;
+      import org.apache.commons.collections4.multiset.TreeMultiSet;
       import org.eclipse.collections.api.set.sorted.ImmutableSortedSet;
       import org.eclipse.collections.api.set.sorted.MutableSortedSet;
       import org.higherkindedj.optics.annotations.GenerateFocus;
@@ -68,6 +69,7 @@ class SortedContainerOrderTest {
           import java.lang.reflect.Proxy;
           import java.util.*;
           import java.util.function.Function;
+          import org.apache.commons.collections4.multiset.TreeMultiSet;
           import org.eclipse.collections.api.factory.SortedSets;
           import org.higherkindedj.optics.util.Traversals;
           import org.pcollections.PSortedMap;
@@ -108,6 +110,13 @@ class SortedContainerOrderTest {
               return key instanceof Leaf leaf ? leaf.name() : String.valueOf(key);
             }
 
+            @SafeVarargs
+            private static <T> TreeMultiSet<T> multiSet(Comparator<? super T> order, T... elements) {
+              TreeMultiSet<T> multiSet = new TreeMultiSet<>(order);
+              multiSet.addAll(List.of(elements));
+              return multiSet;
+            }
+
             /**
              * Another implementation of a PCollections interface, which reports a null comparator
              * for natural order, as SortedSet allows, and hands every other call to the delegate.
@@ -126,6 +135,10 @@ class SortedContainerOrderTest {
             private static final Ec EC = new Ec(SortedSets.mutable.of(REVERSE, "a", "b", "c"));
             private static final Ei EI = new Ei(SortedSets.immutable.of(REVERSE, "a", "b", "c"));
             private static final Pc PC = new Pc(TreePSet.from(REVERSE, List.of("a", "b", "c")));
+            private static final Am AM = new Am(multiSet(REVERSE, "a", "b", "b", "c"));
+            private static final Am AM_NATURAL = new Am(multiSet(null, "c", "b", "a", "b"));
+            private static final AmLeaf AM_LEAF =
+                new AmLeaf(multiSet(BY_NAME_REVERSED, new Leaf("a"), new Leaf("b"), new Leaf("b")));
             private static final Pm PM =
                 new Pm(TreePMap.from(REVERSE, Map.of("a", 1, "b", 2, "c", 3)));
             private static final Ec EC_NATURAL = new Ec(SortedSets.mutable.of("c", "a", "b"));
@@ -188,6 +201,24 @@ class SortedContainerOrderTest {
                     entries(Traversals.modify(PmLeafTraversals.scores(), TENFOLD, PM_LEAF).scores());
                 case "pm leaf focus" ->
                     entries(PmLeafFocus.scores().modifyAll(TENFOLD, PM_LEAF).scores());
+                case "am traversal" -> strings(Traversals.modify(AmTraversals.names(), UP, AM).names());
+                case "am focus" -> strings(AmFocus.names().modifyAll(UP, AM).names());
+                case "am natural traversal" ->
+                    strings(Traversals.modify(AmTraversals.names(), UP, AM_NATURAL).names());
+                case "am natural focus" -> strings(AmFocus.names().modifyAll(UP, AM_NATURAL).names());
+                case "am leaf traversal" ->
+                    leaves(Traversals.modify(AmLeafTraversals.leaves(), LEAF_UP, AM_LEAF).leaves());
+                case "am leaf focus" ->
+                    leaves(AmLeafFocus.leaves().modifyAll(LEAF_UP, AM_LEAF).leaves());
+                case "am source untouched" -> {
+                  // A mutable source is read, never rebuilt in place, by either route.
+                  var traversed = Traversals.modify(AmTraversals.names(), UP, AM);
+                  var focused = AmFocus.names().modifyAll(UP, AM);
+                  if (traversed.names() == AM.names() || focused.names() == AM.names()) {
+                    throw new AssertionError("the rebuild handed back the source's own multiset");
+                  }
+                  yield strings(AM.names());
+                }
                 case "ec source untouched" -> {
                   // A mutable source is read, never rebuilt in place, by either route.
                   var traversed = Traversals.modify(EcTraversals.names(), UP, EC);
@@ -222,6 +253,8 @@ class SortedContainerOrderTest {
                 record("EiLeaf", "ImmutableSortedSet<Leaf> leaves"),
                 record("PcLeaf", "PSortedSet<Leaf> leaves"),
                 record("PmLeaf", "PSortedMap<Leaf, Integer> scores"),
+                record("Am", "TreeMultiSet<String> names"),
+                record("AmLeaf", "TreeMultiSet<Leaf> leaves"),
                 PROBE);
     loader = new GeneratedClassLoader(compilation);
   }
@@ -268,6 +301,13 @@ class SortedContainerOrderTest {
           pm leaf traversal    | b=20, a=10
           pm leaf focus        | b=20, a=10
           ec source untouched  | c, b, a
+          am traversal         | C, B, B, A
+          am focus             | C, B, B, A
+          am natural traversal | A, B, B, C
+          am natural focus     | A, B, B, C
+          am leaf traversal    | B, B, A
+          am leaf focus        | B, B, A
+          am source untouched  | c, b, b, a
           """)
   @DisplayName("should keep the source's order")
   void shouldKeepTheSourcesOrder(String route, String expected) throws Exception {
