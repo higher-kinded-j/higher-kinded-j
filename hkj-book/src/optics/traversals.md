@@ -164,23 +164,13 @@ A component declared as some *other* `Collection` subtype (`Deque<Task>`, `Sorte
 
 A component declared `@Nullable` may hold no container at all. Its traversal reads a null container as an empty one: `getAll` returns an empty list, and `modify` hands the record back as it is.
 
-<!-- verify -->
 ```java
-import org.jspecify.annotations.Nullable;
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/traversals/TraversalsBook.java:nullable_record}}
 
-@GenerateTraversals
-record Bench(String coach, @Nullable List<Player> reserves) {}
-
-Bench noReserves = new Bench("Ada", null);
-
-// nothing to read, and the record handed back as it was
-List<Player> none = Traversals.getAll(BenchTraversals.reserves(), noReserves);
-Bench same =
-    Traversals.modify(
-        BenchTraversals.reserves(), p -> new Player(p.name(), p.score() + 10), noReserves);
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/traversals/TraversalsBook.java:nullable}}
 ```
 
-The processor checks for null before the generator's own code runs. Every container type gets the check, a [generator plugin](../tooling/generator_plugins.md)'s included, and so does a traversal `@ImportOptics` generates for a record. A Focus path over the same component finds no elements either. Both read `@Nullable` the same way, and [How do I handle nullable fields?](focus_reference.md#how-do-i-handle-nullable-fields) lists the annotations and the positions that count. `List<@Nullable Player>` declares the players nullable, not the list.
+The processor writes a null check ahead of the generator's own code, so every container type gets it, a [generator plugin](../tooling/generator_plugins.md)'s included. So does a traversal `@ImportOptics` generates for a record. A Focus path over the same component finds no elements either, since both read the same [six annotations](focus_navigation.md#nullable-handle-null-values), in the [positions that count](focus_navigation.md#where-a-nullable-counts).
 
 ### Step 2: Composing a Deep Traversal
 

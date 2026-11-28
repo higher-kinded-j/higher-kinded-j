@@ -27,8 +27,8 @@ import org.junit.jupiter.params.provider.FieldSource;
  * {@code @GenerateTraversals} and {@code @GenerateFocus(widenCollections = true)}, beside a probe
  * that names the generated optics as user code would, and the probe is run. Over a null component
  * the traversal must read no element, hand the record back as it is from {@code modify}, and agree
- * with the Focus path. Over a component of one element it must read and rewrite that element as
- * before.
+ * with the Focus path. Over a component of one element it must rewrite that element as before, and
+ * leave the source as it was.
  */
 @DisplayName("A generated traversal over a null @Nullable container")
 class NullableContainerTraversalTest {
@@ -111,6 +111,11 @@ class NullableContainerTraversalTest {
               "new HashMultiSet<>(List.of(\"a\"))",
               "org.apache.commons.collections4.multiset.HashMultiSet"),
           row(
+              "ApacheTreeMultiSet",
+              "@Nullable TreeMultiSet<String>",
+              "new TreeMultiSet<>(List.of(\"a\"))",
+              "org.apache.commons.collections4.multiset.TreeMultiSet"),
+          row(
               "ApacheBag",
               "@Nullable HashBag<String>",
               "new HashBag<>(List.of(\"a\"))",
@@ -160,6 +165,7 @@ class NullableContainerTraversalTest {
         import java.util.function.Function;
         import org.apache.commons.collections4.bag.HashBag;
         import org.apache.commons.collections4.multiset.HashMultiSet;
+        import org.apache.commons.collections4.multiset.TreeMultiSet;
         import org.eclipse.collections.api.factory.Lists;
         import org.eclipse.collections.api.factory.SortedSets;
         import org.higherkindedj.hkt.either.Either;
@@ -198,18 +204,19 @@ class NullableContainerTraversalTest {
 
           /**
            * What the traversal reads from a null component, whether modify hands the record back
-           * as it is, whether the Focus path agrees, then what it reads from one element and from
-           * that element rewritten.
+           * as it is, whether the Focus path agrees, then what it reads from one element rewritten
+           * and from that one element read again afterwards.
            */
           private static <S> String report(Traversal<S, String> traversal, Object path, S none, S one) {
             S modified = Traversals.modify(traversal, UP, none);
+            S rewritten = Traversals.modify(traversal, UP, one);
             return Traversals.getAll(traversal, none)
                 + (modified == none ? " same" : " rebuilt")
                 + (modified.equals(focusModify(path, none)) ? " agrees" : " differs")
                 + " | "
-                + Traversals.getAll(traversal, one)
+                + Traversals.getAll(traversal, rewritten)
                 + " "
-                + Traversals.getAll(traversal, Traversals.modify(traversal, UP, one));
+                + Traversals.getAll(traversal, one);
           }
 
           public static String run(String which) {
@@ -258,7 +265,7 @@ class NullableContainerTraversalTest {
     Object result =
         loader.load("com.example.Probe").getMethod("run", String.class).invoke(null, row.name());
 
-    assertThat(result).isEqualTo("[] same agrees | [a] [A]");
+    assertThat(result).isEqualTo("[] same agrees | [A] [a]");
   }
 
   private static String describe(Diagnostic<? extends JavaFileObject> diagnostic) {

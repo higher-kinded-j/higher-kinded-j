@@ -140,17 +140,7 @@ class ClassFileReprocessingTest {
    */
   private static final List<JavaFileObject> NULLABLE_TRAVERSALS =
       List.of(
-          JavaFileObjects.forSourceString(
-              "javax.annotation.Nullable",
-              """
-              package javax.annotation;
-
-              import java.lang.annotation.Retention;
-              import java.lang.annotation.RetentionPolicy;
-
-              @Retention(RetentionPolicy.RUNTIME)
-              public @interface Nullable {}
-              """),
+          Jsr305NullableStub.SOURCE,
           JavaFileObjects.forSourceString(
               "com.example.Shelf",
               """
