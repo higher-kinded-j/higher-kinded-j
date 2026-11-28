@@ -260,6 +260,8 @@ In order of preference:
 
 Two rules govern the annotated form. A nullable container widens through `.nullable()` and then its own step, where it has one, so `@Nullable List<T>` is `.nullable().each(EachInstances.listEach())`, and a null list has no elements. A nullable container inside another is ruled out the same way, and a navigator passes over a null element it would read. And position counts as Java defines it: `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements and leave the field itself non-null.
 
+A traversal from `@GenerateTraversals` or a fold from `@GenerateFolds` over the same component finds no elements in a null either, as [Nullable Components](traversals.md#nullable-components) shows. [Where a `@Nullable` counts](focus_navigation.md#where-a-nullable-counts) says where to write the annotation, an accessor the record declares itself included.
+
 ### Can I build Focus paths at runtime?
 
 Focus paths are designed for compile-time type safety. When the path is only known at runtime, build the optic dynamically and wrap it: `TraversalPath.of(someTraversal)` and `FocusPath.of(someLens)` accept any optic.

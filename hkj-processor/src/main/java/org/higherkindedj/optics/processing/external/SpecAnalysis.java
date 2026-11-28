@@ -335,8 +335,8 @@ public record SpecAnalysis(
    *     names in a local so the generic lens call is target-typed; null on the cast path
    * @param lensDeclared the same lens as its method declares it, so the local keeps what the
    *     declaration wrote on a type variable's use; null on the cast path
-   * @param nullableField whether the field may hold null, as the spec's lens for it or the member
-   *     that lens reads declares, so the composition steps past a null before the container's
+   * @param nullableField whether the field may hold null, as the spec's lens for it or the getter
+   *     that lens calls declares, so the composition steps past a null before the container's
    *     traversal (for @ThroughField)
    */
   public record TraversalHintInfo(

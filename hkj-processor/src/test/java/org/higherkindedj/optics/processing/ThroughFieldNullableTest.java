@@ -27,10 +27,10 @@ import org.junit.jupiter.params.provider.MethodSource;
  * A {@code @ThroughField} traversal over a field declared nullable finds no elements in a null one,
  * as a record's traversal does, where the container's traversal would throw on it.
  *
- * <p>The spec's lens for the field may declare its focus nullable, or the member the lens reads on
- * the source may be declared so: a record component, a getter on itself or on its return type, or a
- * public field. Either way the composition steps past a null with {@code Affines.nullable()} before
- * the container's traversal.
+ * <p>The spec's lens for the field may declare its focus nullable, or the getter the lens calls on
+ * the source may be declared so: a record's accessor through its component, or a getter on itself
+ * or on its return type. Either way the composition steps past a null with {@code
+ * Affines.nullable()} before the container's traversal.
  */
 @DisplayName("A @ThroughField traversal over a nullable field")
 class ThroughFieldNullableTest {
@@ -130,12 +130,9 @@ class ThroughFieldNullableTest {
             "the getter the lens names is declared nullable",
             team(
                 PRIVATE_FIELD,
-                """
-                public List<String> members() { return members; }
-
-                  public @Nullable List<String> rawMembers() { return members; }
-
-                  public List<String> rawMembers(int limit) { return members; }                """),
+                "public List<String> members() { return members; }\n"
+                    + "  public @Nullable List<String> rawMembers() { return members; }\n"
+                    + "  public List<String> rawMembers(int limit) { return members; }"),
             spec("Lens<Team, List<String>>", "rawMembers", AUTO_DETECTED)));
   }
 
@@ -210,11 +207,9 @@ class ThroughFieldNullableTest {
         compile(
             team(
                 "public final @Nullable List<String> members;",
-                """
-                public List<String> readMembers() { return members == null ? List.of() : members; }
-
-                  public @Nullable List<String> readMembers(int limit) { return members; }\
-                """),
+                "public List<String> readMembers() {"
+                    + " return members == null ? List.of() : members; }\n"
+                    + "  public @Nullable List<String> readMembers(int limit) { return members; }"),
             spec("Lens<Team, List<String>>", "readMembers", AUTO_DETECTED));
 
     assertThat(compilation).succeededWithoutWarnings();
@@ -298,9 +293,10 @@ class ThroughFieldNullableTest {
   }
 
   @Test
-  @DisplayName("reads the lens alone where the source has no member of the field's name")
-  void readsTheLensAloneWithoutAMember() {
-    // The lens reads readMembers(), and the field is private, so no member is named members.
+  @DisplayName("composes a named traversal as before through a getter declared non-null")
+  void composesANamedTraversalAsBeforeThroughANonNullGetter() {
+    // The lens calls readMembers(), declared non-null, so neither the lens nor its getter says the
+    // field may hold null.
     Compilation compilation =
         javac()
             .withProcessors(new ImportOpticsProcessor())
@@ -346,6 +342,110 @@ class ThroughFieldNullableTest {
 
     assertThat(compilation).hadErrorCount(1);
     assertThat(compilation).hadErrorContaining("cannot find symbol");
+  }
+
+  @Test
+  @DisplayName("reads the getter javac binds, not a nullable one it passes over")
+  void readsTheGetterJavacBinds() {
+    // Team inherits a non-null members() from Base and a nullable declaration from HasMembers;
+    // the lens's call binds Base's, so the field is read as non-null.
+    JavaFileObject hasMembers =
+        JavaFileObjects.forSourceString(
+            "com.external.HasMembers",
+            """
+            package com.external;
+
+            import java.util.List;
+            import org.jspecify.annotations.Nullable;
+
+            public interface HasMembers {
+              @Nullable List<String> members();
+            }
+            """);
+    JavaFileObject base =
+        JavaFileObjects.forSourceString(
+            "com.external.Base",
+            """
+            package com.external;
+
+            import java.util.List;
+
+            public class Base {
+              protected final List<String> members;
+
+              protected Base(List<String> members) {
+                this.members = members;
+              }
+
+              public List<String> members() {
+                return members;
+              }
+            }
+            """);
+    JavaFileObject team =
+        JavaFileObjects.forSourceString(
+            "com.external.Team",
+            """
+            package com.external;
+
+            import java.util.List;
+
+            public final class Team extends Base implements HasMembers {
+              public Team(List<String> members) {
+                super(members);
+              }
+
+              public Team withMembers(List<String> members) {
+                return new Team(members);
+              }
+            }
+            """);
+
+    Compilation compilation =
+        compile(hasMembers, base, team, spec("Lens<Team, List<String>>", "members", NAMED));
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeDoesNotContain(compilation, "com.test.Team", "Affines");
+  }
+
+  @Test
+  @DisplayName("a lens naming a getter the source lacks is refused for itself alone")
+  void aLensNamingAMissingGetterIsRefusedForItselfAlone() {
+    // The traversal is declared first, so its nullable reading looks for the getter before the
+    // lens is refused for naming one the source lacks, and finds none to read.
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.test.TeamSpec",
+            """
+            package com.test;
+
+            import com.external.Team;
+            import java.util.List;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.Traversal;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ThroughField;
+            import org.higherkindedj.optics.annotations.Wither;
+
+            @ImportOptics
+            public interface TeamSpec extends OpticsSpec<Team> {
+              %s
+              Traversal<Team, String> eachMember();
+
+              @Wither(value = "withMembers", getter = "missingMembers")
+              Lens<Team, List<String>> members();
+            }
+            """
+                .formatted(NAMED));
+    Compilation compilation =
+        javac()
+            .withProcessors(new ImportOpticsProcessor())
+            .compile(
+                team(PRIVATE_FIELD, "public List<String> members() { return members; }"), spec);
+
+    assertThat(compilation).hadErrorCount(1);
+    assertThat(compilation).hadErrorContaining("missingMembers");
   }
 
   @Test

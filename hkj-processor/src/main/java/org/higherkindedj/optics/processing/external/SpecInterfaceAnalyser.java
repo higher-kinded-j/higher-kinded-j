@@ -1738,25 +1738,17 @@ public class SpecInterfaceAnalyser {
         lens.type().getTypeArguments().size() == 2
             && NullableAnnotations.isNullable(
                 ((DeclaredType) lens.declared()).getTypeArguments().get(1));
-    return focusNullable || getterReadsNullable((DeclaredType) sourceType, lensGetter(lens));
-  }
-
-  /**
-   * The getter the generated lens calls: the one its copy-strategy annotation names, or the lens's
-   * own name, as {@code CopyStrategyChecks} resolves it.
-   */
-  private static String lensGetter(LensMember lens) {
-    return lens.method().getAnnotationMirrors().stream()
-        .map(mirror -> ProcessorUtils.getAnnotationString(mirror, "getter", ""))
-        .filter(getter -> !getter.isEmpty())
-        .findFirst()
-        .orElse(lens.method().getSimpleName().toString());
+    return focusNullable
+        || getterReadsNullable(
+            (DeclaredType) sourceType, CopyStrategyChecks.getterOf(lens.method()));
   }
 
   /**
    * Whether the getter named {@code getter} is declared nullable on the source: a record's accessor
    * through its component, where every recognised annotation lands, and any other getter, declared
-   * or inherited, on itself or on the type it returns.
+   * or inherited, on itself or on the type it returns. The getter read is the one the generated
+   * lens's call binds, as {@link CallableMembers#accessorNamed} chooses it, so a nullable
+   * declaration that call does not bind adds no step.
    */
   private boolean getterReadsNullable(DeclaredType source, String getter) {
     TypeElement type = (TypeElement) source.asElement();
@@ -1765,11 +1757,10 @@ public class SpecInterfaceAnalyser {
         return NullableAnnotations.hasNullableAnnotation(component);
       }
     }
-    return ElementFilter.methodsIn(elementUtils.getAllMembers(type)).stream()
-        .filter(
-            method ->
-                method.getSimpleName().contentEquals(getter) && method.getParameters().isEmpty())
-        .anyMatch(NullableAnnotations::getterHasNullableAnnotation);
+    ExecutableElement read =
+        CallableMembers.accessorNamed(
+            typeUtils, source, ElementFilter.methodsIn(elementUtils.getAllMembers(type)), getter);
+    return read != null && NullableAnnotations.getterHasNullableAnnotation(read);
   }
 
   private void error(String msg, Element element) {

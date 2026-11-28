@@ -136,7 +136,7 @@ Order discounted =
         order);
 ```
 
-A field the spec's lens declares nullable, as in `Lens<Order, @Nullable List<LineItem>>`, or one whose getter the lens reads carries a recognised `@Nullable`, has no elements when it is null. The composition steps past the null with `Affines.nullable()` before the container's traversal, auto-detected or named, as a [record's traversal](traversals.md#nullable-components) does.
+A field the spec's lens declares nullable with a recognised `@Nullable`, as in `Lens<Order, @Nullable List<LineItem>>`, or one whose getter the lens reads carries one, has no elements when it is null. The composition steps past the null with `Affines.nullable()` before the container's traversal, auto-detected or named, as a [record's traversal](traversals.md#nullable-components) does.
 
 ### `@ThroughField` Auto-Detection
 
