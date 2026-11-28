@@ -450,7 +450,7 @@ Depending on what the mapping can honour:
 
 | Mapping is | You also get |
 |------------|--------------|
-| Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element or map key), on the component or on its own accessor, that the domain declares non-null |
+| Lossless both ways | `asIso()`, unless a record wire declares `@Nullable` a component (or an element or map key) the domain declares non-null |
 | A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, on a bean wire any reference property (it can be unset), or on a record wire a `@Nullable` component (or element or map key) the domain declares non-null: validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
 | Full (it builds and parses, and no property is `@ReadOnly`, its own or a nested spec's) | `asValidatedPrism()` |
 | A bean wire with getters and nothing that writes it | `parse` + `asValidatedParse()`, **no** `build` |
@@ -555,7 +555,7 @@ matter: it maps build-only whatever its width, derived fields included.
   over a `null` too, so a domain component declared `@Nullable` that `build` copies into a record
   component, setter or builder setter declared non-null (a non-null annotation, or `@NullMarked`
   without `@Nullable`) is refused, and so is a plain `@GenerateMerge` source copied into such a
-  target. Mark the wire side `@Nullable` (on a Lombok bean, its field), or declare the domain side
+  target, a `@Nullable` on the source record's own accessor included. Mark the wire side `@Nullable` (on a Lombok bean, its field), or declare the domain side
   non-null; a merge can instead take a leaf and return `Validated`. `parse` needs no such rule: it
   refuses every unbridged `null` read. A type variable counts as the spec instantiates it:
   `One<@Nullable String>` makes a domain `T` nullable, `ItemDto<String>` a wire `T` non-null. The
@@ -596,7 +596,9 @@ matter: it maps build-only whatever its width, derived fields included.
   reaches (`List<@Nullable String>`, a map's values or keys, what a key holds, an array's
   elements, a wildcard's bound), and the domain declares its own non-null, `parse` refuses the
   `null` and no total optic can hand it over. So a full mapping has no `asIso()`, and a projection maps as `patch`, not
-  `asLens()`. A type argument counts where an unannotated type variable leaves the nullness to it
+  `asLens()`. A record's own accessor counts too: a `@Nullable` on its return type, or inside it,
+  costs the optics as one on the component does, and an accessor stricter than its component keeps
+  the cost. A type argument counts where an unannotated type variable leaves the nullness to it
   (`Page<@Nullable String>` for `Page<T extends @Nullable Object>`), and an annotated use
   (`@NonNull T`) decides alone for the value itself. What any type variable holds, annotated or
   not, is still its argument's, or its bound's where that rules a `null` out (`L extends

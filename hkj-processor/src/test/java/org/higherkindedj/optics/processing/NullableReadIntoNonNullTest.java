@@ -844,6 +844,26 @@ class NullableReadIntoNonNullTest {
 
             @GenerateMapping
             public interface LegacyFieldMapping extends MappingSpec<Contact, LegacyFieldDto> {}
+
+            // An accessor stricter than its component still costs the optic: the component says
+            // what the wire holds, inside the value and through a type argument.
+            public record StrictRollDto(List<@Nullable String> names) {
+              public List<String> names() {
+                return names.stream().filter(name -> name != null).toList();
+              }
+            }
+
+            @GenerateMapping
+            public interface StrictRollMapping extends MappingSpec<Roll, StrictRollDto> {}
+
+            public record StrictBox<T extends @Nullable Object>(T email) {
+              public @NonNull T email() {
+                return java.util.Objects.requireNonNull(email);
+              }
+            }
+
+            @GenerateMapping
+            public interface StrictBoxMapping extends MappingSpec<Contact, StrictBox<@Nullable String>> {}
           }
           """);
 
@@ -904,7 +924,9 @@ class NullableReadIntoNonNullTest {
         "ArrayItemsMapping",
         "AccessorMapping",
         "AccessorRollMapping",
-        "LegacyFieldMapping");
+        "LegacyFieldMapping",
+        "StrictRollMapping",
+        "StrictBoxMapping");
   }
 
   @ParameterizedTest(name = "{0}")

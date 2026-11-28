@@ -245,6 +245,10 @@ final class NullnessReading {
    * accessor the record declares itself may say so where the component says nothing, and the copy
    * hands on what it answers.
    *
+   * <p>It reads wider than {@link #readsNullable}, which {@code build} reads the domain with, and
+   * where an accessor the record declares itself decides alone: a check that refuses a merge or
+   * withholds an optic gives a declared {@code null} the benefit of the doubt.
+   *
    * @param component the source component a copy reads
    * @return whether the copy may hand on a {@code null}
    */

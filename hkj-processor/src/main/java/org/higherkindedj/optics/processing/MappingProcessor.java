@@ -14938,13 +14938,16 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Whether a record wire's identity copy may hand the domain a {@code null} the domain's
    * declaration rules out, which {@code parse} refuses with a located error, so no total optic can
-   * hand it over. The wire's component may be declared nullable, read as {@link #nullableSource}
-   * reads the domain's for {@code build}, where the domain's is declared non-null, read as that
-   * check reads its write site ({@link NullnessReading#nonNullComponent}). Or an element, at a
-   * level the copy's null scan reaches ({@link NullScan}), may be declared nullable where the
-   * domain's element at that level rules a null out, and so may a map's key at its level, or an
-   * element inside a key that is itself a container, which {@code parse} reports too ({@link
-   * NullnessReading#copiedInto}).
+   * hand it over. The wire's component may be declared nullable, at the component or at the
+   * accessor the optic calls ({@link NullnessReading#copiesNullable}), where the domain's is
+   * declared non-null, read as the check on {@code build} reads its write site ({@link
+   * NullnessReading#nonNullComponent}). That reads wider than {@link #nullableSource} reads the
+   * domain's for {@code build}, where an accessor the record declares itself decides alone: a check
+   * that withholds an optic gives a declared {@code null} the benefit of the doubt. Or an element,
+   * at a level the copy's null scan reaches ({@link NullScan}), may be declared nullable, in the
+   * component's type or in the accessor's, where the domain's element at that level rules a null
+   * out, and so may a map's key at its level, or an element inside a key that is itself a
+   * container, which {@code parse} reports too ({@link NullnessReading#copiedInto}).
    *
    * <p>Each type is read as the record declares it and as it is instantiated ({@link Written}):
    * {@code wireType} and {@code domainType} are the instantiated components, {@code scan} is the
@@ -14970,9 +14973,11 @@ public class MappingProcessor extends AbstractProcessor {
     Elements elements = processingEnv.getElementUtils();
     RecordComponentElement from = componentNamed(wire.element(), wireName);
     RecordComponentElement to = componentNamed(domain, name);
-    // The optic calls the wire's accessor, so its return type is the one read, as the check on
-    // build reads the domain's.
+    // The component says what the wire holds, and the accessor the optic calls what it answers,
+    // so a null either declares counts. They differ only by their type-use annotations.
     Written wireSide =
+        new Written(from.asType(), wireType, List.of(from), writtenScopes(spec, spec));
+    Written readSide =
         new Written(
             from.getAccessor().getReturnType(), wireType, List.of(from), writtenScopes(spec, spec));
     Written domainSide =
@@ -14987,9 +14992,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // A null the component or the canonical constructor's parameter rules out is one parse
     // refuses, or one a total optic would hand the constructor.
-    return NullnessReading.ruledOutIn(
-        wireSide,
-        domainSide,
+    Optional<Written> parameterSide =
         NullnessReading.canonicalParameter(types, domain, to)
             .map(
                 parameter ->
@@ -14997,10 +15000,9 @@ public class MappingProcessor extends AbstractProcessor {
                         parameter.asType(),
                         domainType,
                         List.of(parameter),
-                        writtenScopes(spec, arguments))),
-        scan,
-        types,
-        elements);
+                        writtenScopes(spec, arguments)));
+    return NullnessReading.ruledOutIn(wireSide, domainSide, parameterSide, scan, types, elements)
+        || NullnessReading.ruledOutIn(readSide, domainSide, parameterSide, scan, types, elements);
   }
 
   /**
