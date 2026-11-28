@@ -102,10 +102,9 @@ public final class NullableAnnotations {
 
   /**
    * Why a record component takes no {@code null}, or empty when it may take one or says nothing
-   * either way. The component is read at the three sites {@link #hasNullableAnnotation} reads, and
-   * at its backing field as well: an annotation targeting fields and methods but not record
-   * components reaches the accessor only when the accessor is implicit, and always reaches the
-   * field.
+   * either way. The component is read on itself, its type, its accessor and its backing field: an
+   * annotation targeting fields and methods but not record components reaches the accessor only
+   * when the accessor is implicit, and always reaches the field.
    *
    * @param component the record component a canonical constructor writes
    * @return the reason the component is declared non-null, if it is
@@ -375,7 +374,7 @@ public final class NullableAnnotations {
    * <p>An annotation written on a record component does not necessarily land on the component
    * element. javac copies a declaration annotation to every declaration it is applicable to, and a
    * {@code TYPE_USE} annotation lands on the component's type instead, so where it ends up is
-   * decided by the annotation's own {@code @Target}. Three sites between them cover every
+   * decided by the annotation's own {@code @Target}. These sites between them cover every
    * recognised name:
    *
    * <ul>
@@ -383,12 +382,12 @@ public final class NullableAnnotations {
    *       it applicable to every declaration context (JSR-305's and Jakarta's)
    *   <li>the component's type: a {@code TYPE_USE} annotation (JSpecify's and JetBrains')
    *   <li>the accessor: an annotation targeting {@code METHOD} (JetBrains', AndroidX's and
-   *       SpotBugs')
+   *       SpotBugs'), which reaches it only when the accessor is implicit
+   *   <li>the backing field: an annotation targeting {@code FIELD} (AndroidX's and SpotBugs'),
+   *       which reaches it whether the accessor is implicit or the record declares its own
+   *   <li>the type an accessor the record declares returns: a {@code TYPE_USE} annotation written
+   *       there alone, as in {@code public @Nullable List<String> names()}
    * </ul>
-   *
-   * <p>The backing field and the canonical constructor parameter carry the same declaration
-   * annotation as the accessor, so they are not probed separately: every recognised name that
-   * targets {@code FIELD} or {@code PARAMETER} also targets {@code METHOD}.
    *
    * <p>Only the component's own type counts. A {@code TYPE_USE} annotation on a type argument, as
    * in {@code List<@Nullable String>}, describes the elements rather than the field and leaves the
@@ -398,9 +397,28 @@ public final class NullableAnnotations {
    * @return {@code true} if the component has a recognised nullable annotation
    */
   public static boolean hasNullableAnnotation(RecordComponentElement component) {
-    return hasNullable(component.getAnnotationMirrors())
-        || hasNullable(component.asType().getAnnotationMirrors())
-        || hasNullable(component.getAccessor().getAnnotationMirrors());
+    return hasNullable(
+        Stream.concat(
+                declaredOn(component).stream(),
+                component.getAccessor().getReturnType().getAnnotationMirrors().stream())
+            .toList());
+  }
+
+  /**
+   * Whether a getter is declared nullable with a recognised annotation, on itself or on the type it
+   * returns: a declaration annotation lands on the one, a {@code TYPE_USE} annotation on the other.
+   *
+   * <p>Only the getter's own type counts, as for {@link #hasNullableAnnotation}.
+   *
+   * @param getter the getter an optic reads through
+   * @return {@code true} if the getter is declared nullable
+   */
+  public static boolean getterHasNullableAnnotation(ExecutableElement getter) {
+    return hasNullable(
+        Stream.concat(
+                getter.getAnnotationMirrors().stream(),
+                getter.getReturnType().getAnnotationMirrors().stream())
+            .toList());
   }
 
   /**
@@ -410,7 +428,7 @@ public final class NullableAnnotations {
    * @param type the type to check
    * @return {@code true} if the type itself is annotated nullable
    */
-  static boolean isNullable(TypeMirror type) {
+  public static boolean isNullable(TypeMirror type) {
     return hasNullable(type.getAnnotationMirrors());
   }
 

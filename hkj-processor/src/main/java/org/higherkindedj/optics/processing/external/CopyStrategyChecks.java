@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.external;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
@@ -119,6 +120,24 @@ final class CopyStrategyChecks {
   record CopyStrategyResult(CopyStrategyKind kind, CopyStrategyInfo info) {}
 
   /**
+   * The getter a lens method's copy strategy reads through: the one its {@code @ViaBuilder} or
+   * {@code @Wither} names, read in the order {@link #parse} reads them, or the lens method's own
+   * name where neither names one.
+   *
+   * @param method the lens method
+   * @return the name of the getter the generated lens calls
+   */
+  static String getterOf(ExecutableElement method) {
+    return Stream.of(VIA_BUILDER_FQN, WITHER_FQN)
+        .map(strategy -> ProcessorUtils.findAnnotation(method, strategy))
+        .filter(Objects::nonNull)
+        .findFirst()
+        .map(strategy -> ProcessorUtils.getAnnotationString(strategy, "getter", ""))
+        .filter(getter -> !getter.isEmpty())
+        .orElse(method.getSimpleName().toString());
+  }
+
+  /**
    * Reads the copy strategy annotation on a lens method.
    *
    * @param method the abstract lens method
@@ -167,7 +186,7 @@ final class CopyStrategyChecks {
           "@ViaBuilder",
           declaredSource,
           sourceTypeElement,
-          getter.isEmpty() ? fieldName : getter,
+          getterOf(method),
           focusType,
           targetPackage)) {
         return Optional.empty();
@@ -176,7 +195,7 @@ final class CopyStrategyChecks {
               method,
               declaredSource,
               sourceTypeElement,
-              getter.isEmpty() ? fieldName : getter,
+              getterOf(method),
               toBuilder,
               setter.isEmpty() ? fieldName : setter,
               build,
@@ -213,14 +232,14 @@ final class CopyStrategyChecks {
               "@Wither",
               declaredSource,
               sourceTypeElement,
-              getter.isEmpty() ? fieldName : getter,
+              getterOf(method),
               focusType,
               targetPackage)
           || rebuildsThroughUnusableWither(
               method,
               declaredSource,
               sourceTypeElement,
-              getter.isEmpty() ? fieldName : getter,
+              getterOf(method),
               written == null ? focusType : written,
               witherMethod,
               targetPackage)) {

@@ -279,7 +279,8 @@ public class TraversalProcessor extends AbstractProcessor {
         ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
-        generator.generateModifyF(
+        TraversalBodies.modifyF(
+            generator,
             component,
             recordClassName,
             recordElement.getRecordComponents(),

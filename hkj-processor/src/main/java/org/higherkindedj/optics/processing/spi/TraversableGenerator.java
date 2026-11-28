@@ -251,6 +251,13 @@ public interface TraversableGenerator {
    * it already has, which javac reports under {@code -Xlint:cast} in every build that compiles the
    * generated source.
    *
+   * <p>A component the record declares nullable reaches the body non-null. hkj's processors write a
+   * null check before the body, which hands the record back as it is, so a null container has no
+   * elements, as it has for the Focus path. That holds for the six {@code @Nullable} annotations
+   * they recognise: JSpecify's, JSR-305's, Jakarta's, JetBrains', AndroidX's and SpotBugs'. A
+   * component declared nullable any other way, such as with Spring's or the Checker Framework's
+   * {@code @Nullable}, reaches the body as it is.
+   *
    * <p>hkj's processors call the {@link GenerationContext} form, {@link
    * #generateModifyF(RecordComponentElement, ClassName, List, GenerationContext)}, whose default
    * reaches this one. A generator whose body names a type overrides that form too, and names each
@@ -311,6 +318,9 @@ public interface TraversableGenerator {
    * file can write it cleanly, and leaves off one the file cannot name or one that is deprecated,
    * by {@code @Deprecated} or by a javadoc {@code @deprecated} tag alone, since it would draw a
    * warning in the generated file that no one can suppress.
+   *
+   * <p>A component declared {@code @Nullable} reaches this body non-null, as {@link
+   * #generateModifyF(RecordComponentElement, ClassName, List)} says.
    *
    * <p>The default calls {@link #generateModifyF(RecordComponentElement, ClassName, List, String)}
    * with the context's package, so a generator written for an earlier release, and one that writes

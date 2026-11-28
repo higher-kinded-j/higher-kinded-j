@@ -335,6 +335,9 @@ public record SpecAnalysis(
    *     names in a local so the generic lens call is target-typed; null on the cast path
    * @param lensDeclared the same lens as its method declares it, so the local keeps what the
    *     declaration wrote on a type variable's use; null on the cast path
+   * @param nullableField whether the field may hold null, as the spec's lens for it or the getter
+   *     that lens calls declares, so the composition steps past a null before the container's
+   *     traversal (for @ThroughField)
    */
   public record TraversalHintInfo(
       String traversalReference,
@@ -342,7 +345,8 @@ public record SpecAnalysis(
       String fieldTraversal,
       boolean checkedComposition,
       DeclaredType lens,
-      TypeMirror lensDeclared) {
+      TypeMirror lensDeclared,
+      boolean nullableField) {
 
     /**
      * The focus the spec's lens for the field declares, which is what the container traversal
@@ -356,12 +360,30 @@ public record SpecAnalysis(
     }
 
     /**
+     * This info with whether the field may hold null. A nullable field's composition steps past a
+     * null before the container's traversal, so a null container has no elements.
+     *
+     * @param nullable whether the field may hold null
+     * @return the same info, saying whether the field may hold null
+     */
+    public TraversalHintInfo withNullableField(boolean nullable) {
+      return new TraversalHintInfo(
+          traversalReference,
+          fieldName,
+          fieldTraversal,
+          checkedComposition,
+          lens,
+          lensDeclared,
+          nullable);
+    }
+
+    /**
      * Creates an empty traversal hint info.
      *
      * @return an empty TraversalHintInfo
      */
     public static TraversalHintInfo empty() {
-      return new TraversalHintInfo("", "", "", false, null, null);
+      return new TraversalHintInfo("", "", "", false, null, null, false);
     }
 
     /**
@@ -371,7 +393,7 @@ public record SpecAnalysis(
      * @return a TraversalHintInfo for explicit traversal
      */
     public static TraversalHintInfo forTraverseWith(String traversalReference) {
-      return new TraversalHintInfo(traversalReference, "", "", false, null, null);
+      return new TraversalHintInfo(traversalReference, "", "", false, null, null, false);
     }
 
     /**
@@ -385,7 +407,7 @@ public record SpecAnalysis(
      * @return a TraversalHintInfo for field-based traversal
      */
     public static TraversalHintInfo forThroughField(String fieldName, String traversal) {
-      return new TraversalHintInfo("", fieldName, traversal, false, null, null);
+      return new TraversalHintInfo("", fieldName, traversal, false, null, null, false);
     }
 
     /**
@@ -401,7 +423,7 @@ public record SpecAnalysis(
      */
     public static TraversalHintInfo forCheckedThroughField(
         String fieldName, String traversal, DeclaredType lens, TypeMirror lensDeclared) {
-      return new TraversalHintInfo("", fieldName, traversal, true, lens, lensDeclared);
+      return new TraversalHintInfo("", fieldName, traversal, true, lens, lensDeclared, false);
     }
   }
 }

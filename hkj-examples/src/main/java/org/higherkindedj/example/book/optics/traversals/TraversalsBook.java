@@ -11,6 +11,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Traversals;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The code shown on the book's <a
@@ -50,6 +51,22 @@ public final class TraversalsBook {
     // Result: [100, 90, 110, 120]
     // ANCHOR_END: get_all
     return new Bonus(updatedLeague, allScores);
+  }
+
+  /** A bench with no reserves, what the traversal reads from it, and what modify hands back. */
+  record NoReserves(Bench bench, List<Player> none, Bench same) {}
+
+  static NoReserves benchWithNoReserves() {
+    // ANCHOR: nullable
+    Bench noReserves = new Bench("Ada", null);
+
+    // Nothing to read, and the record handed back as it was
+    List<Player> none = Traversals.getAll(BenchTraversals.reserves(), noReserves);
+    Bench same =
+        Traversals.modify(
+            BenchTraversals.reserves(), p -> new Player(p.name(), p.score() + 10), noReserves);
+    // ANCHOR_END: nullable
+    return new NoReserves(noReserves, none, same);
   }
 
   /** The prices read as one list, that list sorted, and the assortment with it written back. */
@@ -159,6 +176,12 @@ record Team(String name, List<Player> players) {}
 @GenerateLenses
 @GenerateTraversals
 record League(String name, List<Team> teams) {}
+
+// ANCHOR: nullable_record
+@GenerateTraversals
+record Bench(String coach, @Nullable List<Player> reserves) {}
+
+// ANCHOR_END: nullable_record
 
 @GenerateLenses
 record Product(String sku, String name, BigDecimal price, int stock) {}

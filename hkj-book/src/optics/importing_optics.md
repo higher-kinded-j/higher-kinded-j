@@ -176,7 +176,7 @@ Lens<Department, List<Employee>> staff = DepartmentLenses.staff();
 Traversal<Department, Employee> eachMember = DepartmentLenses.staffTraversal();
 ```
 
-An element type written as a wildcard is focused as the type it stands for, as `@GenerateTraversals` does: `List<? extends Employee>` gives a `Traversal<Department, Employee>`, and `List<?>` a `Traversal<Department, Object>`. See [Wildcard Element Types](traversals.md#wildcard-element-types).
+An element type written as a wildcard is focused as the type it stands for, as `@GenerateTraversals` does: `List<? extends Employee>` gives a `Traversal<Department, Employee>`, and `List<?>` a `Traversal<Department, Object>`. See [Wildcard Element Types](traversals.md#wildcard-element-types). A container field declared with a recognised `@Nullable` that holds null has no elements, as [Nullable Components](traversals.md#nullable-components) shows.
 
 ---
 

@@ -160,6 +160,18 @@ Two limits follow from `Collection` being all the declaration says, and `Travers
 
 A component declared as some *other* `Collection` subtype (`Deque<Task>`, `SortedSet<Tag>`, `ArrayList<String>`) has no generator, and is not silently skipped: the processor reports a note on the component, naming the type nothing supports and what to do about it. A note rather than a warning, because the annotation has no per-component opt-out and a processor warning would fail a `-Werror` build with no way to answer it. See [Compiler Errors](compiler_errors.md#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note).
 
+#### Nullable Components {#nullable-components}
+
+A component declared `@Nullable` may hold no container at all. Its traversal reads a null container as an empty one: `getAll` returns an empty list, and `modify` hands the record back as it is.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/traversals/TraversalsBook.java:nullable_record}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/traversals/TraversalsBook.java:nullable}}
+```
+
+The processor writes a null check ahead of the generator's own code, so every container type gets it, a [generator plugin](../tooling/generator_plugins.md)'s included. So does a traversal `@ImportOptics` generates, for a record or [through `@ThroughField`](copy_strategies.md#reaching-into-collections-with-throughfield), and a fold from [`@GenerateFolds`](folds.md#step-1-generating-folds). A Focus path over the same component finds no elements either, since both read the same [six annotations](focus_navigation.md#nullable-handle-null-values), in the [positions that count](focus_navigation.md#where-a-nullable-counts). The processor does not read another library's `@Nullable`, such as Spring's, so a traversal over a null container marked with one still throws `NullPointerException`.
+
 ### Step 2: Composing a Deep Traversal
 
 Just like other optics, `Traversal`s can be composed with `andThen`. We can chain them together to create a single, deep traversal from the `League` all the way down to each player's `score`.

@@ -28,6 +28,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.GeneratorRegistry;
+import org.higherkindedj.optics.processing.TraversalBodies;
 import org.higherkindedj.optics.processing.spi.GenerationContext;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
@@ -438,7 +439,8 @@ public class ExternalLensGenerator {
         ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
-        generator.generateModifyF(
+        TraversalBodies.modifyF(
+            generator,
             component,
             recordClassName,
             allComponents,

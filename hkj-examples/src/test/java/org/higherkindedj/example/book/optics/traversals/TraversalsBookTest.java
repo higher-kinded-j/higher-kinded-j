@@ -11,8 +11,8 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** Holds the claims the Traversals page makes about its league and its price lists. */
-@DisplayName("the Traversals page: a composed traversal, and partsOf")
+/** Holds the claims the Traversals page makes about its league, its bench and its price lists. */
+@DisplayName("the Traversals page: a composed traversal, a nullable list, and partsOf")
 class TraversalsBookTest {
 
   private static final League LEAGUE =
@@ -62,6 +62,15 @@ class TraversalsBookTest {
   @DisplayName("getAll reads every score, in the order the traversal visits them")
   void getAllReadsEveryScore() {
     assertThat(TraversalsBook.addBonus(LEAGUE).allScores()).containsExactly(100, 90, 110, 120);
+  }
+
+  @Test
+  @DisplayName("a null list of reserves has no player to read, and modify hands the bench back")
+  void aNullListHasNoPlayers() {
+    TraversalsBook.NoReserves result = TraversalsBook.benchWithNoReserves();
+
+    assertThat(result.none()).isEmpty();
+    assertThat(result.same()).isSameAs(result.bench());
   }
 
   @Test

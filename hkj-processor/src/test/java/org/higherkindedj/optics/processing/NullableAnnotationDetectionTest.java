@@ -286,6 +286,45 @@ class NullableAnnotationDetectionTest {
       assertGeneratedCodeContains(compilation, "com.example.ProfileFocus", ".nullable()");
     }
 
+    @ParameterizedTest
+    @MethodSource("vendors")
+    @DisplayName("is read from the backing field when the record declares its own accessor")
+    void vendorNullableIsReadWithAnAccessorOfTheRecordsOwn(Vendor vendor) {
+      // An annotation targeting fields and methods but not record components reaches an implicit
+      // accessor, and only the field once the record declares the accessor itself.
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile",
+              """
+              package com.example;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.optics.annotations.GenerateFolds;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              @GenerateFocus
+              @GenerateTraversals
+              @GenerateFolds
+              public record Profile(String id, @%1$s String bio, @%1$s List<String> tags) {
+                public String bio() { return bio; }
+                public List<String> tags() { return tags; }
+              }
+              """
+                  .formatted(vendor.annotation()));
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor(), new TraversalProcessor(), new FoldProcessor())
+              .compile(standIn(vendor), source);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.ProfileFocus", "AffinePath<Profile, String> bio()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ProfileTraversals", "if (source.tags() == null)");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ProfileFolds", "if (source.bio() == null)");
+    }
+
     /** Declares the vendor annotation with the {@code @Target} its published artefact carries. */
     private static JavaFileObject standIn(Vendor vendor) {
       final int lastDot = vendor.annotation().lastIndexOf('.');
@@ -308,6 +347,49 @@ class NullableAnnotationDetectionTest {
                   vendor.annotation().substring(0, lastDot),
                   target,
                   vendor.annotation().substring(lastDot + 1)));
+    }
+  }
+
+  @Nested
+  @DisplayName("An Accessor of the Record's Own")
+  class OwnAccessor {
+
+    @Test
+    @DisplayName("reads a @Nullable written on the type the accessor returns alone")
+    void readsTheAccessorsReturnType() {
+      final JavaFileObject source =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile",
+              """
+              package com.example;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.optics.annotations.GenerateFolds;
+              import org.higherkindedj.optics.annotations.GenerateTraversals;
+              import org.jspecify.annotations.Nullable;
+              @GenerateFocus
+              @GenerateTraversals
+              @GenerateFolds
+              public record Profile(String id, String bio, List<String> tags) {
+                public @Nullable String bio() { return bio; }
+                public @Nullable List<String> tags() { return tags; }
+              }
+              """);
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new FocusProcessor(), new TraversalProcessor(), new FoldProcessor())
+              .compile(source);
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.example.ProfileFocus", "AffinePath<Profile, String> bio()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ProfileTraversals", "if (source.tags() == null)");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ProfileFolds", "if (source.bio() == null)");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.example.ProfileFolds", "if (source.id() == null)");
     }
   }
 }

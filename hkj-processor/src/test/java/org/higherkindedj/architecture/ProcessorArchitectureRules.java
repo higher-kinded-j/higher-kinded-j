@@ -431,6 +431,40 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * Every route writes a traversal body through {@code TraversalBodies}.
+   *
+   * <p>{@code TraversalBodies.modifyF} writes a null check before a generator's body for a
+   * component declared nullable, and the SPI promises each generator that such a component reaches
+   * its body non-null. A route calling {@code generateModifyF} itself would hand a generator the
+   * null it was promised it would not see. {@code @GenerateTraversals} and {@code @ImportOptics}
+   * each reach it from their {@code createTraversal}. A generator calling another form of its own,
+   * as the SPI's defaults do, is not a route. Collecting the callers also fails the rule if it
+   * stops seeing the ones it allows.
+   */
+  @Test
+  @DisplayName("Every route should write a traversal body through TraversalBodies")
+  void every_route_should_write_a_traversal_body_through_traversal_bodies() {
+    assertThat(
+            StreamSupport.stream(classes.spliterator(), false)
+                .flatMap(ProcessorArchitectureRules::callsAndReferencesFrom)
+                .filter(
+                    access -> access.getTarget().getOwner().isAssignableTo(TRAVERSABLE_GENERATOR))
+                .filter(access -> access.getTarget().getName().equals("generateModifyF"))
+                .filter(access -> !access.getOriginOwner().isAssignableTo(TRAVERSABLE_GENERATOR))
+                .map(
+                    access ->
+                        access.getOriginOwner().getSimpleName()
+                            + "."
+                            + access.getOrigin().getName())
+                .collect(Collectors.toSet()))
+        .as("write the body through TraversalBodies.modifyF, which checks a nullable component")
+        .isEqualTo(Set.of("TraversalBodies.modifyF"));
+    assertThat(callersOf(TRAVERSAL_BODIES, "modifyF"))
+        .isEqualTo(
+            Set.of("TraversalProcessor.createTraversal", "ExternalLensGenerator.createTraversal"));
+  }
+
+  /**
    * Every processor loads the generators through the registry.
    *
    * <p>{@code GeneratorRegistry.load} loads the generators once per compilation, through its {@code
@@ -878,6 +912,10 @@ class ProcessorArchitectureRules {
   /** The interface whose choosing methods only the registry may consult. */
   private static final String TRAVERSABLE_GENERATOR =
       "org.higherkindedj.optics.processing.spi.TraversableGenerator";
+
+  /** The one writer of a traversal body, which checks a nullable component first. */
+  private static final String TRAVERSAL_BODIES =
+      "org.higherkindedj.optics.processing.TraversalBodies";
 
   /** The single home for generator selection. */
   private static final String SERVICE_LOADER = "java.util.ServiceLoader";

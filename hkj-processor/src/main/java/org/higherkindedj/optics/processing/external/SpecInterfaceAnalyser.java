@@ -11,6 +11,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -22,6 +23,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import org.higherkindedj.optics.processing.NullableAnnotations;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyInfo;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
@@ -1277,6 +1279,7 @@ public class SpecInterfaceAnalyser {
       String fieldName = ProcessorUtils.getAnnotationString(throughField, "field", "");
       String traversal = ProcessorUtils.getAnnotationString(throughField, "traversal", "");
 
+      TraversalHintInfo info;
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
         Optional<AutoDetectedTraversal> autoDetected =
@@ -1285,23 +1288,21 @@ public class SpecInterfaceAnalyser {
           // Error already reported in autoDetectTraversalForField
           return Optional.empty();
         }
-        return Optional.of(
-            new TraversalHintResult(
-                TraversalHintKind.THROUGH_FIELD,
-                autoDetected.get().checkedComposition()
-                    ? TraversalHintInfo.forCheckedThroughField(
-                        fieldName,
-                        autoDetected.get().reference(),
-                        autoDetected.get().lens().type(),
-                        autoDetected.get().lens().declared())
-                    : TraversalHintInfo.forThroughField(
-                        fieldName, autoDetected.get().reference())));
+        info =
+            autoDetected.get().checkedComposition()
+                ? TraversalHintInfo.forCheckedThroughField(
+                    fieldName,
+                    autoDetected.get().reference(),
+                    autoDetected.get().lens().type(),
+                    autoDetected.get().lens().declared())
+                : TraversalHintInfo.forThroughField(fieldName, autoDetected.get().reference());
+      } else {
+        info = TraversalHintInfo.forThroughField(fieldName, traversal);
       }
-
       return Optional.of(
           new TraversalHintResult(
               TraversalHintKind.THROUGH_FIELD,
-              TraversalHintInfo.forThroughField(fieldName, traversal)));
+              info.withNullableField(nullableField(sourceType, fieldName, specInterface))));
     }
 
     error(
@@ -1707,6 +1708,59 @@ public class SpecInterfaceAnalyser {
     }
 
     return null;
+  }
+
+  /**
+   * Whether the field a {@code @ThroughField} traversal composes through may hold null: the spec's
+   * lens for it declares a nullable focus, or the getter that lens calls on the source is declared
+   * nullable, each with a recognised {@code @Nullable}. The composition then steps past a null
+   * before the container's traversal, so a null container has no elements, as it has for a record's
+   * traversal.
+   *
+   * <p>A lens declared non-null over a getter declared nullable already disagrees with it under a
+   * nullness checker, which reports the lens. The step keeps a build without one from throwing.
+   *
+   * @param sourceType the instantiated source type
+   * @param fieldName the field the traversal composes through
+   * @param specInterface the spec interface, whose lens for the field the traversal composes with
+   * @return whether the field is declared nullable
+   */
+  private boolean nullableField(
+      TypeMirror sourceType, String fieldName, TypeElement specInterface) {
+    LensMember lens = declaredLens(specInterface, fieldName);
+    if (lens == null) {
+      // A named traversal through a lens the spec does not declare calls a method the generated
+      // class lacks, which javac reports; there is no getter to read.
+      return false;
+    }
+    // A lens with both its type arguments names its focus second; a raw one says nothing.
+    boolean focusNullable =
+        lens.type().getTypeArguments().size() == 2
+            && NullableAnnotations.isNullable(
+                ((DeclaredType) lens.declared()).getTypeArguments().get(1));
+    return focusNullable
+        || getterReadsNullable(
+            (DeclaredType) sourceType, CopyStrategyChecks.getterOf(lens.method()));
+  }
+
+  /**
+   * Whether the getter named {@code getter} is declared nullable on the source: a record's accessor
+   * through its component, where every recognised annotation lands, and any other getter, declared
+   * or inherited, on itself or on the type it returns. The getter read is the one the generated
+   * lens's call binds, as {@link CallableMembers#accessorNamed} chooses it, so a nullable
+   * declaration that call does not bind adds no step.
+   */
+  private boolean getterReadsNullable(DeclaredType source, String getter) {
+    TypeElement type = (TypeElement) source.asElement();
+    for (RecordComponentElement component : type.getRecordComponents()) {
+      if (component.getSimpleName().contentEquals(getter)) {
+        return NullableAnnotations.hasNullableAnnotation(component);
+      }
+    }
+    ExecutableElement read =
+        CallableMembers.accessorNamed(
+            typeUtils, source, ElementFilter.methodsIn(elementUtils.getAllMembers(type)), getter);
+    return read != null && NullableAnnotations.getterHasNullableAnnotation(read);
   }
 
   private void error(String msg, Element element) {
