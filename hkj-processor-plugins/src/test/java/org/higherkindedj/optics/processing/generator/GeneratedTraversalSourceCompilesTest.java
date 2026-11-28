@@ -204,7 +204,8 @@ class GeneratedTraversalSourceCompilesTest {
               "PSortedSet<? extends String>",
               "PSortedMap<? extends String, Leaf>",
               "PSortedMap<?, Leaf>",
-              "TreeMultiSet<? extends Leaf>"));
+              "TreeMultiSet<? extends Leaf>",
+              "TreeMultiSet<? super Leaf>"));
 
   static Stream<Arguments> shapes() {
     return SHAPES.stream().map(shape -> Arguments.of(shape.label(), shape));
