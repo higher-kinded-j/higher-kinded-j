@@ -33,6 +33,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * hkj-processor's generators are registered with Gradle as aggregating, so in an incremental build
@@ -705,8 +706,8 @@ class ClassFileReprocessingTest {
             public interface Box<A> {}
             """);
 
-    /** A library witness of {@code arity}, implementing {@code implemented} beside it. */
-    private static JavaFileObject boxKind(String arity, String implemented) {
+    /** A library witness implementing {@code implemented}. */
+    private static JavaFileObject boxKind(String implemented) {
       return source(
           "lib.BoxKind",
           """
@@ -717,11 +718,41 @@ class ClassFileReprocessingTest {
           import org.higherkindedj.hkt.WitnessArity;
 
           public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
-            final class Witness implements WitnessArity<TypeArity.%s>, %s {}
+            final class Witness implements %s {}
           }
           """
-              .formatted(arity, implemented));
+              .formatted(implemented));
     }
+
+    /** A supertype of a library witness that the consumer's classpath lacks. */
+    private static final JavaFileObject MARKER =
+        source("dep.Marker", "package dep;\n\npublic interface Marker {}\n");
+
+    /**
+     * Two library interfaces passing an arity on to {@code WitnessArity}, each through a type
+     * parameter of its own.
+     */
+    private static final List<JavaFileObject> ARITIES =
+        List.of(
+            source(
+                "lib.Arity",
+                """
+                package lib;
+
+                import org.higherkindedj.hkt.TypeArity;
+                import org.higherkindedj.hkt.WitnessArity;
+
+                public interface Arity<A extends TypeArity> extends WitnessArity<A> {}
+                """),
+            source(
+                "lib.HasArity",
+                """
+                package lib;
+
+                import org.higherkindedj.hkt.TypeArity;
+
+                public interface HasArity<B extends TypeArity> extends Arity<B> {}
+                """));
 
     /** A library effect algebra whose one operation holds {@code component}. */
     private static JavaFileObject algebra(String name, String component) {
@@ -815,15 +846,22 @@ class ClassFileReprocessingTest {
               List.of(
                   NUL,
                   source("lib.Tagged", "package lib;\n\npublic interface Tagged<T> {}\n"),
-                  boxKind("Unary", "Tagged<@dep.Nul String>")),
+                  boxKind("WitnessArity<TypeArity.Unary>, Tagged<@dep.Nul String>")),
               List.of(BOX),
               "app.BoxPath"),
           arguments(
               "a @PathSource witness's supertype",
               "dep.Marker",
-              List.of(
-                  source("dep.Marker", "package dep;\n\npublic interface Marker {}\n"),
-                  boxKind("Unary", "dep.Marker")),
+              List.of(MARKER, boxKind("WitnessArity<TypeArity.Unary>, dep.Marker")),
+              List.of(BOX),
+              "app.BoxPath"),
+          arguments(
+              "a @PathSource witness's supertype, beside the interfaces passing its arity on",
+              "dep.Marker",
+              Stream.concat(
+                      ARITIES.stream(),
+                      Stream.of(MARKER, boxKind("HasArity<TypeArity.Unary>, dep.Marker")))
+                  .toList(),
               List.of(BOX),
               "app.BoxPath"));
     }
@@ -859,18 +897,23 @@ class ClassFileReprocessingTest {
       CompilationSubject.assertThat(compilation).generatedSourceFile(generated);
     }
 
-    @Test
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "WitnessArity<TypeArity.Binary>, dep.Marker",
+          "HasArity<TypeArity.Binary>, dep.Marker"
+        })
     @DisplayName(
         "a library witness of another arity, with a supertype the classpath lacks, is refused as"
             + " where the classpath has it")
-    void aWitnessOfAnotherArityIsRefused() throws IOException {
+    void aWitnessOfAnotherArityIsRefused(String implemented) throws IOException {
       // The supertype it lacks cannot be the one giving the witness one type parameter, as the
       // arity it implements can be given only once.
       Compilation lib =
           javac()
               .compile(
-                  source("dep.Marker", "package dep;\n\npublic interface Marker {}\n"),
-                  boxKind("Binary", "dep.Marker"));
+                  Stream.concat(ARITIES.stream(), Stream.of(MARKER, boxKind(implemented)))
+                      .toList());
       Path classes =
           GeneratorTestHelper.classDirectoryWithout(lib, tmp.resolve("lib"), "dep.Marker");
       Compilation compilation =
