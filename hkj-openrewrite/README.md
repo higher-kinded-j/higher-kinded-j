@@ -303,6 +303,10 @@ a `Natural`. A class that implements `NaturalTransformation` and overrides its `
 `compose` is left to you: the rewrite gives a clash that does not compile, so drop the override or
 write the `Natural` signature.
 
+`WriterPath.listen(log)`, which appends to the log, becomes `tell(log)`, which appends the same
+log. `RenameWriterPathListenToTell` renames each call and method reference, and leaves `listen()`,
+which pairs the value with the log, alone.
+
 Run the group with `hkj-openrewrite` 0.6.x while the project is on 0.6.x, before it moves to
 0.7.0, which removes the methods and the type it matches.
 
@@ -312,6 +316,7 @@ Run the group with `hkj-openrewrite` 0.6.x while the project is on 0.6.x, before
 | `org.higherkindedj.openrewrite.ReplaceParCollectWithToListRecipe` | `VStreamPar.parCollect(stream, n)` → `stream.toList()`, `path.parCollect(n)` → `path.toList()`, `PathOps.parCollectVStream(path, n)` → `path.toList()` |
 | `org.higherkindedj.openrewrite.RenameTryFoldFailureFirst` | `Try.foldFailureFirst(failureMapper, successMapper)` and `TryPath.foldFailureFirst(..)` → `fold(failureMapper, successMapper)`, a pure rename; a method reference such as `t::foldFailureFirst` becomes `t::fold` |
 | `org.higherkindedj.openrewrite.ReplaceNaturalTransformationWithNatural` | `org.higherkindedj.hkt.effect.NaturalTransformation` → `org.higherkindedj.hkt.Natural`; `FreePath.foldMapWith` → `foldMap`, `FreeApPath.foldMapWith` → `foldMapKind` |
+| `org.higherkindedj.openrewrite.RenameWriterPathListenToTell` | `WriterPath.listen(log)` → `tell(log)`, a pure rename; a method reference such as `path::listen` becomes `path::tell` |
 
 ```kotlin
 rewrite {

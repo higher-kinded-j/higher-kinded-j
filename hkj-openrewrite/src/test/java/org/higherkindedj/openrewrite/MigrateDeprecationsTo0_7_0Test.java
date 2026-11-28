@@ -12,7 +12,9 @@ import org.openrewrite.test.RewriteTest;
 
 /**
  * Tests for the declarative {@code MigrateDeprecationsTo0_7_0} recipe, against the real hkj-core
- * and hkj-api. {@link ReplaceParCollectWithToListRecipeTest} covers its {@code parCollect} recipe.
+ * and hkj-api. {@link ReplaceParCollectWithToListRecipeTest} covers its {@code parCollect} recipe,
+ * {@link ReplaceNaturalTransformationWithNaturalTest} its {@code Natural} recipe and {@link
+ * RenameWriterPathListenToTellTest} its {@code WriterPath.listen} recipe.
  */
 @DisplayName("MigrateDeprecationsTo0_7_0")
 class MigrateDeprecationsTo0_7_0Test implements RewriteTest {
@@ -233,6 +235,37 @@ class MigrateDeprecationsTo0_7_0Test implements RewriteTest {
                 String read(Try<String> t) {
                     return foldFailureFirst(Throwable::getMessage, s -> s)
                         + t.fold(Throwable::getMessage, s -> s);
+                }
+            }
+            """));
+  }
+
+  @Test
+  @DisplayName("WriterPath.listen(log) becomes tell(log) when the group runs")
+  void renamesWriterPathListenWithALogToTell() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import java.util.List;
+            import org.higherkindedj.hkt.effect.WriterPath;
+
+            class Usage {
+                WriterPath<List<String>, Integer> ship(WriterPath<List<String>, Integer> paid) {
+                    return paid.listen(List.of("shipped"));
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import java.util.List;
+            import org.higherkindedj.hkt.effect.WriterPath;
+
+            class Usage {
+                WriterPath<List<String>, Integer> ship(WriterPath<List<String>, Integer> paid) {
+                    return paid.tell(List.of("shipped"));
                 }
             }
             """));

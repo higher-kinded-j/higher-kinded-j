@@ -19,6 +19,7 @@ Each of these compiles with javac's `[removal]` warning, which fails a `-Werror`
 | `NaturalTransformation<F, G>`, in `org.higherkindedj.hkt.effect` | 0.6.0 | `Natural<F, G>`, which it extends | `ReplaceNaturalTransformationWithNatural` |
 | `FreePath.foldMapWith(interpreter, monad)` | 0.6.0 | `foldMap(interpreter, monad)` | `ReplaceNaturalTransformationWithNatural` |
 | `FreeApPath.foldMapWith(interpreter, applicative)` | 0.6.0 | `foldMapKind(interpreter, applicative)` | `ReplaceNaturalTransformationWithNatural` |
+| `WriterPath.listen(log)` | 0.6.0 | `tell(log)`, which appends the same log. `listen()` reads the log, as `MonadWriter.listen` does | `RenameWriterPathListenToTell` |
 | `ProcessorUtils.typeNameOf`, `resolvedTypeNameOf` and `typeVariableOf(parameter, targetPackage)`, in their forms that take no `Elements` | 0.6.0 | The same call with the round's `Elements` first, from `context.elements()` in a generator. In a generator, `context.typeNameOf(type)` replaces `typeNameOf(type, targetPackage)` | By hand |
 | `ProcessorUtils.typeVariableOf(parameter)` | 0.6.0 | `typeVariableOf(elements, parameter, targetPackage)` | By hand |
 | `TraversableGenerator.generateModifyF(component, recordClassName, allComponents, targetPackage)`, with the built-in generators' final forms of it | 0.6.0 | The `GenerationContext` form, naming each type with `context.typeNameOf(type)`; `context.targetPackage()` is the same package | By hand |

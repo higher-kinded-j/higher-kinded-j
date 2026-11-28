@@ -156,6 +156,8 @@ A `Writer` refuses a `null` log or result, so `Writer.of(null, value)`, `Writer.
 | `bimap(onLog, onValue)` | Changes the log and the result together |
 | `run()`, `exec()` | Give the result, or the log |
 | `writerPath.via(f)`, `then(next)`, `zipWith(other, f)` | Chain, sequence or combine `WriterPath` steps, joining their logs with the first path's entries first |
+| `writerPath.tell(log)` | Appends `log`, and keeps the result |
+| `writerPath.listen()` | Pairs the result with the log, and leaves the log as it is |
 | `writerPath.censor(f)` | Rewrites the whole log with `f` |
 | `writerPath.run()`, `value()`, `written()` | Give the `Writer`, the result, or the log |
 

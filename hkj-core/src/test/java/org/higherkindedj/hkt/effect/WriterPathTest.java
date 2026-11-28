@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Monoid;
+import org.higherkindedj.hkt.Pair;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.writer.Writer;
 import org.junit.jupiter.api.DisplayName;
@@ -410,15 +411,50 @@ class WriterPathTest {
     }
 
     @Test
-    @DisplayName("listen() adds additional log to existing log")
-    void listenAddsAdditionalLog() {
+    @DisplayName("tell(log) appends to the log and keeps the value")
+    void tellAppendsToTheLog() {
       WriterPath<String, Integer> path =
           WriterPath.tell("log|", STRING_MONOID).then(() -> WriterPath.pure(42, STRING_MONOID));
 
-      var result = path.listen("extra");
+      var result = path.tell("extra");
 
       assertThat(result.value()).isEqualTo(42);
       assertThat(result.written()).isEqualTo("log|extra");
+    }
+
+    @Test
+    @DisplayName("tell(log) validates non-null log")
+    void tellValidatesNonNullLog() {
+      WriterPath<String, Integer> path = WriterPath.pure(42, STRING_MONOID);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.tell(null))
+          .withMessageContaining("log must not be null");
+    }
+
+    @Test
+    @DisplayName("listen() pairs the value with the log, and leaves the log as it is")
+    void listenPairsTheValueWithTheLog() {
+      WriterPath<String, Integer> path = WriterPath.writer(42, "paid|", STRING_MONOID);
+
+      WriterPath<String, Pair<Integer, String>> listened = path.listen();
+
+      assertThat(listened.value()).isEqualTo(Pair.of(42, "paid|"));
+      assertThat(listened.written()).isEqualTo("paid|");
+      assertThat(listened.tell("shipped|").written()).isEqualTo("paid|shipped|");
+    }
+
+    @Test
+    @SuppressWarnings("removal") // exercises the deprecated method until its removal
+    @DisplayName("the deprecated listen(log) gives what tell(log) gives")
+    void deprecatedListenGivesWhatTellGives() {
+      WriterPath<String, Integer> path =
+          WriterPath.tell("log|", STRING_MONOID).then(() -> WriterPath.pure(42, STRING_MONOID));
+
+      assertThat(path.listen("extra").run()).isEqualTo(path.tell("extra").run());
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.listen(null))
+          .withMessageContaining("additionalLog must not be null");
     }
   }
 
