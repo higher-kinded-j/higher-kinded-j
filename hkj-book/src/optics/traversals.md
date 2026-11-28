@@ -170,7 +170,7 @@ A component declared `@Nullable` may hold no container at all. Its traversal rea
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/traversals/TraversalsBook.java:nullable}}
 ```
 
-The processor writes a null check ahead of the generator's own code, so every container type gets it, a [generator plugin](../tooling/generator_plugins.md)'s included. So does a traversal `@ImportOptics` generates, for a record or [through `@ThroughField`](copy_strategies.md#reaching-into-collections-with-throughfield), and a fold from [`@GenerateFolds`](folds.md#step-1-generating-folds). A Focus path over the same component finds no elements either, since both read the same [six annotations](focus_navigation.md#nullable-handle-null-values), in the [positions that count](focus_navigation.md#where-a-nullable-counts).
+The processor writes a null check ahead of the generator's own code, so every container type gets it, a [generator plugin](../tooling/generator_plugins.md)'s included. So does a traversal `@ImportOptics` generates, for a record or [through `@ThroughField`](copy_strategies.md#reaching-into-collections-with-throughfield), and a fold from [`@GenerateFolds`](folds.md#step-1-generating-folds). A Focus path over the same component finds no elements either, since both read the same [six annotations](focus_navigation.md#nullable-handle-null-values), in the [positions that count](focus_navigation.md#where-a-nullable-counts). The processor does not read another library's `@Nullable`, such as Spring's, so a traversal over a null container marked with one still throws `NullPointerException`.
 
 ### Step 2: Composing a Deep Traversal
 

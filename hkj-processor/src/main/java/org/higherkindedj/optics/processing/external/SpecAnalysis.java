@@ -360,12 +360,13 @@ public record SpecAnalysis(
     }
 
     /**
-     * This info for a field that may hold null, whose composition steps past a null before the
-     * container's traversal, so a null container has no elements.
+     * This info with whether the field may hold null. A nullable field's composition steps past a
+     * null before the container's traversal, so a null container has no elements.
      *
-     * @return the same info, for a nullable field
+     * @param nullable whether the field may hold null
+     * @return the same info, saying whether the field may hold null
      */
-    public TraversalHintInfo withNullableField() {
+    public TraversalHintInfo withNullableField(boolean nullable) {
       return new TraversalHintInfo(
           traversalReference,
           fieldName,
@@ -373,7 +374,7 @@ public record SpecAnalysis(
           checkedComposition,
           lens,
           lensDeclared,
-          true);
+          nullable);
     }
 
     /**

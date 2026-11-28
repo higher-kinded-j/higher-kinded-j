@@ -300,8 +300,9 @@ class TraversalNullableContainerTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {JSPECIFY, JAVAX})
-    @DisplayName("reads the nullable container of a record read from a jar")
-    void readsANullableContainerFromAJar(String annotation, @TempDir Path tmp) throws IOException {
+    @DisplayName("reads the nullable container of a record read from class files")
+    void readsANullableContainerFromClassFiles(String annotation, @TempDir Path tmp)
+        throws IOException {
       Compilation library = javac().compile(basket(annotation), Jsr305NullableStub.SOURCE);
       assertThat(library).succeeded();
 

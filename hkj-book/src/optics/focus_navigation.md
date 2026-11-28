@@ -383,13 +383,12 @@ The note names the path the field's method returns, which follows the field's [p
 
 ### Where a `@Nullable` counts {#where-a-nullable-counts}
 
-The processor reads each recognised annotation wherever its own `@Target` puts it:
+The processor reads a recognised annotation in either of two places:
 
-| Annotation | Where the processor reads it |
+| Written on | Read from |
 |---|---|
-| JSpecify's and JetBrains' `TYPE_USE` | The component's type, or the type an accessor the record declares itself returns |
-| JetBrains', AndroidX's and SpotBugs' | The accessor, or the backing field when the record declares the accessor itself |
-| JSR-305's and Jakarta's | The component itself |
+| The component | Wherever the annotation's own `@Target` puts it: the component, its type, the accessor or the backing field |
+| An accessor the record declares itself | The method, or the type it returns |
 
 A nullable container widens through `.nullable()`, then its own step if it has one: `@Nullable List<T>` is `.nullable().each(EachInstances.listEach())`, so a null list has no elements. Position counts as Java defines it, so `String @Nullable []` is a nullable array, while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 

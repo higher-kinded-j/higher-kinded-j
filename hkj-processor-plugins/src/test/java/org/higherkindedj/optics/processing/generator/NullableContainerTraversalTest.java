@@ -212,7 +212,7 @@ class NullableContainerTraversalTest {
             S rewritten = Traversals.modify(traversal, UP, one);
             return Traversals.getAll(traversal, none)
                 + (modified == none ? " same" : " rebuilt")
-                + (modified.equals(focusModify(path, none)) ? " agrees" : " differs")
+                + (focusModify(path, none) == none ? " agrees" : " differs")
                 + " | "
                 + Traversals.getAll(traversal, rewritten)
                 + " "

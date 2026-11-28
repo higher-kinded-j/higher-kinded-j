@@ -83,7 +83,7 @@ public record OrderHistory(List<Order> orders) {}
 This generates:
 * `OrderHistoryFolds.orders()` → `Fold<OrderHistory, Order>` (focuses on every order)
 
-A component declared `@Nullable` that holds null has nothing to fold: `getAll` returns an empty list, and `foldMap` the monoid's empty value, as a [traversal](traversals.md#nullable-components) finds no elements there.
+A component declared with a recognised `@Nullable` that holds null has nothing to fold: `getAll` returns an empty list, and `foldMap` the monoid's empty value, as a [traversal](traversals.md#nullable-components) finds no elements there.
 
 The chapter's `Order` carries no `@GenerateFolds`, so the next steps build its fold with `Fold.of`, from a function that lists the targets: `Fold.of(Order::lines)` focuses on every line. `OrderTraversals.lines().asFold()` reaches the same lines through the traversal the cast generates.
 

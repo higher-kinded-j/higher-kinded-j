@@ -127,11 +127,16 @@ class ThroughFieldNullableTest {
                 "@javax.annotation.Nullable public List<String> members() { return members; }"),
             spec("Lens<Team, List<String>>", "members", AUTO_DETECTED)),
         Arguments.of(
-            "the public field is declared nullable",
+            "the getter the lens names is declared nullable",
             team(
-                "public final @Nullable List<String> members;",
-                "public List<String> readMembers() { return members; }"),
-            spec("Lens<Team, List<String>>", "readMembers", AUTO_DETECTED)));
+                PRIVATE_FIELD,
+                """
+                public List<String> members() { return members; }
+
+                  public @Nullable List<String> rawMembers() { return members; }
+
+                  public List<String> rawMembers(int limit) { return members; }                """),
+            spec("Lens<Team, List<String>>", "rawMembers", AUTO_DETECTED)));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -194,6 +199,26 @@ class ThroughFieldNullableTest {
         compilation,
         "com.test.Bag",
         "return lens.andThen(Affines.nullable()).andThen(org.higherkindedj.optics.util.Traversals.forList());");
+  }
+
+  @Test
+  @DisplayName("composes as before for a nullable public field the lens does not read")
+  void composesAsBeforeForAFieldTheLensDoesNotRead() {
+    // The lens reads readMembers(), which is declared non-null, whatever the field beside it or
+    // an overload taking an argument says.
+    Compilation compilation =
+        compile(
+            team(
+                "public final @Nullable List<String> members;",
+                """
+                public List<String> readMembers() { return members == null ? List.of() : members; }
+
+                  public @Nullable List<String> readMembers(int limit) { return members; }\
+                """),
+            spec("Lens<Team, List<String>>", "readMembers", AUTO_DETECTED));
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeDoesNotContain(compilation, "com.test.Team", "Affines");
   }
 
   @Test
@@ -347,5 +372,6 @@ class ThroughFieldNullableTest {
                 eachMember,
                 Traversals.modify(eachMember, name -> name.toUpperCase(Locale.ROOT), one)))
         .containsExactly("ADA");
+    assertThat(Traversals.getAll(eachMember, one)).containsExactly("ada");
   }
 }

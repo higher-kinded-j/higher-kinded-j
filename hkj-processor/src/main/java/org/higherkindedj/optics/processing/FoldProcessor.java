@@ -177,7 +177,10 @@ public class FoldProcessor extends AbstractProcessor {
                     WildcardTypeName.subtypeOf(monoidType)),
                 "f")
             .addParameter(recordTypeName, "source");
-    if (NullableAnnotations.hasNullableAnnotation(component)) {
+    // A primitive holds no null whatever annotation javac lets onto it, and comparing one with
+    // null does not compile.
+    if (!component.asType().getKind().isPrimitive()
+        && NullableAnnotations.hasNullableAnnotation(component)) {
       // A null the component is declared to hold has nothing in it to fold, as the Focus path
       // reads it, so the fold gives the monoid's empty value rather than a null to the function.
       foldMap

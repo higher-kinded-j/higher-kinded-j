@@ -90,6 +90,38 @@ class FoldNullableComponentTest {
     }
   }
 
+  @Test
+  @DisplayName("folds a primitive declared nullable as before, since it cannot hold null")
+  void foldsANullablePrimitiveAsBefore() throws ReflectiveOperationException {
+    JavaFileObject counter =
+        JavaFileObjects.forSourceString(
+            "com.example.Counter",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFolds;
+
+            @GenerateFolds
+            public record Counter(@javax.annotation.Nullable int count) {}
+            """);
+    Compilation compilation =
+        javac()
+            .withProcessors(new FoldProcessor())
+            .withOptions("-Xlint:all,-processing", "-Werror")
+            .compile(counter, Jsr305NullableStub.SOURCE);
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeDoesNotContain(compilation, "com.example.CounterFolds", "== null");
+    CompiledResult result = new CompiledResult(compilation);
+
+    Object three =
+        result.loadClass("com.example.Counter").getDeclaredConstructors()[0].newInstance(3);
+    @SuppressWarnings("unchecked") // the generated method's type arguments erase to these
+    Fold<Object, Integer> count =
+        (Fold<Object, Integer>) result.invokeStatic("com.example.CounterFolds", "count");
+
+    assertThat(count.getAll(three)).containsExactly(3);
+  }
+
   @Nested
   @DisplayName("Running the generated fold")
   class Running {

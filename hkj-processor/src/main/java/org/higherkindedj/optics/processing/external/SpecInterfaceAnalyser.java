@@ -13,6 +13,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -1301,9 +1302,7 @@ public class SpecInterfaceAnalyser {
       return Optional.of(
           new TraversalHintResult(
               TraversalHintKind.THROUGH_FIELD,
-              nullableField(sourceType, fieldName, specInterface)
-                  ? info.withNullableField()
-                  : info));
+              info.withNullableField(nullableField(sourceType, fieldName, specInterface))));
     }
 
     error(
@@ -1665,39 +1664,13 @@ public class SpecInterfaceAnalyser {
     // holds a spec back until its source type resolves, which leaves DECLARED alone. That is what
     // makes the cast total, the same reasoning parseCopyStrategy's spells out.
     DeclaredType declaredSource = (DeclaredType) sourceType;
-    Element member = findFieldMember(declaredSource, fieldName);
-    if (member == null) {
-      return null;
-    }
-    return switch (member.getKind()) {
-      case RECORD_COMPONENT ->
-          ProcessorUtils.memberTypeOf(
-              typeUtils, declaredSource, ((RecordComponentElement) member).getAccessor());
-      case METHOD ->
-          ProcessorUtils.memberTypeOf(typeUtils, declaredSource, (ExecutableElement) member);
-      default ->
-          ProcessorUtils.carriesInstantiation(declaredSource)
-              ? typeUtils.asMemberOf(declaredSource, member)
-              : member.asType();
-    };
-  }
-
-  /**
-   * The member a named field is read through on the source type: a record component, an accessor
-   * under any of its spellings, or a public field, looked for in that order.
-   *
-   * @param declaredSource the source type to search
-   * @param fieldName the field name to find
-   * @return the member, or null if not found
-   */
-  private Element findFieldMember(DeclaredType declaredSource, String fieldName) {
     TypeElement typeElement = (TypeElement) declaredSource.asElement();
 
     // For records, check record components first
     if (typeElement.getKind() == ElementKind.RECORD) {
       for (var component : typeElement.getRecordComponents()) {
         if (component.getSimpleName().contentEquals(fieldName)) {
-          return component;
+          return ProcessorUtils.memberTypeOf(typeUtils, declaredSource, component.getAccessor());
         }
       }
     }
@@ -1717,16 +1690,20 @@ public class SpecInterfaceAnalyser {
           && method.getParameters().isEmpty()
           && method.getModifiers().contains(Modifier.PUBLIC)
           && !method.getModifiers().contains(Modifier.STATIC)) {
-        return method;
+        return ProcessorUtils.memberTypeOf(typeUtils, declaredSource, method);
       }
     }
 
     // Look for public field directly
     for (var enclosed : typeElement.getEnclosedElements()) {
-      if (enclosed.getKind() == ElementKind.FIELD
-          && enclosed.getSimpleName().contentEquals(fieldName)
-          && enclosed.getModifiers().contains(Modifier.PUBLIC)) {
-        return enclosed;
+      if (enclosed.getKind() == ElementKind.FIELD) {
+        VariableElement field = (VariableElement) enclosed;
+        if (field.getSimpleName().contentEquals(fieldName)
+            && field.getModifiers().contains(Modifier.PUBLIC)) {
+          return ProcessorUtils.carriesInstantiation(declaredSource)
+              ? typeUtils.asMemberOf(declaredSource, field)
+              : field.asType();
+        }
       }
     }
 
@@ -1735,11 +1712,13 @@ public class SpecInterfaceAnalyser {
 
   /**
    * Whether the field a {@code @ThroughField} traversal composes through may hold null: the spec's
-   * lens for it declares a nullable focus, or the member that lens reads on the source is declared
-   * nullable, each with a recognised {@code @Nullable}. The lens decides what the composition is
-   * typed against, and the member decides what it hands over, so either one is enough. The
-   * composition then steps past a null before the container's traversal, so a null container has no
-   * elements, as it has for a record's traversal.
+   * lens for it declares a nullable focus, or the getter that lens calls on the source is declared
+   * nullable, each with a recognised {@code @Nullable}. The composition then steps past a null
+   * before the container's traversal, so a null container has no elements, as it has for a record's
+   * traversal.
+   *
+   * <p>A lens declared non-null over a getter declared nullable already disagrees with it under a
+   * nullness checker, which reports the lens. The step keeps a build without one from throwing.
    *
    * @param sourceType the instantiated source type
    * @param fieldName the field the traversal composes through
@@ -1749,16 +1728,48 @@ public class SpecInterfaceAnalyser {
   private boolean nullableField(
       TypeMirror sourceType, String fieldName, TypeElement specInterface) {
     LensMember lens = declaredLens(specInterface, fieldName);
-    // A lens with both its type arguments names its focus second; a missing or raw one says
-    // nothing, and the member alone decides.
-    boolean lensNullable =
-        lens != null
-            && lens.type().getTypeArguments().size() == 2
+    if (lens == null) {
+      // A named traversal through a lens the spec does not declare calls a method the generated
+      // class lacks, which javac reports; there is no getter to read.
+      return false;
+    }
+    // A lens with both its type arguments names its focus second; a raw one says nothing.
+    boolean focusNullable =
+        lens.type().getTypeArguments().size() == 2
             && NullableAnnotations.isNullable(
                 ((DeclaredType) lens.declared()).getTypeArguments().get(1));
-    Element member = findFieldMember((DeclaredType) sourceType, fieldName);
-    return lensNullable
-        || (member != null && NullableAnnotations.memberHasNullableAnnotation(member));
+    return focusNullable || getterReadsNullable((DeclaredType) sourceType, lensGetter(lens));
+  }
+
+  /**
+   * The getter the generated lens calls: the one its copy-strategy annotation names, or the lens's
+   * own name, as {@code CopyStrategyChecks} resolves it.
+   */
+  private static String lensGetter(LensMember lens) {
+    return lens.method().getAnnotationMirrors().stream()
+        .map(mirror -> ProcessorUtils.getAnnotationString(mirror, "getter", ""))
+        .filter(getter -> !getter.isEmpty())
+        .findFirst()
+        .orElse(lens.method().getSimpleName().toString());
+  }
+
+  /**
+   * Whether the getter named {@code getter} is declared nullable on the source: a record's accessor
+   * through its component, where every recognised annotation lands, and any other getter, declared
+   * or inherited, on itself or on the type it returns.
+   */
+  private boolean getterReadsNullable(DeclaredType source, String getter) {
+    TypeElement type = (TypeElement) source.asElement();
+    for (RecordComponentElement component : type.getRecordComponents()) {
+      if (component.getSimpleName().contentEquals(getter)) {
+        return NullableAnnotations.hasNullableAnnotation(component);
+      }
+    }
+    return ElementFilter.methodsIn(elementUtils.getAllMembers(type)).stream()
+        .filter(
+            method ->
+                method.getSimpleName().contentEquals(getter) && method.getParameters().isEmpty())
+        .anyMatch(NullableAnnotations::getterHasNullableAnnotation);
   }
 
   private void error(String msg, Element element) {

@@ -405,25 +405,19 @@ public final class NullableAnnotations {
   }
 
   /**
-   * Whether a member an optic reads is declared nullable with a recognised annotation: a record
-   * component at the sites {@link #hasNullableAnnotation} reads, a getter on itself or on the type
-   * it returns, and a field on itself or on its type.
+   * Whether a getter is declared nullable with a recognised annotation, on itself or on the type it
+   * returns: a declaration annotation lands on the one, a {@code TYPE_USE} annotation on the other.
    *
-   * <p>Only the member's own type counts, as for {@link #hasNullableAnnotation}.
+   * <p>Only the getter's own type counts, as for {@link #hasNullableAnnotation}.
    *
-   * @param member a record component, a getter or a field
-   * @return {@code true} if the member is declared nullable
+   * @param getter the getter an optic reads through
+   * @return {@code true} if the getter is declared nullable
    */
-  public static boolean memberHasNullableAnnotation(Element member) {
-    if (member.getKind() == ElementKind.RECORD_COMPONENT) {
-      return hasNullableAnnotation((RecordComponentElement) member);
-    }
-    TypeMirror type =
-        member.getKind() == ElementKind.METHOD
-            ? ((ExecutableElement) member).getReturnType()
-            : member.asType();
+  public static boolean getterHasNullableAnnotation(ExecutableElement getter) {
     return hasNullable(
-        Stream.concat(member.getAnnotationMirrors().stream(), type.getAnnotationMirrors().stream())
+        Stream.concat(
+                getter.getAnnotationMirrors().stream(),
+                getter.getReturnType().getAnnotationMirrors().stream())
             .toList());
   }
 
