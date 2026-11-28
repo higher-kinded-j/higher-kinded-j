@@ -75,7 +75,7 @@ Generic code takes a container through its instances, as [Working with Kind](vst
 | `Functor`, `Applicative`, `Monad`, `Alternative` | `Instances.functor(vstream())`, or `applicative`, `monad` or `alternative` | `VStreamAlternative.INSTANCE`, which extends `VStreamMonad` |
 | `Foldable`, `Traverse` | `VStreamTraverse.INSTANCE` | `VStreamTraverse` |
 
-All four lookups give that one object, viewed as each type class. `VStream` has no `MonadZero` and no `Selective`, so `Instances.monadZero(vstream())` compiles but throws a `ClassCastException`. [The hierarchy](../functional/ch_intro.md#the-hierarchy) shows how the type classes extend each other.
+All four lookups give that one object, viewed as each type class. `VStream` has no `MonadZero` and no `Selective`, so `Instances.monadZero(vstream())` does not compile. [The hierarchy](../functional/ch_intro.md#the-hierarchy) shows how the type classes extend each other.
 
 ## `ap` pairs every function with every value {#ap-pairs-every-function-with-every-value}
 

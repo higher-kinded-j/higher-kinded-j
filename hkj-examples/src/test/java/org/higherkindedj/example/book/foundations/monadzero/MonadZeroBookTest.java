@@ -3,7 +3,6 @@
 package org.higherkindedj.example.book.foundations.monadzero;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.example.book.foundations.monadzero.MonadZeroBook.BASKETS;
 import static org.higherkindedj.example.book.foundations.monadzero.MonadZeroBook.LAMP;
 import static org.higherkindedj.example.book.foundations.monadzero.MonadZeroBook.bulk;
@@ -89,8 +88,8 @@ class MonadZeroBookTest {
   }
 
   @Test
-  @DisplayName("Instances.monadZero compiles for Either, and fails when it runs")
+  @DisplayName("Either's instance is no MonadZero, which the monadZero lookup requires")
   void eitherHasNoZero() {
-    assertThatThrownBy(() -> Instances.monadZero(either())).isInstanceOf(ClassCastException.class);
+    assertThat(Instances.monad(either())).isNotInstanceOf(MonadZero.class);
   }
 }

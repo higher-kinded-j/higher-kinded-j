@@ -3,7 +3,6 @@
 package org.higherkindedj.example.book.foundations.instances;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
 import static org.higherkindedj.hkt.instances.Witnesses.context;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
@@ -33,10 +32,9 @@ import java.util.Set;
 import org.higherkindedj.hkt.Alternative;
 import org.higherkindedj.hkt.MonadError;
 import org.higherkindedj.hkt.MonadZero;
-import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.instances.Witnesses;
-import org.higherkindedj.hkt.maybe.MaybeKind;
+import org.higherkindedj.hkt.io.IOMonad;
 import org.higherkindedj.hkt.maybe.MaybeMonad;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,7 +56,7 @@ class InstancesFacadeBookTest {
   @Test
   @DisplayName("every token the page lists gives a Monad, and the page lists every token")
   void everyTokenIsListed() {
-    List<Witnesses.Of<?>> listed =
+    List<Witnesses.Of<?, ?>> listed =
         List.of(
             maybe(),
             io(),
@@ -132,7 +130,7 @@ class InstancesFacadeBookTest {
         continue;
       }
       String name = token.getName();
-      Class<?> instance = Instances.monad((Witnesses.Of<?>) token.invoke(null)).getClass();
+      Class<?> instance = Instances.monad((Witnesses.Of<?, ?>) token.invoke(null)).getClass();
 
       assertThat(MonadError.class.isAssignableFrom(instance))
           .as("%s has monadError", name)
@@ -152,24 +150,6 @@ class InstancesFacadeBookTest {
           .as("%s has a type parameter", name)
           .isEqualTo(GENERIC_TOKENS.contains(name));
     }
-  }
-
-  @Test
-  @DisplayName("asking for a capability the instance lacks fails at run time, at the call")
-  void missingCapabilityFailsAtRunTime() {
-    assertThatThrownBy(() -> Instances.<EitherKind.Witness<String>>monadZero(either()))
-        .isInstanceOf(ClassCastException.class);
-    assertThatThrownBy(() -> Instances.monadError(io())).isInstanceOf(ClassCastException.class);
-  }
-
-  @Test
-  @DisplayName("monadError does not check E: a wrong one compiles, and fails when it is used")
-  void errorTypeIsNotChecked() {
-    // Maybe's error type is Unit; String is accepted all the same
-    MonadError<MaybeKind.Witness, String> wrong = Instances.monadError(maybe());
-
-    assertThat(wrong).isSameAs(MaybeMonad.INSTANCE);
-    assertThatThrownBy(() -> wrong.raiseError("refused")).isInstanceOf(ClassCastException.class);
   }
 
   /** The second type argument of the MonadError a class implements: a class name or a variable. */
@@ -194,9 +174,8 @@ class InstancesFacadeBookTest {
   }
 
   @Test
-  @DisplayName("checkpoint: monad(io()) succeeds, and alternative(io()) fails at the call")
+  @DisplayName("checkpoint: monad(io()) gives IO's IOMonad, which is no Alternative")
   void checkpointTwoLookupsOnIO() {
-    assertThat(Instances.monad(io())).isNotNull();
-    assertThatThrownBy(() -> Instances.alternative(io())).isInstanceOf(ClassCastException.class);
+    assertThat(Instances.monad(io())).isSameAs(IOMonad.INSTANCE).isNotInstanceOf(Alternative.class);
   }
 }

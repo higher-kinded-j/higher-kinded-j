@@ -192,8 +192,8 @@ Kind<ListKind.Witness, Integer> lengths = functor.map(String::length, strings);
 **Definition:** A single static entry point, `Instances`, for obtaining any built-in type-class instance, replacing the three legacy idioms (a static `INSTANCE` field, a generic `instance()` method, or an argument-taking constructor) with one predictable shape.
 
 **Core Operations:**
-- `Instances.monad(token)` / `applicative` / `functor` - total lookups (every canonical instance is at least a Monad)
-- `Instances.monadError(token)` / `monadZero` / `alternative` - partial lookups, valid only where the instance implements that capability
+- `Instances.monad(token)` / `applicative` / `functor` - accept every token (every canonical instance is at least a Monad)
+- `Instances.monadError(token)` / `monadZero` / `alternative` - compile only for a token whose instance has that capability, and `monadError` takes its error type from the instance
 - `Instances.validated(semigroup)` / `writer(monoid)` / `eitherT(outer)` / `maybeT` / `optionalT` / `readerT` / `stateT` / `writerT(outer, monoid)` - argument-carrying re-exports whose required dependency is in the signature
 
 **Example:**

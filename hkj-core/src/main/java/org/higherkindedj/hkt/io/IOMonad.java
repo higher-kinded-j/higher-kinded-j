@@ -30,7 +30,7 @@ public class IOMonad extends IOApplicative implements Monad<IOKind.Witness> {
   /** Singleton instance of {@code IOMonad}. */
   public static final IOMonad INSTANCE = new IOMonad();
 
-  /** Private constructor to enforce the singleton pattern. */
+  /** Protected for {@link IOSelective}, which extends this class; use {@link #INSTANCE}. */
   protected IOMonad() {
     // Private constructor
   }

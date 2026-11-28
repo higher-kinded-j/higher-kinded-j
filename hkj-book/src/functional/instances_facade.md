@@ -1,4 +1,4 @@
-<!-- description: Get any Higher-Kinded-J type class instance in one shape, Instances.monad(maybe()), and know which lookups the compiler checks. -->
+<!-- description: Get any Higher-Kinded-J type class instance in one shape, Instances.monad(maybe()), with the compiler checking each capability you ask for. -->
 
 # Obtaining Instances: The `Instances` Facade
 
@@ -9,7 +9,7 @@ Each type class in Higher-Kinded-J has a standard instance for each type, and `o
 ~~~admonish info title="What You'll Learn"
 - Ask `Instances` for a `Functor`, `Applicative`, `Monad` or `MonadError` with a token from `Witnesses`
 - Pass the dependency an instance needs, such as a `Semigroup`, a `Monoid` or an outer `Monad`
-- Tell the lookups the compiler checks from the three that can fail at run time
+- Read what javac reports when you ask a type for a capability its instance lacks
 - Name the error type a `MonadError` really has
 ~~~
 
@@ -57,13 +57,11 @@ Alternative<OptionalKind.Witness>   alt = Instances.alternative(optional());
 | `monadZero` | `Maybe`, `Optional`, `List`, `Stream` | |
 | `alternative` | `Maybe`, `Optional`, `List`, `Stream`, `VStream` | |
 
-~~~admonish warning title="These three lookups compile for any token"
-The compiler cannot check that a type has the capability you ask for. A type without it, as in `Instances.monadZero(either())`, throws `ClassCastException` when the call runs. A wrong error type compiles too: `MonadError<MaybeKind.Witness, String>` throws `ClassCastException` once you raise a `String`. Take `E` from the table.
-~~~
+The compiler checks each of these lookups against the type's instance. A type outside the table does not compile, and nor does a `MonadError` with an error type the table does not give, as [what the compiler checks](#what-the-compiler-checks) shows.
 
 ### Type parameters come from your variable {#type-inference-for-phantom-typed-types}
 
-Each token has a generic type, `Of<F>`, rather than a `Class`. Java has no generic class literals, so a `Class` would lose `Either`'s left type or `Reader`'s environment. The four tokens for types with such a parameter, `either()`, `reader()`, `context()` and `state()`, are generic methods, so the parameter comes from the variable you assign to:
+Each token has a generic type, `Of<F, M>`, rather than a `Class`: `F` is the type's witness, and `M` the class of its instance. Java has no generic class literals, so a `Class` would lose `Either`'s left type or `Reader`'s environment. The four tokens for types with such a parameter, `either()`, `reader()`, `context()` and `state()`, are generic methods, so the parameter comes from the variable you assign to:
 
 <!-- verify -->
 ```java
@@ -113,11 +111,17 @@ You can now get any built-in instance in one shape: a token for a type that need
 ~~~
 
 ~~~admonish question title="Checkpoint: two lookups on `IO`" id="check-facade-cast"
-Which of these throws, and when: `Instances.monad(io())` or `Instances.alternative(io())`?
+One of these lines compiles. Which one, and what does javac report for the other?
+
+<!-- verify:rejects "cannot be applied to given types" -->
+```java
+Monad<IOKind.Witness> monad = Instances.monad(io());
+Alternative<IOKind.Witness> alternative = Instances.alternative(io());
+```
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-facade-cast-answer"
-**`Instances.alternative(io())` throws `ClassCastException` when the call runs, and `Instances.monad(io())` succeeds.** The compiler cannot check that a type has the capability you ask for, and `IO`'s instance has no `Alternative`.
+**`Instances.monad(io())` compiles. For `Instances.alternative(io())`, javac reports "method alternative in class Instances cannot be applied to given types".** Every token gives a `Monad`, and `IO`'s instance, an `IOMonad`, has no `Alternative`.
 
 Where this lives: [Zero-argument lookups](#zero-argument-lookups).
 ~~~
@@ -145,8 +149,51 @@ Where this lives: [Argument-carrying instances](#argument-carrying-instances).
 
 `Instances` is a class of static methods, with no registry, no `ServiceLoader` and nothing to configure. A token lookup returns the instance its token carries, and a lookup that takes an argument builds a new instance on each call.
 
-- **`monad`, `applicative` and `functor` are checked.** Every token carries a `Monad`, so these three always succeed.
-- **`monadError`, `monadZero` and `alternative` cast, and the compiler cannot check the cast.** The warning in [Zero-argument lookups](#zero-argument-lookups) shows what fails, and when.
+- **A token's type names its instance's class.** `maybe()` is an `Of<MaybeKind.Witness, MaybeMonad>`, and `either()` an `Of<EitherKind.Witness<L>, EitherMonad<L>>`.
+- **`monad`, `applicative` and `functor` accept every token.** Every instance is a `Monad`.
+- **The three richer lookups accept a token whose instance has the capability.** `monadZero` takes an `Of<F, ? extends MonadZero<F>>`.
+- **`monadError` reads the error type from the instance's class.** `MaybeMonad` is a `MonadError<MaybeKind.Witness, Unit>`, so `E` is `Unit`, even with `var`.
+
+For a type whose instance lacks the capability, javac reports "method monadZero in class Instances cannot be applied to given types":
+
+<!-- verify:rejects "cannot be applied to given types" -->
+```java
+MonadZero<EitherKind.Witness<String>> zero = Instances.monadZero(either());
+```
+
+For a variable declared with another error type, javac reports "inference variable E has incompatible equality constraints String,Unit", because `Maybe`'s error type is `Unit`:
+
+<!-- verify:rejects "inference variable E has incompatible equality constraints" -->
+```java
+MonadError<MaybeKind.Witness, String> wrong = Instances.monadError(maybe());
+```
+
+To keep a token in a local variable, declare it with `var`, which keeps the instance's class. A field or parameter names the capability its code asks for, or `?` where only `monad`, `applicative` or `functor` reads it. Either survives a token's class changing to one with more capabilities, which naming the class would not:
+
+<!-- verify -->
+```java
+var token = maybe();
+MonadZero<MaybeKind.Witness> zero = Instances.monadZero(token);
+
+Witnesses.Of<MaybeKind.Witness, ? extends MonadZero<MaybeKind.Witness>> zeroToken = maybe();
+Alternative<MaybeKind.Witness> alternative = Instances.alternative(zeroToken);
+
+Witnesses.Of<MaybeKind.Witness, ?> anyInstance = maybe();
+Monad<MaybeKind.Witness> monad = Instances.monad(anyInstance);
+
+var errors = Instances.monadError(maybe());
+MonadError<MaybeKind.Witness, Unit> sameType = errors;
+```
+
+A generic method that passes a token on to a richer lookup bounds the instance the same way:
+
+<!-- verify -->
+```java
+<F extends WitnessArity<TypeArity.Unary>> MonadZero<F> zeroFor(
+        Witnesses.Of<F, ? extends MonadZero<F>> token) {
+    return Instances.monadZero(token);
+}
+```
 
 ### The accessors behind the facade {#the-accessors-behind-the-facade}
 

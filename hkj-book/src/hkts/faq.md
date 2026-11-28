@@ -47,7 +47,7 @@ Because generic code changes one half and keeps the other. `Kind<F, A>` reads as
 
 No: you pass the instance, as a value. Scala finds a `Monad` for a type through an implicit or a `given`, and Haskell through instance resolution. Java has neither, so a method written once for any container takes a `Monad<F>` parameter, and its caller supplies one, such as `Instances.monad(either())`.
 
-`either()` returns a token, a small object that carries `Either`'s instance, and `Instances.monad` hands that instance back. The token is not the witness type `EitherKind.Witness`, which never exists at run time, as the next answer says. The compiler checks only that the instance and the values share the witness. [The Instances facade](../functional/instances_facade.md) shows each call.
+`either()` returns a token, a small object that carries `Either`'s instance, and `Instances.monad` hands that instance back. The token is not the witness type `EitherKind.Witness`, which never exists at run time, as the next answer says. The compiler checks that the instance and the values share the witness. [The Instances facade](../functional/instances_facade.md) shows each call.
 
 ## Is the witness type ever instantiated? Does it allocate? {#is-the-witness-type-ever-instantiated-does-it-allocate}
 

@@ -67,7 +67,7 @@ public class StreamMonad implements MonadZero<StreamKind.Witness> {
   /** A StreamMonad singleton */
   public static final StreamMonad INSTANCE = new StreamMonad();
 
-  /** Private constructor to enforce singleton pattern. */
+  /** Protected for subclasses; use {@link #INSTANCE}. */
   protected StreamMonad() {}
 
   /**

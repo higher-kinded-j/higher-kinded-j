@@ -483,9 +483,9 @@ class MonadErrorBookTest {
   }
 
   @Test
-  @DisplayName("IO has no MonadError, so the unchecked lookup fails when it casts")
+  @DisplayName("IO's instance is no MonadError, which the monadError lookup requires")
   void ioHasNoMonadError() {
-    assertThatThrownBy(() -> Instances.monadError(io())).isInstanceOf(ClassCastException.class);
+    assertThat(Instances.monad(io())).isNotInstanceOf(MonadError.class);
   }
 
   private static <F extends WitnessArity<TypeArity.Unary>> Kind<F, Order> handle(

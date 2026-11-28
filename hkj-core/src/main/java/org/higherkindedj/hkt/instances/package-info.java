@@ -26,27 +26,30 @@
  *
  * <p>The facade is a thin static re-export of the existing accessors. It is not Spring-wired and is
  * not backed by {@code PathRegistry}/{@code ServiceLoader}, so compile-time safety is preserved: a
- * built-in instance cannot be missing at runtime.
+ * built-in instance cannot be missing at runtime, and a lookup for a capability a type lacks, such
+ * as {@code Instances.monadZero(either())}, does not compile.
  *
  * <h2>{@link org.higherkindedj.hkt.instances.Witnesses}</h2>
  *
  * <p>Typed witness tokens ({@code maybe()}, {@code either()}, ...) used as keys for the
- * zero-argument lookups. They are generic rather than {@code Class}-keyed so that phantom-typed
- * witnesses (such as {@code Either}, {@code Reader}, {@code State}) still infer their type
- * parameter from the assignment target, matching the behaviour of {@code EitherMonad.<L>instance()}
- * today.
+ * zero-argument lookups. Each names its witness and the class of the instance it carries, as in
+ * {@code Of<MaybeKind.Witness, MaybeMonad>}, which is how the compiler checks the richer lookups.
+ * They are generic rather than {@code Class}-keyed so that phantom-typed witnesses (such as {@code
+ * Either}, {@code Reader}, {@code State}) still infer their type parameter from the assignment
+ * target, matching the behaviour of {@code EitherMonad.<L>instance()}.
  *
  * <h2>Scope</h2>
  *
- * <p>Covers the {@code Functor} &rarr; {@code Applicative} &rarr; {@code Monad} &rarr; {@code
- * MonadError} stack (free via subtyping) plus the argument-carrying re-exports ({@code validated},
- * {@code writer}, {@code eitherT}, {@code maybeT}, {@code optionalT}, {@code readerT}, {@code
- * stateT}, {@code writerT}). {@code Traverse}, {@code Selective} and {@code Foldable} are
- * intentionally out of scope for this facade and tracked separately, as are the special
- * constructions {@code Free} and {@code FreeApplicative} (built and interpreted, not retrieved as a
- * ready instance) and the {@code Applicative}-only {@code Const} (a token here always carries a
- * {@code Monad}). The {@code MonadReader}/{@code MonadState}/{@code MonadWriter} MTL capability
- * classes are likewise a separate surface.
+ * <p>Covers the {@code Functor} &rarr; {@code Applicative} &rarr; {@code Monad} stack for every
+ * token (free via subtyping), {@code MonadError}, {@code MonadZero} and {@code Alternative} for the
+ * tokens whose instance has them, plus the argument-carrying re-exports ({@code validated}, {@code
+ * eitherOrBoth}, {@code writer}, {@code eitherT}, {@code maybeT}, {@code optionalT}, {@code
+ * readerT}, {@code stateT}, {@code writerT}). {@code Traverse}, {@code Selective} and {@code
+ * Foldable} are intentionally out of scope for this facade and tracked separately, as are the
+ * special constructions {@code Free} and {@code FreeApplicative} (built and interpreted, not
+ * retrieved as a ready instance) and the {@code Applicative}-only {@code Const} (a token here
+ * always carries a {@code Monad}). The {@code MonadReader}/{@code MonadState}/{@code MonadWriter}
+ * MTL capability classes are likewise a separate surface.
  */
 @NullMarked
 package org.higherkindedj.hkt.instances;

@@ -36,11 +36,12 @@ work in and the traps the chapter has met.
   variant of the chain's error. A chain typed on one variant rejects a later step on another, so
   give a page's chain its sealed error type from its first step. `effect/compiler_errors.md` §5
   documents the messages.
-- **Every `Instances` method returns a value chosen at run time**, from the witness token passed in;
-  the compiler resolves nothing. `Instances.monadError(witness)` adds an unchecked cast: whether the
-  instance is a `MonadError` is checked only when it runs, and its error type `E` is never checked,
-  so `MonadError<MaybeKind.Witness, String> m = monadError(maybe())` compiles although `Maybe`'s
-  error type is `Unit`.
+- **A token names its instance's class, and the compiler checks every `Instances` lookup by it.**
+  `maybe()` is an `Of<MaybeKind.Witness, MaybeMonad>`, so `monadZero(either())` does not compile,
+  and `monadError` takes `E` from the instance: `MonadError<MaybeKind.Witness, String> m =
+  monadError(maybe())` does not compile, since `Maybe`'s error type is `Unit`. A page claiming a
+  type lacks a capability proves it with a `verify:rejects` snippet, or with a test that the
+  instance is not that type class, which `InstancesTest` turns into a compile-time refusal.
 - **Behaviour belongs to the instance, not the type class.** `Either`'s `ap` short-circuits,
   `Validated`'s accumulates, `CompletableFuture`'s combines two futures already running
   (`thenCombine`), and `VTask`'s runs one step after the other; concurrent `VTask` work is `Par`'s.

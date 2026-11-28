@@ -56,11 +56,25 @@ import org.higherkindedj.hkt.writer_t.WriterTMonad;
  * Functor<MaybeKind.Witness>     functor     = Instances.functor(maybe());
  * }</pre>
  *
+ * <p>{@link #monadError(Witnesses.Of)}, {@link #monadZero(Witnesses.Of)} and {@link
+ * #alternative(Witnesses.Of)} give a richer capability, for the types whose instance has it. A
+ * token names its instance's class, so the compiler checks the capability, and takes a {@code
+ * MonadError}'s error type from the instance:
+ *
+ * <pre>{@code
+ * MonadError<MaybeKind.Witness, Unit> me  = Instances.monadError(maybe());
+ * MonadZero<ListKind.Witness>         mz  = Instances.monadZero(list());
+ *
+ * Instances.monadZero(either());                                        // does not compile
+ * MonadError<MaybeKind.Witness, String> m = Instances.monadError(maybe()); // does not compile
+ * }</pre>
+ *
  * <h2>Argument-carrying instances</h2>
  *
- * <p>{@code Validated}, {@code Writer} and the monad transformers have a structurally required
- * dependency (a {@link Semigroup}, a {@link Monoid}, or an outer {@link Monad}). That dependency is
- * part of the method signature, so the compiler enforces it and the IDE documents it:
+ * <p>{@code Validated}, {@code EitherOrBoth}, {@code Writer} and the monad transformers have a
+ * structurally required dependency (a {@link Semigroup}, a {@link Monoid}, or an outer {@link
+ * Monad}). That dependency is part of the method signature, so the compiler enforces it and the IDE
+ * documents it:
  *
  * <pre>{@code
  * MonadError<ValidatedKind.Witness<E>, E>  v  = Instances.validated(Semigroups.list());
@@ -69,8 +83,9 @@ import org.higherkindedj.hkt.writer_t.WriterTMonad;
  * }</pre>
  *
  * <p>This facade is a thin static re-export of the existing accessors. It is intentionally not
- * Spring-wired and not backed by {@code PathRegistry}/{@code ServiceLoader}: every method resolves
- * at compile time and never returns {@code Optional} or throws for a missing built-in instance.
+ * Spring-wired and not backed by {@code PathRegistry}/{@code ServiceLoader}: every lookup is
+ * checked at compile time, and none returns {@code Optional} or throws for a missing built-in
+ * instance.
  *
  * @see Witnesses
  */
@@ -87,8 +102,9 @@ public final class Instances {
    * @param witness a typed token from {@link Witnesses} (for example {@code Witnesses.maybe()})
    * @return the canonical monad instance
    */
-  public static <F extends WitnessArity<TypeArity.Unary>> Monad<F> monad(Witnesses.Of<F> witness) {
-    return witness.monad();
+  public static <F extends WitnessArity<TypeArity.Unary>> Monad<F> monad(
+      Witnesses.Of<F, ?> witness) {
+    return witness.instance();
   }
 
   /**
@@ -99,8 +115,8 @@ public final class Instances {
    * @return the canonical instance, viewed as an {@code Applicative}
    */
   public static <F extends WitnessArity<TypeArity.Unary>> Applicative<F> applicative(
-      Witnesses.Of<F> witness) {
-    return witness.monad();
+      Witnesses.Of<F, ?> witness) {
+    return witness.instance();
   }
 
   /**
@@ -111,63 +127,60 @@ public final class Instances {
    * @return the canonical instance, viewed as a {@code Functor}
    */
   public static <F extends WitnessArity<TypeArity.Unary>> Functor<F> functor(
-      Witnesses.Of<F> witness) {
-    return witness.monad();
+      Witnesses.Of<F, ?> witness) {
+    return witness.instance();
   }
 
   /**
    * Returns the canonical {@link MonadError} for the type identified by {@code witness}.
    *
-   * <p>Unlike {@link #monad(Witnesses.Of)}, this is not total: it is only valid for canonical
-   * instances that actually implement {@link MonadError} (for example {@code Maybe}, {@code
-   * Optional}, {@code Try}, {@code Either}). The error type {@code E} is inferred from the
-   * assignment target, mirroring how the phantom type of {@code Either} is inferred. Calling this
-   * for a witness whose canonical instance is not a {@code MonadError} is a programming error and
-   * fails fast with a {@link ClassCastException} — exactly as calling a non-existent method would.
+   * <p>Unlike {@link #monad(Witnesses.Of)}, this accepts only a token whose instance is a {@link
+   * MonadError}, so {@code Instances.monadError(io())} does not compile. {@code E} is the
+   * instance's own error type: {@link Unit} for {@code maybe()}, {@link Throwable} for {@code
+   * try_()}, and the left type for {@code either()}, which comes from the assignment target. A
+   * variable declared with another error type, such as {@code MonadError<MaybeKind.Witness,
+   * String>}, does not compile.
    *
    * @param <F> the unary witness type
-   * @param <E> the error type of the {@code MonadError}
-   * @param witness a typed token from {@link Witnesses}
+   * @param <E> the error type of the instance's {@code MonadError}
+   * @param witness a typed token from {@link Witnesses} whose instance is a {@code MonadError}
    * @return the canonical instance, viewed as a {@code MonadError}
    */
-  @SuppressWarnings("unchecked")
   public static <F extends WitnessArity<TypeArity.Unary>, E> MonadError<F, E> monadError(
-      Witnesses.Of<F> witness) {
-    return (MonadError<F, E>) witness.monad();
+      Witnesses.Of<F, ? extends MonadError<F, E>> witness) {
+    return witness.instance();
   }
 
   /**
    * Returns the canonical {@link MonadZero} for the type identified by {@code witness}.
    *
-   * <p>Only valid for canonical instances that implement {@link MonadZero} (for example {@code
-   * Maybe}, {@code Optional}, {@code List}, {@code Stream}); see {@link #monadError(Witnesses.Of)}
-   * for the same fail-fast semantics.
+   * <p>This accepts only a token whose instance is a {@link MonadZero}, such as {@code list()} or
+   * {@code maybe()}. For a token whose instance has none, such as {@code either()}, the call does
+   * not compile.
    *
    * @param <F> the unary witness type
-   * @param witness a typed token from {@link Witnesses}
+   * @param witness a typed token from {@link Witnesses} whose instance is a {@code MonadZero}
    * @return the canonical instance, viewed as a {@code MonadZero}
    */
-  @SuppressWarnings("unchecked")
   public static <F extends WitnessArity<TypeArity.Unary>> MonadZero<F> monadZero(
-      Witnesses.Of<F> witness) {
-    return (MonadZero<F>) witness.monad();
+      Witnesses.Of<F, ? extends MonadZero<F>> witness) {
+    return witness.instance();
   }
 
   /**
    * Returns the canonical {@link Alternative} for the type identified by {@code witness}.
    *
-   * <p>Only valid for canonical instances that implement {@link Alternative} (for example {@code
-   * Maybe}, {@code Optional}, {@code List}, {@code Stream}, {@code VStream}); see {@link
-   * #monadError(Witnesses.Of)} for the same fail-fast semantics.
+   * <p>This accepts only a token whose instance is an {@link Alternative}, such as {@code
+   * optional()} or {@code vstream()}. For a token whose instance has none, such as {@code io()},
+   * the call does not compile.
    *
    * @param <F> the unary witness type
-   * @param witness a typed token from {@link Witnesses}
+   * @param witness a typed token from {@link Witnesses} whose instance is an {@code Alternative}
    * @return the canonical instance, viewed as an {@code Alternative}
    */
-  @SuppressWarnings("unchecked")
   public static <F extends WitnessArity<TypeArity.Unary>> Alternative<F> alternative(
-      Witnesses.Of<F> witness) {
-    return (Alternative<F>) witness.monad();
+      Witnesses.Of<F, ? extends Alternative<F>> witness) {
+    return witness.instance();
   }
 
   // --- Argument-carrying re-exports -----------------------------------------

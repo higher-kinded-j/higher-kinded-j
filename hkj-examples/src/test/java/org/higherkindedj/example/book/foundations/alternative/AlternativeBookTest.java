@@ -3,7 +3,6 @@
 package org.higherkindedj.example.book.foundations.alternative;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.example.book.foundations.alternative.AlternativeBook.catalogueFor;
 import static org.higherkindedj.example.book.foundations.alternative.AlternativeBook.offerFor;
 import static org.higherkindedj.hkt.instances.Witnesses.either;
@@ -188,9 +187,8 @@ class AlternativeBookTest {
   }
 
   @Test
-  @DisplayName("Instances.alternative compiles for Either, and fails when it runs")
+  @DisplayName("Either's instance is no Alternative, which the alternative lookup requires")
   void eitherHasNoAlternative() {
-    assertThatThrownBy(() -> Instances.alternative(either()))
-        .isInstanceOf(ClassCastException.class);
+    assertThat(Instances.monad(either())).isNotInstanceOf(Alternative.class);
   }
 }

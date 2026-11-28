@@ -25,7 +25,7 @@ public class MaybeMonad extends MaybeFunctor
   /** Singleton instance of {@code MaybeMonad}. */
   public static final MaybeMonad INSTANCE = new MaybeMonad();
 
-  /** Private constructor to enforce the singleton pattern. */
+  /** Protected for {@link MaybeSelective}, which extends this class; use {@link #INSTANCE}. */
   protected MaybeMonad() {
     super();
   }
